@@ -6,9 +6,14 @@
 //
 
 import SwiftUI
+import AppIntents
 
 @main
 struct zeptlyApp: App {
+    init() {
+        ZeptlyShortcutsProvider.updateAppShortcutParameters()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
