@@ -10,12 +10,12 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-private enum ShortcutResponseStatus: String, Codable {
+nonisolated private enum ShortcutResponseStatus: String, Codable, Sendable {
     case success
     case fail
 }
 
-private struct ShortcutResponsePayload: Codable {
+nonisolated private struct ShortcutResponsePayload: Codable, Sendable {
     let status: ShortcutResponseStatus
     let message: String
 }
@@ -29,7 +29,7 @@ struct ProcessScreenshotIntent: AppIntent {
     @Parameter(
         title: "Screenshot",
         description: "Pass the output from Take Screenshot or Get Clipboard.",
-        supportedTypeIdentifiers: ["public.image"],
+        supportedContentTypes: [.image],
         inputConnectionBehavior: .connectToPreviousIntentResult
     )
     var screenshot: IntentFile?
