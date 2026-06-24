@@ -24,7 +24,7 @@ enum AppTab: String, CaseIterable, Identifiable {
     }
 }
 
-struct Conversation: Identifiable {
+struct Chat: Identifiable {
     let id: String
     let name: String
     let timeLabel: String
@@ -37,6 +37,36 @@ struct Conversation: Identifiable {
     let isUnread: Bool
     let isOnline: Bool
     let contactContext: ContactContext?
+}
+
+struct ChatMessage: Identifiable, Equatable {
+    enum Sender: Equatable {
+        case contact
+        case user
+        case other(String)
+    }
+
+    let id = UUID()
+    let sender: Sender
+    let text: String
+    let timeLabel: String
+
+    var isFromUser: Bool {
+        sender == .user
+    }
+}
+
+struct SuggestedReply: Identifiable, Equatable {
+    let id = UUID()
+    let text: String
+}
+
+struct ChatIntelligence: Equatable {
+    var contextChips: [String]
+    var messages: [ChatMessage]
+    var suggestedReplies: [SuggestedReply]
+    var suggestedAction: String
+    var reasoning: String
 }
 
 struct ContactContext: Equatable {
@@ -74,8 +104,8 @@ struct ProviderConnection: Identifiable {
 }
 
 enum RezplySampleData {
-    static let conversations: [Conversation] = [
-        Conversation(
+    static let chats: [Chat] = [
+        Chat(
             id: "sarah-jenkins",
             name: "Sarah Jenkins",
             timeLabel: "10:42 AM",
@@ -99,7 +129,7 @@ enum RezplySampleData {
                 preferredPersona: "Warm & Collaborative"
             )
         ),
-        Conversation(
+        Chat(
             id: "marcus-vance",
             name: "Marcus Vance",
             timeLabel: "Yesterday",
@@ -123,7 +153,7 @@ enum RezplySampleData {
                 preferredPersona: "Professional"
             )
         ),
-        Conversation(
+        Chat(
             id: "project-aurora-team",
             name: "Project Aurora Team",
             timeLabel: "Tuesday",
@@ -137,7 +167,7 @@ enum RezplySampleData {
             isOnline: false,
             contactContext: nil
         ),
-        Conversation(
+        Chat(
             id: "nadia-chen",
             name: "Nadia Chen",
             timeLabel: "Mon",
@@ -161,7 +191,7 @@ enum RezplySampleData {
                 preferredPersona: "Creative"
             )
         ),
-        Conversation(
+        Chat(
             id: "ops-review",
             name: "Ops Review",
             timeLabel: "Fri",
@@ -175,7 +205,7 @@ enum RezplySampleData {
             isOnline: false,
             contactContext: nil
         ),
-        Conversation(
+        Chat(
             id: "mika-patel",
             name: "Mika Patel",
             timeLabel: "Thu",
@@ -199,7 +229,7 @@ enum RezplySampleData {
                 preferredPersona: "Minimalist"
             )
         ),
-        Conversation(
+        Chat(
             id: "launch-room",
             name: "Launch Room",
             timeLabel: "Wed",
@@ -212,6 +242,61 @@ enum RezplySampleData {
             isUnread: false,
             isOnline: false,
             contactContext: nil
+        )
+    ]
+
+    static let chatIntelligenceByID: [String: ChatIntelligence] = [
+        "sarah-jenkins": ChatIntelligence(
+            contextChips: ["Brief updates", "Schedule Q3 Review", "Professional"],
+            messages: [
+                ChatMessage(sender: .contact, text: "Hey, are we still doing that long sync?", timeLabel: "10:42 AM"),
+                ChatMessage(sender: .user, text: "I think we can condense it. I have the initial Q3 numbers.", timeLabel: "10:45 AM"),
+                ChatMessage(
+                    sender: .contact,
+                    text: "Great. I prefer keeping these updates brief if possible. Just send over the highlights and let's figure out when to do the actual formal review.",
+                    timeLabel: "10:46 AM"
+                ),
+                ChatMessage(sender: .user, text: "That works. I can send a compact update today.", timeLabel: "10:48 AM"),
+                ChatMessage(sender: .contact, text: "Perfect. Please include a suggested time for the formal review too.", timeLabel: "10:50 AM")
+            ],
+            suggestedReplies: [
+                SuggestedReply(
+                    text: "Hi Sarah, here is a quick update on the Q3 figures. Let's schedule a brief 15-minute review next Tuesday to align on the final steps. Please let me know your availability."
+                ),
+                SuggestedReply(
+                    text: "Thanks for the overview. Given your preference for brief updates, I've summarized the key points below. I'd like to propose we formally review the Q3 strategy next week. Does Wednesday morning work?"
+                )
+            ],
+            suggestedAction: "Send a concise summary first, then propose one specific review window instead of asking an open-ended scheduling question.",
+            reasoning: "Sarah's historical pattern favors concise, actionable messages. The suggested replies prioritize immediate next steps while maintaining a professional distance appropriate for this project phase."
+        ),
+        "marcus-vance": ChatIntelligence(
+            contextChips: ["Risk first", "Quarterly report", "Professional"],
+            messages: [
+                ChatMessage(sender: .contact, text: "Thanks for sending over the quarterly reports. I added notes.", timeLabel: "Yesterday"),
+                ChatMessage(sender: .user, text: "Great, I'll review them and tighten the summary.", timeLabel: "Yesterday"),
+                ChatMessage(sender: .contact, text: "Please call out the risks before the recommendation. That will make the review easier.", timeLabel: "Yesterday")
+            ],
+            suggestedReplies: [
+                SuggestedReply(text: "Thanks Marcus. I'll lead with the key risks, then include the recommendation and supporting numbers underneath so the review path is clear."),
+                SuggestedReply(text: "Got it. I'll revise the report so the risk summary comes first, followed by the source-backed recommendation.")
+            ],
+            suggestedAction: "Update the report structure before replying, then mention the exact order Marcus asked for.",
+            reasoning: "Marcus tends to value auditability and decision clarity. A strong reply should acknowledge the requested structure and reduce back-and-forth."
+        ),
+        "nadia-chen": ChatIntelligence(
+            contextChips: ["Soft tone", "Launch copy", "Creative"],
+            messages: [
+                ChatMessage(sender: .contact, text: "Can you soften the reply and keep the core ask clear?", timeLabel: "Mon"),
+                ChatMessage(sender: .user, text: "Yes, I can make it feel warmer without losing the deadline.", timeLabel: "Mon"),
+                ChatMessage(sender: .contact, text: "Exactly. Friendly, but still easy to act on.", timeLabel: "Mon")
+            ],
+            suggestedReplies: [
+                SuggestedReply(text: "Absolutely. I'll soften the opening, keep the request direct, and make the deadline feel collaborative rather than abrupt."),
+                SuggestedReply(text: "Yes. I'll make the tone warmer while preserving the main ask and the action needed from the team.")
+            ],
+            suggestedAction: "Offer Nadia two tone options after the first revision.",
+            reasoning: "Nadia responds well to expressive options, but she still wants the request to stay crisp. A reply that promises warmth plus clarity should fit her style."
         )
     ]
 
@@ -258,16 +343,36 @@ enum RezplySampleData {
 
     static var initialContactContexts: [String: ContactContext] {
         Dictionary(
-            uniqueKeysWithValues: conversations.compactMap { conversation in
-                guard let contactContext = conversation.contactContext else {
+            uniqueKeysWithValues: chats.compactMap { chat in
+                guard let contactContext = chat.contactContext else {
                     return nil
                 }
-                return (conversation.id, contactContext)
+                return (chat.id, contactContext)
             }
         )
     }
 
-    static func conversation(withID id: String) -> Conversation? {
-        conversations.first { $0.id == id }
+    static func chat(withID id: String) -> Chat? {
+        chats.first { $0.id == id }
+    }
+
+    static func chatIntelligence(withID id: String) -> ChatIntelligence {
+        if let intelligence = chatIntelligenceByID[id] {
+            return intelligence
+        }
+
+        return ChatIntelligence(
+            contextChips: ["Recent context", "Reply support", "Chat Intel"],
+            messages: [
+                ChatMessage(sender: .contact, text: "Can you take a look when you have a moment?", timeLabel: "Recent"),
+                ChatMessage(sender: .user, text: "Yes, I can review it and send a focused response.", timeLabel: "Recent")
+            ],
+            suggestedReplies: [
+                SuggestedReply(text: "Thanks for the context. I'll review this and send back a clear next step shortly."),
+                SuggestedReply(text: "Got it. I'll take a look and follow up with the most important points first.")
+            ],
+            suggestedAction: "Ask one clarifying question only if the next step is still ambiguous.",
+            reasoning: "There is limited saved context for this chat, so the safest recommendation is concise and low-commitment while still moving the exchange forward."
+        )
     }
 }
