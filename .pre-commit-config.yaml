@@ -1,0 +1,20 @@
+minimum_pre_commit_version: "4.4.0"
+
+repos:
+  - repo: local
+    hooks:
+      - id: swift-format
+        name: swift-format
+        entry: scripts/swift-format-hook.sh format
+        language: unsupported
+        files: \.swift$
+        pass_filenames: true
+        require_serial: true
+
+      - id: swift-format-lint
+        name: swift-format lint
+        entry: scripts/swift-format-hook.sh lint
+        language: unsupported
+        files: \.swift$
+        pass_filenames: true
+        require_serial: true

@@ -22,7 +22,8 @@ private struct ShortcutResponsePayload: Codable {
 
 struct ProcessScreenshotIntent: AppIntent {
     static let title: LocalizedStringResource = "Process Screenshot"
-    static let description = IntentDescription("Validate screenshot input and return a JSON status payload for the next Shortcut step.")
+    static let description = IntentDescription(
+        "Validate screenshot input and return a JSON status payload for the next Shortcut step.")
     static let openAppWhenRun = false
 
     @Parameter(
@@ -40,7 +41,8 @@ struct ProcessScreenshotIntent: AppIntent {
 
         guard isImageFile(screenshot) else {
             let typeIdentifier = screenshot.type?.identifier ?? "unknown"
-            let details = "input is not an image (type: \(typeIdentifier), filename: \(screenshot.filename), bytes: \(screenshot.data.count))"
+            let details =
+                "input is not an image (type: \(typeIdentifier), filename: \(screenshot.filename), bytes: \(screenshot.data.count))"
             return .result(value: makePayload(status: .fail, message: details))
         }
 
@@ -54,8 +56,9 @@ struct ProcessScreenshotIntent: AppIntent {
 
         let fileExtension = URL(fileURLWithPath: file.filename).pathExtension.lowercased()
         if !fileExtension.isEmpty,
-           let inferredType = UTType(filenameExtension: fileExtension),
-           inferredType.conforms(to: .image) {
+            let inferredType = UTType(filenameExtension: fileExtension),
+            inferredType.conforms(to: .image)
+        {
             return true
         }
 
@@ -64,8 +67,9 @@ struct ProcessScreenshotIntent: AppIntent {
         }
 
         if let typeIdentifier = CGImageSourceGetType(source) as String?,
-           let sourceType = UTType(typeIdentifier),
-           sourceType.conforms(to: .image) {
+            let sourceType = UTType(typeIdentifier),
+            sourceType.conforms(to: .image)
+        {
             return true
         }
 
