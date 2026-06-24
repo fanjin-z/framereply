@@ -8,30 +8,52 @@ import SwiftUI
 struct RezplyShellView: View {
     @State private var selectedTab: AppTab = .inbox
     @State private var providers = RezplySampleData.providers
+    @State private var navigationPath: [String] = []
+    @State private var contactContexts = RezplySampleData.initialContactContexts
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            EtherealBackground()
+        NavigationStack(path: $navigationPath) {
+            ZStack(alignment: .bottom) {
+                EtherealBackground()
 
-            VStack(spacing: 0) {
-                TopAppBar(selectedTab: selectedTab)
+                VStack(spacing: 0) {
+                    TopAppBar(selectedTab: selectedTab)
 
-                Group {
-                    switch selectedTab {
-                    case .inbox:
-                        InboxView()
-                    case .personas:
-                        PersonasView()
-                    case .settings:
-                        SettingsView(providers: $providers)
+                    Group {
+                        switch selectedTab {
+                        case .inbox:
+                            InboxView { conversation in
+                                navigationPath.append(conversation.id)
+                            }
+                        case .personas:
+                            PersonasView()
+                        case .settings:
+                            SettingsView(providers: $providers)
+                        }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
 
-            FloatingBottomNavigation(selectedTab: $selectedTab)
-                .padding(.horizontal, 22)
-                .padding(.bottom, 12)
+                FloatingBottomNavigation(selectedTab: $selectedTab)
+                    .padding(.horizontal, 22)
+                    .padding(.bottom, 12)
+            }
+            .navigationDestination(for: String.self) { conversationID in
+                if let conversation = RezplySampleData.conversation(withID: conversationID),
+                   contactContexts[conversationID] != nil {
+                    ContactContextView(
+                        conversation: conversation,
+                        context: Binding(
+                            get: {
+                                contactContexts[conversationID] ?? conversation.contactContext ?? ContactContext.empty
+                            },
+                            set: { newValue in
+                                contactContexts[conversationID] = newValue
+                            }
+                        )
+                    )
+                }
+            }
         }
         .tint(RezplyColor.primary)
     }
@@ -110,6 +132,7 @@ private struct ProfileButton: View {
 }
 
 private struct InboxView: View {
+    let onAvatarTap: (Conversation) -> Void
     @State private var searchText = ""
 
     private var conversations: [Conversation] {
@@ -132,7 +155,12 @@ private struct InboxView: View {
 
                 VStack(spacing: 16) {
                     ForEach(conversations) { conversation in
-                        ConversationRow(conversation: conversation)
+                        ConversationRow(
+                            conversation: conversation,
+                            onAvatarTap: {
+                                onAvatarTap(conversation)
+                            }
+                        )
                     }
 
                     if conversations.isEmpty {
@@ -182,16 +210,11 @@ private struct SearchField: View {
 
 private struct ConversationRow: View {
     let conversation: Conversation
+    let onAvatarTap: () -> Void
 
     var body: some View {
         HStack(spacing: 16) {
-            AvatarMark(
-                initials: conversation.initials,
-                symbolName: conversation.avatarSymbol,
-                colors: conversation.gradient,
-                size: 50,
-                showsOnline: conversation.isOnline
-            )
+            avatar
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
@@ -243,6 +266,29 @@ private struct ConversationRow: View {
             }
         }
     }
+
+    @ViewBuilder
+    private var avatar: some View {
+        let mark = AvatarMark(
+            initials: conversation.initials,
+            symbolName: conversation.avatarSymbol,
+            colors: conversation.gradient,
+            size: 50,
+            showsOnline: conversation.isOnline
+        )
+
+        if conversation.contactContext != nil {
+            Button {
+                onAvatarTap()
+            } label: {
+                mark
+            }
+            .buttonStyle(SoftPressButtonStyle())
+            .accessibilityLabel("Open contact context for \(conversation.name)")
+        } else {
+            mark
+        }
+    }
 }
 
 private struct EmptySearchState: View {
@@ -257,6 +303,420 @@ private struct EmptySearchState: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 34)
         .glassPanel(cornerRadius: 26)
+    }
+}
+
+private struct ContactContextView: View {
+    let conversation: Conversation
+    @Binding var context: ContactContext
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            EtherealBackground()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(RezplyColor.primary)
+                            .frame(width: 46, height: 46)
+                            .background {
+                                Circle()
+                                    .fill(Color.white.opacity(0.68))
+                                    .shadow(color: RezplyColor.primaryContainer.opacity(0.12), radius: 18, x: 0, y: 10)
+                            }
+                    }
+                    .buttonStyle(SoftPressButtonStyle())
+                    .accessibilityLabel("Back to inbox")
+
+                    ContactProfileCard(conversation: conversation, subtitle: context.relationshipSubtitle)
+
+                    RelationshipContextCard(notes: $context.relationshipNotes)
+
+                    KeyFactsCard(facts: $context.keyFacts)
+
+                    ContactContextInfoGrid(
+                        currentInteractionGoal: $context.currentInteractionGoal,
+                        preferredPersona: $context.preferredPersona
+                    )
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 16)
+                .padding(.bottom, 36)
+                .frame(maxWidth: 720, alignment: .leading)
+                .frame(maxWidth: .infinity)
+            }
+            .scrollIndicators(.hidden)
+        }
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
+    }
+}
+
+private struct ContactProfileCard: View {
+    let conversation: Conversation
+    let subtitle: String
+
+    var body: some View {
+        VStack(spacing: 16) {
+            AvatarMark(
+                initials: conversation.initials,
+                symbolName: conversation.avatarSymbol,
+                colors: conversation.gradient,
+                size: 96,
+                showsOnline: conversation.isOnline
+            )
+            .padding(.top, 8)
+
+            VStack(spacing: 7) {
+                Text(conversation.name)
+                    .font(.system(size: 24, weight: .semibold, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurface)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+
+                Text(subtitle)
+                    .font(.system(size: 17, weight: .regular, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurfaceVariant)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.82)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 30)
+        .glassPanel(cornerRadius: 34)
+    }
+}
+
+private struct RelationshipContextCard: View {
+    @Binding var notes: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionHeader(symbolName: "hand.wave", title: "Relationship Context") {
+                Text("Auto-saved")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(RezplyColor.outline)
+                    .padding(.horizontal, 12)
+                    .frame(height: 30)
+                    .background {
+                        Capsule(style: .continuous)
+                            .fill(Color.white.opacity(0.46))
+                    }
+            }
+
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $notes)
+                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurface)
+                    .lineSpacing(4)
+                    .scrollContentBackground(.hidden)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .frame(minHeight: 116)
+
+                if notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text("Add notes about your history, how you met, or overarching dynamics...")
+                        .font(.system(size: 16, weight: .regular, design: .rounded))
+                        .foregroundStyle(RezplyColor.onSurface.opacity(0.86))
+                        .lineSpacing(4)
+                        .padding(.horizontal, 17)
+                        .padding(.vertical, 18)
+                        .allowsHitTesting(false)
+                }
+            }
+            .background {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(RezplyColor.secondaryContainer.opacity(0.28))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(Color.white.opacity(0.38), lineWidth: 1)
+                    }
+            }
+        }
+        .padding(24)
+        .glassPanel(cornerRadius: 30)
+    }
+}
+
+private struct KeyFactsCard: View {
+    @Binding var facts: [String]
+    @State private var isEditing = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            SectionHeader(symbolName: "key", title: "Key Facts") {
+                Button {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                        isEditing.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: isEditing ? "checkmark" : "pencil")
+                            .font(.system(size: 12, weight: .bold))
+                        Text(isEditing ? "Done" : "Edit")
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                    }
+                    .foregroundStyle(RezplyColor.primary)
+                    .padding(.horizontal, 14)
+                    .frame(height: 34)
+                    .background {
+                        Capsule(style: .continuous)
+                            .fill(RezplyColor.primaryContainer.opacity(0.16))
+                            .shadow(color: RezplyColor.primaryContainer.opacity(0.18), radius: 12, x: 0, y: 6)
+                    }
+                }
+                .buttonStyle(SoftPressButtonStyle())
+            }
+
+            VStack(alignment: .leading, spacing: 11) {
+                ForEach(facts.indices, id: \.self) { index in
+                    if isEditing {
+                        EditableFactRow(
+                            fact: Binding(
+                                get: { facts[index] },
+                                set: { facts[index] = $0 }
+                            ),
+                            onDelete: {
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                                    facts = facts.enumerated()
+                                        .filter { $0.offset != index }
+                                        .map(\.element)
+                                }
+                            }
+                        )
+                    } else {
+                        FactChip(title: facts[index])
+                    }
+                }
+
+                Button {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                        facts.append("New fact")
+                        isEditing = true
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("Add Fact")
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundStyle(RezplyColor.primary)
+                    .padding(.horizontal, 18)
+                    .frame(height: 38)
+                    .background {
+                        Capsule(style: .continuous)
+                            .stroke(style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                            .foregroundStyle(RezplyColor.outline.opacity(0.72))
+                    }
+                }
+                .buttonStyle(SoftPressButtonStyle())
+                .padding(.top, 2)
+            }
+        }
+        .padding(24)
+        .glassPanel(cornerRadius: 30)
+    }
+}
+
+private struct ContactContextInfoGrid: View {
+    @Binding var currentInteractionGoal: String
+    @Binding var preferredPersona: String
+
+    private let personaOptions = [
+        "Warm & Collaborative",
+        "Professional",
+        "Creative",
+        "Minimalist"
+    ]
+
+    private var columns: [GridItem] {
+        [GridItem(.adaptive(minimum: 240), spacing: 16)]
+    }
+
+    var body: some View {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeader(symbolName: "target", title: "Current Interaction Goal")
+
+                ContactContextField(text: $currentInteractionGoal, placeholder: "e.g., Close Q3 proposal...")
+            }
+            .padding(22)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassPanel(cornerRadius: 28)
+
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeader(symbolName: "theatermasks", title: "Preferred Persona")
+
+                Menu {
+                    ForEach(personaOptions, id: \.self) { option in
+                        Button(option) {
+                            preferredPersona = option
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        Text(preferredPersona)
+                            .font(.system(size: 16, weight: .regular, design: .rounded))
+                            .foregroundStyle(RezplyColor.onSurface)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+
+                        Spacer(minLength: 8)
+
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(RezplyColor.onSurfaceVariant)
+                    }
+                    .padding(.horizontal, 16)
+                    .frame(height: 48)
+                    .background {
+                        Capsule(style: .continuous)
+                            .fill(RezplyColor.secondaryContainer.opacity(0.28))
+                            .overlay {
+                                Capsule(style: .continuous)
+                                    .stroke(Color.white.opacity(0.36), lineWidth: 1)
+                            }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(22)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassPanel(cornerRadius: 28)
+        }
+    }
+}
+
+private struct ContactContextField: View {
+    @Binding var text: String
+    let placeholder: String
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            if text.isEmpty {
+                Text(placeholder)
+                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                    .foregroundStyle(RezplyColor.outline)
+                    .padding(.horizontal, 16)
+                    .allowsHitTesting(false)
+            }
+
+            TextField("", text: $text)
+                .font(.system(size: 16, weight: .regular, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurface)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+                .padding(.horizontal, 16)
+        }
+        .frame(height: 48)
+        .background {
+            Capsule(style: .continuous)
+                .fill(RezplyColor.secondaryContainer.opacity(0.28))
+                .overlay {
+                    Capsule(style: .continuous)
+                        .stroke(Color.white.opacity(0.36), lineWidth: 1)
+                }
+        }
+    }
+}
+
+private struct EditableFactRow: View {
+    @Binding var fact: String
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            TextField("Fact", text: $fact)
+                .font(.system(size: 15, weight: .regular, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurface)
+                .textInputAutocapitalization(.sentences)
+
+            Button {
+                onDelete()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(RezplyColor.outline)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Delete fact")
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 40)
+        .background {
+            Capsule(style: .continuous)
+                .fill(RezplyColor.secondaryContainer.opacity(0.32))
+                .overlay {
+                    Capsule(style: .continuous)
+                        .stroke(Color.white.opacity(0.34), lineWidth: 1)
+                }
+        }
+    }
+}
+
+private struct FactChip: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 15, weight: .regular, design: .rounded))
+            .foregroundStyle(RezplyColor.onSurfaceVariant)
+            .lineLimit(1)
+            .minimumScaleFactor(0.78)
+            .padding(.horizontal, 18)
+            .frame(height: 40)
+            .background {
+                Capsule(style: .continuous)
+                    .fill(RezplyColor.secondaryContainer.opacity(0.42))
+                    .shadow(color: RezplyColor.primaryContainer.opacity(0.1), radius: 10, x: 0, y: 5)
+            }
+    }
+}
+
+private struct SectionHeader<Trailing: View>: View {
+    let symbolName: String
+    let title: String
+    @ViewBuilder let trailing: Trailing
+
+    init(symbolName: String, title: String, @ViewBuilder trailing: () -> Trailing) {
+        self.symbolName = symbolName
+        self.title = title
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbolName)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(RezplyColor.primary)
+                .frame(width: 18)
+
+            Text(title)
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .foregroundStyle(RezplyColor.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+
+            Spacer(minLength: 12)
+
+            trailing
+        }
+    }
+}
+
+private extension SectionHeader where Trailing == EmptyView {
+    init(symbolName: String, title: String) {
+        self.init(symbolName: symbolName, title: title) {
+            EmptyView()
+        }
     }
 }
 

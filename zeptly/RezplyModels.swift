@@ -25,7 +25,7 @@ enum AppTab: String, CaseIterable, Identifiable {
 }
 
 struct Conversation: Identifiable {
-    let id = UUID()
+    let id: String
     let name: String
     let timeLabel: String
     let preview: String
@@ -36,6 +36,23 @@ struct Conversation: Identifiable {
     let gradient: [Color]
     let isUnread: Bool
     let isOnline: Bool
+    let contactContext: ContactContext?
+}
+
+struct ContactContext: Equatable {
+    var relationshipSubtitle: String
+    var relationshipNotes: String
+    var keyFacts: [String]
+    var currentInteractionGoal: String
+    var preferredPersona: String
+
+    static let empty = ContactContext(
+        relationshipSubtitle: "",
+        relationshipNotes: "",
+        keyFacts: [],
+        currentInteractionGoal: "",
+        preferredPersona: "Professional"
+    )
 }
 
 struct Persona: Identifiable {
@@ -59,18 +76,31 @@ struct ProviderConnection: Identifiable {
 enum RezplySampleData {
     static let conversations: [Conversation] = [
         Conversation(
-            name: "Elena Rostova",
+            id: "sarah-jenkins",
+            name: "Sarah Jenkins",
             timeLabel: "10:42 AM",
-            preview: "The new prototypes look fantastic! Let's discuss the final motion details.",
-            chipTitle: "Designer Persona",
-            chipSymbol: "paintpalette",
+            preview: "The new proposal direction looks strong. Let's align on the final tone.",
+            chipTitle: "Warm Persona",
+            chipSymbol: "heart.text.square",
             avatarSymbol: nil,
-            initials: "ER",
+            initials: "SJ",
             gradient: [RezplyColor.peach, RezplyColor.primaryContainer],
             isUnread: true,
-            isOnline: true
+            isOnline: true,
+            contactContext: ContactContext(
+                relationshipSubtitle: "Key Client & Collaborative Partner",
+                relationshipNotes: "",
+                keyFacts: [
+                    "Lives in Seattle",
+                    "Prefers morning meetings",
+                    "Dog named 'Baxter'"
+                ],
+                currentInteractionGoal: "Close Q3 proposal with clear next steps",
+                preferredPersona: "Warm & Collaborative"
+            )
         ),
         Conversation(
+            id: "marcus-vance",
             name: "Marcus Vance",
             timeLabel: "Yesterday",
             preview: "Thanks for sending over the quarterly reports. I added notes.",
@@ -80,9 +110,21 @@ enum RezplySampleData {
             initials: "MV",
             gradient: [RezplyColor.deepNavy, RezplyColor.surfaceDim],
             isUnread: false,
-            isOnline: false
+            isOnline: false,
+            contactContext: ContactContext(
+                relationshipSubtitle: "Finance Lead & Detail-Oriented Reviewer",
+                relationshipNotes: "Marcus values concise summaries backed by numbers. He usually wants risks called out before recommendations.",
+                keyFacts: [
+                    "Reviews reports on Tuesdays",
+                    "Prefers bullet summaries",
+                    "Asks for source links"
+                ],
+                currentInteractionGoal: "Confirm quarterly report revisions",
+                preferredPersona: "Professional"
+            )
         ),
         Conversation(
+            id: "project-aurora-team",
             name: "Project Aurora Team",
             timeLabel: "Tuesday",
             preview: "Sarah: We need to finalize the launch timeline.",
@@ -92,9 +134,11 @@ enum RezplySampleData {
             initials: "PA",
             gradient: [RezplyColor.surfaceVariant, RezplyColor.secondaryContainer],
             isUnread: false,
-            isOnline: false
+            isOnline: false,
+            contactContext: nil
         ),
         Conversation(
+            id: "nadia-chen",
             name: "Nadia Chen",
             timeLabel: "Mon",
             preview: "Can you soften the reply and keep the core ask clear?",
@@ -104,9 +148,21 @@ enum RezplySampleData {
             initials: "NC",
             gradient: [RezplyColor.secondaryContainer, RezplyColor.peach],
             isUnread: false,
-            isOnline: true
+            isOnline: true,
+            contactContext: ContactContext(
+                relationshipSubtitle: "Creative Partner & Brand Collaborator",
+                relationshipNotes: "Nadia responds well to expressive options, especially when the final ask stays crisp and easy to act on.",
+                keyFacts: [
+                    "Likes three options",
+                    "Prefers visual language",
+                    "Usually replies after lunch"
+                ],
+                currentInteractionGoal: "Polish launch copy without losing clarity",
+                preferredPersona: "Creative"
+            )
         ),
         Conversation(
+            id: "ops-review",
             name: "Ops Review",
             timeLabel: "Fri",
             preview: "Draft is ready. Please check the summary before noon.",
@@ -116,9 +172,11 @@ enum RezplySampleData {
             initials: "OR",
             gradient: [RezplyColor.surfaceVariant, RezplyColor.primaryFixed],
             isUnread: false,
-            isOnline: false
+            isOnline: false,
+            contactContext: nil
         ),
         Conversation(
+            id: "mika-patel",
             name: "Mika Patel",
             timeLabel: "Thu",
             preview: "Perfect, send the short version with one friendly note.",
@@ -128,9 +186,21 @@ enum RezplySampleData {
             initials: "MP",
             gradient: [RezplyColor.primaryContainer, RezplyColor.deepNavy],
             isUnread: false,
-            isOnline: false
+            isOnline: false,
+            contactContext: ContactContext(
+                relationshipSubtitle: "Fast-Moving Teammate & Clear Communicator",
+                relationshipNotes: "Mika prefers short replies with one friendly sentence up front, then the action item.",
+                keyFacts: [
+                    "Prefers brief replies",
+                    "Skims on mobile",
+                    "Likes clear deadlines"
+                ],
+                currentInteractionGoal: "Send concise follow-up by end of day",
+                preferredPersona: "Minimalist"
+            )
         ),
         Conversation(
+            id: "launch-room",
             name: "Launch Room",
             timeLabel: "Wed",
             preview: "Alex: I moved the copy review to tomorrow morning.",
@@ -140,7 +210,8 @@ enum RezplySampleData {
             initials: "LR",
             gradient: [RezplyColor.surfaceContainerHigh, RezplyColor.secondaryContainer],
             isUnread: false,
-            isOnline: false
+            isOnline: false,
+            contactContext: nil
         )
     ]
 
@@ -184,4 +255,19 @@ enum RezplySampleData {
             isEnabled: true
         )
     ]
+
+    static var initialContactContexts: [String: ContactContext] {
+        Dictionary(
+            uniqueKeysWithValues: conversations.compactMap { conversation in
+                guard let contactContext = conversation.contactContext else {
+                    return nil
+                }
+                return (conversation.id, contactContext)
+            }
+        )
+    }
+
+    static func conversation(withID id: String) -> Conversation? {
+        conversations.first { $0.id == id }
+    }
 }
