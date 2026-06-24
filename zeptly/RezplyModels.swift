@@ -93,6 +93,54 @@ enum RezplySampleData {
             gradient: [RezplyColor.surfaceVariant, RezplyColor.secondaryContainer],
             isUnread: false,
             isOnline: false
+        ),
+        Conversation(
+            name: "Nadia Chen",
+            timeLabel: "Mon",
+            preview: "Can you soften the reply and keep the core ask clear?",
+            chipTitle: "Creative Persona",
+            chipSymbol: "sparkles",
+            avatarSymbol: nil,
+            initials: "NC",
+            gradient: [RezplyColor.secondaryContainer, RezplyColor.peach],
+            isUnread: false,
+            isOnline: true
+        ),
+        Conversation(
+            name: "Ops Review",
+            timeLabel: "Fri",
+            preview: "Draft is ready. Please check the summary before noon.",
+            chipTitle: "Professional Persona",
+            chipSymbol: "briefcase",
+            avatarSymbol: "chart.bar.doc.horizontal",
+            initials: "OR",
+            gradient: [RezplyColor.surfaceVariant, RezplyColor.primaryFixed],
+            isUnread: false,
+            isOnline: false
+        ),
+        Conversation(
+            name: "Mika Patel",
+            timeLabel: "Thu",
+            preview: "Perfect, send the short version with one friendly note.",
+            chipTitle: "Minimalist",
+            chipSymbol: "text.alignleft",
+            avatarSymbol: nil,
+            initials: "MP",
+            gradient: [RezplyColor.primaryContainer, RezplyColor.deepNavy],
+            isUnread: false,
+            isOnline: false
+        ),
+        Conversation(
+            name: "Launch Room",
+            timeLabel: "Wed",
+            preview: "Alex: I moved the copy review to tomorrow morning.",
+            chipTitle: "General",
+            chipSymbol: "number",
+            avatarSymbol: "person.3",
+            initials: "LR",
+            gradient: [RezplyColor.surfaceContainerHigh, RezplyColor.secondaryContainer],
+            isUnread: false,
+            isOnline: false
         )
     ]
 

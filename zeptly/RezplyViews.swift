@@ -30,8 +30,8 @@ struct RezplyShellView: View {
             }
 
             FloatingBottomNavigation(selectedTab: $selectedTab)
-                .padding(.horizontal, 24)
-                .padding(.bottom, 20)
+                .padding(.horizontal, 22)
+                .padding(.bottom, 12)
         }
         .tint(RezplyColor.primary)
     }
@@ -45,7 +45,7 @@ private struct TopAppBar: View {
             Button {
             } label: {
                 Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 22, weight: .medium))
+                    .font(.system(size: 21, weight: .medium))
                     .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
@@ -54,18 +54,17 @@ private struct TopAppBar: View {
             Spacer()
 
             Text("Rezply")
-                .font(.system(size: selectedTab == .inbox ? 38 : 26, weight: .bold, design: .rounded))
+                .font(.system(size: 22, weight: .semibold, design: .rounded))
                 .foregroundStyle(RezplyColor.primary)
                 .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity)
-                .offset(x: selectedTab == .inbox ? -18 : 0)
 
             Spacer()
 
             ProfileButton(selectedTab: selectedTab)
         }
         .padding(.horizontal, 24)
-        .padding(.vertical, 10)
+        .padding(.vertical, 4)
         .background {
             Rectangle()
                 .fill(.ultraThinMaterial)
@@ -88,7 +87,7 @@ private struct ProfileButton: View {
             if selectedTab == .settings {
                 Circle()
                     .fill(RezplyColor.primaryContainer)
-                    .frame(width: 40, height: 40)
+                    .frame(width: 36, height: 36)
                     .overlay {
                         Image(systemName: "person")
                             .font(.system(size: 15, weight: .medium))
@@ -101,7 +100,7 @@ private struct ProfileButton: View {
                     colors: selectedTab == .personas
                         ? [RezplyColor.peach, RezplyColor.secondary]
                         : [RezplyColor.primaryContainer, RezplyColor.peach],
-                    size: 42
+                    size: 36
                 )
             }
         }
@@ -127,13 +126,9 @@ private struct InboxView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                Text("Inbox")
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
-                    .foregroundStyle(RezplyColor.primaryContainer)
-                    .padding(.top, 42)
-
+            VStack(alignment: .leading, spacing: 10) {
                 SearchField(text: $searchText)
+                    .padding(.top, 14)
 
                 VStack(spacing: 16) {
                     ForEach(conversations) { conversation in
@@ -144,10 +139,10 @@ private struct InboxView: View {
                         EmptySearchState()
                     }
                 }
-                .padding(.top, 36)
+                .padding(.top, 4)
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 128)
+            .padding(.bottom, 94)
             .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
@@ -161,18 +156,18 @@ private struct SearchField: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 19, weight: .medium))
+                .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(RezplyColor.outlineVariant)
 
             TextField("Search conversations...", text: $text)
-                .font(.system(size: 28, weight: .regular, design: .rounded))
+                .font(.system(size: 17, weight: .regular, design: .rounded))
                 .foregroundStyle(RezplyColor.onSurface)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .minimumScaleFactor(0.7)
         }
-        .padding(.horizontal, 26)
-        .frame(height: 72)
+        .padding(.horizontal, 16)
+        .frame(height: 46)
         .background {
             Capsule(style: .continuous)
                 .fill(Color.white.opacity(0.82))
@@ -194,14 +189,14 @@ private struct ConversationRow: View {
                 initials: conversation.initials,
                 symbolName: conversation.avatarSymbol,
                 colors: conversation.gradient,
-                size: 64,
+                size: 50,
                 showsOnline: conversation.isOnline
             )
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(conversation.name)
-                        .font(.system(size: 22, weight: .semibold, design: .rounded))
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
                         .foregroundStyle(RezplyColor.onSurface)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
@@ -209,7 +204,7 @@ private struct ConversationRow: View {
                     Spacer(minLength: 12)
 
                     Text(conversation.timeLabel)
-                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(conversation.isUnread ? RezplyColor.primary : RezplyColor.outline)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
@@ -223,21 +218,22 @@ private struct ConversationRow: View {
                 .fixedSize(horizontal: true, vertical: true)
 
                 Text(conversation.preview)
-                    .font(.system(size: 21, weight: conversation.isUnread ? .medium : .regular, design: .rounded))
+                    .font(.system(size: 15, weight: conversation.isUnread ? .medium : .regular, design: .rounded))
                     .foregroundStyle(conversation.isUnread ? RezplyColor.onSurfaceVariant : RezplyColor.outline)
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, 26)
-        .padding(.leading, 28)
-        .padding(.trailing, 24)
-        .glassPanel(cornerRadius: 26)
+        .padding(.vertical, 12)
+        .padding(.leading, 18)
+        .padding(.trailing, 16)
+        .frame(minHeight: 86)
+        .glassPanel(cornerRadius: 22)
         .overlay(alignment: .leading) {
             if conversation.isUnread {
                 UnevenRoundedRectangle(
-                    topLeadingRadius: 26,
-                    bottomLeadingRadius: 26,
+                    topLeadingRadius: 22,
+                    bottomLeadingRadius: 22,
                     bottomTrailingRadius: 0,
                     topTrailingRadius: 0,
                     style: .continuous
@@ -269,26 +265,13 @@ private struct PersonasView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text("Personas")
-                        .font(.system(size: 38, weight: .bold, design: .rounded))
-                        .foregroundStyle(RezplyColor.onSurface)
-
-                    Text("Manage your AI assistants. Each persona is tailored for specific communication styles and tasks.")
-                        .font(.system(size: 18, weight: .regular, design: .rounded))
-                        .lineSpacing(5)
-                        .foregroundStyle(RezplyColor.onSurfaceVariant)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.top, 40)
-
-                VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(spacing: 12) {
                     ForEach(RezplySampleData.personas) { persona in
                         PersonaCard(persona: persona)
                     }
                 }
-                .padding(.top, 22)
+                .padding(.top, 14)
 
                 Button {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
@@ -297,13 +280,13 @@ private struct PersonasView: View {
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "plus")
-                            .font(.system(size: 24, weight: .medium))
+                            .font(.system(size: 19, weight: .medium))
                         Text(didTapCreate ? "Ready to Create" : "Create New Persona")
-                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
                     }
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 66)
+                    .frame(height: 50)
                     .background {
                         Capsule(style: .continuous)
                             .fill(RezplyColor.primary)
@@ -311,10 +294,10 @@ private struct PersonasView: View {
                     }
                 }
                 .buttonStyle(SoftPressButtonStyle())
-                .padding(.top, 36)
+                .padding(.top, 6)
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 128)
+            .padding(.bottom, 94)
             .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
@@ -326,14 +309,14 @@ private struct PersonaCard: View {
     let persona: Persona
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top) {
                 Circle()
                     .fill(persona.accent.opacity(0.12))
-                    .frame(width: 58, height: 58)
+                    .frame(width: 42, height: 42)
                     .overlay {
                         Image(systemName: persona.symbolName)
-                            .font(.system(size: 25, weight: .medium))
+                            .font(.system(size: 19, weight: .medium))
                             .foregroundStyle(persona.accent)
                     }
 
@@ -342,7 +325,7 @@ private struct PersonaCard: View {
                 Button {
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.system(size: 24, weight: .bold))
+                        .font(.system(size: 20, weight: .bold))
                         .rotationEffect(.degrees(90))
                         .foregroundStyle(RezplyColor.outline)
                         .frame(width: 40, height: 40)
@@ -352,14 +335,14 @@ private struct PersonaCard: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 Text(persona.title)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(.system(size: 21, weight: .bold, design: .rounded))
                     .foregroundStyle(RezplyColor.onSurface)
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
 
                 Text(persona.summary)
-                    .font(.system(size: 19, weight: .regular, design: .rounded))
-                    .lineSpacing(5)
+                    .font(.system(size: 15, weight: .regular, design: .rounded))
+                    .lineSpacing(2)
                     .foregroundStyle(RezplyColor.onSurfaceVariant.opacity(0.86))
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -370,8 +353,8 @@ private struct PersonaCard: View {
                 }
             }
         }
-        .padding(28)
-        .glassPanel(cornerRadius: 30)
+        .padding(18)
+        .glassPanel(cornerRadius: 24)
     }
 }
 
@@ -387,31 +370,16 @@ private struct SettingsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 56) {
-                VStack(spacing: 12) {
-                    Text("API Settings")
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
-                        .foregroundStyle(RezplyColor.onSurface)
-                        .multilineTextAlignment(.center)
-
-                    Text("Manage your active model providers and configure new integrations.")
-                        .font(.system(size: 20, weight: .regular, design: .rounded))
-                        .lineSpacing(5)
-                        .foregroundStyle(RezplyColor.onSurfaceVariant)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.top, 52)
-
+            VStack(alignment: .leading, spacing: 28) {
                 VStack(alignment: .leading, spacing: 18) {
                     HStack(spacing: 10) {
                         Image(systemName: "network")
-                            .font(.system(size: 23, weight: .medium))
+                            .font(.system(size: 20, weight: .medium))
                         Text("Active Connections")
-                            .font(.system(size: 25, weight: .bold, design: .rounded))
+                            .font(.system(size: 21, weight: .bold, design: .rounded))
                     }
                     .foregroundStyle(RezplyColor.primary)
+                    .padding(.top, 16)
 
                     VStack(spacing: 18) {
                         ForEach($providers) { $provider in
@@ -430,7 +398,7 @@ private struct SettingsView: View {
                 )
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 128)
+            .padding(.bottom, 94)
             .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
@@ -442,21 +410,21 @@ private struct ProviderCard: View {
     @Binding var provider: ProviderConnection
 
     var body: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: 18) {
             HStack(alignment: .top, spacing: 14) {
                 Circle()
                     .fill(Color.white.opacity(0.78))
-                    .frame(width: 52, height: 52)
+                    .frame(width: 42, height: 42)
                     .shadow(color: RezplyColor.primaryContainer.opacity(0.18), radius: 12, x: 0, y: 8)
                     .overlay {
                         Image(systemName: provider.symbolName)
-                            .font(.system(size: 22, weight: .medium))
+                            .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(RezplyColor.primary)
                     }
 
                 VStack(alignment: .leading, spacing: 7) {
                     Text(provider.name)
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
                         .foregroundStyle(RezplyColor.onSurface)
 
                     PillChip(title: provider.model, tint: RezplyColor.primary)
@@ -484,7 +452,7 @@ private struct ProviderCard: View {
                 }
             }
         }
-        .padding(26)
+        .padding(20)
         .background {
             RoundedRectangle(cornerRadius: 0)
                 .fill(Color.white.opacity(0.42))
@@ -499,13 +467,13 @@ private struct SettingStatusRow<Value: View>: View {
     var body: some View {
         HStack {
             Text(title)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(RezplyColor.onSurfaceVariant)
 
             Spacer()
 
             value
-                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(RezplyColor.primary)
         }
     }
@@ -521,15 +489,15 @@ private struct AddProviderCard: View {
     let environments: [String]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 22) {
+        VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Add New Provider")
-                    .font(.system(size: 27, weight: .bold, design: .rounded))
+                    .font(.system(size: 21, weight: .bold, design: .rounded))
                     .foregroundStyle(RezplyColor.onSurface)
 
                 Text("Connect a new language model API securely to your workspace.")
-                    .font(.system(size: 18, weight: .regular, design: .rounded))
-                    .lineSpacing(4)
+                    .font(.system(size: 15, weight: .regular, design: .rounded))
+                    .lineSpacing(2)
                     .foregroundStyle(RezplyColor.onSurfaceVariant)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -540,12 +508,12 @@ private struct AddProviderCard: View {
 
                 VStack(alignment: .leading, spacing: 9) {
                     Text("API Key")
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(RezplyColor.onSurface)
 
                     HStack {
                         SecureField("sk-...", text: $apiKey)
-                            .font(.system(size: 17, weight: .regular, design: .monospaced))
+                            .font(.system(size: 16, weight: .regular, design: .monospaced))
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
 
@@ -554,7 +522,7 @@ private struct AddProviderCard: View {
                             .foregroundStyle(RezplyColor.onSurfaceVariant)
                     }
                     .padding(.horizontal, 18)
-                    .frame(height: 58)
+                    .frame(height: 50)
                     .background {
                         RoundedRectangle(cornerRadius: 0)
                             .fill(Color.white.opacity(0.56))
@@ -577,7 +545,7 @@ private struct AddProviderCard: View {
                         Image(systemName: didConnect ? "checkmark" : "link")
                         Text(didConnect ? "Provider Queued" : "Connect Provider")
                     }
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 28)
                     .frame(height: 48)
@@ -591,8 +559,8 @@ private struct AddProviderCard: View {
                 .padding(.top, 8)
             }
         }
-        .padding(32)
-        .glassPanel(cornerRadius: 30)
+        .padding(22)
+        .glassPanel(cornerRadius: 26)
     }
 }
 
@@ -604,7 +572,7 @@ private struct PickerField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             Text(title)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(RezplyColor.onSurface)
 
             Menu {
@@ -616,7 +584,7 @@ private struct PickerField: View {
             } label: {
                 HStack {
                     Text(selection)
-                        .font(.system(size: 17, weight: .regular, design: .rounded))
+                        .font(.system(size: 16, weight: .regular, design: .rounded))
                         .foregroundStyle(RezplyColor.onSurface)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -628,7 +596,7 @@ private struct PickerField: View {
                         .foregroundStyle(RezplyColor.onSurfaceVariant)
                 }
                 .padding(.horizontal, 18)
-                .frame(height: 58)
+                .frame(height: 50)
                 .background {
                     RoundedRectangle(cornerRadius: 0)
                         .fill(Color.white.opacity(0.56))
@@ -652,18 +620,19 @@ private struct FloatingBottomNavigation: View {
                 } label: {
                     VStack(spacing: 6) {
                         Image(systemName: selectedTab == tab ? "\(tab.symbolName).fill" : tab.symbolName)
-                            .font(.system(size: 25, weight: .medium))
-                            .frame(height: 28)
+                            .font(.system(size: 23, weight: .medium))
+                            .frame(height: 24)
 
                         Text(tab.rawValue)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .tracking(1)
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .tracking(0.4)
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
                     }
                     .foregroundStyle(selectedTab == tab ? RezplyColor.primary : Color.black.opacity(0.78))
                     .frame(maxWidth: .infinity)
-                    .frame(height: 66)
+                    .frame(minHeight: 44)
+                    .frame(height: 50)
                     .background {
                         if selectedTab == tab {
                             Capsule(style: .continuous)
@@ -675,10 +644,10 @@ private struct FloatingBottomNavigation: View {
                 .buttonStyle(SoftPressButtonStyle())
             }
         }
-        .padding(.horizontal, 18)
-        .frame(maxWidth: 620)
-        .frame(height: 86)
-        .glassPanel(cornerRadius: 44)
+        .padding(.horizontal, 10)
+        .frame(maxWidth: 560)
+        .frame(height: 66)
+        .glassPanel(cornerRadius: 34)
     }
 }
 
