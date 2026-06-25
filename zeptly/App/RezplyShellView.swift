@@ -7,7 +7,7 @@ import SwiftUI
 
 struct RezplyShellView: View {
     @State private var selectedTab: AppTab = .inbox
-    @State private var providers = RezplySampleData.providers
+    @StateObject private var providerStore = ProviderStore()
     @State private var navigationPath: [RezplyRoute] = []
     @State private var contactContexts = RezplySampleData.initialContactContexts
 
@@ -33,7 +33,7 @@ struct RezplyShellView: View {
                         case .personas:
                             PersonasView()
                         case .settings:
-                            SettingsView(providers: $providers)
+                            SettingsView(providerStore: providerStore)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

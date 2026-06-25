@@ -26,7 +26,7 @@ struct ProviderCard: View {
                         .font(.system(size: 17, weight: .bold, design: .rounded))
                         .foregroundStyle(RezplyColor.onSurface)
 
-                    PillChip(title: provider.model, tint: RezplyColor.primary)
+                    PillChip(title: provider.modelName, tint: RezplyColor.primary)
                 }
 
                 Spacer()
@@ -40,10 +40,14 @@ struct ProviderCard: View {
                 SettingStatusRow(title: "Status") {
                     HStack(spacing: 6) {
                         Circle()
-                            .fill(provider.isEnabled ? RezplyColor.connected : RezplyColor.outlineVariant)
+                            .fill(provider.displayValidationState.tint)
                             .frame(width: 8, height: 8)
-                        Text(provider.isEnabled ? "Connected" : "Paused")
+                        Text(provider.displayValidationState.title)
                     }
+                }
+
+                SettingStatusRow(title: "Model") {
+                    modelMenu
                 }
 
                 SettingStatusRow(title: "Last synced") {
@@ -56,5 +60,25 @@ struct ProviderCard: View {
             RoundedRectangle(cornerRadius: 0)
                 .fill(Color.white.opacity(0.42))
         }
+    }
+
+    private var modelMenu: some View {
+        Menu {
+            ForEach(provider.platform.supportedModels) { model in
+                Button {
+                    provider.model = model
+                } label: {
+                    Text(model.rawValue)
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(provider.model.displayName)
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .bold))
+            }
+        }
+        .buttonStyle(.plain)
     }
 }

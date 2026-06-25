@@ -85,7 +85,6 @@ if command -v xcpretty &>/dev/null; then
     -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
     -derivedDataPath "$DERIVED_DATA_DIR" \
     -configuration Debug \
-    CODE_SIGNING_ALLOWED=NO \
     build 2>&1 | xcpretty
 else
   xcodebuild \
@@ -94,7 +93,6 @@ else
     -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
     -derivedDataPath "$DERIVED_DATA_DIR" \
     -configuration Debug \
-    CODE_SIGNING_ALLOWED=NO \
     build
 fi
 

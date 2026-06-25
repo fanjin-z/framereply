@@ -226,22 +226,7 @@ enum RezplySampleData {
         )
     ]
 
-    static let providers: [ProviderConnection] = [
-        ProviderConnection(
-            name: "OpenAI",
-            model: "gpt-4-turbo",
-            symbolName: "waveform",
-            lastSynced: "Just now",
-            isEnabled: true
-        ),
-        ProviderConnection(
-            name: "Anthropic",
-            model: "claude-3-opus",
-            symbolName: "brain.head.profile",
-            lastSynced: "2 hours ago",
-            isEnabled: true
-        )
-    ]
+    static let providers: [ProviderConnection] = []
 
     static var initialContactContexts: [String: ContactContext] {
         Dictionary(
