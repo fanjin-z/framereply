@@ -16,15 +16,19 @@ final class ProviderStore: ObservableObject {
 
     private let userDefaults: UserDefaults
     private let keychain: KeychainStore
-    private let deepSeekClient: DeepSeekClient
-    private let openAIClient: OpenAIClient
+    private let validators: [ProviderPlatform: any ProviderValidator]
     private let providersKey = "zeptly.providerConnections.v1"
 
-    init(userDefaults: UserDefaults = .standard) {
+    init(
+        userDefaults: UserDefaults = .standard,
+        validators: [ProviderPlatform: any ProviderValidator]? = nil
+    ) {
         self.userDefaults = userDefaults
         keychain = KeychainStore()
-        deepSeekClient = DeepSeekClient()
-        openAIClient = OpenAIClient()
+        self.validators = validators ?? [
+            .deepSeek: DeepSeekClient(),
+            .openAI: OpenAIClient()
+        ]
         providers = Self.loadProviders(from: userDefaults, key: providersKey)
     }
 
@@ -38,12 +42,10 @@ final class ProviderStore: ObservableObject {
             throw ProviderConnectionError.missingAPIKey
         }
 
-        switch platform {
-        case .deepSeek:
-            try await deepSeekClient.validate(apiKey: trimmedKey, model: model)
-        case .openAI:
-            try await openAIClient.validate(apiKey: trimmedKey, model: model)
+        guard let validator = validators[platform] else {
+            throw ProviderConnectionError.unsupportedProvider
         }
+        try await validator.validate(apiKey: trimmedKey, model: model)
 
         do {
             try keychain.set(trimmedKey, for: keychainAccount(for: platform))

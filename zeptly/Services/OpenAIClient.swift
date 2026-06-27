@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct OpenAIClient {
+struct OpenAIClient: ProviderValidator {
     private let baseURL = URL(string: "https://api.openai.com/v1")!
     private let session: URLSession
     private let validationMaxOutputTokens = 16
@@ -24,7 +24,7 @@ struct OpenAIClient {
                 model: model.rawValue,
                 input: "Reply exactly: OK.",
                 maxOutputTokens: validationMaxOutputTokens,
-                reasoning: OpenAIReasoning(effort: "low")
+                reasoning: OpenAIReasoning(effort: "none")
             )
         )
 
@@ -38,8 +38,12 @@ struct OpenAIClient {
             throw ProviderConnectionError.invalidResponse("OpenAI returned an unexpected response.")
         }
 
-        guard completion.id.isEmpty == false else {
-            throw ProviderConnectionError.invalidResponse("OpenAI returned a response without an ID.")
+        guard
+            completion.id.isEmpty == false,
+            completion.status == "completed",
+            completion.hasTextOutput
+        else {
+            throw ProviderConnectionError.invalidResponse("OpenAI did not return a completed text response.")
         }
     }
 
@@ -103,6 +107,39 @@ private struct OpenAIReasoning: Encodable {
 
 private struct OpenAIResponse: Decodable {
     let id: String
+    let status: String
+    let output: [OpenAIOutput]
+
+    var hasTextOutput: Bool {
+        output.contains { item in
+            item.type == "message"
+                && item.content.contains { content in
+                    content.type == "output_text"
+                        && content.text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                }
+        }
+    }
+}
+
+private struct OpenAIOutput: Decodable {
+    let type: String
+    let content: [OpenAIOutputContent]
+
+    private enum CodingKeys: String, CodingKey {
+        case type
+        case content
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decode(String.self, forKey: .type)
+        content = try container.decodeIfPresent([OpenAIOutputContent].self, forKey: .content) ?? []
+    }
+}
+
+private struct OpenAIOutputContent: Decodable {
+    let type: String
+    let text: String?
 }
 
 private struct OpenAIErrorResponse: Decodable {

@@ -6,7 +6,7 @@
 import Foundation
 import SwiftUI
 
-enum ProviderPlatform: String, Codable, CaseIterable, Identifiable {
+enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
     case deepSeek
     case openAI
 

@@ -5,42 +5,7 @@
 
 import Foundation
 
-enum ProviderConnectionError: LocalizedError {
-    case missingAPIKey
-    case invalidKey
-    case insufficientBalance
-    case rateLimited
-    case providerUnavailable
-    case invalidResponse(String)
-    case networkFailure(String)
-    case keychainFailure(String)
-    case unsupportedProvider
-
-    var errorDescription: String? {
-        switch self {
-        case .missingAPIKey:
-            "Enter an API key before saving."
-        case .invalidKey:
-            "This provider rejected the API key. Check it and try again."
-        case .insufficientBalance:
-            "This account does not have enough available API credit or quota."
-        case .rateLimited:
-            "This provider is rate limiting the key. Wait a moment and try again."
-        case .providerUnavailable:
-            "This provider is temporarily unavailable. Try again shortly."
-        case let .invalidResponse(message):
-            message
-        case let .networkFailure(message):
-            message
-        case let .keychainFailure(message):
-            "The API key was valid, but Zeptly could not save it securely. \(message)"
-        case .unsupportedProvider:
-            "This provider is not available yet."
-        }
-    }
-}
-
-struct DeepSeekClient {
+struct DeepSeekClient: ProviderValidator {
     private let baseURL = URL(string: "https://api.deepseek.com")!
     private let session: URLSession
 
@@ -49,28 +14,6 @@ struct DeepSeekClient {
     }
 
     func validate(apiKey: String, model: ProviderModel) async throws {
-        try await validateBalance(apiKey: apiKey)
-        try await ping(apiKey: apiKey, model: model)
-    }
-
-    private func validateBalance(apiKey: String) async throws {
-        let request = authorizedRequest(path: "/user/balance", apiKey: apiKey)
-        let (data, response) = try await perform(request)
-        try validateHTTPResponse(response, data: data)
-
-        let balance: DeepSeekBalanceResponse
-        do {
-            balance = try JSONDecoder().decode(DeepSeekBalanceResponse.self, from: data)
-        } catch {
-            throw ProviderConnectionError.invalidResponse("DeepSeek balance check returned an unexpected response.")
-        }
-
-        guard balance.isAvailable else {
-            throw ProviderConnectionError.insufficientBalance
-        }
-    }
-
-    private func ping(apiKey: String, model: ProviderModel) async throws {
         var request = authorizedRequest(path: "/chat/completions", apiKey: apiKey)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -78,7 +21,7 @@ struct DeepSeekClient {
             DeepSeekChatRequest(
                 model: model.rawValue,
                 messages: [
-                    DeepSeekChatMessage(role: "user", content: "Say OK.")
+                    DeepSeekChatMessage(role: "user", content: "Reply exactly: OK.")
                 ],
                 maxTokens: 2,
                 temperature: 0,
@@ -97,8 +40,12 @@ struct DeepSeekClient {
             throw ProviderConnectionError.invalidResponse("DeepSeek completion check returned an unexpected response.")
         }
 
-        guard completion.choices.isEmpty == false else {
-            throw ProviderConnectionError.invalidResponse("DeepSeek completion check returned no choices.")
+        guard
+            let choice = completion.choices.first,
+            choice.finishReason == "stop",
+            choice.message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        else {
+            throw ProviderConnectionError.invalidResponse("DeepSeek did not return a completed text response.")
         }
     }
 
@@ -132,7 +79,7 @@ struct DeepSeekClient {
             throw ProviderConnectionError.insufficientBalance
         case 429:
             throw ProviderConnectionError.rateLimited
-        case 500, 503:
+        case 500..<600:
             throw ProviderConnectionError.providerUnavailable
         default:
             throw ProviderConnectionError.invalidResponse(
@@ -151,14 +98,6 @@ struct DeepSeekClient {
         }
 
         return response.error.message
-    }
-}
-
-private struct DeepSeekBalanceResponse: Decodable {
-    let isAvailable: Bool
-
-    private enum CodingKeys: String, CodingKey {
-        case isAvailable = "is_available"
     }
 }
 
@@ -195,6 +134,18 @@ private struct DeepSeekChatResponse: Decodable {
 
 private struct DeepSeekChoice: Decodable {
     let index: Int
+    let message: DeepSeekResponseMessage
+    let finishReason: String
+
+    private enum CodingKeys: String, CodingKey {
+        case index
+        case message
+        case finishReason = "finish_reason"
+    }
+}
+
+private struct DeepSeekResponseMessage: Decodable {
+    let content: String
 }
 
 private struct DeepSeekErrorResponse: Decodable {

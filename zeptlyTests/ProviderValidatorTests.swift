@@ -1,0 +1,267 @@
+import Foundation
+import XCTest
+@testable import zeptly
+
+final class ProviderValidatorTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        URLProtocolStub.reset()
+    }
+
+    @MainActor
+    func testDeepSeekUsesOneSelectedModelProbe() async throws {
+        URLProtocolStub.stub(
+            statusCode: 200,
+            body: #"{"choices":[{"index":0,"message":{"content":"OK"},"finish_reason":"stop"}]}"#
+        )
+
+        try await DeepSeekClient(session: makeSession()).validate(
+            apiKey: "deep-key",
+            model: .deepSeekV4Flash
+        )
+
+        XCTAssertEqual(URLProtocolStub.requests.count, 1)
+        let request = try XCTUnwrap(URLProtocolStub.requests.first)
+        XCTAssertEqual(request.url?.path, "/chat/completions")
+        XCTAssertFalse(request.url?.path.contains("balance") == true)
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer deep-key")
+
+        let body = try jsonBody(request)
+        XCTAssertEqual(body["model"] as? String, "deepseek-v4-flash")
+        XCTAssertEqual(body["max_tokens"] as? Int, 2)
+        XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
+        let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
+        XCTAssertEqual(messages.first?["content"] as? String, "Reply exactly: OK.")
+    }
+
+    @MainActor
+    func testOpenAIUsesOneSelectedModelProbe() async throws {
+        URLProtocolStub.stub(
+            statusCode: 200,
+            body: #"{"id":"resp_1","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
+        )
+
+        try await OpenAIClient(session: makeSession()).validate(
+            apiKey: "open-key",
+            model: .gpt54Mini
+        )
+
+        XCTAssertEqual(URLProtocolStub.requests.count, 1)
+        let request = try XCTUnwrap(URLProtocolStub.requests.first)
+        XCTAssertEqual(request.url?.path, "/v1/responses")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer open-key")
+
+        let body = try jsonBody(request)
+        XCTAssertEqual(body["model"] as? String, "gpt-5.4-mini")
+        XCTAssertEqual(body["input"] as? String, "Reply exactly: OK.")
+        XCTAssertEqual(body["max_output_tokens"] as? Int, 16)
+        XCTAssertEqual((body["reasoning"] as? [String: Any])?["effort"] as? String, "none")
+    }
+
+    @MainActor
+    func testDeepSeekRejectsEmptyIncompleteAndMalformedResponses() async {
+        await assertInvalidResponse(
+            from: DeepSeekClient(session: makeSession()),
+            model: .deepSeekV4Flash,
+            body: #"{"choices":[]}"#
+        )
+        await assertInvalidResponse(
+            from: DeepSeekClient(session: makeSession()),
+            model: .deepSeekV4Flash,
+            body: #"{"choices":[{"index":0,"message":{"content":"OK"},"finish_reason":"length"}]}"#
+        )
+        await assertInvalidResponse(
+            from: DeepSeekClient(session: makeSession()),
+            model: .deepSeekV4Flash,
+            body: "{}"
+        )
+    }
+
+    @MainActor
+    func testOpenAIRejectsEmptyIncompleteAndMalformedResponses() async {
+        await assertInvalidResponse(
+            from: OpenAIClient(session: makeSession()),
+            model: .gpt54Mini,
+            body: #"{"id":"resp_1","status":"completed","output":[]}"#
+        )
+        await assertInvalidResponse(
+            from: OpenAIClient(session: makeSession()),
+            model: .gpt54Mini,
+            body: #"{"id":"resp_1","status":"incomplete","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
+        )
+        await assertInvalidResponse(
+            from: OpenAIClient(session: makeSession()),
+            model: .gpt54Mini,
+            body: "{}"
+        )
+    }
+
+    @MainActor
+    func testDeepSeekMapsHTTPFailures() async {
+        await assertHTTPError(.invalidKey, statusCode: 401, validator: DeepSeekClient(session: makeSession()), model: .deepSeekV4Flash)
+        await assertHTTPError(.insufficientBalance, statusCode: 402, validator: DeepSeekClient(session: makeSession()), model: .deepSeekV4Flash)
+        await assertHTTPError(.rateLimited, statusCode: 429, validator: DeepSeekClient(session: makeSession()), model: .deepSeekV4Flash)
+        await assertHTTPError(.providerUnavailable, statusCode: 503, validator: DeepSeekClient(session: makeSession()), model: .deepSeekV4Flash)
+    }
+
+    @MainActor
+    func testOpenAIMapsHTTPFailures() async {
+        await assertHTTPError(.invalidKey, statusCode: 401, validator: OpenAIClient(session: makeSession()), model: .gpt54Mini)
+        await assertHTTPError(
+            .insufficientBalance,
+            statusCode: 429,
+            body: #"{"error":{"code":"insufficient_quota","message":"No quota"}}"#,
+            validator: OpenAIClient(session: makeSession()),
+            model: .gpt54Mini
+        )
+        await assertHTTPError(
+            .rateLimited,
+            statusCode: 429,
+            body: #"{"error":{"code":"rate_limit_exceeded","message":"Slow down"}}"#,
+            validator: OpenAIClient(session: makeSession()),
+            model: .gpt54Mini
+        )
+        await assertHTTPError(.providerUnavailable, statusCode: 500, validator: OpenAIClient(session: makeSession()), model: .gpt54Mini)
+    }
+
+    @MainActor
+    private func assertInvalidResponse(
+        from validator: any ProviderValidator,
+        model: ProviderModel,
+        body: String
+    ) async {
+        URLProtocolStub.stub(statusCode: 200, body: body)
+        await assertThrows(.invalidResponse) {
+            try await validator.validate(apiKey: "key", model: model)
+        }
+    }
+
+    @MainActor
+    private func assertHTTPError(
+        _ expected: ProviderErrorKind,
+        statusCode: Int,
+        body: String = #"{"error":{"message":"Failure"}}"#,
+        validator: any ProviderValidator,
+        model: ProviderModel
+    ) async {
+        URLProtocolStub.stub(statusCode: statusCode, body: body)
+        await assertThrows(expected) {
+            try await validator.validate(apiKey: "key", model: model)
+        }
+    }
+
+    @MainActor
+    private func assertThrows(
+        _ expected: ProviderErrorKind,
+        operation: () async throws -> Void
+    ) async {
+        do {
+            try await operation()
+            XCTFail("Expected \(expected)")
+        } catch {
+            XCTAssertEqual(ProviderErrorKind(error), expected)
+        }
+    }
+
+    private func makeSession() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [URLProtocolStub.self]
+        return URLSession(configuration: configuration)
+    }
+
+    private func jsonBody(_ request: URLRequest) throws -> [String: Any] {
+        let data = try XCTUnwrap(request.httpBody)
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+}
+
+private enum ProviderErrorKind: Equatable {
+    case invalidKey
+    case insufficientBalance
+    case rateLimited
+    case providerUnavailable
+    case invalidResponse
+    case other
+
+    init(_ error: Error) {
+        guard let error = error as? ProviderConnectionError else {
+            self = .other
+            return
+        }
+
+        switch error {
+        case .invalidKey:
+            self = .invalidKey
+        case .insufficientBalance:
+            self = .insufficientBalance
+        case .rateLimited:
+            self = .rateLimited
+        case .providerUnavailable:
+            self = .providerUnavailable
+        case .invalidResponse:
+            self = .invalidResponse
+        default:
+            self = .other
+        }
+    }
+}
+
+private final class URLProtocolStub: URLProtocol {
+    static var requests: [URLRequest] = []
+    private static var statusCode = 200
+    private static var responseBody = Data()
+
+    static func reset() {
+        requests = []
+        statusCode = 200
+        responseBody = Data()
+    }
+
+    static func stub(statusCode: Int, body: String) {
+        self.statusCode = statusCode
+        responseBody = Data(body.utf8)
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        true
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        var recordedRequest = request
+        if recordedRequest.httpBody == nil, let stream = request.httpBodyStream {
+            recordedRequest.httpBody = Self.readData(from: stream)
+        }
+        Self.requests.append(recordedRequest)
+        let response = HTTPURLResponse(
+            url: request.url!,
+            statusCode: Self.statusCode,
+            httpVersion: "HTTP/1.1",
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Self.responseBody)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+
+    private static func readData(from stream: InputStream) -> Data {
+        stream.open()
+        defer { stream.close() }
+
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 1_024)
+        while true {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count > 0 else {
+                break
+            }
+            data.append(buffer, count: count)
+        }
+        return data
+    }
+}
