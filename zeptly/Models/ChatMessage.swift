@@ -12,10 +12,17 @@ struct ChatMessage: Identifiable, Equatable {
         case other(String)
     }
 
-    let id = UUID()
+    let id: UUID
     let sender: Sender
     let text: String
     let timeLabel: String
+
+    init(id: UUID = UUID(), sender: Sender, text: String, timeLabel: String) {
+        self.id = id
+        self.sender = sender
+        self.text = text
+        self.timeLabel = timeLabel
+    }
 
     var isFromUser: Bool {
         sender == .user
