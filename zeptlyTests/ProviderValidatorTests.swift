@@ -28,7 +28,7 @@ final class ProviderValidatorTests: XCTestCase {
 
         let body = try jsonBody(request)
         XCTAssertEqual(body["model"] as? String, "deepseek-v4-flash")
-        XCTAssertEqual(body["max_tokens"] as? Int, 2)
+        XCTAssertEqual(body["max_tokens"] as? Int, 16)
         XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
         let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
         XCTAssertEqual(messages.first?["content"] as? String, "Reply exactly: OK.")

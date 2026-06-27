@@ -8,6 +8,7 @@ import Foundation
 struct DeepSeekClient: AIProviderClient {
     private let baseURL = URL(string: "https://api.deepseek.com")!
     private let session: URLSession
+    private let validationMaxTokens = 16
 
     init(session: URLSession = .shared) {
         self.session = session
@@ -23,7 +24,7 @@ struct DeepSeekClient: AIProviderClient {
                 messages: [
                     DeepSeekChatMessage(role: "user", content: "Reply exactly: OK.")
                 ],
-                maxTokens: 2,
+                maxTokens: validationMaxTokens,
                 temperature: 0,
                 stream: false,
                 thinking: DeepSeekThinking(type: "disabled")
