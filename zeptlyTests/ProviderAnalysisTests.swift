@@ -46,6 +46,96 @@ final class ProviderAnalysisTests: XCTestCase {
         let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.last))
         XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
         XCTAssertEqual((body["response_format"] as? [String: Any])?["type"] as? String, "json_object")
+        let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
+        XCTAssertTrue(try XCTUnwrap(messages.first?["content"] as? String).contains(ChatScreenshotPrompt.canonicalJSONExample))
+        let repairPrompt = try XCTUnwrap(messages.last?["content"] as? String)
+        XCTAssertTrue(repairPrompt.contains("schema_mismatch"))
+        XCTAssertTrue(repairPrompt.contains("conversationTitle"))
+        XCTAssertTrue(repairPrompt.contains("Canonical JSON example"))
+    }
+
+    @MainActor
+    func testDeepSeekRaisesRetryLimitAfterTruncation() async throws {
+        AnalysisURLProtocolStub.responses = [
+            (200, deepSeekResponse(content: validAnalysisJSON(matchedChatID: nil), finishReason: "length")),
+            (200, deepSeekResponse(content: validAnalysisJSON(matchedChatID: nil)))
+        ]
+
+        _ = try await DeepSeekClient(session: makeSession()).analyzeChatScreenshot(
+            makeRequest(),
+            apiKey: "deep-key",
+            model: .deepSeekV4Flash
+        )
+
+        let retryBody = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.last))
+        XCTAssertEqual(retryBody["max_tokens"] as? Int, 8_000)
+    }
+
+    @MainActor
+    func testDeepSeekRepairsEmptyResponse() async throws {
+        AnalysisURLProtocolStub.responses = [
+            (200, deepSeekResponse(content: "")),
+            (200, deepSeekResponse(content: validAnalysisJSON(matchedChatID: nil)))
+        ]
+
+        let result = try await DeepSeekClient(session: makeSession()).analyzeChatScreenshot(
+            makeRequest(),
+            apiKey: "deep-key",
+            model: .deepSeekV4Flash
+        )
+
+        XCTAssertEqual(result.messages.count, 1)
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 2)
+    }
+
+    @MainActor
+    func testDeepSeekReturnsTypedFailureAfterTwoAttempts() async {
+        AnalysisURLProtocolStub.responses = [
+            (200, deepSeekResponse(content: "{}")),
+            (200, deepSeekResponse(content: "{}"))
+        ]
+
+        do {
+            _ = try await DeepSeekClient(session: makeSession()).analyzeChatScreenshot(
+                makeRequest(),
+                apiKey: "deep-key",
+                model: .deepSeekV4Flash
+            )
+            XCTFail("Expected schema mismatch")
+        } catch let error as ProviderConnectionError {
+            guard case let .structuredOutput(details) = error else {
+                return XCTFail("Unexpected provider error: \(error)")
+            }
+            XCTAssertEqual(details.failure.kind, .schemaMismatch)
+            XCTAssertEqual(error.shortcutErrorCode, "provider_schema_mismatch")
+            XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 2)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    @MainActor
+    func testDiagnosticEventsContainMetadataButNotPrivateInput() async throws {
+        let reporter = SpyImportEventReporter()
+        AnalysisURLProtocolStub.responses = [
+            (200, deepSeekResponse(content: validAnalysisJSON(matchedChatID: nil)))
+        ]
+
+        _ = try await DeepSeekClient(
+            session: makeSession(),
+            eventReporter: reporter
+        ).analyzeChatScreenshot(
+            makeRequest(),
+            apiKey: "super-secret-key",
+            model: .deepSeekV4Flash
+        )
+
+        let description = String(describing: reporter.events)
+        XCTAssertTrue(description.contains("providerAttempt"))
+        XCTAssertTrue(description.contains("providerResponse"))
+        XCTAssertFalse(description.contains("super-secret-key"))
+        XCTAssertFalse(description.contains("Can we meet tomorrow?"))
+        XCTAssertFalse(description.contains("Sarah Jenkins"))
     }
 
     @MainActor
@@ -62,9 +152,10 @@ final class ProviderAnalysisTests: XCTestCase {
             )
             XCTFail("Expected invalid candidate error")
         } catch let error as ProviderConnectionError {
-            guard case .invalidResponse = error else {
+            guard case let .structuredOutput(details) = error else {
                 return XCTFail("Unexpected provider error: \(error)")
             }
+            XCTAssertEqual(details.failure.kind, .invalidCandidateID)
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
@@ -149,13 +240,13 @@ final class ProviderAnalysisTests: XCTestCase {
         return String(data: data, encoding: .utf8)!
     }
 
-    private func deepSeekResponse(content: String) -> String {
+    private func deepSeekResponse(content: String?, finishReason: String = "stop") -> String {
         let object: [String: Any] = [
             "choices": [
                 [
                     "index": 0,
-                    "message": ["content": content],
-                    "finish_reason": "stop"
+                    "message": ["content": content.map { $0 as Any } ?? NSNull()],
+                    "finish_reason": finishReason
                 ]
             ]
         ]
@@ -172,6 +263,23 @@ final class ProviderAnalysisTests: XCTestCase {
     private func jsonBody(_ request: URLRequest) throws -> [String: Any] {
         let data = try XCTUnwrap(request.httpBody)
         return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+}
+
+private final class SpyImportEventReporter: ImportEventReporting, @unchecked Sendable {
+    private let lock = NSLock()
+    private var recordedEvents: [ImportEvent] = []
+
+    var events: [ImportEvent] {
+        lock.lock()
+        defer { lock.unlock() }
+        return recordedEvents
+    }
+
+    func record(_ event: ImportEvent) {
+        lock.lock()
+        recordedEvents.append(event)
+        lock.unlock()
     }
 }
 

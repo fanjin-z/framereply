@@ -26,6 +26,7 @@ nonisolated enum ProviderConnectionError: LocalizedError, Sendable {
     case rateLimited
     case providerUnavailable
     case invalidResponse(String)
+    case structuredOutput(ProviderStructuredOutputError)
     case networkFailure(String)
     case keychainFailure(String)
     case unsupportedProvider
@@ -44,12 +45,36 @@ nonisolated enum ProviderConnectionError: LocalizedError, Sendable {
             "This provider is temporarily unavailable. Try again shortly."
         case let .invalidResponse(message):
             message
+        case let .structuredOutput(error):
+            switch error.failure.kind {
+            case .emptyResponse:
+                "The provider returned an empty response."
+            case .truncatedResponse:
+                "The provider response was cut off before it finished."
+            case .invalidJSON:
+                "The provider returned malformed JSON."
+            case .schemaMismatch:
+                "The provider response did not match the chat format."
+            case .invalidCandidateID:
+                "The provider selected an unknown chat."
+            case .incompleteMessages:
+                "The provider returned incomplete chat messages."
+            }
         case let .networkFailure(message):
             message
         case let .keychainFailure(message):
             "The API key was valid, but Zeptly could not save it securely. \(message)"
         case .unsupportedProvider:
             "This provider is not available yet."
+        }
+    }
+
+    var shortcutErrorCode: String {
+        switch self {
+        case let .structuredOutput(error):
+            error.failure.kind.shortcutErrorCode
+        default:
+            "provider_error"
         }
     }
 }

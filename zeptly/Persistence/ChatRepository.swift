@@ -130,7 +130,8 @@ final class ChatRepository {
         analysis: ChatImportAnalysis,
         confirmedChatID: String?,
         provider: ProviderPlatform,
-        model: ProviderModel
+        model: ProviderModel,
+        traceID: ImportTraceID = ImportTraceID()
     ) throws -> ScreenshotImportOutcome {
         var matchedExisting = false
         let targetChat: ChatRecord
@@ -211,7 +212,9 @@ final class ChatRepository {
 
         return ScreenshotImportOutcome(
             chatID: targetChat.id,
+            chatName: targetChat.name,
             importID: importRecord.id,
+            diagnosticID: traceID.diagnosticID,
             matchedExisting: matchedExisting,
             reviewRequired: targetChat.isProvisional,
             duplicate: isDuplicate,

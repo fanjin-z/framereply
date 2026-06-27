@@ -23,22 +23,53 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             matchedChatID: "sarah-jenkins",
             matchConfidence: 0.97
         )
+        let reporter = CoordinatorEventReporter()
         let coordinator = ScreenshotImportCoordinator(
             ocrService: StubOCRService(),
             providerStore: credentials,
             repository: repository,
+            eventReporter: reporter,
             clientResolver: { _ in StubAnalysisClient(analysis: analysis) }
         )
 
-        let outcome = try await coordinator.process(imageData: Data("transient image bytes".utf8))
+        let traceID = ImportTraceID(
+            value: UUID(uuidString: "12345678-0000-0000-0000-000000000000")!
+        )
+        let outcome = try await coordinator.process(
+            imageData: Data("transient image bytes".utf8),
+            traceID: traceID
+        )
 
         XCTAssertEqual(outcome.chatID, "sarah-jenkins")
+        XCTAssertEqual(outcome.chatName, "Sarah Jenkins")
+        XCTAssertEqual(outcome.diagnosticID, "12345678")
         XCTAssertEqual(outcome.insertedMessageCount, 1)
         XCTAssertFalse(outcome.reviewRequired)
         XCTAssertTrue(
             try repository.messages(chatID: "sarah-jenkins")
                 .contains { $0.text == "A newly imported reply" }
         )
+        XCTAssertTrue(reporter.events.contains { event in
+            guard case let .importCompleted(eventTraceID, _, _, _, inserted) = event else { return false }
+            return eventTraceID == traceID && inserted == 1
+        })
+    }
+}
+
+private final class CoordinatorEventReporter: ImportEventReporting, @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [ImportEvent] = []
+
+    var events: [ImportEvent] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+
+    func record(_ event: ImportEvent) {
+        lock.lock()
+        storage.append(event)
+        lock.unlock()
     }
 }
 

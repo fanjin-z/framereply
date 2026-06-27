@@ -8,10 +8,15 @@ import Foundation
 struct DeepSeekClient: AIProviderClient {
     private let baseURL = URL(string: "https://api.deepseek.com")!
     private let session: URLSession
+    private let eventReporter: any ImportEventReporting
     private let validationMaxTokens = 16
 
-    init(session: URLSession = .shared) {
+    init(
+        session: URLSession = .shared,
+        eventReporter: any ImportEventReporting = OSLogImportEventReporter()
+    ) {
         self.session = session
+        self.eventReporter = eventReporter
     }
 
     func validate(apiKey: String, model: ProviderModel) async throws {
@@ -44,7 +49,7 @@ struct DeepSeekClient: AIProviderClient {
         guard
             let choice = completion.choices.first,
             choice.finishReason == "stop",
-            choice.message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            choice.message.content?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
         else {
             throw ProviderConnectionError.invalidResponse("DeepSeek did not return a completed text response.")
         }
@@ -55,9 +60,22 @@ struct DeepSeekClient: AIProviderClient {
         apiKey: String,
         model: ProviderModel
     ) async throws -> ChatImportAnalysis {
-        var lastError: ProviderConnectionError?
+        let provider = "deepseek"
+        let candidateIDs = Set(analysisRequest.candidates.map(\.id))
+        var repairHint: String?
+        var maxTokens = 4_000
 
-        for attempt in 0..<2 {
+        for attemptIndex in 0..<2 {
+            let attempt = attemptIndex + 1
+            eventReporter.record(
+                .providerAttempt(
+                    traceID: analysisRequest.traceID,
+                    provider: provider,
+                    model: model.rawValue,
+                    attempt: attempt,
+                    maxTokens: maxTokens
+                )
+            )
             var request = authorizedRequest(path: "/chat/completions", apiKey: apiKey)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -68,10 +86,13 @@ struct DeepSeekClient: AIProviderClient {
                         DeepSeekChatMessage(role: "system", content: ChatScreenshotPrompt.instructions),
                         DeepSeekChatMessage(
                             role: "user",
-                            content: ChatScreenshotPrompt.input(for: analysisRequest, retry: attempt > 0)
+                            content: ChatScreenshotPrompt.input(
+                                for: analysisRequest,
+                                repairHint: repairHint
+                            )
                         )
                     ],
-                    maxTokens: 4_000,
+                    maxTokens: maxTokens,
                     temperature: 0,
                     stream: false,
                     thinking: DeepSeekThinking(type: "disabled"),
@@ -79,26 +100,86 @@ struct DeepSeekClient: AIProviderClient {
                 )
             )
 
+            let startedAt = Date()
             let (data, response) = try await perform(request)
-            try validateHTTPResponse(response, data: data)
-
-            guard let completion = try? JSONDecoder().decode(DeepSeekChatResponse.self, from: data),
-                let content = completion.choices.first?.message.content,
-                let outputData = content.data(using: .utf8),
-                let analysis = try? JSONDecoder().decode(ChatImportAnalysis.self, from: outputData)
-            else {
-                lastError = .invalidResponse("DeepSeek returned invalid chat data.")
-                continue
+            let duration = Int(Date().timeIntervalSince(startedAt) * 1_000)
+            let httpResponse = response as? HTTPURLResponse
+            do {
+                try validateHTTPResponse(response, data: data)
+            } catch {
+                eventReporter.record(
+                    .providerResponse(
+                        traceID: analysisRequest.traceID,
+                        provider: provider,
+                        model: model.rawValue,
+                        attempt: attempt,
+                        durationMilliseconds: duration,
+                        httpStatus: httpResponse?.statusCode,
+                        requestID: requestID(from: httpResponse),
+                        finishReason: nil,
+                        byteCount: data.count
+                    )
+                )
+                throw error
             }
 
+            let choice: DeepSeekChoice?
             do {
-                return try analysis.validated(candidateIDs: Set(analysisRequest.candidates.map(\.id)))
-            } catch let error as ProviderConnectionError {
-                lastError = error
+                choice = try JSONDecoder().decode(DeepSeekChatResponse.self, from: data).choices.first
+            } catch {
+                choice = nil
+            }
+            eventReporter.record(
+                .providerResponse(
+                    traceID: analysisRequest.traceID,
+                    provider: provider,
+                    model: model.rawValue,
+                    attempt: attempt,
+                    durationMilliseconds: duration,
+                    httpStatus: httpResponse?.statusCode,
+                    requestID: requestID(from: httpResponse),
+                    finishReason: choice?.finishReason,
+                    byteCount: data.count
+                )
+            )
+
+            do {
+                guard let choice else {
+                    throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "response.choices")
+                }
+                return try ChatImportAnalysisDecoder.decode(
+                    content: choice.message.content,
+                    finishReason: choice.finishReason,
+                    candidateIDs: candidateIDs
+                )
+            } catch let failure as StructuredOutputFailure {
+                eventReporter.record(
+                    .structuredOutputFailure(
+                        traceID: analysisRequest.traceID,
+                        provider: provider,
+                        attempt: attempt,
+                        kind: failure.kind,
+                        codingPath: failure.codingPath
+                    )
+                )
+                let error = ProviderConnectionError.structuredOutput(
+                    ProviderStructuredOutputError(
+                        provider: provider,
+                        traceID: analysisRequest.traceID,
+                        failure: failure
+                    )
+                )
+                guard attemptIndex == 0, failure.kind.isRetryable else {
+                    throw error
+                }
+                repairHint = ChatImportAnalysisDecoder.repairHint(for: failure)
+                if failure.kind == .truncatedResponse {
+                    maxTokens = 8_000
+                }
             }
         }
 
-        throw lastError ?? ProviderConnectionError.invalidResponse("DeepSeek returned invalid chat data.")
+        throw ProviderConnectionError.invalidResponse("DeepSeek returned invalid chat data.")
     }
 
     private func authorizedRequest(path: String, apiKey: String) -> URLRequest {
@@ -150,6 +231,11 @@ struct DeepSeekClient: AIProviderClient {
         }
 
         return response.error.message
+    }
+
+    private func requestID(from response: HTTPURLResponse?) -> String? {
+        response?.value(forHTTPHeaderField: "x-request-id")
+            ?? response?.value(forHTTPHeaderField: "request-id")
     }
 }
 
@@ -221,7 +307,7 @@ private struct DeepSeekChoice: Decodable {
 }
 
 private struct DeepSeekResponseMessage: Decodable {
-    let content: String
+    let content: String?
 }
 
 private struct DeepSeekErrorResponse: Decodable {

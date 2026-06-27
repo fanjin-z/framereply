@@ -8,10 +8,15 @@ import Foundation
 struct OpenAIClient: AIProviderClient {
     private let baseURL = URL(string: "https://api.openai.com/v1")!
     private let session: URLSession
+    private let eventReporter: any ImportEventReporting
     private let validationMaxOutputTokens = 16
 
-    init(session: URLSession = .shared) {
+    init(
+        session: URLSession = .shared,
+        eventReporter: any ImportEventReporting = OSLogImportEventReporter()
+    ) {
         self.session = session
+        self.eventReporter = eventReporter
     }
 
     func validate(apiKey: String, model: ProviderModel) async throws {
@@ -52,6 +57,16 @@ struct OpenAIClient: AIProviderClient {
         apiKey: String,
         model: ProviderModel
     ) async throws -> ChatImportAnalysis {
+        let provider = "openai"
+        eventReporter.record(
+            .providerAttempt(
+                traceID: analysisRequest.traceID,
+                provider: provider,
+                model: model.rawValue,
+                attempt: 1,
+                maxTokens: 4_000
+            )
+        )
         var request = URLRequest(url: baseURL.appending(path: "responses"))
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -75,19 +90,91 @@ struct OpenAIClient: AIProviderClient {
             ]
         )
 
+        let startedAt = Date()
         let (data, response) = try await perform(request)
-        try validateHTTPResponse(response, data: data)
-
-        guard let completion = try? JSONDecoder().decode(OpenAIResponse.self, from: data),
-            completion.status == "completed",
-            let outputText = completion.outputText,
-            let outputData = outputText.data(using: .utf8),
-            let analysis = try? JSONDecoder().decode(ChatImportAnalysis.self, from: outputData)
-        else {
-            throw ProviderConnectionError.invalidResponse("OpenAI returned invalid chat data.")
+        let duration = Int(Date().timeIntervalSince(startedAt) * 1_000)
+        let httpResponse = response as? HTTPURLResponse
+        do {
+            try validateHTTPResponse(response, data: data)
+        } catch {
+            eventReporter.record(
+                .providerResponse(
+                    traceID: analysisRequest.traceID,
+                    provider: provider,
+                    model: model.rawValue,
+                    attempt: 1,
+                    durationMilliseconds: duration,
+                    httpStatus: httpResponse?.statusCode,
+                    requestID: requestID(from: httpResponse),
+                    finishReason: nil,
+                    byteCount: data.count
+                )
+            )
+            throw error
         }
 
-        return try analysis.validated(candidateIDs: Set(analysisRequest.candidates.map(\.id)))
+        let completion: OpenAIResponse
+        do {
+            completion = try JSONDecoder().decode(OpenAIResponse.self, from: data)
+        } catch {
+            let failure = StructuredOutputFailure(kind: .schemaMismatch, codingPath: "response")
+            recordStructuredFailure(
+                failure,
+                request: analysisRequest,
+                model: model,
+                duration: duration,
+                response: httpResponse,
+                responseByteCount: data.count,
+                finishReason: nil
+            )
+            throw ProviderConnectionError.structuredOutput(
+                ProviderStructuredOutputError(
+                    provider: provider,
+                    traceID: analysisRequest.traceID,
+                    failure: failure
+                )
+            )
+        }
+
+        eventReporter.record(
+            .providerResponse(
+                traceID: analysisRequest.traceID,
+                provider: provider,
+                model: model.rawValue,
+                attempt: 1,
+                durationMilliseconds: duration,
+                httpStatus: httpResponse?.statusCode,
+                requestID: requestID(from: httpResponse),
+                finishReason: completion.status,
+                byteCount: data.count
+            )
+        )
+
+        let forcedFinishReason = completion.status == "completed" ? nil : "length"
+        do {
+            return try ChatImportAnalysisDecoder.decode(
+                content: completion.outputText,
+                finishReason: forcedFinishReason,
+                candidateIDs: Set(analysisRequest.candidates.map(\.id))
+            )
+        } catch let failure as StructuredOutputFailure {
+            eventReporter.record(
+                .structuredOutputFailure(
+                    traceID: analysisRequest.traceID,
+                    provider: provider,
+                    attempt: 1,
+                    kind: failure.kind,
+                    codingPath: failure.codingPath
+                )
+            )
+            throw ProviderConnectionError.structuredOutput(
+                ProviderStructuredOutputError(
+                    provider: provider,
+                    traceID: analysisRequest.traceID,
+                    failure: failure
+                )
+            )
+        }
     }
 
     private func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {
@@ -127,6 +214,44 @@ struct OpenAIClient: AIProviderClient {
 
     private func openAIError(from data: Data) -> OpenAIError? {
         try? JSONDecoder().decode(OpenAIErrorResponse.self, from: data).error
+    }
+
+    private func requestID(from response: HTTPURLResponse?) -> String? {
+        response?.value(forHTTPHeaderField: "x-request-id")
+            ?? response?.value(forHTTPHeaderField: "request-id")
+    }
+
+    private func recordStructuredFailure(
+        _ failure: StructuredOutputFailure,
+        request: ChatScreenshotAnalysisRequest,
+        model: ProviderModel,
+        duration: Int,
+        response: HTTPURLResponse?,
+        responseByteCount: Int,
+        finishReason: String?
+    ) {
+        eventReporter.record(
+            .providerResponse(
+                traceID: request.traceID,
+                provider: "openai",
+                model: model.rawValue,
+                attempt: 1,
+                durationMilliseconds: duration,
+                httpStatus: response?.statusCode,
+                requestID: requestID(from: response),
+                finishReason: finishReason,
+                byteCount: responseByteCount
+            )
+        )
+        eventReporter.record(
+            .structuredOutputFailure(
+                traceID: request.traceID,
+                provider: "openai",
+                attempt: 1,
+                kind: failure.kind,
+                codingPath: failure.codingPath
+            )
+        )
     }
 }
 
