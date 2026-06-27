@@ -10,20 +10,27 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-nonisolated private enum ShortcutResponseStatus: String, Codable, Sendable {
+nonisolated enum ShortcutResponseStatus: String, Codable, Sendable {
     case success
     case fail
 }
 
-nonisolated private struct ShortcutResponsePayload: Codable, Sendable {
+nonisolated struct ShortcutResponsePayload: Codable, Sendable {
     let status: ShortcutResponseStatus
     let message: String
+    let chatID: String?
+    let importID: UUID?
+    let matchedExisting: Bool?
+    let reviewRequired: Bool?
+    let duplicate: Bool?
+    let insertedMessageCount: Int?
+    let errorCode: String?
 }
 
 struct ProcessScreenshotIntent: AppIntent {
     static let title: LocalizedStringResource = "Process Screenshot"
     static let description = IntentDescription(
-        "Validate screenshot input and return a JSON status payload for the next Shortcut step.")
+        "Extract chat messages from a screenshot, merge them into Zeptly history, and return a JSON result.")
     static let openAppWhenRun = false
 
     @Parameter(
@@ -36,17 +43,67 @@ struct ProcessScreenshotIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
         guard let screenshot else {
-            return .result(value: makePayload(status: .fail, message: "no image input"))
+            return .result(
+                value: makePayload(
+                    status: .fail,
+                    message: "No image input was provided.",
+                    errorCode: "no_image"
+                )
+            )
         }
 
         guard isImageFile(screenshot) else {
             let typeIdentifier = screenshot.type?.identifier ?? "unknown"
             let details =
                 "input is not an image (type: \(typeIdentifier), filename: \(screenshot.filename), bytes: \(screenshot.data.count))"
-            return .result(value: makePayload(status: .fail, message: details))
+            return .result(
+                value: makePayload(
+                    status: .fail,
+                    message: details,
+                    errorCode: "invalid_image"
+                )
+            )
         }
 
-        return .result(value: makePayload(status: .success, message: "hello world"))
+        do {
+            let outcome = try await ScreenshotImportCoordinator().process(imageData: screenshot.data)
+            let message = outcome.reviewRequired
+                ? "Chat imported and queued for review."
+                : "Chat history imported."
+            return .result(value: makePayload(status: .success, message: message, outcome: outcome))
+        } catch let error as ScreenshotImportError {
+            return .result(
+                value: makePayload(
+                    status: .fail,
+                    message: error.localizedDescription,
+                    errorCode: error.code
+                )
+            )
+        } catch let error as ScreenshotOCRError {
+            return .result(
+                value: makePayload(
+                    status: .fail,
+                    message: error.localizedDescription,
+                    errorCode: "ocr_failed"
+                )
+            )
+        } catch let error as ProviderConnectionError {
+            return .result(
+                value: makePayload(
+                    status: .fail,
+                    message: error.localizedDescription,
+                    errorCode: "provider_error"
+                )
+            )
+        } catch {
+            return .result(
+                value: makePayload(
+                    status: .fail,
+                    message: "The chat history could not be saved.",
+                    errorCode: "import_failed"
+                )
+            )
+        }
     }
 
     private func isImageFile(_ file: IntentFile) -> Bool {
@@ -80,8 +137,23 @@ struct ProcessScreenshotIntent: AppIntent {
         return !file.data.isEmpty
     }
 
-    private func makePayload(status: ShortcutResponseStatus, message: String) -> String {
-        let payload = ShortcutResponsePayload(status: status, message: message)
+    private func makePayload(
+        status: ShortcutResponseStatus,
+        message: String,
+        outcome: ScreenshotImportOutcome? = nil,
+        errorCode: String? = nil
+    ) -> String {
+        let payload = ShortcutResponsePayload(
+            status: status,
+            message: message,
+            chatID: outcome?.chatID,
+            importID: outcome?.importID,
+            matchedExisting: outcome?.matchedExisting,
+            reviewRequired: outcome?.reviewRequired,
+            duplicate: outcome?.duplicate,
+            insertedMessageCount: outcome?.insertedMessageCount,
+            errorCode: errorCode
+        )
         guard
             let data = try? JSONEncoder().encode(payload),
             let json = String(data: data, encoding: .utf8)
