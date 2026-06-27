@@ -9,7 +9,17 @@ protocol ProviderValidator {
     func validate(apiKey: String, model: ProviderModel) async throws
 }
 
-enum ProviderConnectionError: LocalizedError {
+protocol ChatScreenshotAnalyzing {
+    func analyzeChatScreenshot(
+        _ request: ChatScreenshotAnalysisRequest,
+        apiKey: String,
+        model: ProviderModel
+    ) async throws -> ChatImportAnalysis
+}
+
+protocol AIProviderClient: ProviderValidator, ChatScreenshotAnalyzing {}
+
+nonisolated enum ProviderConnectionError: LocalizedError, Sendable {
     case missingAPIKey
     case invalidKey
     case insufficientBalance

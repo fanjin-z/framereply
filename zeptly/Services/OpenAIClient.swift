@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct OpenAIClient: ProviderValidator {
+struct OpenAIClient: AIProviderClient {
     private let baseURL = URL(string: "https://api.openai.com/v1")!
     private let session: URLSession
     private let validationMaxOutputTokens = 16
@@ -45,6 +45,49 @@ struct OpenAIClient: ProviderValidator {
         else {
             throw ProviderConnectionError.invalidResponse("OpenAI did not return a completed text response.")
         }
+    }
+
+    func analyzeChatScreenshot(
+        _ analysisRequest: ChatScreenshotAnalysisRequest,
+        apiKey: String,
+        model: ProviderModel
+    ) async throws -> ChatImportAnalysis {
+        var request = URLRequest(url: baseURL.appending(path: "responses"))
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(
+            withJSONObject: [
+                "model": model.rawValue,
+                "instructions": ChatScreenshotPrompt.instructions,
+                "input": ChatScreenshotPrompt.input(for: analysisRequest),
+                "max_output_tokens": 4_000,
+                "reasoning": ["effort": "none"],
+                "store": false,
+                "text": [
+                    "format": [
+                        "type": "json_schema",
+                        "name": "chat_import",
+                        "strict": true,
+                        "schema": ChatScreenshotPrompt.jsonSchema
+                    ]
+                ]
+            ]
+        )
+
+        let (data, response) = try await perform(request)
+        try validateHTTPResponse(response, data: data)
+
+        guard let completion = try? JSONDecoder().decode(OpenAIResponse.self, from: data),
+            completion.status == "completed",
+            let outputText = completion.outputText,
+            let outputData = outputText.data(using: .utf8),
+            let analysis = try? JSONDecoder().decode(ChatImportAnalysis.self, from: outputData)
+        else {
+            throw ProviderConnectionError.invalidResponse("OpenAI returned invalid chat data.")
+        }
+
+        return try analysis.validated(candidateIDs: Set(analysisRequest.candidates.map(\.id)))
     }
 
     private func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {
@@ -118,6 +161,13 @@ private struct OpenAIResponse: Decodable {
                         && content.text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
                 }
         }
+    }
+
+    var outputText: String? {
+        output
+            .first(where: { $0.type == "message" })?
+            .content.first(where: { $0.type == "output_text" })?
+            .text
     }
 }
 
