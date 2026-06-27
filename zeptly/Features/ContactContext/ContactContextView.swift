@@ -51,6 +51,7 @@ struct ContactContextView: View {
             }
             .scrollIndicators(.hidden)
         }
+        .interactiveSwipeBackEnabled()
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
     }

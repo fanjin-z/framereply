@@ -92,6 +92,7 @@ struct ChatIntelligenceView: View {
             }
             .scrollIndicators(.hidden)
         }
+        .interactiveSwipeBackEnabled()
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $isHistoryPresented) {
