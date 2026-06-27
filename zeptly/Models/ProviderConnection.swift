@@ -143,16 +143,11 @@ struct ProviderConnection: Identifiable, Codable {
     let platform: ProviderPlatform
     var model: ProviderModel
     var lastValidatedAt: Date?
-    var isEnabled: Bool
     var validationState: ProviderValidationState
 
     var name: String { platform.displayName }
     var symbolName: String { platform.symbolName }
     var modelName: String { model.rawValue }
-
-    var displayValidationState: ProviderValidationState {
-        isEnabled ? validationState : .paused
-    }
 
     var lastSynced: String {
         guard let lastValidatedAt else {

@@ -13,11 +13,24 @@ final class ProviderStore: ObservableObject {
             saveProviders()
         }
     }
+    @Published private(set) var activePlatform: ProviderPlatform? {
+        didSet {
+            saveActivePlatform()
+        }
+    }
 
     private let userDefaults: UserDefaults
     private let keychain: KeychainStore
     private let validators: [ProviderPlatform: any ProviderValidator]
     private let providersKey = "zeptly.providerConnections.v1"
+    private let activePlatformKey = "zeptly.activeProviderPlatform.v1"
+
+    var activeProvider: ProviderConnection? {
+        guard let activePlatform else {
+            return nil
+        }
+        return providers.first { $0.platform == activePlatform }
+    }
 
     init(
         userDefaults: UserDefaults = .standard,
@@ -29,7 +42,14 @@ final class ProviderStore: ObservableObject {
             .deepSeek: DeepSeekClient(),
             .openAI: OpenAIClient()
         ]
-        providers = Self.loadProviders(from: userDefaults, key: providersKey)
+        let loadedProviders = Self.loadProviders(from: userDefaults, key: providersKey)
+        providers = loadedProviders
+        activePlatform = Self.loadActivePlatform(
+            from: userDefaults,
+            key: activePlatformKey,
+            providers: loadedProviders
+        )
+        saveActivePlatform()
     }
 
     func connect(platform: ProviderPlatform, model: ProviderModel, apiKey: String) async throws {
@@ -56,10 +76,28 @@ final class ProviderStore: ObservableObject {
         }
 
         upsertConnection(platform: platform, model: model)
+        activate(platform: platform)
     }
 
     func savedAPIKey(for platform: ProviderPlatform) -> String? {
         try? keychain.get(account: keychainAccount(for: platform))
+    }
+
+    func activate(platform: ProviderPlatform) {
+        guard providers.contains(where: { $0.platform == platform }) else {
+            return
+        }
+        activePlatform = platform
+    }
+
+    func setModel(_ model: ProviderModel, for platform: ProviderPlatform) {
+        guard
+            model.platform == platform,
+            let index = providers.firstIndex(where: { $0.platform == platform })
+        else {
+            return
+        }
+        providers[index].model = model
     }
 
     private func upsertConnection(platform: ProviderPlatform, model: ProviderModel) {
@@ -68,7 +106,6 @@ final class ProviderStore: ObservableObject {
         if let existingIndex = providers.firstIndex(where: { $0.platform == platform }) {
             providers[existingIndex].model = model
             providers[existingIndex].lastValidatedAt = now
-            providers[existingIndex].isEnabled = true
             providers[existingIndex].validationState = .connected
         } else {
             providers.append(
@@ -76,7 +113,6 @@ final class ProviderStore: ObservableObject {
                     platform: platform,
                     model: model,
                     lastValidatedAt: now,
-                    isEnabled: true,
                     validationState: .connected
                 )
             )
@@ -92,6 +128,14 @@ final class ProviderStore: ObservableObject {
         }
     }
 
+    private func saveActivePlatform() {
+        if let activePlatform {
+            userDefaults.set(activePlatform.rawValue, forKey: activePlatformKey)
+        } else {
+            userDefaults.removeObject(forKey: activePlatformKey)
+        }
+    }
+
     private static func loadProviders(from userDefaults: UserDefaults, key: String) -> [ProviderConnection] {
         guard let data = userDefaults.data(forKey: key) else {
             return []
@@ -102,6 +146,37 @@ final class ProviderStore: ObservableObject {
         } catch {
             return []
         }
+    }
+
+    private static func loadActivePlatform(
+        from userDefaults: UserDefaults,
+        key: String,
+        providers: [ProviderConnection]
+    ) -> ProviderPlatform? {
+        guard providers.isEmpty == false else {
+            return nil
+        }
+
+        if
+            let rawValue = userDefaults.string(forKey: key),
+            let savedPlatform = ProviderPlatform(rawValue: rawValue),
+            providers.contains(where: { $0.platform == savedPlatform })
+        {
+            return savedPlatform
+        }
+
+        return providers.max { lhs, rhs in
+            switch (lhs.lastValidatedAt, rhs.lastValidatedAt) {
+            case let (lhsDate?, rhsDate?):
+                lhsDate < rhsDate
+            case (nil, _?):
+                true
+            case (_?, nil):
+                false
+            case (nil, nil):
+                false
+            }
+        }?.platform ?? providers.first?.platform
     }
 
     private func keychainAccount(for platform: ProviderPlatform) -> String {

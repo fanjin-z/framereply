@@ -121,8 +121,19 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
             } else {
-                ForEach($providerStore.providers) { $provider in
-                    ProviderCard(provider: $provider)
+                ForEach(providerStore.providers) { provider in
+                    ProviderCard(
+                        provider: provider,
+                        isActive: providerStore.activePlatform == provider.platform,
+                        onActivate: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                                providerStore.activate(platform: provider.platform)
+                            }
+                        },
+                        onModelChange: { model in
+                            providerStore.setModel(model, for: provider.platform)
+                        }
+                    )
                 }
             }
         }

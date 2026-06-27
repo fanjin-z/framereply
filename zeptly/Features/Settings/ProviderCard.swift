@@ -6,11 +6,14 @@
 import SwiftUI
 
 struct ProviderCard: View {
-    @Binding var provider: ProviderConnection
+    let provider: ProviderConnection
+    let isActive: Bool
+    let onActivate: () -> Void
+    let onModelChange: (ProviderModel) -> Void
 
     var body: some View {
         VStack(spacing: 18) {
-            HStack(alignment: .top, spacing: 14) {
+            HStack(alignment: isActive ? .top : .center, spacing: 14) {
                 Circle()
                     .fill(Color.white.opacity(0.78))
                     .frame(width: 42, height: 42)
@@ -26,33 +29,41 @@ struct ProviderCard: View {
                         .font(.system(size: 17, weight: .bold, design: .rounded))
                         .foregroundStyle(RezplyColor.onSurface)
 
-                    PillChip(title: provider.modelName, tint: RezplyColor.primary)
+                    if isActive {
+                        PillChip(title: provider.modelName, tint: RezplyColor.primary)
+                    }
                 }
 
                 Spacer()
 
-                Toggle("", isOn: $provider.isEnabled)
+                Toggle("", isOn: activeBinding)
                     .labelsHidden()
                     .tint(RezplyColor.primary)
+                    .allowsHitTesting(isActive == false)
+                    .accessibilityLabel("Use \(provider.name)")
+                    .accessibilityHint(isActive ? "Currently active" : "Makes this provider active")
             }
 
-            VStack(spacing: 14) {
-                SettingStatusRow(title: "Status") {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(provider.displayValidationState.tint)
-                            .frame(width: 8, height: 8)
-                        Text(provider.displayValidationState.title)
+            if isActive {
+                VStack(spacing: 14) {
+                    SettingStatusRow(title: "Status") {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(provider.validationState.tint)
+                                .frame(width: 8, height: 8)
+                            Text(provider.validationState.title)
+                        }
+                    }
+
+                    SettingStatusRow(title: "Model") {
+                        modelMenu
+                    }
+
+                    SettingStatusRow(title: "Last synced") {
+                        Text(provider.lastSynced)
                     }
                 }
-
-                SettingStatusRow(title: "Model") {
-                    modelMenu
-                }
-
-                SettingStatusRow(title: "Last synced") {
-                    Text(provider.lastSynced)
-                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .padding(20)
@@ -62,11 +73,22 @@ struct ProviderCard: View {
         }
     }
 
+    private var activeBinding: Binding<Bool> {
+        Binding(
+            get: { isActive },
+            set: { newValue in
+                if newValue, isActive == false {
+                    onActivate()
+                }
+            }
+        )
+    }
+
     private var modelMenu: some View {
         Menu {
             ForEach(provider.platform.supportedModels) { model in
                 Button {
-                    provider.model = model
+                    onModelChange(model)
                 } label: {
                     Text(model.rawValue)
                 }
