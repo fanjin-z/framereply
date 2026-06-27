@@ -17,25 +17,29 @@ struct RezplyShellView: View {
             ZStack(alignment: .bottom) {
                 EtherealBackground()
 
-                VStack(spacing: 0) {
-                    Group {
-                        switch selectedTab {
-                        case .inbox:
-                            InboxView(
-                                onChatTap: { chat in
-                                    navigationPath.append(.chatIntelligence(chat.id))
-                                },
-                                onAvatarTap: { chat in
-                                    navigationPath.append(.contactContext(chat.id))
-                                }
-                            )
-                        case .personas:
-                            PersonasView()
-                        case .settings:
-                            SettingsView(providerStore: providerStore)
-                        }
+                EdgeSwipeTabPager(
+                    selectedTab: $selectedTab,
+                    isSwipeEnabled: navigationPath.isEmpty
+                ) { tab, isActive in
+                    switch tab {
+                    case .inbox:
+                        InboxView(
+                            isActive: isActive,
+                            onChatTap: { chat in
+                                navigationPath.append(.chatIntelligence(chat.id))
+                            },
+                            onAvatarTap: { chat in
+                                navigationPath.append(.contactContext(chat.id))
+                            }
+                        )
+                    case .personas:
+                        PersonasView()
+                    case .settings:
+                        SettingsView(
+                            providerStore: providerStore,
+                            isActive: isActive
+                        )
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
 
                 FloatingBottomNavigation(selectedTab: $selectedTab)

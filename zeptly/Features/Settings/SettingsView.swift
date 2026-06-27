@@ -7,6 +7,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var providerStore: ProviderStore
+    let isActive: Bool
 
     @State private var selectedPlatform: ProviderPlatform?
     @State private var selectedModel: ProviderModel?
@@ -35,6 +36,11 @@ struct SettingsView: View {
         .onChange(of: selectedModel) { _, _ in
             if case .connected = addProviderStatus {
                 addProviderStatus = .idle
+            }
+        }
+        .onChange(of: isActive) { _, isActive in
+            if isActive == false {
+                dismissAddProviderForTabChange()
             }
         }
     }
@@ -225,6 +231,17 @@ struct SettingsView: View {
 
         withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
             isAddProviderPresented = false
+        }
+    }
+
+    private func dismissAddProviderForTabChange() {
+        guard isAddProviderPresented else {
+            return
+        }
+
+        isAddProviderPresented = false
+        if addProviderStatus.isTesting == false {
+            resetAddProviderForm()
         }
     }
 

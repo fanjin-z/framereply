@@ -7,6 +7,7 @@ import SwiftData
 import SwiftUI
 
 struct InboxView: View {
+    let isActive: Bool
     let onChatTap: (Chat) -> Void
     let onAvatarTap: (Chat) -> Void
     @State private var searchText = ""
@@ -48,7 +49,7 @@ struct InboxView: View {
                     .padding(.top, 14)
                 }
 
-                SearchField(text: $searchText)
+                SearchField(text: $searchText, isActive: isActive)
                     .padding(.top, provisionalCount > 0 ? 4 : 14)
 
                 VStack(spacing: 16) {

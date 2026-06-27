@@ -8,12 +8,18 @@ import SwiftUI
 struct FloatingBottomNavigation: View {
     @Binding var selectedTab: AppTab
 
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
+
     var body: some View {
         HStack(spacing: 0) {
             ForEach(AppTab.allCases) { tab in
                 Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                    if accessibilityReduceMotion {
                         selectedTab = tab
+                    } else {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                            selectedTab = tab
+                        }
                     }
                 } label: {
                     VStack(spacing: 6) {

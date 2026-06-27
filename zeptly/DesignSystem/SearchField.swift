@@ -7,6 +7,9 @@ import SwiftUI
 
 struct SearchField: View {
     @Binding var text: String
+    var isActive = true
+
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         HStack(spacing: 12) {
@@ -20,6 +23,7 @@ struct SearchField: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .minimumScaleFactor(0.7)
+                .focused($isFocused)
         }
         .padding(.horizontal, 16)
         .frame(height: 46)
@@ -31,6 +35,11 @@ struct SearchField: View {
                         .stroke(RezplyColor.outline.opacity(0.9), lineWidth: 1.4)
                 }
                 .shadow(color: RezplyColor.primaryContainer.opacity(0.08), radius: 20, x: 0, y: 10)
+        }
+        .onChange(of: isActive) { _, isActive in
+            if isActive == false {
+                isFocused = false
+            }
         }
     }
 }
