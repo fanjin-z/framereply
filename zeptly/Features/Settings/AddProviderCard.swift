@@ -23,7 +23,7 @@ enum AddProviderStatus {
         case .idle, .testing:
             nil
         case .connected:
-            ("checkmark.circle.fill", "DeepSeek connected and saved.", RezplyColor.connected)
+            ("checkmark.circle.fill", "Provider connected and saved.", RezplyColor.connected)
         case let .failed(message):
             ("exclamationmark.triangle.fill", message, RezplyColor.peach)
         }

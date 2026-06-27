@@ -35,7 +35,7 @@ enum ProviderPlatform: String, Codable, CaseIterable, Identifiable {
         case .deepSeek:
             true
         case .openAI:
-            false
+            true
         }
     }
 
@@ -44,7 +44,7 @@ enum ProviderPlatform: String, Codable, CaseIterable, Identifiable {
         case .deepSeek:
             [.deepSeekV4Flash, .deepSeekV4Pro]
         case .openAI:
-            []
+            [.gpt54Mini, .gpt54, .gpt55]
         }
     }
 }
@@ -52,6 +52,9 @@ enum ProviderPlatform: String, Codable, CaseIterable, Identifiable {
 enum ProviderModel: String, Codable, CaseIterable, Identifiable {
     case deepSeekV4Flash = "deepseek-v4-flash"
     case deepSeekV4Pro = "deepseek-v4-pro"
+    case gpt54Mini = "gpt-5.4-mini"
+    case gpt54 = "gpt-5.4"
+    case gpt55 = "gpt-5.5"
 
     var id: String { rawValue }
 
@@ -61,6 +64,12 @@ enum ProviderModel: String, Codable, CaseIterable, Identifiable {
             "Flash"
         case .deepSeekV4Pro:
             "Pro"
+        case .gpt54Mini:
+            "Balanced"
+        case .gpt54:
+            "Advanced"
+        case .gpt55:
+            "Best"
         }
     }
 
@@ -70,6 +79,12 @@ enum ProviderModel: String, Codable, CaseIterable, Identifiable {
             "Lower cost and faster replies"
         case .deepSeekV4Pro:
             "Stronger reasoning for complex work"
+        case .gpt54Mini:
+            "High-quality replies at a balanced cost"
+        case .gpt54:
+            "Stronger reasoning and tone handling"
+        case .gpt55:
+            "Highest-quality, polished replies"
         }
     }
 
@@ -77,6 +92,8 @@ enum ProviderModel: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .deepSeekV4Flash, .deepSeekV4Pro:
             .deepSeek
+        case .gpt54Mini, .gpt54, .gpt55:
+            .openAI
         }
     }
 }

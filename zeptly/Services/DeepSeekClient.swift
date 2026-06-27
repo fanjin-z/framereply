@@ -21,19 +21,19 @@ enum ProviderConnectionError: LocalizedError {
         case .missingAPIKey:
             "Enter an API key before saving."
         case .invalidKey:
-            "DeepSeek rejected this API key. Check the key and try again."
+            "This provider rejected the API key. Check it and try again."
         case .insufficientBalance:
-            "This DeepSeek account does not have enough available balance for API calls."
+            "This account does not have enough available API credit or quota."
         case .rateLimited:
-            "DeepSeek is rate limiting this key. Wait a moment and try again."
+            "This provider is rate limiting the key. Wait a moment and try again."
         case .providerUnavailable:
-            "DeepSeek is temporarily unavailable. Try again shortly."
+            "This provider is temporarily unavailable. Try again shortly."
         case let .invalidResponse(message):
             message
         case let .networkFailure(message):
             message
         case let .keychainFailure(message):
-            "The DeepSeek key was valid, but Zeptly could not save it securely. \(message)"
+            "The API key was valid, but Zeptly could not save it securely. \(message)"
         case .unsupportedProvider:
             "This provider is not available yet."
         }
