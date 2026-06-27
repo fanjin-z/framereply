@@ -18,8 +18,6 @@ struct RezplyShellView: View {
                 EtherealBackground()
 
                 VStack(spacing: 0) {
-                    TopAppBar(selectedTab: selectedTab)
-
                     Group {
                         switch selectedTab {
                         case .inbox:
