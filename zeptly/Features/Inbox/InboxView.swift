@@ -10,6 +10,7 @@ struct InboxView: View {
     let onChatTap: (Chat) -> Void
     let onAvatarTap: (Chat) -> Void
     @State private var searchText = ""
+    @State private var isReviewPresented = false
     @Query(sort: \ChatRecord.updatedAt, order: .reverse) private var chatRecords: [ChatRecord]
 
     private var chats: [Chat] {
@@ -28,8 +29,27 @@ struct InboxView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                SearchField(text: $searchText)
+                if provisionalCount > 0 {
+                    Button {
+                        isReviewPresented = true
+                    } label: {
+                        Label(
+                            "Review \(provisionalCount) imported chat\(provisionalCount == 1 ? "" : "s")",
+                            systemImage: "exclamationmark.bubble.fill"
+                        )
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(RezplyColor.primary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .glassPanel(cornerRadius: 18)
+                    }
+                    .buttonStyle(.plain)
                     .padding(.top, 14)
+                }
+
+                SearchField(text: $searchText)
+                    .padding(.top, provisionalCount > 0 ? 4 : 14)
 
                 VStack(spacing: 16) {
                     ForEach(chats) { chat in
@@ -56,5 +76,12 @@ struct InboxView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
+        .sheet(isPresented: $isReviewPresented) {
+            ChatImportReviewSheet()
+        }
+    }
+
+    private var provisionalCount: Int {
+        chatRecords.filter(\.isProvisional).count
     }
 }

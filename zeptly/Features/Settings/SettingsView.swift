@@ -45,6 +45,10 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     providerHeader
                     providerContent
+                    Text("Screenshot imports run OCR on this device. Only the extracted text and layout are sent to your selected model provider; screenshots are never saved or uploaded.")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(RezplyColor.outline)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(.horizontal, 24)
