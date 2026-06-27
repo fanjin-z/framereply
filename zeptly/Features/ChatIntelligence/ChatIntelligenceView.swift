@@ -3,6 +3,7 @@
 //  zeptly
 //
 
+import SwiftData
 import SwiftUI
 
 struct ChatIntelligenceView: View {
@@ -16,9 +17,25 @@ struct ChatIntelligenceView: View {
     @State private var isScreenshotAttached = false
     @State private var contextNote = ""
     @State private var copiedReplyID: UUID?
+    @Query private var messageRecords: [ChatMessageRecord]
+
+    init(chat: Chat, intelligence: ChatIntelligence, onContactTap: @escaping () -> Void) {
+        self.chat = chat
+        self.intelligence = intelligence
+        self.onContactTap = onContactTap
+        let chatID = chat.id
+        _messageRecords = Query(
+            filter: #Predicate<ChatMessageRecord> { $0.chatID == chatID },
+            sort: \ChatMessageRecord.sortIndex
+        )
+    }
+
+    private var messages: [ChatMessage] {
+        messageRecords.map { ChatMessage(record: $0) }
+    }
 
     private var latestMessages: [ChatMessage] {
-        Array(intelligence.messages.suffix(3))
+        Array(messages.suffix(3))
     }
 
     var body: some View {
@@ -78,7 +95,7 @@ struct ChatIntelligenceView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $isHistoryPresented) {
-            ChatHistorySheet(chat: chat, messages: intelligence.messages)
+            ChatHistorySheet(chat: chat)
         }
         .sheet(isPresented: $isContextPresented) {
             AddChatContextSheet(note: $contextNote)

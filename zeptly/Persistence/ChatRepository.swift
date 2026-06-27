@@ -9,7 +9,7 @@ import SwiftData
 @MainActor
 final class ChatRepository {
     private let context: ModelContext
-    private let seedVersion = "1"
+    private let seedVersion = "2"
     private let seedVersionKey = "sampleSeedVersion"
 
     convenience init() {
@@ -32,11 +32,12 @@ final class ChatRepository {
         }
 
         let existingChats = try context.fetch(FetchDescriptor<ChatRecord>())
-        let existingIDs = Set(existingChats.map(\.id))
+        let existingByID = Dictionary(uniqueKeysWithValues: existingChats.map { ($0.id, $0) })
 
-        for (index, chat) in RezplySampleData.chats.enumerated() where !existingIDs.contains(chat.id) {
-            context.insert(
-                ChatRecord(
+        for (index, chat) in RezplySampleData.chats.enumerated() {
+            if existingByID[chat.id] == nil {
+                context.insert(
+                    ChatRecord(
                     id: chat.id,
                     name: chat.name,
                     lastActivityLabel: chat.timeLabel,
@@ -48,14 +49,18 @@ final class ChatRepository {
                     appearanceStyle: index,
                     isUnread: chat.isUnread,
                     isOnline: chat.isOnline
+                    )
                 )
-            )
+            }
 
-            if let contactContext = chat.contactContext {
+            if let contactContext = chat.contactContext,
+                try self.contactContext(chatID: chat.id) == nil
+            {
                 context.insert(makeContactRecord(contactContext, chatID: chat.id))
             }
 
-            if let intelligence = RezplySampleData.chatIntelligenceByID[chat.id] {
+            if try messages(chatID: chat.id).isEmpty {
+                let intelligence = RezplySampleData.chatIntelligence(withID: chat.id)
                 for (messageIndex, message) in intelligence.messages.enumerated() {
                     context.insert(makeMessageRecord(message, chatID: chat.id, sortIndex: messageIndex))
                 }

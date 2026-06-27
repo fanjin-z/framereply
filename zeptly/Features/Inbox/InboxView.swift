@@ -3,19 +3,22 @@
 //  zeptly
 //
 
+import SwiftData
 import SwiftUI
 
 struct InboxView: View {
     let onChatTap: (Chat) -> Void
     let onAvatarTap: (Chat) -> Void
     @State private var searchText = ""
+    @Query(sort: \ChatRecord.updatedAt, order: .reverse) private var chatRecords: [ChatRecord]
 
     private var chats: [Chat] {
+        let allChats = chatRecords.map { Chat(record: $0) }
         guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return RezplySampleData.chats
+            return allChats
         }
 
-        return RezplySampleData.chats.filter { chat in
+        return allChats.filter { chat in
             chat.name.localizedCaseInsensitiveContains(searchText)
                 || chat.preview.localizedCaseInsensitiveContains(searchText)
                 || chat.chipTitle.localizedCaseInsensitiveContains(searchText)

@@ -18,4 +18,5 @@ struct Chat: Identifiable {
     let isUnread: Bool
     let isOnline: Bool
     let contactContext: ContactContext?
+    var isProvisional: Bool = false
 }

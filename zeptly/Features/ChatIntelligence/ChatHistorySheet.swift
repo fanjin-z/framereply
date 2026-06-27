@@ -3,14 +3,28 @@
 //  zeptly
 //
 
+import SwiftData
 import SwiftUI
 
 struct ChatHistorySheet: View {
     let chat: Chat
-    let messages: [ChatMessage]
 
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
+    @Query private var messageRecords: [ChatMessageRecord]
+
+    init(chat: Chat) {
+        self.chat = chat
+        let chatID = chat.id
+        _messageRecords = Query(
+            filter: #Predicate<ChatMessageRecord> { $0.chatID == chatID },
+            sort: \ChatMessageRecord.sortIndex
+        )
+    }
+
+    private var messages: [ChatMessage] {
+        messageRecords.map { ChatMessage(record: $0) }
+    }
 
     private var filteredMessages: [ChatMessage] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)

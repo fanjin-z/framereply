@@ -3,13 +3,14 @@
 //  zeptly
 //
 
+import SwiftData
 import SwiftUI
 
 struct RezplyShellView: View {
     @State private var selectedTab: AppTab = .inbox
     @StateObject private var providerStore = ProviderStore()
     @State private var navigationPath: [RezplyRoute] = []
-    @State private var contactContexts = RezplySampleData.initialContactContexts
+    @Query private var chatRecords: [ChatRecord]
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -46,14 +47,11 @@ struct RezplyShellView: View {
             .navigationDestination(for: RezplyRoute.self) { route in
                 switch route {
                 case let .contactContext(chatID):
-                    if let chat = RezplySampleData.chat(withID: chatID) {
-                        ContactContextView(
-                            chat: chat,
-                            context: contactContextBinding(for: chat)
-                        )
+                    if let chat = chat(withID: chatID) {
+                        PersistedContactContextView(chat: chat)
                     }
                 case let .chatIntelligence(chatID):
-                    if let chat = RezplySampleData.chat(withID: chatID) {
+                    if let chat = chat(withID: chatID) {
                         ChatIntelligenceView(
                             chat: chat,
                             intelligence: RezplySampleData.chatIntelligence(withID: chatID),
@@ -68,14 +66,7 @@ struct RezplyShellView: View {
         .tint(RezplyColor.primary)
     }
 
-    private func contactContextBinding(for chat: Chat) -> Binding<ContactContext> {
-        Binding(
-            get: {
-                contactContexts[chat.id] ?? chat.contactContext ?? ContactContext.empty
-            },
-            set: { newValue in
-                contactContexts[chat.id] = newValue
-            }
-        )
+    private func chat(withID id: String) -> Chat? {
+        chatRecords.first(where: { $0.id == id }).map { Chat(record: $0) }
     }
 }

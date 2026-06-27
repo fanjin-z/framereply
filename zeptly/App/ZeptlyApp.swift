@@ -6,11 +6,20 @@
 //
 
 import AppIntents
+import SwiftData
 import SwiftUI
 
 @main
 struct ZeptlyApp: App {
+    private let modelContainer: ModelContainer
+
     init() {
+        modelContainer = ZeptlyDataStore.shared
+        do {
+            try ChatRepository(container: modelContainer).seedIfNeeded()
+        } catch {
+            assertionFailure("Unable to seed Zeptly data: \(error)")
+        }
         ZeptlyShortcutsProvider.updateAppShortcutParameters()
     }
 
@@ -18,5 +27,6 @@ struct ZeptlyApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(modelContainer)
     }
 }
