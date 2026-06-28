@@ -7,12 +7,9 @@ import Foundation
 import SwiftUI
 
 enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
-    case deepSeek
     case openAI
     case zaiInternational
     case zhipuChina
-
-    static let allCases: [ProviderPlatform] = [.openAI, .zaiInternational, .zhipuChina]
 
     var id: String { rawValue }
 
@@ -20,8 +17,6 @@ enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .deepSeek:
-            "DeepSeek"
         case .openAI:
             "OpenAI"
         case .zaiInternational:
@@ -33,8 +28,6 @@ enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
 
     var symbolName: String {
         switch self {
-        case .deepSeek:
-            "sparkles"
         case .openAI:
             "waveform"
         case .zaiInternational, .zhipuChina:
@@ -43,18 +36,11 @@ enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
     }
 
     var isConnectable: Bool {
-        switch self {
-        case .deepSeek:
-            false
-        case .openAI, .zaiInternational, .zhipuChina:
-            true
-        }
+        true
     }
 
     var supportedModels: [ProviderModel] {
         switch self {
-        case .deepSeek:
-            []
         case .openAI:
             [.gpt54Mini, .gpt54, .gpt55]
         case .zaiInternational, .zhipuChina:
@@ -64,8 +50,6 @@ enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
 }
 
 enum ProviderModel: String, Codable, CaseIterable, Identifiable {
-    case deepSeekV4Flash = "deepseek-v4-flash"
-    case deepSeekV4Pro = "deepseek-v4-pro"
     case gpt54Mini = "gpt-5.4-mini"
     case gpt54 = "gpt-5.4"
     case gpt55 = "gpt-5.5"
@@ -77,10 +61,6 @@ enum ProviderModel: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .deepSeekV4Flash:
-            "Flash"
-        case .deepSeekV4Pro:
-            "Pro"
         case .gpt54Mini:
             "Balanced"
         case .gpt54:
@@ -98,10 +78,6 @@ enum ProviderModel: String, Codable, CaseIterable, Identifiable {
 
     var detail: String {
         switch self {
-        case .deepSeekV4Flash:
-            "Lower cost and faster replies"
-        case .deepSeekV4Pro:
-            "Stronger reasoning for complex work"
         case .gpt54Mini:
             "High-quality replies at a balanced cost"
         case .gpt54:

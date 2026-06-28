@@ -48,44 +48,6 @@ final class ProviderStoreTests: XCTestCase {
     }
 
     @MainActor
-    func testLegacyDeepSeekConnectionIsMigratedOutOfActiveProviders() throws {
-        let (defaults, suiteName) = makeDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let deepSeek = LegacyProviderConnection(
-            id: UUID(),
-            platform: .deepSeek,
-            model: .deepSeekV4Pro,
-            lastValidatedAt: Date(timeIntervalSinceReferenceDate: 100),
-            isEnabled: true,
-            validationState: .connected
-        )
-        let openAI = LegacyProviderConnection(
-            id: UUID(),
-            platform: .openAI,
-            model: .gpt54Mini,
-            lastValidatedAt: Date(timeIntervalSinceReferenceDate: 200),
-            isEnabled: true,
-            validationState: .connected
-        )
-        defaults.set(
-            try JSONEncoder().encode([deepSeek, openAI]),
-            forKey: ProviderStoreTestKey.providers
-        )
-
-        let store = ProviderStore(userDefaults: defaults, validators: [:])
-
-        XCTAssertEqual(store.providers.count, 1)
-        XCTAssertFalse(store.providers.contains { $0.platform == .deepSeek })
-        XCTAssertEqual(store.activePlatform, .openAI)
-        XCTAssertEqual(store.activeProvider?.id, openAI.id)
-        XCTAssertEqual(defaults.string(forKey: ProviderStoreTestKey.activePlatform), "openAI")
-        let migratedData = try XCTUnwrap(defaults.data(forKey: ProviderStoreTestKey.providers))
-        let migratedProviders = try JSONDecoder().decode([ProviderConnection].self, from: migratedData)
-        XCTAssertEqual(migratedProviders.map(\.platform), [.openAI])
-    }
-
-    @MainActor
     func testPersistedActivationIsExclusiveAndSurvivesReload() throws {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -183,13 +145,4 @@ final class ProviderStoreTests: XCTestCase {
 private enum ProviderStoreTestKey {
     static let providers = "zeptly.providerConnections.v1"
     static let activePlatform = "zeptly.activeProviderPlatform.v1"
-}
-
-private struct LegacyProviderConnection: Encodable {
-    let id: UUID
-    let platform: ProviderPlatform
-    let model: ProviderModel
-    let lastValidatedAt: Date?
-    let isEnabled: Bool
-    let validationState: ProviderValidationState
 }

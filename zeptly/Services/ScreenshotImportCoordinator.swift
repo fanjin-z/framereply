@@ -56,8 +56,6 @@ final class ScreenshotImportCoordinator {
                     ZAIClient(region: .international, eventReporter: eventReporter)
                 case .zhipuChina:
                     ZAIClient(region: .china, eventReporter: eventReporter)
-                case .deepSeek:
-                    nil
                 }
             }
         )
