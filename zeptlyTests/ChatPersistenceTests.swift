@@ -179,6 +179,57 @@ final class ChatPersistenceTests: XCTestCase {
     }
 
     @MainActor
+    func testDeleteChatRemovesRelatedDataAndLeavesOtherChatsUntouched() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        insertChat(id: "delete-me", name: "Delete Me", message: "Private", into: container)
+        insertChat(id: "keep-me", name: "Keep Me", message: "Keep this", into: container)
+        insertRelatedRecords(chatID: "delete-me", into: container)
+        insertRelatedRecords(chatID: "keep-me", into: container)
+        try container.mainContext.save()
+
+        try repository.deleteChat(id: "delete-me")
+
+        XCTAssertNil(try repository.chat(id: "delete-me"))
+        XCTAssertTrue(try repository.messages(chatID: "delete-me").isEmpty)
+        XCTAssertEqual(try relatedRecordCounts(chatID: "delete-me", in: container), [0, 0])
+
+        XCTAssertNotNil(try repository.chat(id: "keep-me"))
+        XCTAssertEqual(try repository.messages(chatID: "keep-me").count, 1)
+        XCTAssertEqual(try relatedRecordCounts(chatID: "keep-me", in: container), [1, 1])
+    }
+
+    @MainActor
+    func testDeleteProvisionalChatRemovesImportedData() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let outcome = try repository.applyImport(
+            analysis: provisionalAnalysis(),
+            confirmedChatID: nil,
+            provider: .deepSeek,
+            model: .deepSeekV4Flash
+        )
+
+        try repository.deleteChat(id: outcome.chatID)
+
+        XCTAssertNil(try repository.chat(id: outcome.chatID))
+        XCTAssertTrue(try repository.messages(chatID: outcome.chatID).isEmpty)
+        XCTAssertEqual(try relatedRecordCounts(chatID: outcome.chatID, in: container), [0, 0])
+    }
+
+    @MainActor
+    func testDeleteMissingChatIsANoOp() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        insertChat(id: "keep-me", name: "Keep Me", into: container)
+        try container.mainContext.save()
+
+        try repository.deleteChat(id: "does-not-exist")
+
+        XCTAssertNotNil(try repository.chat(id: "keep-me"))
+    }
+
+    @MainActor
     private func insertChat(
         id: String,
         name: String,
@@ -212,6 +263,47 @@ final class ChatPersistenceTests: XCTestCase {
                 )
             )
         }
+    }
+
+    @MainActor
+    private func insertRelatedRecords(chatID: String, into container: ModelContainer) {
+        container.mainContext.insert(
+            ContactContextRecord(
+                chatID: chatID,
+                relationshipSubtitle: "Friend",
+                relationshipNotes: "Notes",
+                keyFactsJSON: "[]",
+                currentInteractionGoal: "Reconnect",
+                preferredPersona: "Friendly"
+            )
+        )
+        container.mainContext.insert(
+            ChatImportRecord(
+                chatID: chatID,
+                transcriptFingerprint: "fingerprint-\(chatID)",
+                provider: "openAI",
+                model: "gpt-5.4-mini",
+                confidence: 0.9,
+                insertedMessageCount: 1,
+                isDuplicate: false,
+                requiresReview: false
+            )
+        )
+    }
+
+    @MainActor
+    private func relatedRecordCounts(chatID: String, in container: ModelContainer) throws -> [Int] {
+        let contactRecords = try container.mainContext.fetch(
+            FetchDescriptor<ContactContextRecord>(
+                predicate: #Predicate { $0.chatID == chatID }
+            )
+        )
+        let importRecords = try container.mainContext.fetch(
+            FetchDescriptor<ChatImportRecord>(
+                predicate: #Predicate { $0.chatID == chatID }
+            )
+        )
+        return [contactRecords.count, importRecords.count]
     }
 
     private func provisionalAnalysis() -> ChatImportAnalysis {

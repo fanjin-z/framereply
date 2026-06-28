@@ -66,6 +66,39 @@ final class ChatRepository {
         ).first
     }
 
+    func deleteChat(id: String) throws {
+        guard let chat = try chat(id: id) else {
+            return
+        }
+
+        let chatID = id
+        let messageRecords = try messages(chatID: chatID)
+        let contactRecords = try context.fetch(
+            FetchDescriptor<ContactContextRecord>(
+                predicate: #Predicate { $0.chatID == chatID }
+            )
+        )
+        let importRecords = try imports(chatID: chatID)
+
+        for message in messageRecords {
+            context.delete(message)
+        }
+        for contact in contactRecords {
+            context.delete(contact)
+        }
+        for importRecord in importRecords {
+            context.delete(importRecord)
+        }
+        context.delete(chat)
+
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
     func matchCandidates(recentMessageLimit: Int = 12) throws -> [ChatMatchCandidate] {
         try chats().map { chat in
             let recentMessages = try messages(chatID: chat.id).suffix(recentMessageLimit).map { message in

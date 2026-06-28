@@ -9,6 +9,7 @@ struct ChatRow: View {
     let chat: Chat
     let onChatTap: () -> Void
     let onAvatarTap: () -> Void
+    let onDeleteTap: () -> Void
 
     var body: some View {
         HStack(spacing: 16) {
@@ -69,6 +70,13 @@ struct ChatRow: View {
                 )
                 .fill(RezplyColor.primary)
                 .frame(width: 5)
+            }
+        }
+        .contextMenu {
+            Button(role: .destructive) {
+                onDeleteTap()
+            } label: {
+                Label("Delete Chat", systemImage: "trash")
             }
         }
     }

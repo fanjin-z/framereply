@@ -12,6 +12,9 @@ struct InboxView: View {
     let onAvatarTap: (Chat) -> Void
     @State private var searchText = ""
     @State private var isReviewPresented = false
+    @State private var chatPendingDeletion: Chat?
+    @State private var isDeleteConfirmationPresented = false
+    @State private var deleteErrorMessage: String?
     @Query(sort: \ChatRecord.updatedAt, order: .reverse) private var chatRecords: [ChatRecord]
 
     private var chats: [Chat] {
@@ -61,6 +64,10 @@ struct InboxView: View {
                             },
                             onAvatarTap: {
                                 onAvatarTap(chat)
+                            },
+                            onDeleteTap: {
+                                chatPendingDeletion = chat
+                                isDeleteConfirmationPresented = true
                             }
                         )
                     }
@@ -80,9 +87,52 @@ struct InboxView: View {
         .sheet(isPresented: $isReviewPresented) {
             ChatImportReviewSheet()
         }
+        .confirmationDialog(
+            "Delete chat with \(chatPendingDeletion?.name ?? "this person")?",
+            isPresented: $isDeleteConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Chat", role: .destructive) {
+                deletePendingChat()
+            }
+            Button("Cancel") {
+                chatPendingDeletion = nil
+            }
+        } message: {
+            Text("This permanently deletes this chat and its data. This can’t be undone.")
+        }
+        .alert("Could Not Delete Chat", isPresented: deleteErrorBinding) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(deleteErrorMessage ?? "Try again.")
+        }
     }
 
     private var provisionalCount: Int {
         chatRecords.filter(\.isProvisional).count
+    }
+
+    private var deleteErrorBinding: Binding<Bool> {
+        Binding(
+            get: { deleteErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    deleteErrorMessage = nil
+                }
+            }
+        )
+    }
+
+    private func deletePendingChat() {
+        guard let chat = chatPendingDeletion else {
+            return
+        }
+
+        do {
+            try ChatRepository().deleteChat(id: chat.id)
+            chatPendingDeletion = nil
+        } catch {
+            deleteErrorMessage = error.localizedDescription
+        }
     }
 }

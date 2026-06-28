@@ -9,6 +9,7 @@ struct ChatIntelligenceTopBar: View {
     let chat: Chat
     let onBackTap: () -> Void
     let onContactTap: () -> Void
+    let onDeleteTap: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -55,7 +56,12 @@ struct ChatIntelligenceTopBar: View {
 
             Spacer(minLength: 8)
 
-            Button {
+            Menu {
+                Button(role: .destructive) {
+                    onDeleteTap()
+                } label: {
+                    Label("Delete Chat", systemImage: "trash")
+                }
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 20, weight: .bold))

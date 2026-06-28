@@ -17,6 +17,8 @@ struct ChatIntelligenceView: View {
     @State private var isScreenshotAttached = false
     @State private var contextNote = ""
     @State private var copiedReplyID: UUID?
+    @State private var isDeleteConfirmationPresented = false
+    @State private var deleteErrorMessage: String?
     @Query private var messageRecords: [ChatMessageRecord]
 
     init(chat: Chat, intelligence: ChatIntelligence, onContactTap: @escaping () -> Void) {
@@ -49,7 +51,10 @@ struct ChatIntelligenceView: View {
                         onBackTap: {
                             dismiss()
                         },
-                        onContactTap: onContactTap
+                        onContactTap: onContactTap,
+                        onDeleteTap: {
+                            isDeleteConfirmationPresented = true
+                        }
                     )
 
                     ChatContextChipPanel(chips: intelligence.contextChips)
@@ -101,6 +106,36 @@ struct ChatIntelligenceView: View {
         .sheet(isPresented: $isContextPresented) {
             AddChatContextSheet(note: $contextNote)
         }
+        .confirmationDialog(
+            "Delete chat with \(chat.name)?",
+            isPresented: $isDeleteConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Chat", role: .destructive) {
+                deleteChat()
+            }
+            Button("Cancel") {
+                isDeleteConfirmationPresented = false
+            }
+        } message: {
+            Text("This permanently deletes this chat and its data. This can’t be undone.")
+        }
+        .alert("Could Not Delete Chat", isPresented: deleteErrorBinding) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(deleteErrorMessage ?? "Try again.")
+        }
+    }
+
+    private var deleteErrorBinding: Binding<Bool> {
+        Binding(
+            get: { deleteErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    deleteErrorMessage = nil
+                }
+            }
+        )
     }
 
     private func copyReply(_ reply: SuggestedReply) {
@@ -108,6 +143,15 @@ struct ChatIntelligenceView: View {
 
         withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             copiedReplyID = reply.id
+        }
+    }
+
+    private func deleteChat() {
+        do {
+            try ChatRepository().deleteChat(id: chat.id)
+            dismiss()
+        } catch {
+            deleteErrorMessage = error.localizedDescription
         }
     }
 }
