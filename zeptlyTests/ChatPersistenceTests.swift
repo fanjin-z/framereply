@@ -9,36 +9,27 @@ final class ChatPersistenceTests: XCTestCase {
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("store")
         defer { try? FileManager.default.removeItem(at: storeURL) }
+        var importedChatID = ""
 
         do {
             let container = try ZeptlyDataStore.makeContainer(url: storeURL)
-            try ChatRepository(container: container).seedIfNeeded()
+            let repository = ChatRepository(container: container)
+            try repository.seedIfNeeded()
+            let outcome = try repository.applyImport(
+                analysis: provisionalAnalysis(),
+                confirmedChatID: nil,
+                provider: .deepSeek,
+                model: .deepSeekV4Flash
+            )
+            importedChatID = outcome.chatID
         }
 
         do {
             let container = try ZeptlyDataStore.makeContainer(url: storeURL)
             let repository = ChatRepository(container: container)
-            XCTAssertEqual(try repository.chats().count, RezplySampleData.chats.count)
-            XCTAssertEqual(try repository.messages(chatID: "sarah-jenkins").count, 5)
+            XCTAssertEqual(try repository.chats().count, 1)
+            XCTAssertEqual(try repository.messages(chatID: importedChatID).count, 1)
         }
-    }
-
-    @MainActor
-    func testSeedingPersistsChatsMessagesAndContactContextOnce() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-
-        try repository.seedIfNeeded()
-        try repository.seedIfNeeded()
-
-        let chats = try repository.chats()
-        XCTAssertEqual(chats.count, RezplySampleData.chats.count)
-        XCTAssertEqual(chats.first?.id, "sarah-jenkins")
-        XCTAssertEqual(try repository.messages(chatID: "sarah-jenkins").count, 5)
-        XCTAssertEqual(
-            try repository.contactContext(chatID: "sarah-jenkins")?.preferredPersona,
-            "Warm & Collaborative"
-        )
     }
 
     @MainActor
@@ -69,6 +60,12 @@ final class ChatPersistenceTests: XCTestCase {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         try repository.seedIfNeeded()
+        insertChat(
+            id: "sarah-jenkins",
+            name: "Sarah Jenkins",
+            message: "Perfect. Please include a suggested time for the formal review too.",
+            into: container
+        )
         let analysis = ChatImportAnalysis(
             conversationTitle: "Sarah Jenkins",
             participants: ["Sarah Jenkins"],
@@ -107,7 +104,7 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertFalse(first.duplicate)
         XCTAssertEqual(second.insertedMessageCount, 0)
         XCTAssertTrue(second.duplicate)
-        XCTAssertEqual(try repository.messages(chatID: "sarah-jenkins").count, 6)
+        XCTAssertEqual(try repository.messages(chatID: "sarah-jenkins").count, 2)
     }
 
     @MainActor
@@ -166,7 +163,8 @@ final class ChatPersistenceTests: XCTestCase {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         try repository.seedIfNeeded()
-        let originalCount = try repository.messages(chatID: "sarah-jenkins").count
+        insertChat(id: "target-chat", name: "Target Chat", into: container)
+        let originalCount = try repository.messages(chatID: "target-chat").count
         let outcome = try repository.applyImport(
             analysis: provisionalAnalysis(),
             confirmedChatID: nil,
@@ -174,10 +172,46 @@ final class ChatPersistenceTests: XCTestCase {
             model: .deepSeekV4Flash
         )
 
-        try repository.mergeProvisionalChat(outcome.chatID, into: "sarah-jenkins")
+        try repository.mergeProvisionalChat(outcome.chatID, into: "target-chat")
 
         XCTAssertNil(try repository.chat(id: outcome.chatID))
-        XCTAssertEqual(try repository.messages(chatID: "sarah-jenkins").count, originalCount + 1)
+        XCTAssertEqual(try repository.messages(chatID: "target-chat").count, originalCount + 1)
+    }
+
+    @MainActor
+    private func insertChat(
+        id: String,
+        name: String,
+        message: String? = nil,
+        into container: ModelContainer
+    ) {
+        container.mainContext.insert(
+            ChatRecord(
+                id: id,
+                name: name,
+                lastActivityLabel: "Recent",
+                preview: message ?? "Imported conversation",
+                chipTitle: "General",
+                chipSymbol: "number",
+                avatarSymbol: nil,
+                initials: "TC",
+                appearanceStyle: 0,
+                isUnread: false,
+                isOnline: false
+            )
+        )
+        if let message {
+            container.mainContext.insert(
+                ChatMessageRecord(
+                    chatID: id,
+                    senderKind: "contact",
+                    text: message,
+                    normalizedText: MessageTextNormalizer.normalize(message),
+                    timeLabel: "10:50 AM",
+                    sortIndex: 0
+                )
+            )
+        }
     }
 
     private func provisionalAnalysis() -> ChatImportAnalysis {

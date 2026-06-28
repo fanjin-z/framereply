@@ -8,6 +8,21 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         try repository.seedIfNeeded()
+        container.mainContext.insert(
+            ChatRecord(
+                id: "sarah-jenkins",
+                name: "Sarah Jenkins",
+                lastActivityLabel: "Recent",
+                preview: "Existing conversation",
+                chipTitle: "General",
+                chipSymbol: "number",
+                avatarSymbol: nil,
+                initials: "SJ",
+                appearanceStyle: 0,
+                isUnread: false,
+                isOnline: false
+            )
+        )
         let credentials = StubProviderConfiguration()
         let analysis = ChatImportAnalysis(
             conversationTitle: "Sarah Jenkins",

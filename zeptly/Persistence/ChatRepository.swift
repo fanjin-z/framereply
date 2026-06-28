@@ -31,47 +31,6 @@ final class ChatRepository {
             return
         }
 
-        let existingChats = try context.fetch(FetchDescriptor<ChatRecord>())
-        let existingByID = Dictionary(uniqueKeysWithValues: existingChats.map { ($0.id, $0) })
-
-        for (index, chat) in RezplySampleData.chats.enumerated() {
-            let seedDate = Date(timeIntervalSinceReferenceDate: 1_000_000 - Double(index))
-            if existingByID[chat.id] == nil {
-                context.insert(
-                    ChatRecord(
-                    id: chat.id,
-                    name: chat.name,
-                    lastActivityLabel: chat.timeLabel,
-                    preview: chat.preview,
-                    chipTitle: chat.chipTitle,
-                    chipSymbol: chat.chipSymbol,
-                    avatarSymbol: chat.avatarSymbol,
-                    initials: chat.initials,
-                        appearanceStyle: index,
-                        isUnread: chat.isUnread,
-                        isOnline: chat.isOnline,
-                        createdAt: seedDate,
-                        updatedAt: seedDate
-                    )
-                )
-            } else {
-                existingByID[chat.id]?.updatedAt = seedDate
-            }
-
-            if let contactContext = chat.contactContext,
-                try self.contactContext(chatID: chat.id) == nil
-            {
-                context.insert(makeContactRecord(contactContext, chatID: chat.id))
-            }
-
-            if try messages(chatID: chat.id).isEmpty {
-                let intelligence = RezplySampleData.chatIntelligence(withID: chat.id)
-                for (messageIndex, message) in intelligence.messages.enumerated() {
-                    context.insert(makeMessageRecord(message, chatID: chat.id, sortIndex: messageIndex))
-                }
-            }
-        }
-
         if let metadata {
             metadata.value = seedVersion
         } else {
