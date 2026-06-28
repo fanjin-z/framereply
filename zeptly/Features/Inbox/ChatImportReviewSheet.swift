@@ -110,9 +110,18 @@ private struct ImportReviewCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("Needs review", systemImage: "exclamationmark.bubble.fill")
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(RezplyColor.primary)
+            HStack(spacing: 10) {
+                AvatarMark(
+                    initials: chat.initials,
+                    symbolName: chat.avatarSymbol,
+                    colors: [RezplyColor.peach, RezplyColor.primaryContainer],
+                    imageData: chat.avatarData,
+                    size: 38
+                )
+                Label("Needs review", systemImage: "exclamationmark.bubble.fill")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(RezplyColor.primary)
+            }
 
             TextField("Chat name", text: $name)
                 .textFieldStyle(.roundedBorder)

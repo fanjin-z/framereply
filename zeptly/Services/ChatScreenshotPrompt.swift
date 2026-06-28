@@ -10,6 +10,10 @@ enum ChatScreenshotPrompt {
         {
           "conversationTitle": null,
           "participants": ["Contact Name"],
+          "sourceApp": null,
+          "conversationKind": "unknown",
+          "titleSource": "unavailable",
+          "avatarBounds": null,
           "messages": [
             {
               "sender": "contact",
@@ -19,7 +23,8 @@ enum ChatScreenshotPrompt {
             }
           ],
           "matchedChatID": null,
-          "matchConfidence": 0.0
+          "matchConfidence": 0.0,
+          "matchBasis": "insufficient_evidence"
         }
         """
 
@@ -33,6 +38,12 @@ enum ChatScreenshotPrompt {
         Include only actual participant message bubbles. Exclude centered date separators, encryption notices, contact notices, unread markers, call notices, and other system or app UI.
         Preserve visible message text exactly without translating, correcting, or rewriting it.
         Do not invent missing messages, names, or timestamps. matchedChatID must be one of the supplied candidate IDs or null.
+        Extract sourceApp when the app is visually identifiable. conversationKind must be "direct", "group", or "unknown".
+        titleSource must be "header" only when conversationTitle was read directly from the visible conversation header, "participant_label" when it came only from a participant label, or "unavailable" when no reliable title is visible.
+        If a header profile image is clearly visible, return its tight bounding rectangle in avatarBounds using normalized 0...1 coordinates with a top-left origin. Exclude borders and nearby UI when possible. Otherwise return null.
+        Matching evidence priority is strict: (1) a directly observed header display name, (2) group title and participants, (3) distinctive incoming/contact messages with timestamps, and only then (4) generic or user-authored messages as weak support.
+        A repeated opening message written by the current user is not contact identity evidence. If a directly observed one-to-one display name conflicts with a candidate name, do not match that candidate based only on message overlap.
+        Return matchedChatID null when identity evidence is insufficient or conflicting. matchBasis must summarize the strongest basis using exactly "display_name", "group_identity", "distinctive_messages", "mixed_evidence", "identity_conflict", or "insufficient_evidence".
         Before returning JSON, internally verify that sender assignments are consistent with the identified app convention, outer bubble ownership, and delivery/read indicators across the full screenshot. Resolve any conflict in favor of the outer bubble's visual ownership signals.
         Return only one complete JSON object. Every key shown below is required. Use explicit null values for unavailable optional fields.
         sender must be exactly "user", "contact", or "other". matchConfidence must be between 0 and 1.
@@ -57,12 +68,34 @@ enum ChatScreenshotPrompt {
     static let jsonSchema: [String: Any] = [
         "type": "object",
         "additionalProperties": false,
-        "required": ["conversationTitle", "participants", "messages", "matchedChatID", "matchConfidence"],
+        "required": [
+            "conversationTitle", "participants", "sourceApp", "conversationKind", "titleSource",
+            "avatarBounds", "messages", "matchedChatID", "matchConfidence", "matchBasis"
+        ],
         "properties": [
             "conversationTitle": ["type": ["string", "null"]],
             "participants": [
                 "type": "array",
                 "items": ["type": "string"]
+            ],
+            "sourceApp": ["type": ["string", "null"]],
+            "conversationKind": ["type": "string", "enum": ["direct", "group", "unknown"]],
+            "titleSource": ["type": "string", "enum": ["header", "participant_label", "unavailable"]],
+            "avatarBounds": [
+                "anyOf": [
+                    ["type": "null"],
+                    [
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["x", "y", "width", "height"],
+                        "properties": [
+                            "x": ["type": "number", "minimum": 0, "maximum": 1],
+                            "y": ["type": "number", "minimum": 0, "maximum": 1],
+                            "width": ["type": "number", "minimum": 0, "maximum": 1],
+                            "height": ["type": "number", "minimum": 0, "maximum": 1]
+                        ]
+                    ]
+                ]
             ],
             "messages": [
                 "type": "array",
@@ -80,7 +113,14 @@ enum ChatScreenshotPrompt {
                 ]
             ],
             "matchedChatID": ["type": ["string", "null"]],
-            "matchConfidence": ["type": "number", "minimum": 0, "maximum": 1]
+            "matchConfidence": ["type": "number", "minimum": 0, "maximum": 1],
+            "matchBasis": [
+                "type": "string",
+                "enum": [
+                    "display_name", "group_identity", "distinctive_messages", "mixed_evidence",
+                    "identity_conflict", "insufficient_evidence"
+                ]
+            ]
         ]
     ]
 }

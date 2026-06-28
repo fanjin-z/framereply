@@ -150,6 +150,10 @@ final class ProviderAnalysisTests: XCTestCase {
         let object: [String: Any] = [
             "conversationTitle": "Sarah Jenkins",
             "participants": ["Sarah Jenkins"],
+            "sourceApp": "Telegram",
+            "conversationKind": "direct",
+            "titleSource": "header",
+            "avatarBounds": NSNull(),
             "messages": [[
                 "sender": "contact",
                 "senderName": "Sarah Jenkins",
@@ -157,7 +161,8 @@ final class ProviderAnalysisTests: XCTestCase {
                 "timestampLabel": "10:42 AM"
             ]],
             "matchedChatID": matchedChatID.map { $0 as Any } ?? NSNull(),
-            "matchConfidence": matchedChatID == nil ? 0.2 : 0.96
+            "matchConfidence": matchedChatID == nil ? 0.2 : 0.96,
+            "matchBasis": matchedChatID == nil ? "insufficient_evidence" : "display_name"
         ]
         return String(data: try! JSONSerialization.data(withJSONObject: object), encoding: .utf8)!
     }

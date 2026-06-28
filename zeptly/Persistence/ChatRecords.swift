@@ -15,6 +15,13 @@ final class ChatRecord {
     var chipTitle: String
     var chipSymbol: String
     var avatarSymbol: String?
+    @Attribute(.externalStorage) var avatarData: Data?
+    var avatarPerceptualHash: Int64?
+    var avatarFeaturePrintData: Data?
+    // Optional so rows written before avatar support can lightweight-migrate safely.
+    var avatarQuality: Double?
+    var avatarAlgorithmRevision: Int?
+    var avatarUpdatedAt: Date?
     var initials: String
     var appearanceStyle: Int
     var isUnread: Bool
@@ -36,6 +43,12 @@ final class ChatRecord {
         isUnread: Bool,
         isOnline: Bool,
         isProvisional: Bool = false,
+        avatarData: Data? = nil,
+        avatarPerceptualHash: Int64? = nil,
+        avatarFeaturePrintData: Data? = nil,
+        avatarQuality: Double = 0,
+        avatarAlgorithmRevision: Int = 0,
+        avatarUpdatedAt: Date? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -46,6 +59,12 @@ final class ChatRecord {
         self.chipTitle = chipTitle
         self.chipSymbol = chipSymbol
         self.avatarSymbol = avatarSymbol
+        self.avatarData = avatarData
+        self.avatarPerceptualHash = avatarPerceptualHash
+        self.avatarFeaturePrintData = avatarFeaturePrintData
+        self.avatarQuality = avatarQuality
+        self.avatarAlgorithmRevision = avatarAlgorithmRevision
+        self.avatarUpdatedAt = avatarUpdatedAt
         self.initials = initials
         self.appearanceStyle = appearanceStyle
         self.isUnread = isUnread
@@ -135,6 +154,12 @@ final class ChatImportRecord {
     var insertedMessageCount: Int
     var isDuplicate: Bool
     var requiresReview: Bool
+    var matchDisposition: String?
+    var suggestedChatID: String?
+    var matchReason: String?
+    var avatarEvidence: String?
+    var transcriptEvidence: String?
+    var sourceApp: String?
 
     init(
         id: UUID = UUID(),
@@ -146,7 +171,13 @@ final class ChatImportRecord {
         createdAt: Date = Date(),
         insertedMessageCount: Int,
         isDuplicate: Bool,
-        requiresReview: Bool
+        requiresReview: Bool,
+        matchDisposition: String? = nil,
+        suggestedChatID: String? = nil,
+        matchReason: String? = nil,
+        avatarEvidence: String? = nil,
+        transcriptEvidence: String? = nil,
+        sourceApp: String? = nil
     ) {
         self.id = id
         self.chatID = chatID
@@ -158,6 +189,12 @@ final class ChatImportRecord {
         self.insertedMessageCount = insertedMessageCount
         self.isDuplicate = isDuplicate
         self.requiresReview = requiresReview
+        self.matchDisposition = matchDisposition
+        self.suggestedChatID = suggestedChatID
+        self.matchReason = matchReason
+        self.avatarEvidence = avatarEvidence
+        self.transcriptEvidence = transcriptEvidence
+        self.sourceApp = sourceApp
     }
 }
 

@@ -58,6 +58,16 @@ final class ChatMessageMergerTests: XCTestCase {
         XCTAssertEqual(result.insertedMessageCount, 1)
     }
 
+    func testSparseAnchorsAllowOmittedIntermediateMessages() {
+        let result = ChatMessageMerger.merge(
+            existing: [message("A"), message("B"), message("C")],
+            imported: [message("A"), message("X"), message("C")]
+        )
+
+        XCTAssertEqual(result.messages.map(\.text), ["A", "B", "X", "C"])
+        XCTAssertEqual(result.insertedMessageCount, 1)
+    }
+
     private func message(_ text: String, time: String = "") -> MergeMessage {
         MergeMessage(
             analyzed: AnalyzedChatMessage(

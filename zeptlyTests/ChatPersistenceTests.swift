@@ -4,6 +4,35 @@ import XCTest
 
 final class ChatPersistenceTests: XCTestCase {
     @MainActor
+    func testLegacyChatRowsDoNotRequireAvatarMetadata() throws {
+        let storeURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("store")
+        defer { try? FileManager.default.removeItem(at: storeURL) }
+
+        do {
+            let container = try ZeptlyDataStore.makeContainer(url: storeURL)
+            insertChat(id: "legacy-chat", name: "Legacy Chat", into: container)
+            try container.mainContext.save()
+            let record = try XCTUnwrap(
+                container.mainContext.fetch(FetchDescriptor<ChatRecord>()).first
+            )
+            record.avatarQuality = nil
+            record.avatarAlgorithmRevision = nil
+            try container.mainContext.save()
+        }
+
+        do {
+            let container = try ZeptlyDataStore.makeContainer(url: storeURL)
+            let repository = ChatRepository(container: container)
+            let record = try XCTUnwrap(repository.chat(id: "legacy-chat"))
+            XCTAssertNil(record.avatarQuality)
+            XCTAssertNil(record.avatarAlgorithmRevision)
+            XCTAssertTrue(try repository.storedAvatarFingerprints().isEmpty)
+        }
+    }
+
+    @MainActor
     func testChatsPersistWhenTheContainerIsRecreated() throws {
         let storeURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -230,6 +259,87 @@ final class ChatPersistenceTests: XCTestCase {
     }
 
     @MainActor
+    func testImportStoresAvatarAndMatchEvidenceWithoutScreenshotContent() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let analysis = ChatImportAnalysis(
+            conversationTitle: "Weekend Hike",
+            participants: ["Alex"],
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .contact,
+                    senderName: "Alex",
+                    text: "Trail at eight?",
+                    timestampLabel: "8:00 PM"
+                )
+            ],
+            matchedChatID: nil,
+            matchConfidence: 0.4,
+            sourceApp: "Telegram"
+        )
+        let artifact = avatarArtifact(quality: 0.72)
+        let decision = ChatMatchDecision(
+            disposition: .review,
+            confirmedChatID: nil,
+            suggestedChatID: "alex",
+            aiConfidence: 0.4,
+            avatarEvidence: .competing,
+            transcriptEvidence: .weak,
+            reason: .competingAvatar
+        )
+
+        let outcome = try repository.applyImport(
+            analysis: analysis,
+            confirmedChatID: nil,
+            matchDecision: decision,
+            avatarArtifact: artifact,
+            provider: .openAI,
+            model: .gpt54Mini
+        )
+
+        let storedChat = try XCTUnwrap(repository.chat(id: outcome.chatID))
+        XCTAssertEqual(storedChat.avatarData, artifact.imageData)
+        XCTAssertEqual(storedChat.avatarPerceptualHash, Int64(bitPattern: artifact.perceptualHash))
+        XCTAssertEqual(storedChat.avatarQuality, artifact.quality)
+        XCTAssertEqual(try repository.storedAvatarFingerprints().map(\.chatID), [outcome.chatID])
+
+        let imports = try container.mainContext.fetch(FetchDescriptor<ChatImportRecord>())
+        let importRecord = try XCTUnwrap(imports.first)
+        XCTAssertEqual(importRecord.matchDisposition, ChatMatchDisposition.review.rawValue)
+        XCTAssertEqual(importRecord.matchReason, ChatMatchReason.competingAvatar.rawValue)
+        XCTAssertEqual(importRecord.avatarEvidence, AvatarEvidenceLevel.competing.rawValue)
+        XCTAssertEqual(importRecord.transcriptEvidence, TranscriptEvidenceLevel.weak.rawValue)
+        XCTAssertEqual(importRecord.sourceApp, "Telegram")
+
+        try repository.deleteChat(id: outcome.chatID)
+        XCTAssertNil(try repository.chat(id: outcome.chatID))
+        XCTAssertTrue(try repository.storedAvatarFingerprints().isEmpty)
+    }
+
+    @MainActor
+    func testManualMergeTransfersNewerValidProvisionalAvatar() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        insertChat(id: "target-chat", name: "Target Chat", into: container)
+        try container.mainContext.save()
+        let artifact = avatarArtifact(quality: 0.66)
+        let outcome = try repository.applyImport(
+            analysis: provisionalAnalysis(),
+            confirmedChatID: nil,
+            avatarArtifact: artifact,
+            provider: .deepSeek,
+            model: .deepSeekV4Flash
+        )
+
+        try repository.mergeProvisionalChat(outcome.chatID, into: "target-chat")
+
+        let target = try XCTUnwrap(repository.chat(id: "target-chat"))
+        XCTAssertEqual(target.avatarData, artifact.imageData)
+        XCTAssertEqual(target.avatarPerceptualHash, Int64(bitPattern: artifact.perceptualHash))
+        XCTAssertEqual(target.avatarQuality, artifact.quality)
+    }
+
+    @MainActor
     private func insertChat(
         id: String,
         name: String,
@@ -320,6 +430,16 @@ final class ChatPersistenceTests: XCTestCase {
             ],
             matchedChatID: nil,
             matchConfidence: 0.3
+        )
+    }
+
+    private func avatarArtifact(quality: Double) -> AvatarArtifact {
+        AvatarArtifact(
+            imageData: Data(repeating: 0xA5, count: 512),
+            perceptualHash: 0x1234_5678_9ABC_DEF0,
+            featurePrintData: Data(repeating: 0x5A, count: 128),
+            quality: quality,
+            revision: AvatarArtifact.algorithmRevision
         )
     }
 }

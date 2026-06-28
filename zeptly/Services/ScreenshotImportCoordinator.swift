@@ -143,16 +143,24 @@ final class ScreenshotImportCoordinator {
         }
 
         eventReporter.record(.stageStarted(traceID: traceID, stage: .matching))
-        let confirmedChatID = ChatImportMatcher.confirmedChatID(
+        let avatarArtifact = AvatarIdentityService.extract(
+            from: imageData,
+            bounds: analysis.avatarBounds
+        )
+        let matchDecision = ChatImportMatcher.decision(
             analysis: analysis,
-            candidates: candidates
+            candidates: candidates,
+            avatarArtifact: avatarArtifact,
+            storedAvatars: try repository.storedAvatarFingerprints()
         )
 
         eventReporter.record(.stageStarted(traceID: traceID, stage: .persistence))
         do {
             let outcome = try repository.applyImport(
                 analysis: analysis,
-                confirmedChatID: confirmedChatID,
+                confirmedChatID: matchDecision.confirmedChatID,
+                matchDecision: matchDecision,
+                avatarArtifact: avatarArtifact,
                 provider: activeProvider.platform,
                 model: activeProvider.model,
                 traceID: traceID

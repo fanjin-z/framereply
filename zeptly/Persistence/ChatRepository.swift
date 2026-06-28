@@ -118,9 +118,31 @@ final class ChatRepository {
         }
     }
 
+    func storedAvatarFingerprints() throws -> [StoredAvatarFingerprint] {
+        try chats().compactMap { chat in
+            guard let hash = chat.avatarPerceptualHash,
+                let featurePrintData = chat.avatarFeaturePrintData,
+                let quality = chat.avatarQuality,
+                let revision = chat.avatarAlgorithmRevision,
+                revision > 0
+            else {
+                return nil
+            }
+            return StoredAvatarFingerprint(
+                chatID: chat.id,
+                perceptualHash: UInt64(bitPattern: hash),
+                featurePrintData: featurePrintData,
+                quality: quality,
+                revision: revision
+            )
+        }
+    }
+
     func applyImport(
         analysis: ChatImportAnalysis,
         confirmedChatID: String?,
+        matchDecision: ChatMatchDecision? = nil,
+        avatarArtifact: AvatarArtifact? = nil,
         provider: ProviderPlatform,
         model: ProviderModel,
         traceID: ImportTraceID = ImportTraceID()
@@ -135,6 +157,17 @@ final class ChatRepository {
             targetChat = makeProvisionalChat(from: analysis)
             context.insert(targetChat)
             context.insert(makeContactRecord(.empty, chatID: targetChat.id))
+        }
+
+        if let avatarArtifact,
+            shouldApplyAvatar(
+                avatarArtifact,
+                to: targetChat,
+                matchedExisting: matchedExisting,
+                matchDecision: matchDecision
+            )
+        {
+            applyAvatar(avatarArtifact, to: targetChat)
         }
 
         let existingRecords = try messages(chatID: targetChat.id)
@@ -191,7 +224,14 @@ final class ChatRepository {
             confidence: analysis.matchConfidence,
             insertedMessageCount: mergeResult.insertedMessageCount,
             isDuplicate: isDuplicate,
-            requiresReview: targetChat.isProvisional
+            requiresReview: targetChat.isProvisional,
+            matchDisposition: matchDecision?.disposition.rawValue
+                ?? (matchedExisting ? ChatMatchDisposition.confirmed.rawValue : ChatMatchDisposition.review.rawValue),
+            suggestedChatID: matchDecision?.suggestedChatID,
+            matchReason: matchDecision?.reason.rawValue,
+            avatarEvidence: matchDecision?.avatarEvidence.rawValue,
+            transcriptEvidence: matchDecision?.transcriptEvidence.rawValue,
+            sourceApp: analysis.sourceApp
         )
         context.insert(importRecord)
 
@@ -288,6 +328,26 @@ final class ChatRepository {
             importRecord.chatID = targetChatID
             importRecord.transcriptFingerprint = nil
             importRecord.requiresReview = false
+            importRecord.matchDisposition = ChatMatchDisposition.confirmed.rawValue
+            importRecord.matchReason = "manual_review_merge"
+        }
+
+        if let data = provisionalChat.avatarData,
+            let hash = provisionalChat.avatarPerceptualHash,
+            let feature = provisionalChat.avatarFeaturePrintData,
+            let quality = provisionalChat.avatarQuality,
+            let revision = provisionalChat.avatarAlgorithmRevision,
+            quality >= 0.08,
+            revision == AvatarArtifact.algorithmRevision,
+            targetChat.avatarData == nil
+                || (provisionalChat.avatarUpdatedAt ?? .distantPast) >= (targetChat.avatarUpdatedAt ?? .distantPast)
+        {
+            targetChat.avatarData = data
+            targetChat.avatarPerceptualHash = hash
+            targetChat.avatarFeaturePrintData = feature
+            targetChat.avatarQuality = quality
+            targetChat.avatarAlgorithmRevision = revision
+            targetChat.avatarUpdatedAt = provisionalChat.avatarUpdatedAt
         }
         context.delete(provisionalChat)
 
@@ -374,6 +434,59 @@ final class ChatRepository {
 
     private func persistedSenderKind(_ comparisonKey: String) -> String {
         comparisonKey.hasPrefix("other:") ? "other" : comparisonKey
+    }
+
+    private func applyAvatar(_ artifact: AvatarArtifact, to chat: ChatRecord) {
+        chat.avatarData = artifact.imageData
+        chat.avatarPerceptualHash = Int64(bitPattern: artifact.perceptualHash)
+        chat.avatarFeaturePrintData = artifact.featurePrintData
+        chat.avatarQuality = artifact.quality
+        chat.avatarAlgorithmRevision = artifact.revision
+        chat.avatarUpdatedAt = Date()
+    }
+
+    private func shouldApplyAvatar(
+        _ artifact: AvatarArtifact,
+        to chat: ChatRecord,
+        matchedExisting: Bool,
+        matchDecision: ChatMatchDecision?
+    ) -> Bool {
+        guard artifact.quality >= 0.08,
+            artifact.revision == AvatarArtifact.algorithmRevision,
+            !artifact.imageData.isEmpty,
+            !artifact.featurePrintData.isEmpty
+        else {
+            return false
+        }
+        guard matchedExisting else { return true }
+        guard chat.avatarData != nil,
+            let storedHash = chat.avatarPerceptualHash,
+            let storedFeature = chat.avatarFeaturePrintData
+        else {
+            return true
+        }
+        guard matchDecision?.reason == .confirmedDisplayName else { return false }
+        let storedQuality = chat.avatarQuality ?? 0
+        if artifact.quality > storedQuality + 0.01 { return true }
+
+        let current = StoredAvatarFingerprint(
+            chatID: chat.id,
+            perceptualHash: UInt64(bitPattern: storedHash),
+            featurePrintData: storedFeature,
+            quality: storedQuality,
+            revision: chat.avatarAlgorithmRevision ?? 0
+        )
+        guard let similarity = AvatarIdentityService.similarities(
+            artifact: artifact,
+            candidates: [current]
+        ).first else {
+            return false
+        }
+
+        // An exact header-name match is trusted enough to accept a clearly changed photo,
+        // while retaining a quality floor so a weak crop cannot replace a good avatar.
+        return !similarity.passesAbsoluteThresholds
+            && artifact.quality >= max(0.08, storedQuality * 0.75)
     }
 
     private func initials(for name: String) -> String {

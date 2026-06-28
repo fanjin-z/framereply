@@ -16,8 +16,8 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
     }
 
     func testClassifiesMissingAndWrongFieldsWithCodingPaths() {
-        let missing = validJSON().replacingOccurrences(of: ",\"matchConfidence\":0.9", with: "")
-        assertFailure(missing, kind: .schemaMismatch, path: "matchConfidence")
+        let missing = validJSON().replacingOccurrences(of: #""messages""#, with: #""missingMessages""#)
+        assertFailure(missing, kind: .schemaMismatch, path: "messages")
 
         let wrong = validJSON().replacingOccurrences(of: #""sender":"contact""#, with: #""sender":42"#)
         assertFailure(wrong, kind: .schemaMismatch, path: "messages[0].sender")
@@ -29,6 +29,35 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
 
         let incomplete = validJSON().replacingOccurrences(of: #""text":"Hello""#, with: #""text":"   ""#)
         assertFailure(incomplete, kind: .incompleteMessages, path: "messages")
+    }
+
+    func testMissingNewIdentityMetadataDecodesConservatively() throws {
+        let legacyJSON = #"{"conversationTitle":"Alex","messages":[{"sender":"contact","senderName":"Alex","text":"Hello","timestampLabel":null}]}"#
+
+        let analysis = try decode(legacyJSON)
+
+        XCTAssertNil(analysis.sourceApp)
+        XCTAssertTrue(analysis.participants.isEmpty)
+        XCTAssertNil(analysis.matchedChatID)
+        XCTAssertEqual(analysis.matchConfidence, 0)
+        XCTAssertEqual(analysis.conversationKind, .unknown)
+        XCTAssertEqual(analysis.titleSource, .unavailable)
+        XCTAssertNil(analysis.avatarBounds)
+        XCTAssertEqual(analysis.matchBasis, .insufficientEvidence)
+    }
+
+    func testUnknownIdentityMetadataValuesDoNotDiscardTranscript() throws {
+        let json = validJSON()
+            .replacingOccurrences(of: #""conversationKind":"direct""#, with: #""conversationKind":"one_to_one""#)
+            .replacingOccurrences(of: #""titleSource":"header""#, with: #""titleSource":"guessed""#)
+            .replacingOccurrences(of: #""matchBasis":"display_name""#, with: #""matchBasis":"message_overlap""#)
+
+        let analysis = try decode(json)
+
+        XCTAssertEqual(analysis.messages.first?.text, "Hello")
+        XCTAssertEqual(analysis.conversationKind, .unknown)
+        XCTAssertEqual(analysis.titleSource, .unavailable)
+        XCTAssertEqual(analysis.matchBasis, .insufficientEvidence)
     }
 
     private func decode(_ content: String, finishReason: String? = "stop") throws -> ChatImportAnalysis {
@@ -63,6 +92,6 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
     }
 
     private func validJSON() -> String {
-        #"{"conversationTitle":"Alex","participants":["Alex"],"messages":[{"sender":"contact","senderName":"Alex","text":"Hello","timestampLabel":null}],"matchedChatID":null,"matchConfidence":0.9}"#
+        #"{"conversationTitle":"Alex","participants":["Alex"],"sourceApp":"Telegram","conversationKind":"direct","titleSource":"header","avatarBounds":null,"messages":[{"sender":"contact","senderName":"Alex","text":"Hello","timestampLabel":null}],"matchedChatID":null,"matchConfidence":0.9,"matchBasis":"display_name"}"#
     }
 }

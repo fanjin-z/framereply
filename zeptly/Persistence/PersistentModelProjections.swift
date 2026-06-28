@@ -16,6 +16,7 @@ extension Chat {
             chipTitle: record.chipTitle,
             chipSymbol: record.chipSymbol,
             avatarSymbol: record.avatarSymbol,
+            avatarData: record.avatarData,
             initials: record.initials,
             gradient: Self.gradient(for: record.appearanceStyle),
             isUnread: record.isUnread,

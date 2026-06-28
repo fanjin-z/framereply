@@ -13,6 +13,7 @@ struct Chat: Identifiable {
     let chipTitle: String
     let chipSymbol: String
     let avatarSymbol: String?
+    let avatarData: Data?
     let initials: String
     let gradient: [Color]
     let isUnread: Bool

@@ -39,6 +39,68 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
     let messages: [AnalyzedChatMessage]
     let matchedChatID: String?
     let matchConfidence: Double
+    let sourceApp: String?
+    let conversationKind: ChatConversationKind
+    let titleSource: ChatTitleSource
+    let avatarBounds: NormalizedAvatarBounds?
+    let matchBasis: ChatMatchBasis
+
+    private enum CodingKeys: String, CodingKey {
+        case conversationTitle
+        case participants
+        case messages
+        case matchedChatID
+        case matchConfidence
+        case sourceApp
+        case conversationKind
+        case titleSource
+        case avatarBounds
+        case matchBasis
+    }
+
+    init(
+        conversationTitle: String?,
+        participants: [String],
+        messages: [AnalyzedChatMessage],
+        matchedChatID: String?,
+        matchConfidence: Double,
+        sourceApp: String? = nil,
+        conversationKind: ChatConversationKind = .direct,
+        titleSource: ChatTitleSource = .header,
+        avatarBounds: NormalizedAvatarBounds? = nil,
+        matchBasis: ChatMatchBasis = .insufficientEvidence
+    ) {
+        self.conversationTitle = conversationTitle
+        self.participants = participants
+        self.messages = messages
+        self.matchedChatID = matchedChatID
+        self.matchConfidence = matchConfidence
+        self.sourceApp = sourceApp
+        self.conversationKind = conversationKind
+        self.titleSource = titleSource
+        self.avatarBounds = avatarBounds
+        self.matchBasis = matchBasis
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Transcript messages remain strict. Identity and selection metadata degrades
+        // conservatively when a JSON-mode provider omits or misspells a value.
+        conversationTitle = try? container.decode(String.self, forKey: .conversationTitle)
+        participants = (try? container.decode([String].self, forKey: .participants)) ?? []
+        messages = try container.decode([AnalyzedChatMessage].self, forKey: .messages)
+        matchedChatID = try? container.decode(String.self, forKey: .matchedChatID)
+        matchConfidence = (try? container.decode(Double.self, forKey: .matchConfidence)) ?? 0
+        sourceApp = try? container.decode(String.self, forKey: .sourceApp)
+        conversationKind = (try? container.decode(ChatConversationKind.self, forKey: .conversationKind))
+            ?? .unknown
+        titleSource = (try? container.decode(ChatTitleSource.self, forKey: .titleSource))
+            ?? .unavailable
+        avatarBounds = try? container.decode(NormalizedAvatarBounds.self, forKey: .avatarBounds)
+        matchBasis = (try? container.decode(ChatMatchBasis.self, forKey: .matchBasis))
+            ?? .insufficientEvidence
+    }
 
     func validated(candidateIDs: Set<String>) throws -> ChatImportAnalysis {
         guard !messages.isEmpty,
@@ -54,6 +116,35 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
 
         return self
     }
+}
+
+nonisolated enum ChatConversationKind: String, Codable, Equatable, Sendable {
+    case direct
+    case group
+    case unknown
+}
+
+nonisolated enum ChatTitleSource: String, Codable, Equatable, Sendable {
+    case header
+    case participantLabel = "participant_label"
+    case unavailable
+}
+
+nonisolated enum ChatMatchBasis: String, Codable, Equatable, Sendable {
+    case displayName = "display_name"
+    case groupIdentity = "group_identity"
+    case distinctiveMessages = "distinctive_messages"
+    case mixedEvidence = "mixed_evidence"
+    case identityConflict = "identity_conflict"
+    case insufficientEvidence = "insufficient_evidence"
+}
+
+/// Unit coordinates use a top-left origin and describe the visible header avatar.
+nonisolated struct NormalizedAvatarBounds: Codable, Equatable, Sendable {
+    let x: Double
+    let y: Double
+    let width: Double
+    let height: Double
 }
 
 nonisolated struct AnalyzedChatMessage: Codable, Equatable, Sendable {
