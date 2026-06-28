@@ -4,7 +4,7 @@ import XCTest
 
 final class ScreenshotImportCoordinatorTests: XCTestCase {
     @MainActor
-    func testCoordinatorRunsOCRAnalysisMatchingAndPersistence() async throws {
+    func testCoordinatorSendsTransientImageToAnalysisAndPersistsTranscriptOnly() async throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         try repository.seedIfNeeded()
@@ -33,40 +33,54 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
                     senderName: nil,
                     text: "A newly imported reply",
                     timestampLabel: "11:00 AM"
+                ),
+                AnalyzedChatMessage(
+                    sender: .contact,
+                    senderName: "Sarah Jenkins",
+                    text: "你好，很高兴认识你",
+                    timestampLabel: "11:01 AM"
+                ),
+                AnalyzedChatMessage(
+                    sender: .other,
+                    senderName: "Inna",
+                    text: String(repeating: "A longer group reply. ", count: 20),
+                    timestampLabel: nil
                 )
             ],
             matchedChatID: "sarah-jenkins",
             matchConfidence: 0.97
         )
         let reporter = CoordinatorEventReporter()
+        let client = StubAnalysisClient(analysis: analysis)
         let coordinator = ScreenshotImportCoordinator(
-            ocrService: StubOCRService(),
             providerStore: credentials,
             repository: repository,
             eventReporter: reporter,
-            clientResolver: { _ in StubAnalysisClient(analysis: analysis) }
+            clientResolver: { _ in client }
         )
 
         let traceID = ImportTraceID(
             value: UUID(uuidString: "12345678-0000-0000-0000-000000000000")!
         )
+        let imageData = Data([0x89, 0x50, 0x4E, 0x47, 0x01, 0x02, 0x03])
         let outcome = try await coordinator.process(
-            imageData: Data("transient image bytes".utf8),
+            imageData: imageData,
             traceID: traceID
         )
 
         XCTAssertEqual(outcome.chatID, "sarah-jenkins")
         XCTAssertEqual(outcome.chatName, "Sarah Jenkins")
         XCTAssertEqual(outcome.diagnosticID, "12345678")
-        XCTAssertEqual(outcome.insertedMessageCount, 1)
+        XCTAssertEqual(outcome.insertedMessageCount, 3)
         XCTAssertFalse(outcome.reviewRequired)
-        XCTAssertTrue(
-            try repository.messages(chatID: "sarah-jenkins")
-                .contains { $0.text == "A newly imported reply" }
-        )
+        XCTAssertEqual(client.receivedImageData, imageData)
+        let messages = try repository.messages(chatID: "sarah-jenkins")
+        XCTAssertTrue(messages.contains { $0.text == "A newly imported reply" && $0.senderKind == "user" })
+        XCTAssertTrue(messages.contains { $0.text == "你好，很高兴认识你" && $0.senderKind == "contact" })
+        XCTAssertTrue(messages.contains { $0.senderKind == "other" && $0.senderName == "Inna" })
         XCTAssertTrue(reporter.events.contains { event in
             guard case let .importCompleted(eventTraceID, _, _, _, inserted) = event else { return false }
-            return eventTraceID == traceID && inserted == 1
+            return eventTraceID == traceID && inserted == 3
         })
     }
 }
@@ -88,20 +102,6 @@ private final class CoordinatorEventReporter: ImportEventReporting, @unchecked S
     }
 }
 
-nonisolated private struct StubOCRService: ScreenshotOCRService {
-    func recognizeText(in imageData: Data) async throws -> OCRDocument {
-        OCRDocument(
-            lines: [
-                OCRLine(
-                    text: "A newly imported reply",
-                    confidence: 0.99,
-                    boundingBox: OCRBoundingBox(x: 0.5, y: 0.5, width: 0.4, height: 0.1)
-                )
-            ]
-        )
-    }
-}
-
 @MainActor
 private final class StubProviderConfiguration: ProviderConfigurationProviding {
     let activeProvider: ProviderConnection? = ProviderConnection(
@@ -117,8 +117,13 @@ private final class StubProviderConfiguration: ProviderConfigurationProviding {
 }
 
 @MainActor
-private struct StubAnalysisClient: AIProviderClient {
+private final class StubAnalysisClient: AIProviderClient {
     let analysis: ChatImportAnalysis
+    private(set) var receivedImageData: Data?
+
+    init(analysis: ChatImportAnalysis) {
+        self.analysis = analysis
+    }
 
     func validate(apiKey: String, model: ProviderModel) async throws {}
 
@@ -127,6 +132,7 @@ private struct StubAnalysisClient: AIProviderClient {
         apiKey: String,
         model: ProviderModel
     ) async throws -> ChatImportAnalysis {
-        analysis
+        receivedImageData = request.imageData
+        return analysis
     }
 }

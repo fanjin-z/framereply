@@ -94,9 +94,9 @@ struct AddProviderCard: View {
                     HStack {
                         Group {
                             if isAPIKeyVisible {
-                                TextField("sk-...", text: $apiKey)
+                                TextField("Enter API key", text: $apiKey)
                             } else {
-                                SecureField("sk-...", text: $apiKey)
+                                SecureField("Enter API key", text: $apiKey)
                             }
                         }
                         .font(.system(size: 16, weight: .regular, design: .monospaced))
@@ -179,7 +179,7 @@ struct AddProviderCard: View {
                 ForEach(ProviderPlatform.allCases) { platform in
                     Button {
                         selectedPlatform = platform
-                        selectedModel = nil
+                        selectedModel = platform.supportedModels.first
                     } label: {
                         Text(platform.isConnectable ? platform.displayName : "\(platform.displayName) - Coming soon")
                     }

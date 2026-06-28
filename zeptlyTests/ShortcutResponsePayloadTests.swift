@@ -69,13 +69,13 @@ final class ShortcutResponsePayloadTests: XCTestCase {
         XCTAssertTrue(response.dialog.hasSuffix("Reference ABCDEF12."))
     }
 
-    func testOCRAndPersistenceFailureMappings() {
+    func testImageAndPersistenceFailureMappings() {
         let traceID = ImportTraceID(
             value: UUID(uuidString: "ABCDEF12-0000-0000-0000-000000000000")!
         )
-        let ocr = ShortcutResponseBuilder.failure(
-            message: "No readable text was found.",
-            errorCode: "ocr_failed",
+        let image = ShortcutResponseBuilder.failure(
+            message: "The provided file is not a readable image.",
+            errorCode: "invalid_image",
             traceID: traceID
         )
         let persistence = ShortcutResponseBuilder.failure(
@@ -84,9 +84,9 @@ final class ShortcutResponsePayloadTests: XCTestCase {
             traceID: traceID
         )
 
-        XCTAssertEqual(ocr.payload.errorCode, "ocr_failed")
+        XCTAssertEqual(image.payload.errorCode, "invalid_image")
         XCTAssertEqual(persistence.payload.errorCode, "import_failed")
-        XCTAssertTrue(ocr.json.contains("\"diagnosticID\":\"ABCDEF12\""))
+        XCTAssertTrue(image.json.contains("\"diagnosticID\":\"ABCDEF12\""))
         XCTAssertTrue(persistence.dialog.contains("Reference ABCDEF12"))
     }
 

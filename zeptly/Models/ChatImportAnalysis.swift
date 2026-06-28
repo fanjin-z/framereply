@@ -18,16 +18,16 @@ nonisolated struct ChatCandidateMessage: Codable, Equatable, Sendable {
 }
 
 nonisolated struct ChatScreenshotAnalysisRequest: Equatable, Sendable {
-    let document: OCRDocument
+    let imageData: Data
     let candidates: [ChatMatchCandidate]
     let traceID: ImportTraceID
 
     init(
-        document: OCRDocument,
+        imageData: Data,
         candidates: [ChatMatchCandidate],
         traceID: ImportTraceID = ImportTraceID()
     ) {
-        self.document = document
+        self.imageData = imageData
         self.candidates = candidates
         self.traceID = traceID
     }

@@ -3,8 +3,15 @@ import XCTest
 @testable import zeptly
 
 final class ProviderStoreTests: XCTestCase {
+    func testVisionProvidersAndRegionalCredentialAccountsAreDistinct() {
+        XCTAssertEqual(ProviderPlatform.allCases, [.openAI, .zaiInternational, .zhipuChina])
+        XCTAssertFalse(ProviderPlatform.allCases.contains(.deepSeek))
+        XCTAssertEqual(ProviderPlatform.zaiInternational.supportedModels, ProviderPlatform.zhipuChina.supportedModels)
+        XCTAssertNotEqual(ProviderPlatform.zaiInternational.keychainAccount, ProviderPlatform.zhipuChina.keychainAccount)
+    }
+
     @MainActor
-    func testLegacyProvidersChooseMostRecentlyValidatedAsActive() throws {
+    func testLegacyDeepSeekConnectionIsMigratedOutOfActiveProviders() throws {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
@@ -31,10 +38,14 @@ final class ProviderStoreTests: XCTestCase {
 
         let store = ProviderStore(userDefaults: defaults, validators: [:])
 
-        XCTAssertEqual(store.providers.count, 2)
+        XCTAssertEqual(store.providers.count, 1)
+        XCTAssertFalse(store.providers.contains { $0.platform == .deepSeek })
         XCTAssertEqual(store.activePlatform, .openAI)
         XCTAssertEqual(store.activeProvider?.id, openAI.id)
         XCTAssertEqual(defaults.string(forKey: ProviderStoreTestKey.activePlatform), "openAI")
+        let migratedData = try XCTUnwrap(defaults.data(forKey: ProviderStoreTestKey.providers))
+        let migratedProviders = try JSONDecoder().decode([ProviderConnection].self, from: migratedData)
+        XCTAssertEqual(migratedProviders.map(\.platform), [.openAI])
     }
 
     @MainActor
@@ -42,10 +53,10 @@ final class ProviderStoreTests: XCTestCase {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         try saveProviders(makeProviders(), to: defaults)
-        defaults.set("deepSeek", forKey: ProviderStoreTestKey.activePlatform)
+        defaults.set("zaiInternational", forKey: ProviderStoreTestKey.activePlatform)
 
         let store = ProviderStore(userDefaults: defaults, validators: [:])
-        XCTAssertEqual(store.activePlatform, .deepSeek)
+        XCTAssertEqual(store.activePlatform, .zaiInternational)
 
         store.activate(platform: .openAI)
 
@@ -78,29 +89,35 @@ final class ProviderStoreTests: XCTestCase {
     }
 
     @MainActor
-    func testModelChangesPersistImmediatelyAndRejectWrongPlatform() throws {
+    func testSharedZAIModelsWorkInBothRegionsAndRejectOpenAIModels() throws {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         try saveProviders(makeProviders(), to: defaults)
         let store = ProviderStore(userDefaults: defaults, validators: [:])
 
-        store.setModel(.deepSeekV4Flash, for: .deepSeek)
+        store.setModel(.glm46V, for: .zaiInternational)
         XCTAssertEqual(
-            store.providers.first(where: { $0.platform == .deepSeek })?.model,
-            .deepSeekV4Flash
+            store.providers.first(where: { $0.platform == .zaiInternational })?.model,
+            .glm46V
         )
 
-        store.setModel(.gpt55, for: .deepSeek)
+        store.setModel(.glm46VFlash, for: .zhipuChina)
         XCTAssertEqual(
-            store.providers.first(where: { $0.platform == .deepSeek })?.model,
-            .deepSeekV4Flash
+            store.providers.first(where: { $0.platform == .zhipuChina })?.model,
+            .glm46VFlash
+        )
+
+        store.setModel(.gpt55, for: .zaiInternational)
+        XCTAssertEqual(
+            store.providers.first(where: { $0.platform == .zaiInternational })?.model,
+            .glm46V
         )
 
         let savedData = try XCTUnwrap(defaults.data(forKey: ProviderStoreTestKey.providers))
         let savedProviders = try JSONDecoder().decode([ProviderConnection].self, from: savedData)
         XCTAssertEqual(
-            savedProviders.first(where: { $0.platform == .deepSeek })?.model,
-            .deepSeekV4Flash
+            savedProviders.first(where: { $0.platform == .zaiInternational })?.model,
+            .glm46V
         )
     }
 
@@ -127,9 +144,15 @@ final class ProviderStoreTests: XCTestCase {
     private func makeProviders() -> [ProviderConnection] {
         [
             ProviderConnection(
-                platform: .deepSeek,
-                model: .deepSeekV4Pro,
+                platform: .zaiInternational,
+                model: .glm46VFlashX,
                 lastValidatedAt: Date(timeIntervalSinceReferenceDate: 100),
+                validationState: .connected
+            ),
+            ProviderConnection(
+                platform: .zhipuChina,
+                model: .glm46VFlashX,
+                lastValidatedAt: Date(timeIntervalSinceReferenceDate: 150),
                 validationState: .connected
             ),
             ProviderConnection(

@@ -9,29 +9,32 @@ final class ProviderValidatorTests: XCTestCase {
     }
 
     @MainActor
-    func testDeepSeekUsesOneSelectedModelProbe() async throws {
+    func testZAIUsesOneSelectedModelProbe() async throws {
         URLProtocolStub.stub(
             statusCode: 200,
             body: #"{"choices":[{"index":0,"message":{"content":"OK"},"finish_reason":"stop"}]}"#
         )
 
-        try await DeepSeekClient(session: makeSession()).validate(
-            apiKey: "deep-key",
-            model: .deepSeekV4Flash
+        try await ZAIClient(region: .international, session: makeSession()).validate(
+            apiKey: "zai-key",
+            model: .glm46VFlashX
         )
 
         XCTAssertEqual(URLProtocolStub.requests.count, 1)
         let request = try XCTUnwrap(URLProtocolStub.requests.first)
-        XCTAssertEqual(request.url?.path, "/chat/completions")
+        XCTAssertEqual(request.url?.path, "/api/paas/v4/chat/completions")
         XCTAssertFalse(request.url?.path.contains("balance") == true)
-        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer deep-key")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer zai-key")
 
         let body = try jsonBody(request)
-        XCTAssertEqual(body["model"] as? String, "deepseek-v4-flash")
-        XCTAssertEqual(body["max_tokens"] as? Int, 16)
+        XCTAssertEqual(body["model"] as? String, "glm-4.6v-flashx")
+        XCTAssertEqual(body["max_tokens"] as? Int, 64)
         XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
+        XCTAssertEqual(body["do_sample"] as? Bool, false)
         let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
-        XCTAssertEqual(messages.first?["content"] as? String, "Reply exactly: OK.")
+        let content = try XCTUnwrap(messages.first?["content"] as? [[String: Any]])
+        XCTAssertEqual(content.first?["type"] as? String, "text")
+        XCTAssertEqual(content.first?["text"] as? String, "Reply exactly: OK.")
     }
 
     @MainActor
@@ -59,20 +62,20 @@ final class ProviderValidatorTests: XCTestCase {
     }
 
     @MainActor
-    func testDeepSeekRejectsEmptyIncompleteAndMalformedResponses() async {
+    func testZAIRejectsEmptyIncompleteAndMalformedResponses() async {
         await assertInvalidResponse(
-            from: DeepSeekClient(session: makeSession()),
-            model: .deepSeekV4Flash,
+            from: ZAIClient(region: .china, session: makeSession()),
+            model: .glm46VFlash,
             body: #"{"choices":[]}"#
         )
         await assertInvalidResponse(
-            from: DeepSeekClient(session: makeSession()),
-            model: .deepSeekV4Flash,
+            from: ZAIClient(region: .china, session: makeSession()),
+            model: .glm46VFlash,
             body: #"{"choices":[{"index":0,"message":{"content":"OK"},"finish_reason":"length"}]}"#
         )
         await assertInvalidResponse(
-            from: DeepSeekClient(session: makeSession()),
-            model: .deepSeekV4Flash,
+            from: ZAIClient(region: .china, session: makeSession()),
+            model: .glm46VFlash,
             body: "{}"
         )
     }
@@ -97,11 +100,12 @@ final class ProviderValidatorTests: XCTestCase {
     }
 
     @MainActor
-    func testDeepSeekMapsHTTPFailures() async {
-        await assertHTTPError(.invalidKey, statusCode: 401, validator: DeepSeekClient(session: makeSession()), model: .deepSeekV4Flash)
-        await assertHTTPError(.insufficientBalance, statusCode: 402, validator: DeepSeekClient(session: makeSession()), model: .deepSeekV4Flash)
-        await assertHTTPError(.rateLimited, statusCode: 429, validator: DeepSeekClient(session: makeSession()), model: .deepSeekV4Flash)
-        await assertHTTPError(.providerUnavailable, statusCode: 503, validator: DeepSeekClient(session: makeSession()), model: .deepSeekV4Flash)
+    func testZAIMapsHTTPFailures() async {
+        let validator = ZAIClient(region: .international, session: makeSession())
+        await assertHTTPError(.invalidKey, statusCode: 401, validator: validator, model: .glm46VFlashX)
+        await assertHTTPError(.insufficientBalance, statusCode: 402, validator: validator, model: .glm46VFlashX)
+        await assertHTTPError(.rateLimited, statusCode: 429, validator: validator, model: .glm46VFlashX)
+        await assertHTTPError(.providerUnavailable, statusCode: 503, validator: validator, model: .glm46VFlashX)
     }
 
     @MainActor

@@ -51,7 +51,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     providerHeader
                     providerContent
-                    Text("Screenshot imports run OCR on this device. Only the extracted text and layout are sent to your selected model provider; screenshots are never saved or uploaded.")
+                    Text("Screenshot images are uploaded transiently to your selected model provider for analysis. Zeptly does not save the image.")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(RezplyColor.outline)
                         .fixedSize(horizontal: false, vertical: true)
@@ -111,7 +111,7 @@ struct SettingsView: View {
                                 .font(.system(size: 16, weight: .bold, design: .rounded))
                                 .foregroundStyle(RezplyColor.onSurface)
 
-                            Text("Connect DeepSeek or another supported provider.")
+                            Text("Connect OpenAI or a supported vision provider.")
                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                                 .foregroundStyle(RezplyColor.onSurfaceVariant)
                         }

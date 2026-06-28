@@ -20,6 +20,9 @@ struct OpenAIClient: AIProviderClient {
     }
 
     func validate(apiKey: String, model: ProviderModel) async throws {
+        guard model.isSupported(by: .openAI) else {
+            throw ProviderConnectionError.unsupportedProvider
+        }
         var request = URLRequest(url: baseURL.appending(path: "responses"))
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -57,6 +60,10 @@ struct OpenAIClient: AIProviderClient {
         apiKey: String,
         model: ProviderModel
     ) async throws -> ChatImportAnalysis {
+        guard model.isSupported(by: .openAI) else {
+            throw ProviderConnectionError.unsupportedProvider
+        }
+        let image = try ScreenshotImagePayload(data: analysisRequest.imageData)
         let provider = "openai"
         eventReporter.record(
             .providerAttempt(
@@ -75,7 +82,22 @@ struct OpenAIClient: AIProviderClient {
             withJSONObject: [
                 "model": model.rawValue,
                 "instructions": ChatScreenshotPrompt.instructions,
-                "input": ChatScreenshotPrompt.input(for: analysisRequest),
+                "input": [
+                    [
+                        "role": "user",
+                        "content": [
+                            [
+                                "type": "input_text",
+                                "text": ChatScreenshotPrompt.input(for: analysisRequest)
+                            ],
+                            [
+                                "type": "input_image",
+                                "image_url": image.dataURL,
+                                "detail": model.openAIImageDetail
+                            ]
+                        ]
+                    ]
+                ],
                 "max_output_tokens": 4_000,
                 "reasoning": ["effort": "none"],
                 "store": false,
@@ -252,6 +274,19 @@ struct OpenAIClient: AIProviderClient {
                 codingPath: failure.codingPath
             )
         )
+    }
+}
+
+private extension ProviderModel {
+    var openAIImageDetail: String {
+        switch self {
+        case .gpt54Mini:
+            "high"
+        case .gpt54, .gpt55:
+            "original"
+        default:
+            "high"
+        }
     }
 }
 

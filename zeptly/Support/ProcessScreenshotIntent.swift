@@ -150,13 +150,6 @@ struct ProcessScreenshotIntent: AppIntent {
                 traceID: traceID
             )
             return .result(value: response.json, dialog: IntentDialog(stringLiteral: response.dialog))
-        } catch let error as ScreenshotOCRError {
-            let response = ShortcutResponseBuilder.failure(
-                message: error.localizedDescription,
-                errorCode: "ocr_failed",
-                traceID: traceID
-            )
-            return .result(value: response.json, dialog: IntentDialog(stringLiteral: response.dialog))
         } catch let error as ProviderConnectionError {
             let response = ShortcutResponseBuilder.failure(
                 message: error.localizedDescription,

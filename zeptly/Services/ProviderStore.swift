@@ -39,8 +39,9 @@ final class ProviderStore: ObservableObject {
         self.userDefaults = userDefaults
         keychain = KeychainStore()
         self.validators = validators ?? [
-            .deepSeek: DeepSeekClient(),
-            .openAI: OpenAIClient()
+            .openAI: OpenAIClient(),
+            .zaiInternational: ZAIClient(region: .international),
+            .zhipuChina: ZAIClient(region: .china)
         ]
         let loadedProviders = Self.loadProviders(from: userDefaults, key: providersKey)
         providers = loadedProviders
@@ -49,11 +50,12 @@ final class ProviderStore: ObservableObject {
             key: activePlatformKey,
             providers: loadedProviders
         )
+        saveProviders()
         saveActivePlatform()
     }
 
     func connect(platform: ProviderPlatform, model: ProviderModel, apiKey: String) async throws {
-        guard platform.isConnectable else {
+        guard platform.isConnectable, model.isSupported(by: platform) else {
             throw ProviderConnectionError.unsupportedProvider
         }
 
@@ -92,7 +94,7 @@ final class ProviderStore: ObservableObject {
 
     func setModel(_ model: ProviderModel, for platform: ProviderPlatform) {
         guard
-            model.platform == platform,
+            model.isSupported(by: platform),
             let index = providers.firstIndex(where: { $0.platform == platform })
         else {
             return
@@ -143,6 +145,10 @@ final class ProviderStore: ObservableObject {
 
         do {
             return try JSONDecoder().decode([ProviderConnection].self, from: data)
+                .filter { provider in
+                    provider.platform.isConnectable
+                        && provider.model.isSupported(by: provider.platform)
+                }
         } catch {
             return []
         }
@@ -180,6 +186,6 @@ final class ProviderStore: ObservableObject {
     }
 
     private func keychainAccount(for platform: ProviderPlatform) -> String {
-        "provider.\(platform.rawValue).apiKey"
+        platform.keychainAccount
     }
 }

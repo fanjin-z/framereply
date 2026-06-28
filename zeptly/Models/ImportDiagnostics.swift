@@ -20,7 +20,6 @@ nonisolated struct ImportTraceID: Codable, Equatable, Hashable, Sendable {
 
 nonisolated enum ImportStage: String, Sendable {
     case shortcut
-    case ocr
     case provider
     case matching
     case persistence
@@ -59,10 +58,9 @@ nonisolated struct ProviderStructuredOutputError: Error, Equatable, Sendable {
     let failure: StructuredOutputFailure
 }
 
-/// Deliberately contains metadata only. There is no field capable of carrying OCR or chat text.
+/// Deliberately contains metadata only. There is no field capable of carrying image or chat data.
 nonisolated enum ImportEvent: Equatable, Sendable {
     case stageStarted(traceID: ImportTraceID, stage: ImportStage)
-    case ocrCompleted(traceID: ImportTraceID, durationMilliseconds: Int, lineCount: Int)
     case providerAttempt(
         traceID: ImportTraceID,
         provider: String,
@@ -112,8 +110,6 @@ nonisolated struct OSLogImportEventReporter: ImportEventReporting {
         switch event {
         case let .stageStarted(traceID, stage):
             logger.info("trace=\(traceID.diagnosticID, privacy: .public) stage=\(stage.rawValue, privacy: .public) event=started")
-        case let .ocrCompleted(traceID, duration, lineCount):
-            logger.info("trace=\(traceID.diagnosticID, privacy: .public) stage=ocr event=completed duration_ms=\(duration) lines=\(lineCount)")
         case let .providerAttempt(traceID, provider, model, attempt, maxTokens):
             logger.info("trace=\(traceID.diagnosticID, privacy: .public) stage=provider event=attempt provider=\(provider, privacy: .public) model=\(model, privacy: .public) attempt=\(attempt) max_tokens=\(maxTokens)")
         case let .providerResponse(traceID, provider, model, attempt, duration, status, requestID, finishReason, byteCount):

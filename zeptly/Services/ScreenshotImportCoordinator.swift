@@ -37,7 +37,6 @@ enum ScreenshotImportError: LocalizedError {
 final class ScreenshotImportCoordinator {
     typealias ClientResolver = (ProviderPlatform) -> (any AIProviderClient)?
 
-    private let ocrService: any ScreenshotOCRService
     private let providerStore: any ProviderConfigurationProviding
     private let repository: ChatRepository
     private let clientResolver: ClientResolver
@@ -46,7 +45,6 @@ final class ScreenshotImportCoordinator {
     convenience init() {
         let eventReporter = OSLogImportEventReporter()
         self.init(
-            ocrService: VisionScreenshotOCRService(),
             providerStore: ProviderStore(),
             repository: ChatRepository(),
             eventReporter: eventReporter,
@@ -54,21 +52,23 @@ final class ScreenshotImportCoordinator {
                 switch platform {
                 case .openAI:
                     OpenAIClient(eventReporter: eventReporter)
+                case .zaiInternational:
+                    ZAIClient(region: .international, eventReporter: eventReporter)
+                case .zhipuChina:
+                    ZAIClient(region: .china, eventReporter: eventReporter)
                 case .deepSeek:
-                    DeepSeekClient(eventReporter: eventReporter)
+                    nil
                 }
             }
         )
     }
 
     init(
-        ocrService: any ScreenshotOCRService,
         providerStore: any ProviderConfigurationProviding,
         repository: ChatRepository,
         eventReporter: any ImportEventReporting = OSLogImportEventReporter(),
         clientResolver: @escaping ClientResolver
     ) {
-        self.ocrService = ocrService
         self.providerStore = providerStore
         self.repository = repository
         self.eventReporter = eventReporter
@@ -93,27 +93,10 @@ final class ScreenshotImportCoordinator {
             throw ScreenshotImportError.unsupportedProvider
         }
 
-        eventReporter.record(.stageStarted(traceID: traceID, stage: .ocr))
-        let ocrStartedAt = Date()
-        let document: OCRDocument
-        do {
-            document = try await ocrService.recognizeText(in: imageData)
-        } catch {
-            eventReporter.record(.importFailed(traceID: traceID, stage: .ocr, errorCode: "ocr_failed"))
-            throw error
-        }
-        eventReporter.record(
-            .ocrCompleted(
-                traceID: traceID,
-                durationMilliseconds: Int(Date().timeIntervalSince(ocrStartedAt) * 1_000),
-                lineCount: document.lines.count
-            )
-        )
-
         try repository.seedIfNeeded()
         let candidates = try repository.matchCandidates()
         let request = ChatScreenshotAnalysisRequest(
-            document: document,
+            imageData: imageData,
             candidates: candidates,
             traceID: traceID
         )
