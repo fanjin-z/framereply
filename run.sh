@@ -2,16 +2,51 @@
 # run.sh — Build and launch zeptly in the iOS Simulator without opening Xcode.
 #
 # Usage:
-#   ./run.sh              # uses the default simulator (iPhone 17, latest available iOS)
-#   ./run.sh "iPhone 16"  # override simulator name
+#   ./run.sh                       # preserve app data; use iPhone 17
+#   ./run.sh "iPhone 16"           # preserve app data; override simulator name
+#   ./run.sh --reset-data          # clear app data before reinstalling
+#   ./run.sh --reset-data "iPhone 16"
 
 set -euo pipefail
 
 PROJECT="zeptly.xcodeproj"
 SCHEME="zeptly"
 BUNDLE_ID="com.gigabeyond.zeptly"
-SIMULATOR_NAME="${1:-iPhone 17}"
 DERIVED_DATA_DIR="$(pwd)/.build/DerivedData"
+RESET_DATA=false
+SIMULATOR_NAME="iPhone 17"
+SIMULATOR_NAME_SET=false
+
+usage() {
+  echo "Usage: ./run.sh [--reset-data] [simulator name]"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --reset-data)
+      RESET_DATA=true
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -*)
+      echo "✗ Unknown option: $1"
+      usage
+      exit 1
+      ;;
+    *)
+      if [[ "$SIMULATOR_NAME_SET" == true ]]; then
+        echo "✗ Only one simulator name may be provided."
+        usage
+        exit 1
+      fi
+      SIMULATOR_NAME="$1"
+      SIMULATOR_NAME_SET=true
+      ;;
+  esac
+  shift
+done
 
 # ── 1. Resolve a booted or available simulator ─────────────────────────────
 echo "▸ Looking for simulator: $SIMULATOR_NAME"
@@ -82,7 +117,7 @@ if command -v xcpretty &>/dev/null; then
   xcodebuild \
     -project "$PROJECT" \
     -scheme "$SCHEME" \
-    -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
+    -destination "platform=iOS Simulator,id=$SIM_ID" \
     -derivedDataPath "$DERIVED_DATA_DIR" \
     -configuration Debug \
     build 2>&1 | xcpretty
@@ -90,7 +125,7 @@ else
   xcodebuild \
     -project "$PROJECT" \
     -scheme "$SCHEME" \
-    -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
+    -destination "platform=iOS Simulator,id=$SIM_ID" \
     -derivedDataPath "$DERIVED_DATA_DIR" \
     -configuration Debug \
     build
@@ -104,7 +139,20 @@ if [[ -z "$APP_PATH" ]]; then
 fi
 echo "  App bundle: $APP_PATH"
 
-# ── 5. Install & launch ───────────────────────────────────────────────────
+# ── 5. Stop the existing app and optionally reset its data ─────────────────
+if xcrun simctl get_app_container "$SIM_ID" "$BUNDLE_ID" app &>/dev/null; then
+  echo "▸ Stopping existing app..."
+  xcrun simctl terminate "$SIM_ID" "$BUNDLE_ID" 2>/dev/null || true
+
+  if [[ "$RESET_DATA" == true ]]; then
+    echo "▸ Resetting app data..."
+    xcrun simctl uninstall "$SIM_ID" "$BUNDLE_ID"
+  fi
+elif [[ "$RESET_DATA" == true ]]; then
+  echo "▸ No existing app data to reset."
+fi
+
+# ── 6. Install & launch ───────────────────────────────────────────────────
 echo "▸ Installing on simulator..."
 xcrun simctl install "$SIM_ID" "$APP_PATH"
 
