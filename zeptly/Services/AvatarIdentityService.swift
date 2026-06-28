@@ -165,7 +165,19 @@ enum AvatarIdentityService {
         let request = VNGenerateImageFeaturePrintRequest()
         request.imageCropAndScaleOption = .scaleFill
 #if targetEnvironment(simulator)
-        request.usesCPUOnly = true
+        if let devicesByStage = try? request.supportedComputeStageDevices {
+            for (stage, devices) in devicesByStage {
+                let cpu = devices.first { device in
+                    if case .cpu = device {
+                        return true
+                    }
+                    return false
+                }
+                if let cpu {
+                    request.setComputeDevice(cpu, for: stage)
+                }
+            }
+        }
 #endif
         let handler = VNImageRequestHandler(cgImage: image)
         guard (try? handler.perform([request])) != nil else { return nil }

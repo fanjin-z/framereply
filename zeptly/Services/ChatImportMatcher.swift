@@ -67,11 +67,13 @@ enum ChatImportMatcher {
             avatarEvidence = .none
         }
 
-        let imported = analysis.messages.map(transcriptMessage)
-        let allCandidateMessages = candidates.map { $0.recentMessages.map(transcriptMessage) }
+        let imported = analysis.messages.map { transcriptMessage($0) }
+        let allCandidateMessages = candidates.map { candidate in
+            candidate.recentMessages.map { transcriptMessage($0) }
+        }
         let transcript = ChatTranscriptAligner.identityEvidence(
             imported: imported,
-            candidate: candidate.recentMessages.map(transcriptMessage),
+            candidate: candidate.recentMessages.map { transcriptMessage($0) },
             allCandidates: allCandidateMessages
         )
 

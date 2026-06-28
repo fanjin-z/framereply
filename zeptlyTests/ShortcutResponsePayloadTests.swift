@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+
 @testable import zeptly
 
 final class ShortcutResponsePayloadTests: XCTestCase {
@@ -29,32 +30,29 @@ final class ShortcutResponsePayloadTests: XCTestCase {
         XCTAssertEqual(object["insertedMessageCount"] as? Int, 2)
     }
 
-    func testMatchedImportPresentation() {
-        let response = ShortcutResponseBuilder.success(
-            outcome(matchedExisting: true, reviewRequired: false, duplicate: false, count: 2)
-        )
+    func testSuccessPresentationStates() {
+        let cases: [(Bool, Bool, Bool, Int, String)] = [
+            (true, false, false, 2, "Added 2 new messages to Sarah."),
+            (false, true, false, 1, "Imported 1 message as Sarah. Review it in Zeptly."),
+            (true, false, true, 0, "No new messages found in Sarah.")
+        ]
 
-        XCTAssertEqual(response.dialog, "Added 2 new messages to Sarah.")
-        XCTAssertEqual(response.payload.status, .success)
+        for (matchedExisting, reviewRequired, duplicate, count, expectedDialog) in cases {
+            let response = ShortcutResponseBuilder.success(
+                outcome(
+                    matchedExisting: matchedExisting,
+                    reviewRequired: reviewRequired,
+                    duplicate: duplicate,
+                    count: count
+                )
+            )
+
+            XCTAssertEqual(response.dialog, expectedDialog)
+            XCTAssertEqual(response.payload.status, .success)
+        }
     }
 
-    func testProvisionalImportPresentation() {
-        let response = ShortcutResponseBuilder.success(
-            outcome(matchedExisting: false, reviewRequired: true, duplicate: false, count: 1)
-        )
-
-        XCTAssertEqual(response.dialog, "Imported 1 message as Sarah. Review it in Zeptly.")
-    }
-
-    func testDuplicateImportPresentation() {
-        let response = ShortcutResponseBuilder.success(
-            outcome(matchedExisting: true, reviewRequired: false, duplicate: true, count: 0)
-        )
-
-        XCTAssertEqual(response.dialog, "No new messages found in Sarah.")
-    }
-
-    func testProviderFailurePresentationIncludesCodeAndReference() {
+    func testFailurePresentationIncludesCodeAndReference() {
         let traceID = ImportTraceID(
             value: UUID(uuidString: "ABCDEF12-0000-0000-0000-000000000000")!
         )
@@ -67,27 +65,7 @@ final class ShortcutResponsePayloadTests: XCTestCase {
         XCTAssertEqual(response.payload.errorCode, "provider_schema_mismatch")
         XCTAssertEqual(response.payload.diagnosticID, "ABCDEF12")
         XCTAssertTrue(response.dialog.hasSuffix("Reference ABCDEF12."))
-    }
-
-    func testImageAndPersistenceFailureMappings() {
-        let traceID = ImportTraceID(
-            value: UUID(uuidString: "ABCDEF12-0000-0000-0000-000000000000")!
-        )
-        let image = ShortcutResponseBuilder.failure(
-            message: "The provided file is not a readable image.",
-            errorCode: "invalid_image",
-            traceID: traceID
-        )
-        let persistence = ShortcutResponseBuilder.failure(
-            message: "The chat history could not be saved.",
-            errorCode: "import_failed",
-            traceID: traceID
-        )
-
-        XCTAssertEqual(image.payload.errorCode, "invalid_image")
-        XCTAssertEqual(persistence.payload.errorCode, "import_failed")
-        XCTAssertTrue(image.json.contains("\"diagnosticID\":\"ABCDEF12\""))
-        XCTAssertTrue(persistence.dialog.contains("Reference ABCDEF12"))
+        XCTAssertTrue(response.json.contains("\"diagnosticID\":\"ABCDEF12\""))
     }
 
     private func outcome(

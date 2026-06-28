@@ -1,39 +1,29 @@
 import XCTest
+
 @testable import zeptly
 
 @MainActor
 final class ChatMessageMergerTests: XCTestCase {
-    func testOverlappingImportAddsOnlyUnseenSuffix() {
-        let result = ChatMessageMerger.merge(
-            existing: [message("A"), message("B")],
-            imported: [message("B"), message("C")]
-        )
+    func testSequenceMergingPreservesOrderAndAddsOnlyUnseenMessages() {
+        let cases: [([String], [String], [String], Int)] = [
+            (["A", "B"], ["B", "C"], ["A", "B", "C"], 1),
+            (["B", "C"], ["A", "B"], ["A", "B", "C"], 1),
+            (["OK", "Later"], ["OK", "Later", "OK"], ["OK", "Later", "OK"], 1),
+            (["A", "B", "C"], ["A", "X", "C"], ["A", "B", "X", "C"], 1)
+        ]
 
-        XCTAssertEqual(result.messages.map(\.text), ["A", "B", "C"])
-        XCTAssertEqual(result.insertedMessageCount, 1)
+        for (existing, imported, expected, insertedCount) in cases {
+            let result = ChatMessageMerger.merge(
+                existing: existing.map { message($0) },
+                imported: imported.map { message($0) }
+            )
+
+            XCTAssertEqual(result.messages.map(\.text), expected)
+            XCTAssertEqual(result.insertedMessageCount, insertedCount)
+        }
     }
 
-    func testOverlappingImportPlacesUnseenPrefixBeforeAnchor() {
-        let result = ChatMessageMerger.merge(
-            existing: [message("B"), message("C")],
-            imported: [message("A"), message("B")]
-        )
-
-        XCTAssertEqual(result.messages.map(\.text), ["A", "B", "C"])
-        XCTAssertEqual(result.insertedMessageCount, 1)
-    }
-
-    func testRepeatedMessagesRemainDistinctBySequencePosition() {
-        let result = ChatMessageMerger.merge(
-            existing: [message("OK"), message("Later")],
-            imported: [message("OK"), message("Later"), message("OK")]
-        )
-
-        XCTAssertEqual(result.messages.map(\.text), ["OK", "Later", "OK"])
-        XCTAssertEqual(result.insertedMessageCount, 1)
-    }
-
-    func testFuzzyMatchRequiresSameTimestamp() {
+    func testTimestampAndFuzzyIdentityRules() {
         let original = message("This is a sufficiently long message for one OCR mistake.", time: "10:42 AM")
         let typo = message("This is a sufficiently long message for one OCR mistale.", time: "10:42 AM")
         let differentTime = message("This is a sufficiently long message for one OCR mistale.", time: "10:43 AM")
@@ -46,26 +36,13 @@ final class ChatMessageMergerTests: XCTestCase {
             ChatMessageMerger.merge(existing: [original], imported: [differentTime]).insertedMessageCount,
             1
         )
-    }
 
-    func testIdenticalTextAtDifferentTimestampsRemainsDistinct() {
-        let result = ChatMessageMerger.merge(
+        let repeatedAtNewTime = ChatMessageMerger.merge(
             existing: [message("OK", time: "10:42 AM")],
             imported: [message("OK", time: "10:43 AM")]
         )
-
-        XCTAssertEqual(result.messages.count, 2)
-        XCTAssertEqual(result.insertedMessageCount, 1)
-    }
-
-    func testSparseAnchorsAllowOmittedIntermediateMessages() {
-        let result = ChatMessageMerger.merge(
-            existing: [message("A"), message("B"), message("C")],
-            imported: [message("A"), message("X"), message("C")]
-        )
-
-        XCTAssertEqual(result.messages.map(\.text), ["A", "B", "X", "C"])
-        XCTAssertEqual(result.insertedMessageCount, 1)
+        XCTAssertEqual(repeatedAtNewTime.messages.count, 2)
+        XCTAssertEqual(repeatedAtNewTime.insertedMessageCount, 1)
     }
 
     private func message(_ text: String, time: String = "") -> MergeMessage {

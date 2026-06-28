@@ -1,28 +1,31 @@
 import UIKit
 import XCTest
+
 @testable import zeptly
 
 @MainActor
 final class ChatImportMatcherTests: XCTestCase {
-    func testHighConfidenceNameEvidenceConfirmsCandidate() {
-        let analysis = makeAnalysis(title: "Sarah Jenkins", confidence: 0.9)
-        XCTAssertEqual(
-            ChatImportMatcher.confirmedChatID(analysis: analysis, candidates: [candidate()]),
-            "sarah-jenkins"
-        )
+    func testNameAndConfidenceMatchingPolicy() {
+        let cases: [(String, String, Double, String?)] = [
+            ("high-confidence local name", "Sarah Jenkins", 0.9, "sarah-jenkins"),
+            ("no local name evidence", "Someone Else", 0.99, nil),
+            ("below confidence threshold", "Sarah Jenkins", 0.84, nil)
+        ]
+
+        for (name, title, confidence, expectedID) in cases {
+            let analysis = makeAnalysis(title: title, confidence: confidence)
+            XCTAssertEqual(
+                ChatImportMatcher.confirmedChatID(
+                    analysis: analysis,
+                    candidates: [candidate()]
+                ),
+                expectedID,
+                name
+            )
+        }
     }
 
-    func testHighConfidenceWithoutLocalEvidenceCreatesProvisionalChat() {
-        let analysis = makeAnalysis(title: "Someone Else", confidence: 0.99)
-        XCTAssertNil(ChatImportMatcher.confirmedChatID(analysis: analysis, candidates: [candidate()]))
-    }
-
-    func testLowConfidenceNeverAutomaticallyMatches() {
-        let analysis = makeAnalysis(title: "Sarah Jenkins", confidence: 0.84)
-        XCTAssertNil(ChatImportMatcher.confirmedChatID(analysis: analysis, candidates: [candidate()]))
-    }
-
-    func testTwoContiguousMessagesProvideLocalEvidence() {
+    func testTranscriptEvidenceRequiresDistinctiveLocalSignals() {
         let messages = [
             AnalyzedChatMessage(sender: .contact, senderName: nil, text: "First", timestampLabel: nil),
             AnalyzedChatMessage(sender: .user, senderName: nil, text: "Second", timestampLabel: nil)
@@ -34,7 +37,7 @@ final class ChatImportMatcherTests: XCTestCase {
             matchedChatID: "sarah-jenkins",
             matchConfidence: 0.9
         )
-        let candidate = ChatMatchCandidate(
+        let localCandidate = ChatMatchCandidate(
             id: "sarah-jenkins",
             name: "Sarah Jenkins",
             recentMessages: [
@@ -42,11 +45,48 @@ final class ChatImportMatcherTests: XCTestCase {
                 ChatCandidateMessage(sender: "user", text: "Second", timeLabel: "")
             ]
         )
-
         XCTAssertEqual(
-            ChatImportMatcher.confirmedChatID(analysis: analysis, candidates: [candidate]),
+            ChatImportMatcher.confirmedChatID(
+                analysis: analysis,
+                candidates: [localCandidate]
+            ),
             "sarah-jenkins"
         )
+
+        let repeatedOpener = "Hello there"
+        let repeatedAnalysis = ChatImportAnalysis(
+            conversationTitle: nil,
+            participants: [],
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .user,
+                    senderName: nil,
+                    text: repeatedOpener,
+                    timestampLabel: nil
+                )
+            ],
+            matchedChatID: "one",
+            matchConfidence: 0.99,
+            conversationKind: .direct,
+            titleSource: .unavailable,
+            matchBasis: .distinctiveMessages
+        )
+        let repeatedCandidates = ["one", "two"].map {
+            ChatMatchCandidate(
+                id: $0,
+                name: $0,
+                recentMessages: [
+                    ChatCandidateMessage(sender: "user", text: repeatedOpener, timeLabel: "")
+                ]
+            )
+        }
+        let repeatedDecision = ChatImportMatcher.decision(
+            analysis: repeatedAnalysis,
+            candidates: repeatedCandidates
+        )
+
+        XCTAssertNil(repeatedDecision.confirmedChatID)
+        XCTAssertNotEqual(repeatedDecision.transcriptEvidence, .strong)
     }
 
     func testDifferentObservedNamesRejectRepeatedOutgoingOpener() {
@@ -76,34 +116,8 @@ final class ChatImportMatcherTests: XCTestCase {
         XCTAssertEqual(decision.reason, .displayNameConflict)
     }
 
-    func testRepeatedOutgoingMessageAcrossCandidatesIsNotStrongIdentityEvidence() {
-        let opener = "Hello there"
-        let analysis = ChatImportAnalysis(
-            conversationTitle: nil,
-            participants: [],
-            messages: [AnalyzedChatMessage(sender: .user, senderName: nil, text: opener, timestampLabel: nil)],
-            matchedChatID: "one",
-            matchConfidence: 0.99,
-            conversationKind: .direct,
-            titleSource: .unavailable,
-            matchBasis: .distinctiveMessages
-        )
-        let candidates = ["one", "two"].map {
-            ChatMatchCandidate(
-                id: $0,
-                name: $0,
-                recentMessages: [ChatCandidateMessage(sender: "user", text: opener, timeLabel: "")]
-            )
-        }
-
-        let decision = ChatImportMatcher.decision(analysis: analysis, candidates: candidates)
-
-        XCTAssertNil(decision.confirmedChatID)
-        XCTAssertNotEqual(decision.transcriptEvidence, .strong)
-    }
-
-    func testUniqueStrongAvatarCanConfirmRenamedDirectChat() throws {
-        let artifact = try makeAvatarArtifact()
+    func testUniqueStrongAvatarCanConfirmRenamedDirectChat() {
+        let artifact = MatcherAvatarFixture.artifact
         let analysis = makeAnalysis(
             title: "New Display Name",
             confidence: 0.97,
@@ -123,8 +137,8 @@ final class ChatImportMatcherTests: XCTestCase {
         XCTAssertEqual(decision.reason, .confirmedAvatar)
     }
 
-    func testCompetingStrongAvatarForcesReviewWithoutLocalReassignment() throws {
-        let artifact = try makeAvatarArtifact()
+    func testCompetingStrongAvatarForcesReviewWithoutLocalReassignment() {
+        let artifact = MatcherAvatarFixture.artifact
         let selected = ChatMatchCandidate(id: "selected", name: "Selected", recentMessages: [])
         let other = ChatMatchCandidate(id: "other", name: "Other", recentMessages: [])
         let analysis = makeAnalysis(
@@ -149,8 +163,8 @@ final class ChatImportMatcherTests: XCTestCase {
         XCTAssertEqual(decision.reason, .competingAvatar)
     }
 
-    func testDuplicateNamesRequireAndAcceptUniqueAvatarDiscriminator() throws {
-        let artifact = try makeAvatarArtifact()
+    func testDuplicateNamesRequireAndAcceptUniqueAvatarDiscriminator() {
+        let artifact = MatcherAvatarFixture.artifact
         let first = ChatMatchCandidate(id: "alex-one", name: "Alex", recentMessages: [])
         let second = ChatMatchCandidate(id: "alex-two", name: "Alex", recentMessages: [])
         let analysis = makeAnalysis(title: "Alex", confidence: 0.96, matchedChatID: first.id)
@@ -207,8 +221,11 @@ final class ChatImportMatcherTests: XCTestCase {
             revision: artifact.revision
         )
     }
+}
 
-    private func makeAvatarArtifact() throws -> AvatarArtifact {
+@MainActor
+private enum MatcherAvatarFixture {
+    static let artifact: AvatarArtifact = {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 400, height: 800))
         let image = renderer.image { context in
             UIColor(white: 0.08, alpha: 1).setFill()
@@ -220,8 +237,11 @@ final class ChatImportMatcherTests: XCTestCase {
             context.fill(CGRect(x: 51, y: 121, width: 38, height: 17))
         }
         let bounds = NormalizedAvatarBounds(x: 0.1, y: 0.1, width: 0.16, height: 0.08)
-        return try XCTUnwrap(
-            AvatarIdentityService.extract(from: try XCTUnwrap(image.pngData()), bounds: bounds)
-        )
-    }
+        guard let imageData = image.pngData(),
+            let artifact = AvatarIdentityService.extract(from: imageData, bounds: bounds)
+        else {
+            preconditionFailure("Unable to create matcher avatar fixture")
+        }
+        return artifact
+    }()
 }

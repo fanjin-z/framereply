@@ -163,7 +163,7 @@ enum ChatTranscriptAligner {
     private static func documentFrequencies(_ candidates: [[TranscriptMessage]]) -> [String: Int] {
         var result: [String: Int] = [:]
         for candidate in candidates {
-            for key in Set(candidate.map(fingerprint)) {
+            for key in Set(candidate.map { fingerprint($0) }) {
                 result[key, default: 0] += 1
             }
         }

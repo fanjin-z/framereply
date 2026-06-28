@@ -1,5 +1,6 @@
 import CoreGraphics
 import XCTest
+
 @testable import zeptly
 
 final class TabSwipeNavigationTests: XCTestCase {
@@ -14,133 +15,111 @@ final class TabSwipeNavigationTests: XCTestCase {
         XCTAssertNil(AppTab.settings.next)
     }
 
-    func testRightEdgeSwipeLeftAdvancesOneTab() {
-        XCTAssertEqual(
-            destination(
-                from: .inbox,
-                startX: pageWidth - 10,
-                translationX: -110
-            ),
-            .personas
-        )
+    func testAcceptedEdgeSwipesNavigateOneTab() {
+        let cases: [(String, AppTab, CGFloat, CGFloat, CGFloat?, CGFloat, AppTab)] = [
+            ("right edge advances", .inbox, 390, -110, nil, pageWidth, .personas),
+            ("left edge returns", .settings, 10, 110, nil, pageWidth, .personas),
+            ("fast flick completes", .inbox, 390, -40, -180, pageWidth, .personas),
+            ("wide layout caps threshold", .personas, 995, -120, -120, 1_000, .settings)
+        ]
+
+        for (name, tab, startX, translationX, predictedX, width, expected) in cases {
+            XCTAssertEqual(
+                destination(
+                    from: tab,
+                    startX: startX,
+                    translationX: translationX,
+                    predictedX: predictedX,
+                    pageWidth: width
+                ),
+                expected,
+                name
+            )
+        }
     }
 
-    func testLeftEdgeSwipeRightReturnsOneTab() {
-        XCTAssertEqual(
-            destination(
-                from: .settings,
-                startX: 10,
-                translationX: 110
+    func testInvalidAndBoundarySwipesStayOnCurrentTab() {
+        let cases: [(String, AppTab, CGFloat, CGSize, CGSize, CGFloat)] = [
+            (
+                "outside edge",
+                .inbox,
+                100,
+                CGSize(width: -200, height: 0),
+                CGSize(width: -200, height: 0),
+                pageWidth
             ),
-            .personas
-        )
-    }
-
-    func testSwipeStartingOutsideEdgeIsRejected() {
-        XCTAssertEqual(
-            destination(
-                from: .inbox,
-                startX: 100,
-                translationX: -200
+            (
+                "vertical drag",
+                .inbox,
+                390,
+                CGSize(width: -120, height: 110),
+                CGSize(width: -200, height: 110),
+                pageWidth
             ),
-            .inbox
-        )
-    }
-
-    func testVerticalDragIsRejected() {
-        XCTAssertEqual(
-            TabSwipeNavigation.destination(
-                from: .inbox,
-                startX: pageWidth - 10,
-                pageWidth: pageWidth,
-                translation: CGSize(width: -120, height: 110),
-                predictedEndTranslation: CGSize(width: -200, height: 110)
+            (
+                "short slow swipe",
+                .inbox,
+                390,
+                CGSize(width: -40, height: 0),
+                CGSize(width: -60, height: 0),
+                pageWidth
             ),
-            .inbox
-        )
-    }
-
-    func testShortSlowSwipeCancels() {
-        XCTAssertEqual(
-            destination(
-                from: .inbox,
-                startX: pageWidth - 10,
-                translationX: -40,
-                predictedX: -60
+            (
+                "below capped threshold",
+                .inbox,
+                995,
+                CGSize(width: -119, height: 0),
+                CGSize(width: -119, height: 0),
+                1_000
             ),
-            .inbox
-        )
-    }
-
-    func testFastFlickCompletesBelowDistanceThreshold() {
-        XCTAssertEqual(
-            destination(
-                from: .inbox,
-                startX: pageWidth - 10,
-                translationX: -40,
-                predictedX: -180
+            (
+                "wrong direction from left edge",
+                .personas,
+                5,
+                CGSize(width: -150, height: 0),
+                CGSize(width: -150, height: 0),
+                pageWidth
             ),
-            .personas
-        )
-    }
-
-    func testCompletionDistanceCapsAt120PointsOnWideLayouts() {
-        let widePageWidth: CGFloat = 1_000
-
-        XCTAssertEqual(
-            TabSwipeNavigation.destination(
-                from: .inbox,
-                startX: widePageWidth - 5,
-                pageWidth: widePageWidth,
-                translation: CGSize(width: -119, height: 0),
-                predictedEndTranslation: CGSize(width: -119, height: 0)
+            (
+                "wrong direction from right edge",
+                .personas,
+                395,
+                CGSize(width: 150, height: 0),
+                CGSize(width: 150, height: 0),
+                pageWidth
             ),
-            .inbox
-        )
-        XCTAssertEqual(
-            TabSwipeNavigation.destination(
-                from: .inbox,
-                startX: widePageWidth - 5,
-                pageWidth: widePageWidth,
-                translation: CGSize(width: -120, height: 0),
-                predictedEndTranslation: CGSize(width: -120, height: 0)
-            ),
-            .personas
-        )
-    }
+            (
+                "boundary does not wrap",
+                .inbox,
+                5,
+                CGSize(width: 300, height: 0),
+                CGSize(width: 400, height: 0),
+                pageWidth
+            )
+        ]
 
-    func testBoundarySwipeResistsWithoutWrapping() {
-        let offset = TabSwipeNavigation.dragOffset(
-            from: .inbox,
-            startX: 5,
-            pageWidth: pageWidth,
-            translation: CGSize(width: 300, height: 0)
-        )
+        for (name, tab, startX, translation, predicted, width) in cases {
+            XCTAssertEqual(
+                TabSwipeNavigation.destination(
+                    from: tab,
+                    startX: startX,
+                    pageWidth: width,
+                    translation: translation,
+                    predictedEndTranslation: predicted
+                ),
+                tab,
+                name
+            )
+        }
 
-        XCTAssertEqual(offset, TabSwipeNavigation.maximumBoundaryOffset)
         XCTAssertEqual(
-            destination(
+            TabSwipeNavigation.dragOffset(
                 from: .inbox,
                 startX: 5,
-                translationX: 300,
-                predictedX: 400
+                pageWidth: pageWidth,
+                translation: CGSize(width: 300, height: 0)
             ),
-            .inbox
-        )
-    }
-
-    func testOppositeDirectionFromEachEdgeIsRejected() {
-        XCTAssertEqual(
-            destination(from: .personas, startX: 5, translationX: -150),
-            .personas
-        )
-        XCTAssertEqual(
-            destination(
-                from: .personas,
-                startX: pageWidth - 5,
-                translationX: 150
-            ),
-            .personas
+            TabSwipeNavigation.maximumBoundaryOffset
         )
     }
 
@@ -148,7 +127,8 @@ final class TabSwipeNavigationTests: XCTestCase {
         from tab: AppTab,
         startX: CGFloat,
         translationX: CGFloat,
-        predictedX: CGFloat? = nil
+        predictedX: CGFloat?,
+        pageWidth: CGFloat
     ) -> AppTab {
         TabSwipeNavigation.destination(
             from: tab,

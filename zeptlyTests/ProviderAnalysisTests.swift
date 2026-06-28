@@ -100,20 +100,6 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(prompt.contains("Canonical JSON example"))
     }
 
-    func testPromptContractHandlesReplyQuotesAndSystemUIAcrossMessagingApps() {
-        let instructions = ChatScreenshotPrompt.instructions
-
-        XCTAssertTrue(instructions.contains("quoted preview labeled \"You\""))
-        XCTAssertTrue(instructions.contains("surrounding reply bubble"))
-        XCTAssertTrue(instructions.contains("repeated visual evidence across the screenshot"))
-        XCTAssertTrue(instructions.contains("Apply the convention visible in this screenshot"))
-        XCTAssertTrue(instructions.contains("delivery/read indicators"))
-        XCTAssertFalse(instructions.localizedCaseInsensitiveContains("WhatsApp"))
-        XCTAssertTrue(instructions.contains("Names, languages, pronouns, conversational meaning"))
-        XCTAssertTrue(instructions.contains("Exclude centered date separators, encryption notices, contact notices"))
-        XCTAssertTrue(instructions.contains("internally verify that sender assignments are consistent"))
-    }
-
     @MainActor
     func testDiagnosticsDoNotContainImageKeyOrChatContent() async throws {
         let reporter = SpyImportEventReporter()

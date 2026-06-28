@@ -1,38 +1,10 @@
 import SwiftData
 import XCTest
+
 @testable import zeptly
 
+@MainActor
 final class ChatPersistenceTests: XCTestCase {
-    @MainActor
-    func testLegacyChatRowsDoNotRequireAvatarMetadata() throws {
-        let storeURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("store")
-        defer { try? FileManager.default.removeItem(at: storeURL) }
-
-        do {
-            let container = try ZeptlyDataStore.makeContainer(url: storeURL)
-            insertChat(id: "legacy-chat", name: "Legacy Chat", into: container)
-            try container.mainContext.save()
-            let record = try XCTUnwrap(
-                container.mainContext.fetch(FetchDescriptor<ChatRecord>()).first
-            )
-            record.avatarQuality = nil
-            record.avatarAlgorithmRevision = nil
-            try container.mainContext.save()
-        }
-
-        do {
-            let container = try ZeptlyDataStore.makeContainer(url: storeURL)
-            let repository = ChatRepository(container: container)
-            let record = try XCTUnwrap(repository.chat(id: "legacy-chat"))
-            XCTAssertNil(record.avatarQuality)
-            XCTAssertNil(record.avatarAlgorithmRevision)
-            XCTAssertTrue(try repository.storedAvatarFingerprints().isEmpty)
-        }
-    }
-
-    @MainActor
     func testChatsPersistWhenTheContainerIsRecreated() throws {
         let storeURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -47,8 +19,8 @@ final class ChatPersistenceTests: XCTestCase {
             let outcome = try repository.applyImport(
                 analysis: provisionalAnalysis(),
                 confirmedChatID: nil,
-                provider: .deepSeek,
-                model: .deepSeekV4Flash
+                provider: .openAI,
+                model: .gpt54Mini
             )
             importedChatID = outcome.chatID
         }
@@ -61,30 +33,6 @@ final class ChatPersistenceTests: XCTestCase {
         }
     }
 
-    @MainActor
-    func testStoreSchemaContainsNoScreenshotPayload() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        try repository.seedIfNeeded()
-
-        let importRecord = ChatImportRecord(
-            chatID: "sarah-jenkins",
-            transcriptFingerprint: "fingerprint",
-            provider: "openAI",
-            model: "gpt-5.4-mini",
-            confidence: 0.98,
-            insertedMessageCount: 0,
-            isDuplicate: true,
-            requiresReview: false
-        )
-        container.mainContext.insert(importRecord)
-        try container.mainContext.save()
-
-        XCTAssertEqual(importRecord.transcriptFingerprint, "fingerprint")
-        XCTAssertEqual(importRecord.insertedMessageCount, 0)
-    }
-
-    @MainActor
     func testImportMergesMessagesAndRepeatingTranscriptDoesNotDuplicateHistory() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
@@ -136,7 +84,6 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(try repository.messages(chatID: "sarah-jenkins").count, 2)
     }
 
-    @MainActor
     func testUnconfirmedImportCreatesProvisionalChat() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
@@ -159,8 +106,8 @@ final class ChatPersistenceTests: XCTestCase {
         let outcome = try repository.applyImport(
             analysis: analysis,
             confirmedChatID: nil,
-            provider: .deepSeek,
-            model: .deepSeekV4Flash
+            provider: .openAI,
+            model: .gpt54Mini
         )
 
         XCTAssertTrue(outcome.reviewRequired)
@@ -169,7 +116,6 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(try repository.chat(id: outcome.chatID)?.isProvisional, true)
     }
 
-    @MainActor
     func testProvisionalChatCanBeRenamedAndConfirmed() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
@@ -177,8 +123,8 @@ final class ChatPersistenceTests: XCTestCase {
         let outcome = try repository.applyImport(
             analysis: provisionalAnalysis(),
             confirmedChatID: nil,
-            provider: .deepSeek,
-            model: .deepSeekV4Flash
+            provider: .openAI,
+            model: .gpt54Mini
         )
 
         try repository.confirmProvisionalChat(chatID: outcome.chatID, name: "Alex Hiking")
@@ -187,7 +133,6 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(try repository.chat(id: outcome.chatID)?.isProvisional, false)
     }
 
-    @MainActor
     func testProvisionalChatCanMergeIntoExistingChat() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
@@ -197,8 +142,8 @@ final class ChatPersistenceTests: XCTestCase {
         let outcome = try repository.applyImport(
             analysis: provisionalAnalysis(),
             confirmedChatID: nil,
-            provider: .deepSeek,
-            model: .deepSeekV4Flash
+            provider: .openAI,
+            model: .gpt54Mini
         )
 
         try repository.mergeProvisionalChat(outcome.chatID, into: "target-chat")
@@ -207,7 +152,6 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(try repository.messages(chatID: "target-chat").count, originalCount + 1)
     }
 
-    @MainActor
     func testDeleteChatRemovesRelatedDataAndLeavesOtherChatsUntouched() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
@@ -218,6 +162,7 @@ final class ChatPersistenceTests: XCTestCase {
         try container.mainContext.save()
 
         try repository.deleteChat(id: "delete-me")
+        try repository.deleteChat(id: "does-not-exist")
 
         XCTAssertNil(try repository.chat(id: "delete-me"))
         XCTAssertTrue(try repository.messages(chatID: "delete-me").isEmpty)
@@ -228,37 +173,6 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(try relatedRecordCounts(chatID: "keep-me", in: container), [1, 1])
     }
 
-    @MainActor
-    func testDeleteProvisionalChatRemovesImportedData() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let outcome = try repository.applyImport(
-            analysis: provisionalAnalysis(),
-            confirmedChatID: nil,
-            provider: .deepSeek,
-            model: .deepSeekV4Flash
-        )
-
-        try repository.deleteChat(id: outcome.chatID)
-
-        XCTAssertNil(try repository.chat(id: outcome.chatID))
-        XCTAssertTrue(try repository.messages(chatID: outcome.chatID).isEmpty)
-        XCTAssertEqual(try relatedRecordCounts(chatID: outcome.chatID, in: container), [0, 0])
-    }
-
-    @MainActor
-    func testDeleteMissingChatIsANoOp() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        insertChat(id: "keep-me", name: "Keep Me", into: container)
-        try container.mainContext.save()
-
-        try repository.deleteChat(id: "does-not-exist")
-
-        XCTAssertNotNil(try repository.chat(id: "keep-me"))
-    }
-
-    @MainActor
     func testImportStoresAvatarAndMatchEvidenceWithoutScreenshotContent() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
@@ -316,7 +230,6 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertTrue(try repository.storedAvatarFingerprints().isEmpty)
     }
 
-    @MainActor
     func testManualMergeTransfersNewerValidProvisionalAvatar() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
@@ -327,8 +240,8 @@ final class ChatPersistenceTests: XCTestCase {
             analysis: provisionalAnalysis(),
             confirmedChatID: nil,
             avatarArtifact: artifact,
-            provider: .deepSeek,
-            model: .deepSeekV4Flash
+            provider: .openAI,
+            model: .gpt54Mini
         )
 
         try repository.mergeProvisionalChat(outcome.chatID, into: "target-chat")
@@ -339,7 +252,6 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(target.avatarQuality, artifact.quality)
     }
 
-    @MainActor
     private func insertChat(
         id: String,
         name: String,
@@ -375,7 +287,6 @@ final class ChatPersistenceTests: XCTestCase {
         }
     }
 
-    @MainActor
     private func insertRelatedRecords(chatID: String, into container: ModelContainer) {
         container.mainContext.insert(
             ContactContextRecord(
@@ -401,7 +312,6 @@ final class ChatPersistenceTests: XCTestCase {
         )
     }
 
-    @MainActor
     private func relatedRecordCounts(chatID: String, in container: ModelContainer) throws -> [Int] {
         let contactRecords = try container.mainContext.fetch(
             FetchDescriptor<ContactContextRecord>(

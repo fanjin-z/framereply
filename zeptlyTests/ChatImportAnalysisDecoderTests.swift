@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+
 @testable import zeptly
 
 final class ChatImportAnalysisDecoderTests: XCTestCase {
@@ -9,55 +10,62 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(try decode("\u{FEFF}  ```json\n\(exact)\n```  ").messages.first?.text, "Hello")
     }
 
-    func testClassifiesEmptyTruncatedAndMalformedResponses() {
-        assertFailure(nil, finishReason: "stop", kind: .emptyResponse)
-        assertFailure(validJSON(), finishReason: "length", kind: .truncatedResponse)
-        assertFailure("{not json", finishReason: "stop", kind: .invalidJSON)
+    func testClassifiesInvalidResponses() {
+        let missingMessages = validJSON().replacingOccurrences(
+            of: #""messages""#,
+            with: #""missingMessages""#
+        )
+        let wrongSender = validJSON().replacingOccurrences(
+            of: #""sender":"contact""#,
+            with: #""sender":42"#
+        )
+        let unknownCandidate = validJSON().replacingOccurrences(
+            of: #""matchedChatID":null"#,
+            with: #""matchedChatID":"unknown""#
+        )
+        let incompleteMessage = validJSON().replacingOccurrences(
+            of: #""text":"Hello""#,
+            with: #""text":"   ""#
+        )
+        let cases: [(String?, String?, StructuredOutputFailureKind, String?)] = [
+            (nil, "stop", .emptyResponse, nil),
+            (validJSON(), "length", .truncatedResponse, nil),
+            ("{not json", "stop", .invalidJSON, nil),
+            (missingMessages, "stop", .schemaMismatch, "messages"),
+            (wrongSender, "stop", .schemaMismatch, "messages[0].sender"),
+            (unknownCandidate, "stop", .invalidCandidateID, "matchedChatID"),
+            (incompleteMessage, "stop", .incompleteMessages, "messages")
+        ]
+
+        for (content, finishReason, kind, path) in cases {
+            assertFailure(content, finishReason: finishReason, kind: kind, path: path)
+        }
     }
 
-    func testClassifiesMissingAndWrongFieldsWithCodingPaths() {
-        let missing = validJSON().replacingOccurrences(of: #""messages""#, with: #""missingMessages""#)
-        assertFailure(missing, kind: .schemaMismatch, path: "messages")
+    func testDecodesLegacyAndUnknownIdentityMetadataConservatively() throws {
+        let legacyJSON =
+            #"{"conversationTitle":"Alex","messages":[{"sender":"contact","senderName":"Alex","text":"Hello","timestampLabel":null}]}"#
+        let legacy = try decode(legacyJSON)
 
-        let wrong = validJSON().replacingOccurrences(of: #""sender":"contact""#, with: #""sender":42"#)
-        assertFailure(wrong, kind: .schemaMismatch, path: "messages[0].sender")
-    }
+        XCTAssertNil(legacy.sourceApp)
+        XCTAssertTrue(legacy.participants.isEmpty)
+        XCTAssertNil(legacy.matchedChatID)
+        XCTAssertEqual(legacy.matchConfidence, 0)
+        XCTAssertEqual(legacy.conversationKind, .unknown)
+        XCTAssertEqual(legacy.titleSource, .unavailable)
+        XCTAssertNil(legacy.avatarBounds)
+        XCTAssertEqual(legacy.matchBasis, .insufficientEvidence)
 
-    func testClassifiesUnknownCandidateAndIncompleteMessages() {
-        let unknown = validJSON().replacingOccurrences(of: #""matchedChatID":null"#, with: #""matchedChatID":"unknown""#)
-        assertFailure(unknown, kind: .invalidCandidateID, path: "matchedChatID")
-
-        let incomplete = validJSON().replacingOccurrences(of: #""text":"Hello""#, with: #""text":"   ""#)
-        assertFailure(incomplete, kind: .incompleteMessages, path: "messages")
-    }
-
-    func testMissingNewIdentityMetadataDecodesConservatively() throws {
-        let legacyJSON = #"{"conversationTitle":"Alex","messages":[{"sender":"contact","senderName":"Alex","text":"Hello","timestampLabel":null}]}"#
-
-        let analysis = try decode(legacyJSON)
-
-        XCTAssertNil(analysis.sourceApp)
-        XCTAssertTrue(analysis.participants.isEmpty)
-        XCTAssertNil(analysis.matchedChatID)
-        XCTAssertEqual(analysis.matchConfidence, 0)
-        XCTAssertEqual(analysis.conversationKind, .unknown)
-        XCTAssertEqual(analysis.titleSource, .unavailable)
-        XCTAssertNil(analysis.avatarBounds)
-        XCTAssertEqual(analysis.matchBasis, .insufficientEvidence)
-    }
-
-    func testUnknownIdentityMetadataValuesDoNotDiscardTranscript() throws {
-        let json = validJSON()
+        let unknownMetadataJSON = validJSON()
             .replacingOccurrences(of: #""conversationKind":"direct""#, with: #""conversationKind":"one_to_one""#)
             .replacingOccurrences(of: #""titleSource":"header""#, with: #""titleSource":"guessed""#)
             .replacingOccurrences(of: #""matchBasis":"display_name""#, with: #""matchBasis":"message_overlap""#)
+        let unknownMetadata = try decode(unknownMetadataJSON)
 
-        let analysis = try decode(json)
-
-        XCTAssertEqual(analysis.messages.first?.text, "Hello")
-        XCTAssertEqual(analysis.conversationKind, .unknown)
-        XCTAssertEqual(analysis.titleSource, .unavailable)
-        XCTAssertEqual(analysis.matchBasis, .insufficientEvidence)
+        XCTAssertEqual(unknownMetadata.messages.first?.text, "Hello")
+        XCTAssertEqual(unknownMetadata.conversationKind, .unknown)
+        XCTAssertEqual(unknownMetadata.titleSource, .unavailable)
+        XCTAssertEqual(unknownMetadata.matchBasis, .insufficientEvidence)
     }
 
     private func decode(_ content: String, finishReason: String? = "stop") throws -> ChatImportAnalysis {
