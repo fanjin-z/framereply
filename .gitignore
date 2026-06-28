@@ -54,3 +54,9 @@ playground.xcworkspace
 
 # Swift Package Manager (Xcode-managed)
 .swiftpm/
+
+# Editor
+.vscode/
+
+# Sweetpad
+buildServer.json
