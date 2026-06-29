@@ -61,7 +61,7 @@ struct ChatIntelligenceView: View {
 
                     RecentChatSection(
                         messages: latestMessages,
-                        onSearchTap: {
+                        onHistoryTap: {
                             isHistoryPresented = true
                         }
                     )

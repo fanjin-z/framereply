@@ -11,6 +11,7 @@ struct ChatHistorySheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
+    @State private var selectedDetent: PresentationDetent = .large
     @Query private var messageRecords: [ChatMessageRecord]
 
     init(chat: Chat) {
@@ -92,7 +93,7 @@ struct ChatHistorySheet: View {
             .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.medium, .large], selection: $selectedDetent)
         .presentationDragIndicator(.visible)
     }
 }
