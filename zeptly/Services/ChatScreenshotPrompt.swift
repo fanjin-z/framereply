@@ -25,9 +25,8 @@ enum ChatScreenshotPrompt {
               "timestampLabel": null,
               "outerAlignment": "right",
               "outerAuthorLabel": null,
-              "hasOutboundStatusIndicator": true,
               "senderConfidence": 0.98,
-              "senderEvidence": "outbound_status",
+              "senderEvidence": "message_status_indicator",
               "quotedReply": null
             },
             {
@@ -37,7 +36,6 @@ enum ChatScreenshotPrompt {
               "timestampLabel": null,
               "outerAlignment": "left",
               "outerAuthorLabel": null,
-              "hasOutboundStatusIndicator": false,
               "senderConfidence": 0.9,
               "senderEvidence": "alignment_convention",
               "quotedReply": {
@@ -59,14 +57,14 @@ enum ChatScreenshotPrompt {
         - Pair each readable text with its top-level container: the outer bubble, author row, or thread item representing one new message. Record these observations before sender; never move text to fit a guess.
         - outerAlignment is that container's physical position to the viewer: "left", "right", "full_width", or "unknown". Language does not change screen-left or screen-right.
         - outerAuthorLabel is literal author text attached to the outer container, otherwise null. Header names, inferred identities, and nested labels do not qualify.
-        - hasOutboundStatusIndicator is true only for an attached sent/delivered/read marker such as checkmarks or Delivered/Read. Color, alignment, and timestamps do not qualify.
+        - An unambiguous sent/delivered/read indicator attached to a top-level message, such as a delivery checkmark or attached Delivered/Read label, is strong evidence that the screenshot owner sent that message. Timestamps, reactions, standalone or unattached Seen text, and ambiguous check icons do not qualify. Absence of an indicator proves nothing.
 
         2. Ownership convention
         - The screenshot owner operates the displayed account/device; they are not the person named in the header. Their sent messages are outgoing.
         - ownershipConvention is the single screenshot-wide rule mapping top-level message containers to the screenshot owner versus other participants.
         - screenshotOwnerAlignment is the physical side containing the screenshot owner's outgoing top-level messages in this screenshot. screenshotOwnerAuthorLabel is a literal outer author label identifying the screenshot owner, or null.
         - mode is "opposed_alignment" for opposing sides, "author_identity" for labels/avatars, "mixed" for both, or "unobservable" when unsupported.
-        - Choose screenshotOwnerAlignment in this order: (1) the side with attached sent/delivered/read indicators; (2) the side identified by a literal screenshot-owner author label or avatar; (3) right as a weak default only in a direct opposed-bubble layout with no contradictory evidence; otherwise "unknown".
+        - Choose screenshotOwnerAlignment in this order: (1) the side with an unambiguous attached sent/delivered/read indicator; (2) the side identified by a literal screenshot-owner author label or avatar; (3) right as a weak default only in a direct opposed-bubble layout with no contradictory evidence; otherwise "unknown".
         - Visible evidence overrides the weak right default. App identity, language, pronouns, meaning, and nested content cannot override ownership evidence or alter literal observations.
 
         3. Messages, replies, and sender roles
@@ -75,8 +73,8 @@ enum ChatScreenshotPrompt {
         - Authored blockquotes remain in text. Reactions, previews, timestamps, delivery labels, separators, notices, and app UI are not messages.
         - sender is relative to the screenshot owner: "user" is the owner; in opposed alignment its outerAlignment equals screenshotOwnerAlignment. "contact" is the one other participant in a direct chat. "other" is a group non-owner identified by visible outerAuthorLabel. "unknown" means conflicting/unsupported ownership or an unidentified group author. Never guess.
         - senderName is normally null for "user", the reliable direct identity for "contact", and the visible identity for "other". quotedReply uses the same owner-relative roles.
-        - senderConfidence is ownership confidence from 0...1. senderEvidence is the strongest basis: "outbound_status", "alignment_convention", "author_label", "avatar", "candidate_match", "mixed", or "insufficient".
-        - Mandatory consistency: every message with hasOutboundStatusIndicator true must have sender "user" and outerAlignment equal screenshotOwnerAlignment. In opposed alignment, all top-level messages on screenshotOwnerAlignment are "user" and messages on the opposite side are non-owner. Correct any contradiction before returning.
+        - senderConfidence is ownership confidence from 0...1. senderEvidence is the strongest basis: "message_status_indicator", "alignment_convention", "author_label", "avatar", "candidate_match", "mixed", or "insufficient". Use "message_status_indicator" only for a message with an unambiguous attached sent/delivered/read indicator; do not preserve the exact delivery state.
+        - Mandatory consistency: every message with senderEvidence "message_status_indicator" must have sender "user" and, in opposed alignment, outerAlignment equal screenshotOwnerAlignment. All top-level messages on screenshotOwnerAlignment are "user" and messages on the opposite side are non-owner. Correct any contradiction before returning.
 
         4. Conversation identity and output
         - conversationTitle is exact visible header title: usually the other display name in a direct chat or the group title; null if unavailable. conversationKind is "direct" for one other participant, "group" for multiple, otherwise "unknown".
@@ -154,8 +152,7 @@ enum ChatScreenshotPrompt {
                     "additionalProperties": false,
                     "required": [
                         "sender", "senderName", "text", "timestampLabel", "outerAlignment",
-                        "outerAuthorLabel", "hasOutboundStatusIndicator", "senderConfidence",
-                        "senderEvidence", "quotedReply"
+                        "outerAuthorLabel", "senderConfidence", "senderEvidence", "quotedReply"
                     ],
                     "properties": [
                         "sender": ["type": "string", "enum": ["user", "contact", "other", "unknown"]],
@@ -167,7 +164,6 @@ enum ChatScreenshotPrompt {
                             "enum": ["left", "right", "full_width", "unknown"]
                         ],
                         "outerAuthorLabel": ["type": ["string", "null"]],
-                        "hasOutboundStatusIndicator": ["type": "boolean"],
                         "senderConfidence": ["type": "number", "minimum": 0, "maximum": 1],
                         "senderEvidence": ["type": "string", "enum": senderEvidenceValues],
                         "quotedReply": [
@@ -197,7 +193,7 @@ enum ChatScreenshotPrompt {
     ]
 
     private static let senderEvidenceValues = [
-        "outbound_status", "alignment_convention", "author_label", "avatar",
+        "message_status_indicator", "alignment_convention", "author_label", "avatar",
         "candidate_match", "mixed", "insufficient"
     ]
 }

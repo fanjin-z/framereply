@@ -140,7 +140,6 @@ nonisolated struct AnalyzedChatMessage: Codable, Equatable, Sendable {
     let timestampLabel: String?
     let outerAlignment: MessageAlignment
     let outerAuthorLabel: String?
-    let hasOutboundStatusIndicator: Bool
     let senderConfidence: Double
     let senderEvidence: MessageSenderEvidence
     let quotedReply: AnalyzedQuotedReply?
@@ -152,7 +151,6 @@ nonisolated struct AnalyzedChatMessage: Codable, Equatable, Sendable {
         timestampLabel: String?,
         outerAlignment: MessageAlignment = .unknown,
         outerAuthorLabel: String? = nil,
-        hasOutboundStatusIndicator: Bool = false,
         senderConfidence: Double = 0,
         senderEvidence: MessageSenderEvidence = .insufficient,
         quotedReply: AnalyzedQuotedReply? = nil
@@ -163,7 +161,6 @@ nonisolated struct AnalyzedChatMessage: Codable, Equatable, Sendable {
         self.timestampLabel = timestampLabel
         self.outerAlignment = outerAlignment
         self.outerAuthorLabel = outerAuthorLabel
-        self.hasOutboundStatusIndicator = hasOutboundStatusIndicator
         self.senderConfidence = senderConfidence
         self.senderEvidence = senderEvidence
         self.quotedReply = quotedReply
@@ -176,7 +173,6 @@ nonisolated struct AnalyzedChatMessage: Codable, Equatable, Sendable {
         case timestampLabel
         case outerAlignment
         case outerAuthorLabel
-        case hasOutboundStatusIndicator
         case senderConfidence
         case senderEvidence
         case quotedReply
@@ -190,10 +186,6 @@ nonisolated struct AnalyzedChatMessage: Codable, Equatable, Sendable {
         timestampLabel = try container.decodeIfPresent(String.self, forKey: .timestampLabel)
         outerAlignment = try container.decode(MessageAlignment.self, forKey: .outerAlignment)
         outerAuthorLabel = try container.decodeIfPresent(String.self, forKey: .outerAuthorLabel)
-        hasOutboundStatusIndicator = try container.decode(
-            Bool.self,
-            forKey: .hasOutboundStatusIndicator
-        )
         senderConfidence = try container.decode(Double.self, forKey: .senderConfidence)
         senderEvidence = try container.decode(MessageSenderEvidence.self, forKey: .senderEvidence)
         quotedReply = try container.decodeIfPresent(AnalyzedQuotedReply.self, forKey: .quotedReply)
@@ -222,7 +214,7 @@ nonisolated enum MessageAlignment: String, Codable, Equatable, Sendable {
 }
 
 nonisolated enum MessageSenderEvidence: String, Codable, Equatable, Sendable {
-    case outboundStatus = "outbound_status"
+    case messageStatusIndicator = "message_status_indicator"
     case alignmentConvention = "alignment_convention"
     case authorLabel = "author_label"
     case avatar

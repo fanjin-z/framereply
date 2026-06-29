@@ -24,7 +24,7 @@ final class ProviderAnalysisTests: XCTestCase {
             "conversationTitle", "conversationKind", "titleSource", "avatarBounds", "messages",
             "matchedChatID", "matchConfidence", "ownershipConvention", "screenshotOwnerAlignment",
             "screenshotOwnerAuthorLabel", "outerAlignment", "outerAuthorLabel",
-            "hasOutboundStatusIndicator", "senderName", "senderConfidence", "senderEvidence"
+            "senderName", "senderConfidence", "senderEvidence", "message_status_indicator"
         ] {
             XCTAssertTrue(instructions.contains(field), "Missing prompt definition for \(field)")
         }
@@ -35,10 +35,12 @@ final class ProviderAnalysisTests: XCTestCase {
         let schemaData = try JSONSerialization.data(withJSONObject: ChatScreenshotPrompt.jsonSchema)
         let schema = try XCTUnwrap(String(data: schemaData, encoding: .utf8))
         let canonical = ChatScreenshotPrompt.canonicalJSONExample
-        for removedKey in ["participants", "sourceApp", "matchBasis"] {
+        for removedKey in ["participants", "sourceApp", "matchBasis", "hasOutboundStatusIndicator"] {
             XCTAssertFalse(schema.contains(#""\#(removedKey)""#))
             XCTAssertFalse(canonical.contains(#""\#(removedKey)""#))
         }
+        XCTAssertFalse(schema.contains("outbound_status"))
+        XCTAssertFalse(canonical.contains("outbound_status"))
         let rootProperties = try XCTUnwrap(
             ChatScreenshotPrompt.jsonSchema["properties"] as? [String: Any]
         )
@@ -66,8 +68,8 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(messages[0]["sender"] as? String, "user")
         XCTAssertEqual(messages[0]["outerAlignment"] as? String, "right")
         XCTAssertTrue(messages[0]["outerAuthorLabel"] is NSNull)
-        XCTAssertEqual(messages[0]["hasOutboundStatusIndicator"] as? Bool, true)
-        XCTAssertEqual(messages[0]["senderEvidence"] as? String, "outbound_status")
+        XCTAssertNil(messages[0]["hasOutboundStatusIndicator"])
+        XCTAssertEqual(messages[0]["senderEvidence"] as? String, "message_status_indicator")
         XCTAssertEqual(messages[1]["sender"] as? String, "contact")
         XCTAssertEqual(messages[1]["outerAlignment"] as? String, "left")
         XCTAssertNotNil(messages[1]["quotedReply"] as? [String: Any])
@@ -215,7 +217,6 @@ final class ProviderAnalysisTests: XCTestCase {
                 "timestampLabel": "10:42 AM",
                 "outerAlignment": "left",
                 "outerAuthorLabel": NSNull(),
-                "hasOutboundStatusIndicator": false,
                 "senderConfidence": 0.95,
                 "senderEvidence": "alignment_convention",
                 "quotedReply": NSNull()

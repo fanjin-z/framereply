@@ -81,17 +81,17 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
     func testConflictingOuterEvidenceBecomesUnknown() throws {
         let json = validJSON(
             sender: "user",
-            hasOutboundStatusIndicator: true,
+            senderEvidence: "message_status_indicator",
             outerAlignment: "left"
         )
 
         XCTAssertEqual(try decode(json).messages.first?.sender, .unknown)
     }
 
-    func testExplicitLeftOutboundEvidenceSupportsLeftOwner() throws {
+    func testExplicitLeftMessageStatusEvidenceSupportsLeftOwner() throws {
         let json = validJSON(
             sender: "user",
-            hasOutboundStatusIndicator: true,
+            senderEvidence: "message_status_indicator",
             outerAlignment: "left"
         ).replacingOccurrences(
             of: #""screenshotOwnerAlignment":"right""#,
@@ -99,6 +99,31 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         )
 
         XCTAssertEqual(try decode(json).messages.first?.sender, .user)
+    }
+
+    func testMessageStatusEvidenceSupportsRightOwner() throws {
+        let json = validJSON(
+            sender: "user",
+            senderEvidence: "message_status_indicator",
+            outerAlignment: "right"
+        )
+
+        XCTAssertEqual(try decode(json).messages.first?.sender, .user)
+    }
+
+    func testAlignmentConventionWorksWithoutMessageStatusIndicator() throws {
+        let json = validJSON(sender: "user", outerAlignment: "right")
+
+        XCTAssertEqual(try decode(json).messages.first?.sender, .user)
+    }
+
+    func testLegacyOutboundIndicatorKeyIsIgnored() throws {
+        let json = validJSON().replacingOccurrences(
+            of: #""outerAuthorLabel":null"#,
+            with: #""outerAuthorLabel":null,"hasOutboundStatusIndicator":true"#
+        )
+
+        XCTAssertEqual(try decode(json).messages.first?.sender, .contact)
     }
 
     func testAuthorIdentityLayoutUsesLiteralOwnerLabel() throws {
@@ -149,7 +174,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
 
     func testTandemRegressionKeepsEightOuterMessagesAndOneNestedReply() throws {
         let json = """
-        {"conversationTitle":"Inna","conversationKind":"direct","titleSource":"header","avatarBounds":null,"ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"user","senderName":null,"text":"你好，很高兴认识你","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"hasOutboundStatusIndicator":false,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"你的中文看起来不错! 你学中文多久了?","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"hasOutboundStatusIndicator":false,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"Я сейчас учу русский. Хочу найти человека для практики","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"hasOutboundStatusIndicator":false,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"已经3年，在中国住了1.5年","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":null,"hasOutboundStatusIndicator":false,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":{"sender":"user","senderName":null,"text":"你的中文看起来不错! 你学中文多久了?"}},{"sender":"user","senderName":null,"text":"你现在是在莫斯科吗？还是偶尔也会去中国？","timestampLabel":"Seen 1 hour ago","outerAlignment":"right","outerAuthorLabel":null,"hasOutboundStatusIndicator":true,"senderConfidence":0.98,"senderEvidence":"outbound_status","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"我刚刚回来了","timestampLabel":"3:53 PM","outerAlignment":"left","outerAuthorLabel":null,"hasOutboundStatusIndicator":false,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"现在在莫斯科","timestampLabel":"3:53 PM","outerAlignment":"left","outerAuthorLabel":null,"hasOutboundStatusIndicator":false,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"你在中国上学吗？还是来旅游？","timestampLabel":"Delivered","outerAlignment":"right","outerAuthorLabel":null,"hasOutboundStatusIndicator":true,"senderConfidence":0.98,"senderEvidence":"outbound_status","quotedReply":null}],"matchedChatID":null,"matchConfidence":0.0}
+        {"conversationTitle":"Inna","conversationKind":"direct","titleSource":"header","avatarBounds":null,"ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"user","senderName":null,"text":"你好，很高兴认识你","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"你的中文看起来不错! 你学中文多久了?","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"Я сейчас учу русский. Хочу найти человека для практики","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"已经3年，在中国住了1.5年","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":{"sender":"user","senderName":null,"text":"你的中文看起来不错! 你学中文多久了?"}},{"sender":"user","senderName":null,"text":"你现在是在莫斯科吗？还是偶尔也会去中国？","timestampLabel":"Seen 1 hour ago","outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.98,"senderEvidence":"message_status_indicator","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"我刚刚回来了","timestampLabel":"3:53 PM","outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"现在在莫斯科","timestampLabel":"3:53 PM","outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"你在中国上学吗？还是来旅游？","timestampLabel":"Delivered","outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.98,"senderEvidence":"message_status_indicator","quotedReply":null}],"matchedChatID":null,"matchConfidence":0.0}
         """
 
         let result = try decode(json)
@@ -164,7 +189,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(result.messages[3].quotedReply?.text, "你的中文看起来不错! 你学中文多久了?")
         XCTAssertTrue(result.messages.allSatisfy { $0.outerAuthorLabel == nil })
         XCTAssertEqual(
-            result.messages.filter(\.hasOutboundStatusIndicator).map(\.sender),
+            result.messages.filter { $0.senderEvidence == .messageStatusIndicator }.map(\.sender),
             [.user, .user]
         )
     }
@@ -204,11 +229,11 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         sender: String = "contact",
         text: String = "Hello",
         quotedReply: String = "null",
-        hasOutboundStatusIndicator: Bool = false,
+        senderEvidence: String = "alignment_convention",
         outerAlignment: String = "left"
     ) -> String {
         """
-        {"conversationTitle":"Alex","conversationKind":"direct","titleSource":"header","avatarBounds":null,"ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"\(sender)","senderName":"Alex","text":"\(text)","timestampLabel":null,"outerAlignment":"\(outerAlignment)","outerAuthorLabel":null,"hasOutboundStatusIndicator":\(hasOutboundStatusIndicator),"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":\(quotedReply)}],"matchedChatID":null,"matchConfidence":0.0}
+        {"conversationTitle":"Alex","conversationKind":"direct","titleSource":"header","avatarBounds":null,"ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"\(sender)","senderName":"Alex","text":"\(text)","timestampLabel":null,"outerAlignment":"\(outerAlignment)","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"\(senderEvidence)","quotedReply":\(quotedReply)}],"matchedChatID":null,"matchConfidence":0.0}
         """
     }
 }

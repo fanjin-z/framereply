@@ -33,9 +33,8 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
                     text: "A newly imported reply",
                     timestampLabel: "11:00 AM",
                     outerAlignment: .right,
-                    hasOutboundStatusIndicator: true,
                     senderConfidence: 0.99,
-                    senderEvidence: .outboundStatus
+                    senderEvidence: .messageStatusIndicator
                 ),
                 AnalyzedChatMessage(
                     sender: .contact,

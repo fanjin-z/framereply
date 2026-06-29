@@ -99,7 +99,6 @@ nonisolated enum ChatImportAnalysisDecoder {
                 timestampLabel: message.timestampLabel,
                 outerAlignment: message.outerAlignment,
                 outerAuthorLabel: message.outerAuthorLabel,
-                hasOutboundStatusIndicator: message.hasOutboundStatusIndicator,
                 senderConfidence: message.senderConfidence,
                 senderEvidence: message.senderEvidence,
                 quotedReply: message.quotedReply
@@ -140,8 +139,8 @@ nonisolated enum ChatImportAnalysisDecoder {
             throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "messages")
         }
         let required = [
-            "outerAlignment", "outerAuthorLabel", "hasOutboundStatusIndicator",
-            "senderConfidence", "senderEvidence", "quotedReply"
+            "outerAlignment", "outerAuthorLabel", "senderConfidence", "senderEvidence",
+            "quotedReply"
         ]
         for (index, message) in messages.enumerated() {
             for key in required where message.keys.contains(key) == false {
@@ -157,7 +156,7 @@ nonisolated enum ChatImportAnalysisDecoder {
     ) -> AnalyzedMessageSender {
         var visibleDecisions: [Bool] = []
 
-        if message.hasOutboundStatusIndicator {
+        if message.senderEvidence == .messageStatusIndicator {
             visibleDecisions.append(true)
         }
 
