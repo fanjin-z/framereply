@@ -123,3 +123,47 @@ nonisolated struct OSLogImportEventReporter: ImportEventReporting {
         }
     }
 }
+
+nonisolated enum ChatImportDebugLogger {
+    static func rawResponse(
+        traceID: ImportTraceID,
+        provider: String,
+        model: String,
+        attempt: Int,
+        finishReason: String?,
+        content: String?
+    ) {
+        #if DEBUG
+        let finish = finishReason ?? "none"
+        let header = "[ChatScreenshotAI][raw] trace=\(traceID.diagnosticID) provider=\(provider) model=\(model) attempt=\(attempt) finish=\(finish)"
+        Swift.print(header)
+        Swift.print(content ?? "<empty>")
+        #endif
+    }
+
+    static func normalized(
+        _ analysis: ChatImportAnalysis,
+        traceID: ImportTraceID,
+        provider: String,
+        model: String,
+        attempt: Int
+    ) {
+        #if DEBUG
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        let content = (try? encoder.encode(analysis))
+            .flatMap { String(data: $0, encoding: .utf8) }
+            ?? "<encoding failed>"
+        Swift.print("[ChatScreenshotAI][normalized] trace=\(traceID.diagnosticID) provider=\(provider) model=\(model) attempt=\(attempt)")
+        Swift.print(content)
+        #endif
+    }
+
+    static func normalization(notes: [String]) {
+        #if DEBUG
+        for note in notes {
+            Swift.print("[ChatScreenshotAI][sender-correction] \(note)")
+        }
+        #endif
+    }
+}

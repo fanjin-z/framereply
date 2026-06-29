@@ -48,6 +48,8 @@ extension ChatMessage {
             sender = .user
         case "other":
             sender = .other(record.senderName ?? "Participant")
+        case "unknown":
+            sender = .unknown
         default:
             sender = .contact
         }

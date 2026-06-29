@@ -216,6 +216,8 @@ final class ChatRepository {
             )
         ).first
         let isDuplicate = mergeResult.insertedMessageCount == 0 || previousImport != nil
+        let hasUnknownSenders = mergeResult.messages.contains { $0.senderKind == "unknown" }
+        let requiresReview = targetChat.isProvisional || hasUnknownSenders
         let importRecord = ChatImportRecord(
             chatID: targetChat.id,
             transcriptFingerprint: fingerprint,
@@ -224,14 +226,14 @@ final class ChatRepository {
             confidence: analysis.matchConfidence,
             insertedMessageCount: mergeResult.insertedMessageCount,
             isDuplicate: isDuplicate,
-            requiresReview: targetChat.isProvisional,
+            requiresReview: requiresReview,
             matchDisposition: matchDecision?.disposition.rawValue
                 ?? (matchedExisting ? ChatMatchDisposition.confirmed.rawValue : ChatMatchDisposition.review.rawValue),
             suggestedChatID: matchDecision?.suggestedChatID,
             matchReason: matchDecision?.reason.rawValue,
             avatarEvidence: matchDecision?.avatarEvidence.rawValue,
             transcriptEvidence: matchDecision?.transcriptEvidence.rawValue,
-            sourceApp: analysis.sourceApp
+            sourceApp: nil
         )
         context.insert(importRecord)
 
@@ -248,7 +250,7 @@ final class ChatRepository {
             importID: importRecord.id,
             diagnosticID: traceID.diagnosticID,
             matchedExisting: matchedExisting,
-            reviewRequired: targetChat.isProvisional,
+            reviewRequired: requiresReview,
             duplicate: isDuplicate,
             insertedMessageCount: mergeResult.insertedMessageCount
         )
@@ -267,7 +269,44 @@ final class ChatRepository {
         chat.chipTitle = "General"
         chat.chipSymbol = "number"
         chat.updatedAt = Date()
-        try markImportsReviewed(chatID: chatID)
+        try refreshImportReviewState(chatID: chatID)
+        try context.save()
+    }
+
+    func resolveUnknownSender(
+        messageID: UUID,
+        as sender: AnalyzedMessageSender,
+        participantName: String? = nil
+    ) throws {
+        guard sender == .user || sender == .contact || sender == .other else {
+            return
+        }
+        guard let message = try context.fetch(
+            FetchDescriptor<ChatMessageRecord>(predicate: #Predicate { $0.id == messageID })
+        ).first, message.senderKind == "unknown"
+        else {
+            return
+        }
+
+        switch sender {
+        case .user:
+            message.senderKind = "user"
+            message.senderName = nil
+        case .contact:
+            message.senderKind = "contact"
+            message.senderName = nil
+        case .other:
+            let trimmedName = participantName?.trimmingCharacters(in: .whitespacesAndNewlines)
+            message.senderKind = "other"
+            message.senderName = trimmedName?.isEmpty == false ? trimmedName : (message.senderName ?? "Participant")
+        case .unknown:
+            return
+        }
+
+        if let chat = try chat(id: message.chatID) {
+            chat.updatedAt = Date()
+        }
+        try refreshImportReviewState(chatID: message.chatID)
         try context.save()
     }
 
@@ -327,7 +366,7 @@ final class ChatRepository {
         for importRecord in provisionalImports {
             importRecord.chatID = targetChatID
             importRecord.transcriptFingerprint = nil
-            importRecord.requiresReview = false
+            importRecord.requiresReview = mergeResult.messages.contains { $0.senderKind == "unknown" }
             importRecord.matchDisposition = ChatMatchDisposition.confirmed.rawValue
             importRecord.matchReason = "manual_review_merge"
         }
@@ -356,6 +395,7 @@ final class ChatRepository {
             targetChat.lastActivityLabel = latestMessage.timeLabel.isEmpty ? "Just now" : latestMessage.timeLabel
         }
         targetChat.updatedAt = Date()
+        try refreshImportReviewState(chatID: targetChatID)
 
         do {
             try context.save()
@@ -378,6 +418,9 @@ final class ChatRepository {
         case let .other(name):
             senderKind = "other"
             senderName = name
+        case .unknown:
+            senderKind = "unknown"
+            senderName = nil
         }
 
         return ChatMessageRecord(
@@ -407,7 +450,13 @@ final class ChatRepository {
 
     private func makeProvisionalChat(from analysis: ChatImportAnalysis) -> ChatRecord {
         let title = analysis.conversationTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let participant = analysis.participants.first?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let participant = analysis.messages.lazy.compactMap { message -> String? in
+            guard message.sender == .contact || message.sender == .other else {
+                return nil
+            }
+            let name = message.senderName?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return name?.isEmpty == false ? name : nil
+        }.first
         let name = [title, participant].compactMap { value -> String? in
             guard let value, !value.isEmpty else {
                 return nil
@@ -505,9 +554,18 @@ final class ChatRepository {
         )
     }
 
-    private func markImportsReviewed(chatID: String) throws {
-        for importRecord in try imports(chatID: chatID) {
-            importRecord.requiresReview = false
+    private func refreshImportReviewState(chatID: String) throws {
+        let messageRecords = try messages(chatID: chatID)
+        let stillHasUnknownSender = messageRecords.contains { $0.senderKind == "unknown" }
+        let isProvisional = try chat(id: chatID)?.isProvisional == true
+        let requiresReview = stillHasUnknownSender || isProvisional
+        let fingerprint = TranscriptFingerprinter.fingerprint(
+            chatID: chatID,
+            messages: messageRecords.map(MergeMessage.init(record:))
+        )
+        for importRecord in try imports(chatID: chatID) where importRecord.requiresReview {
+            importRecord.requiresReview = requiresReview
+            importRecord.transcriptFingerprint = fingerprint
         }
     }
 
@@ -517,6 +575,8 @@ final class ChatRepository {
             .user
         case "other":
             .other
+        case "unknown":
+            .unknown
         default:
             .contact
         }

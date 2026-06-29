@@ -26,29 +26,44 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         let credentials = StubProviderConfiguration()
         let analysis = ChatImportAnalysis(
             conversationTitle: "Sarah Jenkins",
-            participants: ["Sarah Jenkins"],
             messages: [
                 AnalyzedChatMessage(
                     sender: .user,
                     senderName: nil,
                     text: "A newly imported reply",
-                    timestampLabel: "11:00 AM"
+                    timestampLabel: "11:00 AM",
+                    outerAlignment: .right,
+                    hasOutboundStatusIndicator: true,
+                    senderConfidence: 0.99,
+                    senderEvidence: .outboundStatus
                 ),
                 AnalyzedChatMessage(
                     sender: .contact,
                     senderName: "Sarah Jenkins",
                     text: "你好，很高兴认识你",
-                    timestampLabel: "11:01 AM"
+                    timestampLabel: "11:01 AM",
+                    outerAlignment: .left,
+                    senderConfidence: 0.95,
+                    senderEvidence: .alignmentConvention
                 ),
                 AnalyzedChatMessage(
                     sender: .other,
                     senderName: "Inna",
                     text: String(repeating: "A longer group reply. ", count: 20),
-                    timestampLabel: nil
+                    timestampLabel: nil,
+                    outerAlignment: .left,
+                    senderConfidence: 0.95,
+                    senderEvidence: .alignmentConvention
                 )
             ],
             matchedChatID: "sarah-jenkins",
-            matchConfidence: 0.97
+            matchConfidence: 0.97,
+            conversationKind: .group,
+            ownershipConvention: MessageOwnershipConvention(
+                mode: .opposedAlignment,
+                screenshotOwnerAlignment: .right,
+                screenshotOwnerAuthorLabel: nil
+            )
         )
         let reporter = CoordinatorEventReporter()
         let client = StubAnalysisClient(analysis: analysis)

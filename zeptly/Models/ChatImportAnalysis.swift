@@ -35,71 +35,63 @@ nonisolated struct ChatScreenshotAnalysisRequest: Equatable, Sendable {
 
 nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
     let conversationTitle: String?
-    let participants: [String]
     let messages: [AnalyzedChatMessage]
     let matchedChatID: String?
     let matchConfidence: Double
-    let sourceApp: String?
     let conversationKind: ChatConversationKind
     let titleSource: ChatTitleSource
     let avatarBounds: NormalizedAvatarBounds?
-    let matchBasis: ChatMatchBasis
+    let ownershipConvention: MessageOwnershipConvention
 
     private enum CodingKeys: String, CodingKey {
         case conversationTitle
-        case participants
         case messages
         case matchedChatID
         case matchConfidence
-        case sourceApp
         case conversationKind
         case titleSource
         case avatarBounds
-        case matchBasis
+        case ownershipConvention
     }
 
     init(
         conversationTitle: String?,
-        participants: [String],
         messages: [AnalyzedChatMessage],
         matchedChatID: String?,
         matchConfidence: Double,
-        sourceApp: String? = nil,
         conversationKind: ChatConversationKind = .direct,
         titleSource: ChatTitleSource = .header,
         avatarBounds: NormalizedAvatarBounds? = nil,
-        matchBasis: ChatMatchBasis = .insufficientEvidence
+        ownershipConvention: MessageOwnershipConvention = .unobservable
     ) {
         self.conversationTitle = conversationTitle
-        self.participants = participants
         self.messages = messages
         self.matchedChatID = matchedChatID
         self.matchConfidence = matchConfidence
-        self.sourceApp = sourceApp
         self.conversationKind = conversationKind
         self.titleSource = titleSource
         self.avatarBounds = avatarBounds
-        self.matchBasis = matchBasis
+        self.ownershipConvention = ownershipConvention
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        // Transcript messages remain strict. Identity and selection metadata degrades
+        // Transcript messages remain strict. Conversation identity metadata degrades
         // conservatively when a JSON-mode provider omits or misspells a value.
         conversationTitle = try? container.decode(String.self, forKey: .conversationTitle)
-        participants = (try? container.decode([String].self, forKey: .participants)) ?? []
         messages = try container.decode([AnalyzedChatMessage].self, forKey: .messages)
         matchedChatID = try? container.decode(String.self, forKey: .matchedChatID)
         matchConfidence = (try? container.decode(Double.self, forKey: .matchConfidence)) ?? 0
-        sourceApp = try? container.decode(String.self, forKey: .sourceApp)
         conversationKind = (try? container.decode(ChatConversationKind.self, forKey: .conversationKind))
             ?? .unknown
         titleSource = (try? container.decode(ChatTitleSource.self, forKey: .titleSource))
             ?? .unavailable
         avatarBounds = try? container.decode(NormalizedAvatarBounds.self, forKey: .avatarBounds)
-        matchBasis = (try? container.decode(ChatMatchBasis.self, forKey: .matchBasis))
-            ?? .insufficientEvidence
+        ownershipConvention = try container.decode(
+            MessageOwnershipConvention.self,
+            forKey: .ownershipConvention
+        )
     }
 
     func validated(candidateIDs: Set<String>) throws -> ChatImportAnalysis {
@@ -112,6 +104,9 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
 
         if let matchedChatID, !candidateIDs.contains(matchedChatID) {
             throw ProviderConnectionError.invalidResponse("The provider returned an unknown chat match.")
+        }
+        if matchedChatID == nil, matchConfidence != 0 {
+            throw ProviderConnectionError.invalidResponse("The provider returned confidence without a chat match.")
         }
 
         return self
@@ -130,15 +125,6 @@ nonisolated enum ChatTitleSource: String, Codable, Equatable, Sendable {
     case unavailable
 }
 
-nonisolated enum ChatMatchBasis: String, Codable, Equatable, Sendable {
-    case displayName = "display_name"
-    case groupIdentity = "group_identity"
-    case distinctiveMessages = "distinctive_messages"
-    case mixedEvidence = "mixed_evidence"
-    case identityConflict = "identity_conflict"
-    case insufficientEvidence = "insufficient_evidence"
-}
-
 /// Unit coordinates use a top-left origin and describe the visible header avatar.
 nonisolated struct NormalizedAvatarBounds: Codable, Equatable, Sendable {
     let x: Double
@@ -152,10 +138,113 @@ nonisolated struct AnalyzedChatMessage: Codable, Equatable, Sendable {
     let senderName: String?
     let text: String
     let timestampLabel: String?
+    let outerAlignment: MessageAlignment
+    let outerAuthorLabel: String?
+    let hasOutboundStatusIndicator: Bool
+    let senderConfidence: Double
+    let senderEvidence: MessageSenderEvidence
+    let quotedReply: AnalyzedQuotedReply?
+
+    init(
+        sender: AnalyzedMessageSender,
+        senderName: String?,
+        text: String,
+        timestampLabel: String?,
+        outerAlignment: MessageAlignment = .unknown,
+        outerAuthorLabel: String? = nil,
+        hasOutboundStatusIndicator: Bool = false,
+        senderConfidence: Double = 0,
+        senderEvidence: MessageSenderEvidence = .insufficient,
+        quotedReply: AnalyzedQuotedReply? = nil
+    ) {
+        self.sender = sender
+        self.senderName = senderName
+        self.text = text
+        self.timestampLabel = timestampLabel
+        self.outerAlignment = outerAlignment
+        self.outerAuthorLabel = outerAuthorLabel
+        self.hasOutboundStatusIndicator = hasOutboundStatusIndicator
+        self.senderConfidence = senderConfidence
+        self.senderEvidence = senderEvidence
+        self.quotedReply = quotedReply
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case sender
+        case senderName
+        case text
+        case timestampLabel
+        case outerAlignment
+        case outerAuthorLabel
+        case hasOutboundStatusIndicator
+        case senderConfidence
+        case senderEvidence
+        case quotedReply
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sender = try container.decode(AnalyzedMessageSender.self, forKey: .sender)
+        senderName = try container.decodeIfPresent(String.self, forKey: .senderName)
+        text = try container.decode(String.self, forKey: .text)
+        timestampLabel = try container.decodeIfPresent(String.self, forKey: .timestampLabel)
+        outerAlignment = try container.decode(MessageAlignment.self, forKey: .outerAlignment)
+        outerAuthorLabel = try container.decodeIfPresent(String.self, forKey: .outerAuthorLabel)
+        hasOutboundStatusIndicator = try container.decode(
+            Bool.self,
+            forKey: .hasOutboundStatusIndicator
+        )
+        senderConfidence = try container.decode(Double.self, forKey: .senderConfidence)
+        senderEvidence = try container.decode(MessageSenderEvidence.self, forKey: .senderEvidence)
+        quotedReply = try container.decodeIfPresent(AnalyzedQuotedReply.self, forKey: .quotedReply)
+    }
 }
 
 nonisolated enum AnalyzedMessageSender: String, Codable, Equatable, Sendable {
     case user
     case contact
     case other
+    case unknown
+}
+
+nonisolated enum MessageOwnershipMode: String, Codable, Equatable, Sendable {
+    case opposedAlignment = "opposed_alignment"
+    case authorIdentity = "author_identity"
+    case mixed
+    case unobservable
+}
+
+nonisolated enum MessageAlignment: String, Codable, Equatable, Sendable {
+    case left
+    case right
+    case fullWidth = "full_width"
+    case unknown
+}
+
+nonisolated enum MessageSenderEvidence: String, Codable, Equatable, Sendable {
+    case outboundStatus = "outbound_status"
+    case alignmentConvention = "alignment_convention"
+    case authorLabel = "author_label"
+    case avatar
+    case candidateMatch = "candidate_match"
+    case mixed
+    case insufficient
+}
+
+nonisolated struct MessageOwnershipConvention: Codable, Equatable, Sendable {
+    let mode: MessageOwnershipMode
+    let screenshotOwnerAlignment: MessageAlignment
+    let screenshotOwnerAuthorLabel: String?
+
+    static let unobservable = MessageOwnershipConvention(
+        mode: .unobservable,
+        screenshotOwnerAlignment: .unknown,
+        screenshotOwnerAuthorLabel: nil
+    )
+}
+
+nonisolated struct AnalyzedQuotedReply: Codable, Equatable, Sendable {
+    let sender: AnalyzedMessageSender
+    let senderName: String?
+    let text: String
 }

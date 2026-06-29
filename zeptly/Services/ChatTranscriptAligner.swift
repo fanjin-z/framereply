@@ -115,7 +115,11 @@ enum ChatTranscriptAligner {
 
         let uniqueMatches = alignment.matches.filter { match in
             let message = candidate[match.existingIndex]
-            return frequencies[fingerprint(message)] == 1 && match.isExact
+            let importedMessage = imported[match.importedIndex]
+            return message.sender != "unknown"
+                && importedMessage.sender != "unknown"
+                && frequencies[fingerprint(message)] == 1
+                && match.isExact
         }
         let hasTimestampedIncoming = uniqueMatches.contains { match in
             let message = candidate[match.existingIndex]
@@ -177,7 +181,8 @@ enum ChatTranscriptAligner {
         importedIndex: Int,
         documentFrequency: [String: Int]
     ) -> AlignmentEdge? {
-        guard existing.sender == imported.sender else { return nil }
+        let senderIsWildcard = existing.sender == "unknown" || imported.sender == "unknown"
+        guard existing.sender == imported.sender || senderIsWildcard else { return nil }
         let bothHaveTime = !existing.normalizedTime.isEmpty && !imported.normalizedTime.isEmpty
         guard !bothHaveTime || existing.normalizedTime == imported.normalizedTime else { return nil }
 
@@ -193,6 +198,7 @@ enum ChatTranscriptAligner {
         }
 
         var score = exact ? 3.0 : 1.5
+        if senderIsWildcard { score -= 1.5 }
         score += isIncoming(existing.sender) ? 3 : 0.5
         if bothHaveTime { score += 2 }
         score += min(3, Double(existing.normalizedText.count) / 24)

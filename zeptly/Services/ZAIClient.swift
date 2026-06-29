@@ -135,6 +135,14 @@ struct ZAIClient: AIProviderClient {
 
             let completion = try? decodeResponse(data)
             let choice = completion?.choices.first
+            ChatImportDebugLogger.rawResponse(
+                traceID: analysisRequest.traceID,
+                provider: region.providerID,
+                model: model.rawValue,
+                attempt: attempt,
+                finishReason: choice?.finishReason,
+                content: choice?.message.content
+            )
             recordResponse(
                 request: analysisRequest,
                 model: model,
@@ -149,11 +157,19 @@ struct ZAIClient: AIProviderClient {
                 guard let choice else {
                     throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "response.choices")
                 }
-                return try ChatImportAnalysisDecoder.decode(
+                let analysis = try ChatImportAnalysisDecoder.decode(
                     content: choice.message.content,
                     finishReason: choice.finishReason,
                     candidateIDs: candidateIDs
                 )
+                ChatImportDebugLogger.normalized(
+                    analysis,
+                    traceID: analysisRequest.traceID,
+                    provider: region.providerID,
+                    model: model.rawValue,
+                    attempt: attempt
+                )
+                return analysis
             } catch let failure as StructuredOutputFailure {
                 eventReporter.record(
                     .structuredOutputFailure(

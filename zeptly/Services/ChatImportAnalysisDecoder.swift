@@ -23,11 +23,13 @@ nonisolated enum ChatImportAnalysisDecoder {
             throw StructuredOutputFailure(kind: .invalidJSON, codingPath: nil)
         }
 
+        let jsonObject: Any
         do {
-            _ = try JSONSerialization.jsonObject(with: data)
+            jsonObject = try JSONSerialization.jsonObject(with: data)
         } catch {
             throw StructuredOutputFailure(kind: .invalidJSON, codingPath: nil)
         }
+        try validateVisualContract(jsonObject)
 
         let analysis: ChatImportAnalysis
         do {
@@ -48,12 +50,23 @@ nonisolated enum ChatImportAnalysisDecoder {
         _ analysis: ChatImportAnalysis,
         candidateIDs: Set<String>
     ) throws -> ChatImportAnalysis {
+        let normalization = normalize(analysis)
+        let analysis = normalization.analysis
+        ChatImportDebugLogger.normalization(notes: normalization.notes)
+
         guard !analysis.messages.isEmpty,
-            analysis.messages.allSatisfy({ !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+            analysis.messages.allSatisfy({
+                !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    && (0...1).contains($0.senderConfidence)
+                    && ($0.quotedReply?.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != true)
+            })
         else {
             throw StructuredOutputFailure(kind: .incompleteMessages, codingPath: "messages")
         }
         guard (0...1).contains(analysis.matchConfidence) else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "matchConfidence")
+        }
+        if analysis.matchedChatID == nil, analysis.matchConfidence != 0 {
             throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "matchConfidence")
         }
         if let matchedChatID = analysis.matchedChatID, !candidateIDs.contains(matchedChatID) {
@@ -72,9 +85,137 @@ nonisolated enum ChatImportAnalysisDecoder {
         return analysis
     }
 
+    static func normalize(_ analysis: ChatImportAnalysis) -> ChatImportNormalizationResult {
+        var notes: [String] = []
+        let messages = analysis.messages.enumerated().map { index, message in
+            let resolved = resolvedSender(for: message, convention: analysis.ownershipConvention, kind: analysis.conversationKind)
+            guard resolved != message.sender else { return message }
+
+            notes.append("messages[\(index)].sender \(message.sender.rawValue) -> \(resolved.rawValue)")
+            return AnalyzedChatMessage(
+                sender: resolved,
+                senderName: resolved == .user ? nil : message.senderName,
+                text: message.text,
+                timestampLabel: message.timestampLabel,
+                outerAlignment: message.outerAlignment,
+                outerAuthorLabel: message.outerAuthorLabel,
+                hasOutboundStatusIndicator: message.hasOutboundStatusIndicator,
+                senderConfidence: message.senderConfidence,
+                senderEvidence: message.senderEvidence,
+                quotedReply: message.quotedReply
+            )
+        }
+
+        return ChatImportNormalizationResult(
+            analysis: ChatImportAnalysis(
+                conversationTitle: analysis.conversationTitle,
+                messages: messages,
+                matchedChatID: analysis.matchedChatID,
+                matchConfidence: analysis.matchConfidence,
+                conversationKind: analysis.conversationKind,
+                titleSource: analysis.titleSource,
+                avatarBounds: analysis.avatarBounds,
+                ownershipConvention: analysis.ownershipConvention
+            ),
+            notes: notes
+        )
+    }
+
     static func repairHint(for failure: StructuredOutputFailure) -> String {
         let location = failure.codingPath.map { " at coding path \($0)" } ?? ""
         return "The previous output failed \(failure.kind.rawValue) validation\(location). Return the complete JSON contract below."
+    }
+
+    private static func validateVisualContract(_ object: Any) throws {
+        guard let root = object as? [String: Any],
+            let convention = root["ownershipConvention"] as? [String: Any]
+        else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "ownershipConvention")
+        }
+        for key in ["mode", "screenshotOwnerAlignment", "screenshotOwnerAuthorLabel"]
+        where convention.keys.contains(key) == false {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "ownershipConvention.\(key)")
+        }
+        guard let messages = root["messages"] as? [[String: Any]] else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "messages")
+        }
+        let required = [
+            "outerAlignment", "outerAuthorLabel", "hasOutboundStatusIndicator",
+            "senderConfidence", "senderEvidence", "quotedReply"
+        ]
+        for (index, message) in messages.enumerated() {
+            for key in required where message.keys.contains(key) == false {
+                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "messages[\(index)].\(key)")
+            }
+        }
+    }
+
+    private static func resolvedSender(
+        for message: AnalyzedChatMessage,
+        convention: MessageOwnershipConvention,
+        kind: ChatConversationKind
+    ) -> AnalyzedMessageSender {
+        var visibleDecisions: [Bool] = []
+
+        if message.hasOutboundStatusIndicator {
+            visibleDecisions.append(true)
+        }
+
+        if convention.mode == .opposedAlignment || convention.mode == .mixed,
+            convention.screenshotOwnerAlignment != .unknown,
+            message.outerAlignment != .unknown,
+            convention.screenshotOwnerAlignment != .fullWidth,
+            message.outerAlignment != .fullWidth
+        {
+            visibleDecisions.append(message.outerAlignment == convention.screenshotOwnerAlignment)
+        }
+
+        if convention.mode == .authorIdentity || convention.mode == .mixed,
+            let screenshotOwnerLabel = normalizedLabel(convention.screenshotOwnerAuthorLabel),
+            let outerLabel = normalizedLabel(message.outerAuthorLabel)
+        {
+            visibleDecisions.append(outerLabel == screenshotOwnerLabel)
+        }
+
+        if visibleDecisions.contains(true), visibleDecisions.contains(false) {
+            return .unknown
+        }
+        if visibleDecisions.allSatisfy({ $0 }), !visibleDecisions.isEmpty {
+            return .user
+        }
+        if visibleDecisions.allSatisfy({ !$0 }), !visibleDecisions.isEmpty {
+            return incomingSender(reported: message.sender, name: message.senderName ?? message.outerAuthorLabel, kind: kind)
+        }
+
+        guard convention.mode != .unobservable,
+            message.senderEvidence != .insufficient,
+            message.senderConfidence >= 0.75
+        else {
+            return .unknown
+        }
+        return message.sender
+    }
+
+    private static func incomingSender(
+        reported: AnalyzedMessageSender,
+        name: String?,
+        kind: ChatConversationKind
+    ) -> AnalyzedMessageSender {
+        if kind == .direct {
+            return .contact
+        }
+        if reported == .contact || reported == .other {
+            return reported
+        }
+        if kind == .group, name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            return .other
+        }
+        return .contact
+    }
+
+    private static func normalizedLabel(_ value: String?) -> String? {
+        let normalized = value?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized?.isEmpty == false ? normalized : nil
     }
 
     private static func clean(_ content: String?) -> String {
@@ -126,4 +267,9 @@ nonisolated enum ChatImportAnalysisDecoder {
             }
         }
     }
+}
+
+nonisolated struct ChatImportNormalizationResult: Equatable, Sendable {
+    let analysis: ChatImportAnalysis
+    let notes: [String]
 }

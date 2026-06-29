@@ -45,7 +45,6 @@ final class ChatPersistenceTests: XCTestCase {
         )
         let analysis = ChatImportAnalysis(
             conversationTitle: "Sarah Jenkins",
-            participants: ["Sarah Jenkins"],
             messages: [
                 AnalyzedChatMessage(
                     sender: .contact,
@@ -84,14 +83,25 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(try repository.messages(chatID: "sarah-jenkins").count, 2)
     }
 
-    func testUnconfirmedImportCreatesProvisionalChat() throws {
+    func testUnconfirmedImportUsesReliableSenderNameForProvisionalChat() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         try repository.seedIfNeeded()
         let analysis = ChatImportAnalysis(
-            conversationTitle: "Weekend Hike",
-            participants: ["Alex"],
+            conversationTitle: nil,
             messages: [
+                AnalyzedChatMessage(
+                    sender: .user,
+                    senderName: "Device Owner",
+                    text: "Want to meet?",
+                    timestampLabel: nil
+                ),
+                AnalyzedChatMessage(
+                    sender: .unknown,
+                    senderName: "Uncertain Name",
+                    text: "Maybe",
+                    timestampLabel: nil
+                ),
                 AnalyzedChatMessage(
                     sender: .contact,
                     senderName: "Alex",
@@ -100,7 +110,7 @@ final class ChatPersistenceTests: XCTestCase {
                 )
             ],
             matchedChatID: nil,
-            matchConfidence: 0.3
+            matchConfidence: 0
         )
 
         let outcome = try repository.applyImport(
@@ -112,7 +122,7 @@ final class ChatPersistenceTests: XCTestCase {
 
         XCTAssertTrue(outcome.reviewRequired)
         XCTAssertFalse(outcome.matchedExisting)
-        XCTAssertEqual(try repository.chat(id: outcome.chatID)?.name, "Weekend Hike")
+        XCTAssertEqual(try repository.chat(id: outcome.chatID)?.name, "Alex")
         XCTAssertEqual(try repository.chat(id: outcome.chatID)?.isProvisional, true)
     }
 
@@ -173,12 +183,11 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(try relatedRecordCounts(chatID: "keep-me", in: container), [1, 1])
     }
 
-    func testImportStoresAvatarAndMatchEvidenceWithoutScreenshotContent() throws {
+    func testImportStoresAvatarAndMatchEvidenceWithoutRemovedAIAppMetadata() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let analysis = ChatImportAnalysis(
             conversationTitle: "Weekend Hike",
-            participants: ["Alex"],
             messages: [
                 AnalyzedChatMessage(
                     sender: .contact,
@@ -188,8 +197,7 @@ final class ChatPersistenceTests: XCTestCase {
                 )
             ],
             matchedChatID: nil,
-            matchConfidence: 0.4,
-            sourceApp: "Telegram"
+            matchConfidence: 0
         )
         let artifact = avatarArtifact(quality: 0.72)
         let decision = ChatMatchDecision(
@@ -223,7 +231,7 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(importRecord.matchReason, ChatMatchReason.competingAvatar.rawValue)
         XCTAssertEqual(importRecord.avatarEvidence, AvatarEvidenceLevel.competing.rawValue)
         XCTAssertEqual(importRecord.transcriptEvidence, TranscriptEvidenceLevel.weak.rawValue)
-        XCTAssertEqual(importRecord.sourceApp, "Telegram")
+        XCTAssertNil(importRecord.sourceApp)
 
         try repository.deleteChat(id: outcome.chatID)
         XCTAssertNil(try repository.chat(id: outcome.chatID))
@@ -250,6 +258,60 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(target.avatarData, artifact.imageData)
         XCTAssertEqual(target.avatarPerceptualHash, Int64(bitPattern: artifact.perceptualHash))
         XCTAssertEqual(target.avatarQuality, artifact.quality)
+    }
+
+    func testUnknownSenderRequiresReviewAndCanBeResolvedWithoutPersistingQuote() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        insertChat(id: "known-chat", name: "Known Chat", into: container)
+        try container.mainContext.save()
+        let analysis = ChatImportAnalysis(
+            conversationTitle: "Known Chat",
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .unknown,
+                    senderName: "Alex",
+                    text: "I remember",
+                    timestampLabel: "12:19 AM",
+                    outerAlignment: .fullWidth,
+                    outerAuthorLabel: "Alex",
+                    senderConfidence: 0.2,
+                    senderEvidence: .insufficient,
+                    quotedReply: AnalyzedQuotedReply(
+                        sender: .user,
+                        senderName: nil,
+                        text: "I live in Guangzhou"
+                    )
+                )
+            ],
+            matchedChatID: "known-chat",
+            matchConfidence: 0.95,
+            ownershipConvention: .unobservable
+        )
+
+        let outcome = try repository.applyImport(
+            analysis: analysis,
+            confirmedChatID: "known-chat",
+            provider: .openAI,
+            model: .gpt54Mini
+        )
+        let stored = try XCTUnwrap(repository.messages(chatID: "known-chat").first)
+        let importBefore = try XCTUnwrap(
+            container.mainContext.fetch(FetchDescriptor<ChatImportRecord>()).first
+        )
+        let fingerprintBefore = importBefore.transcriptFingerprint
+
+        XCTAssertTrue(outcome.reviewRequired)
+        XCTAssertEqual(stored.senderKind, "unknown")
+        XCTAssertEqual(stored.text, "I remember")
+        XCTAssertFalse(try repository.messages(chatID: "known-chat").contains { $0.text == "I live in Guangzhou" })
+        XCTAssertTrue(importBefore.requiresReview)
+
+        try repository.resolveUnknownSender(messageID: stored.id, as: .contact)
+
+        XCTAssertEqual(try repository.messages(chatID: "known-chat").first?.senderKind, "contact")
+        XCTAssertFalse(importBefore.requiresReview)
+        XCTAssertNotEqual(importBefore.transcriptFingerprint, fingerprintBefore)
     }
 
     private func insertChat(
@@ -329,7 +391,6 @@ final class ChatPersistenceTests: XCTestCase {
     private func provisionalAnalysis() -> ChatImportAnalysis {
         ChatImportAnalysis(
             conversationTitle: "Weekend Hike",
-            participants: ["Alex"],
             messages: [
                 AnalyzedChatMessage(
                     sender: .contact,
@@ -339,7 +400,7 @@ final class ChatPersistenceTests: XCTestCase {
                 )
             ],
             matchedChatID: nil,
-            matchConfidence: 0.3
+            matchConfidence: 0
         )
     }
 

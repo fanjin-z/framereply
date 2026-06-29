@@ -45,10 +45,24 @@ final class ChatMessageMergerTests: XCTestCase {
         XCTAssertEqual(repeatedAtNewTime.insertedMessageCount, 1)
     }
 
-    private func message(_ text: String, time: String = "") -> MergeMessage {
+    func testUnknownSenderMatchesExistingTextAsLowConfidenceWildcard() {
+        let existing = message("Same visible message", sender: .contact)
+        let imported = message("Same visible message", sender: .unknown)
+
+        let result = ChatMessageMerger.merge(existing: [existing], imported: [imported])
+
+        XCTAssertEqual(result.insertedMessageCount, 0)
+        XCTAssertEqual(result.messages.count, 1)
+    }
+
+    private func message(
+        _ text: String,
+        time: String = "",
+        sender: AnalyzedMessageSender = .contact
+    ) -> MergeMessage {
         MergeMessage(
             analyzed: AnalyzedChatMessage(
-                sender: .contact,
+                sender: sender,
                 senderName: nil,
                 text: text,
                 timestampLabel: time

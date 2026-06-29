@@ -173,12 +173,28 @@ struct OpenAIClient: AIProviderClient {
         )
 
         let forcedFinishReason = completion.status == "completed" ? nil : "length"
+        ChatImportDebugLogger.rawResponse(
+            traceID: analysisRequest.traceID,
+            provider: provider,
+            model: model.rawValue,
+            attempt: 1,
+            finishReason: completion.status,
+            content: completion.outputText
+        )
         do {
-            return try ChatImportAnalysisDecoder.decode(
+            let analysis = try ChatImportAnalysisDecoder.decode(
                 content: completion.outputText,
                 finishReason: forcedFinishReason,
                 candidateIDs: Set(analysisRequest.candidates.map(\.id))
             )
+            ChatImportDebugLogger.normalized(
+                analysis,
+                traceID: analysisRequest.traceID,
+                provider: provider,
+                model: model.rawValue,
+                attempt: 1
+            )
+            return analysis
         } catch let failure as StructuredOutputFailure {
             eventReporter.record(
                 .structuredOutputFailure(

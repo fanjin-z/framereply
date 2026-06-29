@@ -16,6 +16,8 @@ struct InboxView: View {
     @State private var isDeleteConfirmationPresented = false
     @State private var deleteErrorMessage: String?
     @Query(sort: \ChatRecord.updatedAt, order: .reverse) private var chatRecords: [ChatRecord]
+    @Query(filter: #Predicate<ChatMessageRecord> { $0.senderKind == "unknown" })
+    private var unknownSenderMessages: [ChatMessageRecord]
 
     private var chats: [Chat] {
         let allChats = chatRecords.map { Chat(record: $0) }
@@ -33,12 +35,12 @@ struct InboxView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                if provisionalCount > 0 {
+                if reviewCount > 0 {
                     Button {
                         isReviewPresented = true
                     } label: {
                         Label(
-                            "Review \(provisionalCount) imported chat\(provisionalCount == 1 ? "" : "s")",
+                            "Review \(reviewCount) imported chat\(reviewCount == 1 ? "" : "s")",
                             systemImage: "exclamationmark.bubble.fill"
                         )
                         .font(.system(size: 14, weight: .bold, design: .rounded))
@@ -53,7 +55,7 @@ struct InboxView: View {
                 }
 
                 SearchField(text: $searchText, isActive: isActive)
-                    .padding(.top, provisionalCount > 0 ? 4 : 14)
+                    .padding(.top, reviewCount > 0 ? 4 : 14)
 
                 VStack(spacing: 16) {
                     ForEach(chats) { chat in
@@ -108,8 +110,10 @@ struct InboxView: View {
         }
     }
 
-    private var provisionalCount: Int {
-        chatRecords.filter(\.isProvisional).count
+    private var reviewCount: Int {
+        let provisionalIDs = Set(chatRecords.filter(\.isProvisional).map(\.id))
+        let unknownIDs = Set(unknownSenderMessages.map(\.chatID))
+        return provisionalIDs.union(unknownIDs).count
     }
 
     private var deleteErrorBinding: Binding<Bool> {

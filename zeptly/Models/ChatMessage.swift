@@ -10,6 +10,7 @@ struct ChatMessage: Identifiable, Equatable {
         case contact
         case user
         case other(String)
+        case unknown
     }
 
     let id: UUID
@@ -26,5 +27,9 @@ struct ChatMessage: Identifiable, Equatable {
 
     var isFromUser: Bool {
         sender == .user
+    }
+
+    var isSenderUnknown: Bool {
+        sender == .unknown
     }
 }

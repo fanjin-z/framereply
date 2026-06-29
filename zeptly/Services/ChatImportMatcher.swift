@@ -195,6 +195,8 @@ enum ChatImportMatcher {
             "contact"
         case .other:
             "other:\(MessageTextNormalizer.normalize(name ?? ""))"
+        case .unknown:
+            "unknown"
         }
     }
 

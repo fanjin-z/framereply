@@ -8,6 +8,71 @@ final class ProviderAnalysisTests: XCTestCase {
         AnalysisURLProtocolStub.reset()
     }
 
+    func testPromptUsesAppAgnosticHierarchyAndTrimmedContract() throws {
+        let instructions = ChatScreenshotPrompt.instructions
+
+        XCTAssertTrue(instructions.contains("top-level message container"))
+        XCTAssertTrue(instructions.contains("App identity, language, pronouns"))
+        XCTAssertTrue(instructions.contains("Authored blockquote"))
+        XCTAssertTrue(instructions.contains("quotedReply"))
+        XCTAssertTrue(instructions.contains("the single screenshot-wide rule mapping"))
+        XCTAssertTrue(instructions.contains("right as a weak default only"))
+        XCTAssertTrue(instructions.contains("Mandatory consistency"))
+        XCTAssertTrue(instructions.contains(#""contact" is the one other participant in a direct chat"#))
+        XCTAssertTrue(instructions.contains(#""other" is a group non-owner identified by visible outerAuthorLabel"#))
+        for field in [
+            "conversationTitle", "conversationKind", "titleSource", "avatarBounds", "messages",
+            "matchedChatID", "matchConfidence", "ownershipConvention", "screenshotOwnerAlignment",
+            "screenshotOwnerAuthorLabel", "outerAlignment", "outerAuthorLabel",
+            "hasOutboundStatusIndicator", "senderName", "senderConfidence", "senderEvidence"
+        ] {
+            XCTAssertTrue(instructions.contains(field), "Missing prompt definition for \(field)")
+        }
+        for appName in ["WhatsApp", "Instagram", "WeChat", "Telegram", "Signal", "LINE", "Discord"] {
+            XCTAssertFalse(instructions.contains(appName))
+        }
+
+        let schemaData = try JSONSerialization.data(withJSONObject: ChatScreenshotPrompt.jsonSchema)
+        let schema = try XCTUnwrap(String(data: schemaData, encoding: .utf8))
+        let canonical = ChatScreenshotPrompt.canonicalJSONExample
+        for removedKey in ["participants", "sourceApp", "matchBasis"] {
+            XCTAssertFalse(schema.contains(#""\#(removedKey)""#))
+            XCTAssertFalse(canonical.contains(#""\#(removedKey)""#))
+        }
+        let rootProperties = try XCTUnwrap(
+            ChatScreenshotPrompt.jsonSchema["properties"] as? [String: Any]
+        )
+        let ownershipSchema = try XCTUnwrap(
+            rootProperties["ownershipConvention"] as? [String: Any]
+        )
+        let ownershipProperties = try XCTUnwrap(
+            ownershipSchema["properties"] as? [String: Any]
+        )
+        XCTAssertNil(ownershipProperties["evidence"])
+        XCTAssertNil(ownershipProperties["currentUserAlignment"])
+        XCTAssertNil(ownershipProperties["currentUserAuthorLabel"])
+        XCTAssertNotNil(ownershipProperties["screenshotOwnerAlignment"])
+        XCTAssertNotNil(ownershipProperties["screenshotOwnerAuthorLabel"])
+        XCTAssertFalse(
+            try XCTUnwrap(ownershipSchema["required"] as? [String]).contains("evidence")
+        )
+
+        let exampleData = try XCTUnwrap(canonical.data(using: .utf8))
+        let example = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: exampleData) as? [String: Any]
+        )
+        let messages = try XCTUnwrap(example["messages"] as? [[String: Any]])
+        XCTAssertEqual(messages.count, 2)
+        XCTAssertEqual(messages[0]["sender"] as? String, "user")
+        XCTAssertEqual(messages[0]["outerAlignment"] as? String, "right")
+        XCTAssertTrue(messages[0]["outerAuthorLabel"] is NSNull)
+        XCTAssertEqual(messages[0]["hasOutboundStatusIndicator"] as? Bool, true)
+        XCTAssertEqual(messages[0]["senderEvidence"] as? String, "outbound_status")
+        XCTAssertEqual(messages[1]["sender"] as? String, "contact")
+        XCTAssertEqual(messages[1]["outerAlignment"] as? String, "left")
+        XCTAssertNotNil(messages[1]["quotedReply"] as? [String: Any])
+    }
+
     @MainActor
     func testOpenAISendsBase64ImageWithStructuredOutputAndNoOCRTranscript() async throws {
         AnalysisURLProtocolStub.responses = [
@@ -33,7 +98,7 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(image["image_url"] as? String).hasPrefix("data:image/png;base64,"))
         let prompt = try XCTUnwrap(content.first { $0["type"] as? String == "input_text" }?["text"] as? String)
         XCTAssertFalse(prompt.contains("OCR observations"))
-        XCTAssertTrue(try XCTUnwrap(body["instructions"] as? String).contains("outer message bubble"))
+        XCTAssertTrue(try XCTUnwrap(body["instructions"] as? String).contains("Literal visual observations"))
     }
 
     @MainActor
@@ -72,7 +137,7 @@ final class ProviderAnalysisTests: XCTestCase {
             XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
             XCTAssertEqual(body["do_sample"] as? Bool, false)
             let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
-            XCTAssertTrue(try XCTUnwrap(messages.first?["content"] as? String).contains("outer message bubble"))
+            XCTAssertTrue(try XCTUnwrap(messages.first?["content"] as? String).contains("Literal visual observations"))
             let userContent = try XCTUnwrap(messages.last?["content"] as? [[String: Any]])
             let image = try XCTUnwrap(userContent.first { $0["type"] as? String == "image_url" })
             let imageURL = try XCTUnwrap((image["image_url"] as? [String: Any])?["url"] as? String)
@@ -135,20 +200,28 @@ final class ProviderAnalysisTests: XCTestCase {
     private func validAnalysisJSON(matchedChatID: String?) -> String {
         let object: [String: Any] = [
             "conversationTitle": "Sarah Jenkins",
-            "participants": ["Sarah Jenkins"],
-            "sourceApp": "Telegram",
             "conversationKind": "direct",
             "titleSource": "header",
             "avatarBounds": NSNull(),
+            "ownershipConvention": [
+                "mode": "opposed_alignment",
+                "screenshotOwnerAlignment": "right",
+                "screenshotOwnerAuthorLabel": NSNull()
+            ],
             "messages": [[
                 "sender": "contact",
                 "senderName": "Sarah Jenkins",
                 "text": "Can we meet tomorrow?",
-                "timestampLabel": "10:42 AM"
+                "timestampLabel": "10:42 AM",
+                "outerAlignment": "left",
+                "outerAuthorLabel": NSNull(),
+                "hasOutboundStatusIndicator": false,
+                "senderConfidence": 0.95,
+                "senderEvidence": "alignment_convention",
+                "quotedReply": NSNull()
             ]],
             "matchedChatID": matchedChatID.map { $0 as Any } ?? NSNull(),
-            "matchConfidence": matchedChatID == nil ? 0.2 : 0.96,
-            "matchBasis": matchedChatID == nil ? "insufficient_evidence" : "display_name"
+            "matchConfidence": matchedChatID == nil ? 0.0 : 0.96
         ]
         return String(data: try! JSONSerialization.data(withJSONObject: object), encoding: .utf8)!
     }

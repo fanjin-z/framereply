@@ -10,6 +10,10 @@ struct ChatImportReviewSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Query(filter: #Predicate<ChatRecord> { $0.isProvisional }) private var provisionalChats: [ChatRecord]
     @Query private var allChats: [ChatRecord]
+    @Query(
+        filter: #Predicate<ChatMessageRecord> { $0.senderKind == "unknown" },
+        sort: \ChatMessageRecord.sortIndex
+    ) private var unknownSenderMessages: [ChatMessageRecord]
     @State private var errorMessage: String?
 
     private var confirmedChats: [ChatRecord] {
@@ -32,11 +36,20 @@ struct ChatImportReviewSheet: View {
                             )
                         }
 
-                        if provisionalChats.isEmpty {
+                        ForEach(unknownSenderMessages) { message in
+                            UnknownSenderReviewCard(
+                                message: message,
+                                chatName: allChats.first(where: { $0.id == message.chatID })?.name
+                                    ?? "Imported chat",
+                                onResolve: resolveSender
+                            )
+                        }
+
+                        if provisionalChats.isEmpty && unknownSenderMessages.isEmpty {
                             ContentUnavailableView(
                                 "Imports Reviewed",
                                 systemImage: "checkmark.bubble",
-                                description: Text("There are no provisional chats waiting for review.")
+                                description: Text("There are no imported chats or sender assignments waiting for review.")
                             )
                         }
                     }
@@ -84,6 +97,60 @@ struct ChatImportReviewSheet: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func resolveSender(messageID: UUID, sender: AnalyzedMessageSender, participantName: String?) {
+        do {
+            try ChatRepository().resolveUnknownSender(
+                messageID: messageID,
+                as: sender,
+                participantName: participantName
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct UnknownSenderReviewCard: View {
+    let message: ChatMessageRecord
+    let chatName: String
+    let onResolve: (UUID, AnalyzedMessageSender, String?) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Sender needs review", systemImage: "person.crop.circle.badge.questionmark")
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(RezplyColor.primary)
+
+            Text(chatName)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurfaceVariant)
+
+            Text(message.text)
+                .font(.system(size: 14, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurface)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack {
+                Button("Me") {
+                    onResolve(message.id, .user, nil)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button("Contact") {
+                    onResolve(message.id, .contact, nil)
+                }
+                .buttonStyle(.bordered)
+
+                Button(message.senderName ?? "Participant") {
+                    onResolve(message.id, .other, message.senderName)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(18)
+        .glassPanel(cornerRadius: 22)
     }
 }
 

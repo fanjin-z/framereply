@@ -32,7 +32,6 @@ final class ChatImportMatcherTests: XCTestCase {
         ]
         let analysis = ChatImportAnalysis(
             conversationTitle: nil,
-            participants: [],
             messages: messages,
             matchedChatID: "sarah-jenkins",
             matchConfidence: 0.9
@@ -56,7 +55,6 @@ final class ChatImportMatcherTests: XCTestCase {
         let repeatedOpener = "Hello there"
         let repeatedAnalysis = ChatImportAnalysis(
             conversationTitle: nil,
-            participants: [],
             messages: [
                 AnalyzedChatMessage(
                     sender: .user,
@@ -68,8 +66,7 @@ final class ChatImportMatcherTests: XCTestCase {
             matchedChatID: "one",
             matchConfidence: 0.99,
             conversationKind: .direct,
-            titleSource: .unavailable,
-            matchBasis: .distinctiveMessages
+            titleSource: .unavailable
         )
         let repeatedCandidates = ["one", "two"].map {
             ChatMatchCandidate(
@@ -93,16 +90,13 @@ final class ChatImportMatcherTests: XCTestCase {
         let opener = "Hello, I am from China and I am learning Russian."
         let analysis = ChatImportAnalysis(
             conversationTitle: "Kristina",
-            participants: ["Kristina"],
             messages: [
                 AnalyzedChatMessage(sender: .user, senderName: nil, text: opener, timestampLabel: nil)
             ],
             matchedChatID: "inna",
             matchConfidence: 0.99,
-            sourceApp: "Telegram",
             conversationKind: .direct,
-            titleSource: .header,
-            matchBasis: .distinctiveMessages
+            titleSource: .header
         )
         let inna = ChatMatchCandidate(
             id: "inna",
@@ -190,7 +184,6 @@ final class ChatImportMatcherTests: XCTestCase {
     ) -> ChatImportAnalysis {
         ChatImportAnalysis(
             conversationTitle: title,
-            participants: [],
             messages: [
                 AnalyzedChatMessage(
                     sender: .contact,
