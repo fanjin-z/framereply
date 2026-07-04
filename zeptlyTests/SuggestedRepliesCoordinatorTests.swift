@@ -166,6 +166,75 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testPersistsReconciledMemoriesAndCachesAgainstPostUpdateState() async throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "memory-maintenance-chat"
+        let message = makeMessage(chatID: chatID, index: 0)
+        let userMemory = ContactMemory(text: "Lives in Paris", kind: .fact)
+        let aiMemory = ContactMemory(
+            text: "Conference next week",
+            kind: .event,
+            origin: .ai,
+            certainty: .aiInferred
+        )
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(message)
+        container.mainContext.insert(ContactMemoryRecord(chatID: chatID, value: userMemory))
+        container.mainContext.insert(ContactMemoryRecord(chatID: chatID, value: aiMemory))
+        try container.mainContext.save()
+
+        let client = StubReplyService { request in
+            SuggestedReplyGenerationResult(
+                historySummary: request.existingHistorySummary,
+                replies: ["First", "Second"],
+                memoryChanges: [
+                    ContactMemoryChange(
+                        action: .update,
+                        targetMemoryID: userMemory.id,
+                        text: "Now lives in Berlin",
+                        kind: .fact,
+                        sourceMessageIDs: [message.id]
+                    ),
+                    ContactMemoryChange(
+                        action: .archive,
+                        targetMemoryID: aiMemory.id,
+                        text: nil,
+                        kind: nil,
+                        sourceMessageIDs: [message.id]
+                    ),
+                    ContactMemoryChange(
+                        action: .add,
+                        targetMemoryID: nil,
+                        text: "Vegetarian",
+                        kind: .preference,
+                        sourceMessageIDs: [message.id]
+                    ),
+                    ContactMemoryChange(
+                        action: .add,
+                        targetMemoryID: nil,
+                        text: "Unsupported detail",
+                        kind: .fact,
+                        sourceMessageIDs: [UUID()]
+                    )
+                ]
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(aiService: client, repository: repository)
+
+        _ = try await coordinator.generate(chatID: chatID)
+        _ = try await coordinator.generate(chatID: chatID)
+
+        XCTAssertEqual(client.requests.count, 1)
+        let memories = try repository.contactContextValue(chatID: chatID).contactMemories
+        XCTAssertEqual(memories.first { $0.id == userMemory.id }?.status, .superseded)
+        XCTAssertEqual(memories.first { $0.id == aiMemory.id }?.status, .archived)
+        XCTAssertEqual(memories.first { $0.text == "Now lives in Berlin" }?.origin, .ai)
+        XCTAssertEqual(memories.first { $0.text == "Vegetarian" }?.sourceMessageIDs, [message.id])
+        XCTAssertNil(memories.first { $0.text == "Unsupported detail" })
+    }
+
+    @MainActor
     func testMapsStructuredProviderFailureToReplySpecificError() async throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)

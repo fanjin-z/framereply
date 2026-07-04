@@ -91,8 +91,9 @@ final class ChatRepository {
         ).first
     }
 
-    func saveSuggestedReplyCache(
+    func saveSuggestedReplyGeneration(
         chatID: String,
+        contactMemories: [ContactMemory],
         historySummary: String,
         summarizedMessageCount: Int,
         summarizedPrefixFingerprint: String,
@@ -102,35 +103,50 @@ final class ChatRepository {
         model: ProviderModel,
         promptVersion: Int
     ) throws {
-        let repliesData = try JSONEncoder().encode(replies)
-        let repliesJSON = String(data: repliesData, encoding: .utf8) ?? "[]"
-        let record: SuggestedReplyCacheRecord
-        if let existing = try suggestedReplyCache(chatID: chatID) {
-            record = existing
-        } else {
-            record = SuggestedReplyCacheRecord(
-                chatID: chatID,
-                historySummary: "",
-                summarizedMessageCount: 0,
-                summarizedPrefixFingerprint: "",
-                repliesJSON: "[]",
-                inputFingerprint: "",
-                provider: provider.rawValue,
-                model: model.rawValue,
-                promptVersion: promptVersion
-            )
-            context.insert(record)
+        do {
+            let storedMemories = try self.contactMemories(chatID: chatID)
+            let recordsByID = Dictionary(uniqueKeysWithValues: storedMemories.map { ($0.id, $0) })
+            for memory in contactMemories {
+                if let record = recordsByID[memory.id] {
+                    record.update(from: memory)
+                } else {
+                    context.insert(ContactMemoryRecord(chatID: chatID, value: memory))
+                }
+            }
+
+            let repliesData = try JSONEncoder().encode(replies)
+            let repliesJSON = String(data: repliesData, encoding: .utf8) ?? "[]"
+            let cache: SuggestedReplyCacheRecord
+            if let existing = try suggestedReplyCache(chatID: chatID) {
+                cache = existing
+            } else {
+                cache = SuggestedReplyCacheRecord(
+                    chatID: chatID,
+                    historySummary: "",
+                    summarizedMessageCount: 0,
+                    summarizedPrefixFingerprint: "",
+                    repliesJSON: "[]",
+                    inputFingerprint: "",
+                    provider: provider.rawValue,
+                    model: model.rawValue,
+                    promptVersion: promptVersion
+                )
+                context.insert(cache)
+            }
+            cache.historySummary = historySummary
+            cache.summarizedMessageCount = summarizedMessageCount
+            cache.summarizedPrefixFingerprint = summarizedPrefixFingerprint
+            cache.repliesJSON = repliesJSON
+            cache.inputFingerprint = inputFingerprint
+            cache.provider = provider.rawValue
+            cache.model = model.rawValue
+            cache.promptVersion = promptVersion
+            cache.generatedAt = Date()
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
         }
-        record.historySummary = historySummary
-        record.summarizedMessageCount = summarizedMessageCount
-        record.summarizedPrefixFingerprint = summarizedPrefixFingerprint
-        record.repliesJSON = repliesJSON
-        record.inputFingerprint = inputFingerprint
-        record.provider = provider.rawValue
-        record.model = model.rawValue
-        record.promptVersion = promptVersion
-        record.generatedAt = Date()
-        try context.save()
     }
 
     func deleteSuggestedReplyCache(chatID: String) throws {

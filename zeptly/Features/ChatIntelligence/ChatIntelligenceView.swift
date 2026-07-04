@@ -81,6 +81,7 @@ struct ChatIntelligenceView: View {
             hasher.combine(memory.id)
             hasher.combine(memory.text)
             hasher.combine(memory.kind)
+            hasher.combine(memory.origin)
             hasher.combine(memory.certainty)
             hasher.combine(memory.status)
         }

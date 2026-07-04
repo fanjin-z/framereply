@@ -77,7 +77,18 @@ final class ProviderAnalysisTests: XCTestCase {
 
     func testSuggestedReplyPromptIncludesAllGroundingAndRequiresTwoDistinctReplies() throws {
         let prompt = SuggestedReplyPrompt.input(for: makeReplyRequest())
-        XCTAssertTrue(prompt.contains(SuggestedReplyPrompt.canonicalJSONExample))
+        XCTAssertFalse(prompt.contains(SuggestedReplyPrompt.canonicalJSONExample))
+        XCTAssertEqual(
+            SuggestedReplyPrompt.instructions.components(separatedBy: SuggestedReplyPrompt.canonicalJSONExample).count - 1,
+            1
+        )
+        let exampleData = try XCTUnwrap(SuggestedReplyPrompt.canonicalJSONExample.data(using: .utf8))
+        let example = try XCTUnwrap(JSONSerialization.jsonObject(with: exampleData) as? [String: Any])
+        XCTAssertFalse(try XCTUnwrap(example["historySummary"] as? String).isEmpty)
+        XCTAssertEqual(try XCTUnwrap(example["replies"] as? [String]).count, 2)
+        let exampleChanges = try XCTUnwrap(example["memoryChanges"] as? [[String: Any]])
+        XCTAssertEqual(exampleChanges.first?["action"] as? String, "add")
+        XCTAssertNotNil(UUID(uuidString: try XCTUnwrap((exampleChanges.first?["sourceMessageIDs"] as? [String])?.first)))
         for value in [
             "Sarah", "Friend", "Met at university", "Vegetarian", "Confirm dinner",
             "Warm & Collaborative", "Dinner at 7?"
@@ -87,35 +98,108 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(prompt.contains(#""kind":"relationship""#))
         XCTAssertTrue(prompt.contains(#""certainty":"userConfirmed""#))
         XCTAssertFalse(prompt.contains("Archived detail"))
-        XCTAssertFalse(prompt.contains("sourceMessageIDs"))
-        XCTAssertFalse(prompt.contains(#""origin""#))
+        XCTAssertTrue(prompt.contains(#""origin":"user""#))
+        XCTAssertFalse(prompt.contains(#""memoryChanges":[]"#))
 
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
-                content: "{\"historySummary\":\"\",\"replies\":[\"Same\",\"Same\"]}",
+                content: "{\"historySummary\":\"\",\"replies\":[\"Same\",\"Same\"],\"memoryChanges\":[]}",
                 finishReason: "stop"
             )
         )
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
-                content: "{\"historySummary\":\"\",\"replies\":[\"Only one\"]}",
+                content: "{\"historySummary\":\"\",\"replies\":[\"Only one\"],\"memoryChanges\":[]}",
                 finishReason: "stop"
             )
         )
 
         let normalized = try SuggestedReplyResultDecoder.decode(
-            content: "Here is the requested JSON:\n{\"history_summary\":\"Earlier context\",\"suggestedReplies\":[{\"text\":\"First\"},{\"reply\":\"Second\"}]}",
+            content: "Here is the requested JSON:\n{\"history_summary\":\"Earlier context\",\"suggestedReplies\":[{\"text\":\"First\"},{\"reply\":\"Second\"}],\"memoryChanges\":[]}",
             finishReason: "stop"
         )
         XCTAssertEqual(normalized.historySummary, "Earlier context")
         XCTAssertEqual(normalized.replies, ["First", "Second"])
 
         let fallback = try SuggestedReplyResultDecoder.decode(
-            content: "{\"reply1\":\"First\",\"reply2\":\"Second\"}",
+            content: "{\"historySummary\":null,\"reply1\":\"First\",\"reply2\":\"Second\",\"memoryChanges\":[]}",
             finishReason: "stop",
             historySummaryFallback: "Saved summary"
         )
         XCTAssertEqual(fallback.historySummary, "Saved summary")
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content: "{\"historySummary\":null,\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[]}",
+                finishReason: "stop"
+            )
+        )
+
+        let messageID = UUID()
+        let memoryID = UUID()
+        let withChange = try SuggestedReplyResultDecoder.decode(
+            content: """
+            {"historySummary":"","replies":["First","Second"],"memoryChanges":[{"action":"update","targetMemoryID":"\(memoryID.uuidString)","text":"Now lives in Berlin","kind":"fact","sourceMessageIDs":["\(messageID.uuidString)"]}]}
+            """,
+            finishReason: "stop"
+        )
+        XCTAssertEqual(withChange.memoryChanges.first?.targetMemoryID, memoryID)
+        XCTAssertEqual(withChange.memoryChanges.first?.sourceMessageIDs, [messageID])
+
+        let added = try SuggestedReplyResultDecoder.decode(
+            content: "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"text\":\"Vegetarian\",\"kind\":\"preference\",\"sourceMessageIDs\":[\"\(messageID.uuidString)\"]}]}",
+            finishReason: "stop"
+        )
+        XCTAssertEqual(added.memoryChanges.first?.action, .add)
+        XCTAssertNil(added.memoryChanges.first?.targetMemoryID)
+
+        let archived = try SuggestedReplyResultDecoder.decode(
+            content: "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"archive\",\"targetMemoryID\":\"\(memoryID.uuidString)\",\"sourceMessageIDs\":[\"\(messageID.uuidString)\"]}]}",
+            finishReason: "stop"
+        )
+        XCTAssertEqual(archived.memoryChanges.first?.action, .archive)
+        XCTAssertNil(archived.memoryChanges.first?.text)
+
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content: "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"text\":\"Vegetarian\",\"kind\":\"preference\",\"sourceMessageIDs\":[\"not-a-uuid\"]}]}",
+                finishReason: "stop"
+            )
+        )
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content: "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"archive\",\"targetMemoryID\":\"\(memoryID.uuidString)\",\"text\":null,\"sourceMessageIDs\":[\"\(messageID.uuidString)\"]}]}",
+                finishReason: "stop"
+            )
+        )
+
+        let longSummary = String(repeating: "a", count: 2_001)
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content: "{\"historySummary\":\"\(longSummary)\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[]}",
+                finishReason: "stop"
+            )
+        )
+        let longReply = String(repeating: "r", count: 501)
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content: "{\"historySummary\":\"\",\"replies\":[\"\(longReply)\",\"Second\"],\"memoryChanges\":[]}",
+                finishReason: "stop"
+            )
+        )
+        let addChange = "{\"action\":\"add\",\"text\":\"Fact\",\"kind\":\"fact\",\"sourceMessageIDs\":[\"\(messageID.uuidString)\"]}"
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content: "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[\(Array(repeating: addChange, count: 9).joined(separator: ","))]}",
+                finishReason: "stop"
+            )
+        )
+        let fourSources = (0..<4).map { _ in "\"\(UUID().uuidString)\"" }.joined(separator: ",")
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content: "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"text\":\"Fact\",\"kind\":\"fact\",\"sourceMessageIDs\":[\(fourSources)]}]}",
+                finishReason: "stop"
+            )
+        )
     }
 
     @MainActor
@@ -246,6 +330,7 @@ final class ProviderAnalysisTests: XCTestCase {
         let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
         XCTAssertEqual(body["model"] as? String, "gpt-5.4-mini")
         XCTAssertEqual(body["store"] as? Bool, false)
+        XCTAssertEqual(body["max_output_tokens"] as? Int, 3_200)
         XCTAssertEqual((body["reasoning"] as? [String: Any])?["effort"] as? String, "none")
         let format = try XCTUnwrap((body["text"] as? [String: Any])?["format"] as? [String: Any])
         XCTAssertEqual(format["type"] as? String, "json_schema")
@@ -269,11 +354,27 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 2)
         let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.last))
         XCTAssertEqual(body["model"] as? String, "glm-4.7-flashx")
+        XCTAssertEqual(body["max_tokens"] as? Int, 3_200)
         XCTAssertEqual((body["response_format"] as? [String: Any])?["type"] as? String, "json_object")
         XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
         let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
         XCTAssertTrue(messages.allSatisfy { $0["content"] is String })
         XCTAssertTrue(try XCTUnwrap(messages.last?["content"] as? String).contains("failed validation"))
+    }
+
+    @MainActor
+    func testZAIIncreasesReplyBudgetOnlyAfterTruncation() async throws {
+        AnalysisURLProtocolStub.responses = [
+            (200, zaiResponse(content: "{}", finishReason: "length")),
+            (200, zaiResponse(content: validRepliesJSON()))
+        ]
+
+        _ = try await ZAIClient(region: .international, session: makeSession())
+            .generateSuggestedReplies(makeReplyRequest(), apiKey: "key", model: .glm47FlashX)
+
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 2)
+        XCTAssertEqual(try jsonBody(AnalysisURLProtocolStub.requests[0])["max_tokens"] as? Int, 3_200)
+        XCTAssertEqual(try jsonBody(AnalysisURLProtocolStub.requests[1])["max_tokens"] as? Int, 4_096)
     }
 
     @MainActor
@@ -313,6 +414,7 @@ final class ProviderAnalysisTests: XCTestCase {
             olderMessagesToSummarize: [],
             recentMessages: [
                 SuggestedReplyPromptMessage(
+                    id: UUID(),
                     sender: "contact", senderName: "Sarah", text: "Dinner at 7?", timeLabel: "6:00 PM"
                 )
             ],
@@ -321,7 +423,7 @@ final class ProviderAnalysisTests: XCTestCase {
     }
 
     private func validRepliesJSON() -> String {
-        "{\"historySummary\":\"\",\"replies\":[\"Sounds good to me.\",\"That works — looking forward to it!\"]}"
+        "{\"historySummary\":null,\"replies\":[\"Sounds good to me.\",\"That works — looking forward to it!\"],\"memoryChanges\":[]}"
     }
 
     private func makeRequest() -> ChatScreenshotAnalysisRequest {

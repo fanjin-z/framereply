@@ -1,10 +1,25 @@
 import Foundation
 
 nonisolated struct SuggestedReplyPromptMessage: Codable, Equatable, Sendable {
+    let id: UUID
     let sender: String
     let senderName: String?
     let text: String
     let timeLabel: String
+}
+
+nonisolated enum ContactMemoryChangeAction: String, Codable, Equatable, Sendable {
+    case add
+    case update
+    case archive
+}
+
+nonisolated struct ContactMemoryChange: Codable, Equatable, Sendable {
+    let action: ContactMemoryChangeAction
+    let targetMemoryID: UUID?
+    let text: String?
+    let kind: ContactMemoryKind?
+    let sourceMessageIDs: [UUID]
 }
 
 nonisolated enum SuggestedReplySummaryMode: String, Codable, Equatable, Sendable {
@@ -29,6 +44,17 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
 nonisolated struct SuggestedReplyGenerationResult: Codable, Equatable, Sendable {
     let historySummary: String
     let replies: [String]
+    let memoryChanges: [ContactMemoryChange]
+
+    init(
+        historySummary: String,
+        replies: [String],
+        memoryChanges: [ContactMemoryChange] = []
+    ) {
+        self.historySummary = historySummary
+        self.replies = replies
+        self.memoryChanges = memoryChanges
+    }
 }
 
 protocol SuggestedReplyGenerating {
@@ -68,12 +94,22 @@ nonisolated enum SuggestedReplyResultDecoder {
             throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "root")
         }
 
-        let summary = ["historySummary", "history_summary", "summary"]
-            .compactMap { object[$0] as? String }
-            .first?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            ?? historySummaryFallback
-        guard let summary, summary.count <= 6_000 else {
+        let summaryKeys = ["historySummary", "history_summary", "summary"]
+        guard let summaryValue = summaryKeys.lazy.compactMap({ object[$0] }).first else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "historySummary")
+        }
+        let summary: String
+        if summaryValue is NSNull {
+            guard let historySummaryFallback else {
+                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "historySummary")
+            }
+            summary = historySummaryFallback
+        } else if let value = summaryValue as? String {
+            summary = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "historySummary")
+        }
+        guard summary.count <= 2_000 else {
             throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "historySummary")
         }
 
@@ -89,17 +125,30 @@ nonisolated enum SuggestedReplyResultDecoder {
         }
         replies = replies.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         guard replies.count == 2,
-            replies.allSatisfy({ !$0.isEmpty && $0.count <= 800 }),
+            replies.allSatisfy({ !$0.isEmpty && $0.count <= 500 }),
             Set(replies.map { $0.lowercased() }).count == 2
         else {
             throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "replies")
         }
 
-        return SuggestedReplyGenerationResult(historySummary: summary, replies: replies)
+        guard let memoryChangeObjects = object["memoryChanges"] as? [[String: Any]],
+            memoryChangeObjects.count <= 8
+        else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "memoryChanges")
+        }
+        let memoryChanges = try memoryChangeObjects.enumerated().map { index, object in
+            try decodeMemoryChange(object, index: index)
+        }
+
+        return SuggestedReplyGenerationResult(
+            historySummary: summary,
+            replies: replies,
+            memoryChanges: memoryChanges
+        )
     }
 
     static func repairHint(for failure: StructuredOutputFailure) -> String {
-        "Previous output failed validation (\(failure.kind.rawValue) at \(failure.codingPath ?? "root")). Return only this exact JSON shape: \(SuggestedReplyPrompt.canonicalJSONExample)"
+        "Previous output failed validation (\(failure.kind.rawValue) at \(failure.codingPath ?? "root")). Return JSON only, follow summaryMode, and use this top-level shape: \(SuggestedReplyPrompt.canonicalJSONExample)"
     }
 
     private static func clean(_ content: String?) -> String {
@@ -130,4 +179,73 @@ nonisolated enum SuggestedReplyResultDecoder {
             ["text", "reply", "content"].compactMap { object[$0] as? String }.first
         }
     }
+
+    private static func decodeMemoryChange(
+        _ object: [String: Any],
+        index: Int
+    ) throws -> ContactMemoryChange {
+        let path = "memoryChanges[\(index)]"
+        guard let actionValue = object["action"] as? String,
+            let action = ContactMemoryChangeAction(rawValue: actionValue),
+            let sourceValues = object["sourceMessageIDs"] as? [String],
+            (1...3).contains(sourceValues.count)
+        else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path)
+        }
+
+        let sourceMessageIDs = sourceValues.compactMap(UUID.init(uuidString:))
+        guard sourceMessageIDs.count == sourceValues.count,
+            Set(sourceMessageIDs).count == sourceMessageIDs.count
+        else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "\(path).sourceMessageIDs")
+        }
+
+        let targetMemoryID = uuid(from: object["targetMemoryID"])
+        let text = nullableString(from: object["text"])?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let kind = nullableString(from: object["kind"]).flatMap(ContactMemoryKind.init(rawValue:))
+
+        switch action {
+        case .add:
+            let expectedKeys: Set<String> = ["action", "text", "kind", "sourceMessageIDs"]
+            guard Set(object.keys) == expectedKeys,
+                let text, !text.isEmpty, text.count <= 240,
+                kind != nil
+            else {
+                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path)
+            }
+        case .update:
+            let expectedKeys: Set<String> = ["action", "targetMemoryID", "text", "kind", "sourceMessageIDs"]
+            guard Set(object.keys) == expectedKeys,
+                targetMemoryID != nil,
+                let text, !text.isEmpty, text.count <= 240,
+                kind != nil
+            else {
+                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path)
+            }
+        case .archive:
+            let expectedKeys: Set<String> = ["action", "targetMemoryID", "sourceMessageIDs"]
+            guard Set(object.keys) == expectedKeys, targetMemoryID != nil else {
+                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path)
+            }
+        }
+
+        return ContactMemoryChange(
+            action: action,
+            targetMemoryID: targetMemoryID,
+            text: text,
+            kind: kind,
+            sourceMessageIDs: sourceMessageIDs
+        )
+    }
+
+    private static func uuid(from value: Any?) -> UUID? {
+        guard let value = value as? String else { return nil }
+        return UUID(uuidString: value)
+    }
+
+    private static func nullableString(from value: Any?) -> String? {
+        value as? String
+    }
+
 }

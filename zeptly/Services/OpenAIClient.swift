@@ -234,7 +234,7 @@ struct OpenAIClient: AIProviderAdapter {
         guard Self.supportedModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
-        let maxTokens = 1_600
+        let maxTokens = 3_200
         eventReporter.record(
             .providerAttempt(
                 traceID: generationRequest.traceID,

@@ -176,13 +176,29 @@ final class SuggestedRepliesCoordinator {
             historySummary = olderMessages.isEmpty ? "" : generated.historySummary
         }
 
-        try repository.saveSuggestedReplyCache(
+        let evidenceMessageIDs = Set((summaryPlan.messages + recentMessages).map(\.id))
+        var reconciledContext = contactContext
+        reconciledContext.contactMemories = ContactMemoryReconciler.reconcile(
+            memories: contactContext.contactMemories,
+            changes: generated.memoryChanges,
+            allowedSourceMessageIDs: evidenceMessageIDs
+        )
+        let persistedFingerprint = fingerprint(
+            chatName: chat.name,
+            messages: messages,
+            contactContext: reconciledContext,
+            provider: providerContext.platform,
+            model: replyModel
+        )
+
+        try repository.saveSuggestedReplyGeneration(
             chatID: chatID,
+            contactMemories: reconciledContext.contactMemories,
             historySummary: historySummary,
             summarizedMessageCount: olderMessages.count,
             summarizedPrefixFingerprint: messageFingerprint(olderMessages),
             replies: generated.replies,
-            inputFingerprint: inputFingerprint,
+            inputFingerprint: persistedFingerprint,
             provider: providerContext.platform,
             model: replyModel,
             promptVersion: SuggestedReplyPrompt.version
@@ -232,6 +248,7 @@ final class SuggestedRepliesCoordinator {
 
     private func promptMessage(_ message: ChatMessageRecord) -> SuggestedReplyPromptMessage {
         SuggestedReplyPromptMessage(
+            id: message.id,
             sender: message.senderKind,
             senderName: message.senderName,
             text: message.text,
@@ -252,6 +269,7 @@ final class SuggestedRepliesCoordinator {
             "relationshipSubtitle": contactContext.relationshipSubtitle,
             "contactMemories": contactContext.contactMemories
                 .filter { $0.status == .active }
+                .sorted { $0.id.uuidString < $1.id.uuidString }
                 .map(memoryObject),
             "currentInteractionGoal": contactContext.currentInteractionGoal,
             "preferredPersona": contactContext.preferredPersona,
@@ -301,8 +319,10 @@ final class SuggestedRepliesCoordinator {
 
     private func memoryObject(_ memory: ContactMemory) -> [String: Any] {
         [
+            "id": memory.id.uuidString.lowercased(),
             "text": memory.text,
             "kind": memory.kind.rawValue,
+            "origin": memory.origin.rawValue,
             "certainty": memory.certainty.rawValue
         ]
     }

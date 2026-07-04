@@ -178,6 +178,10 @@ struct AboutContactCard: View {
         let trimmed = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let index = memories.firstIndex(where: { $0.id == id }) else { return }
         memories[index].text = trimmed
+        memories[index].origin = .user
+        memories[index].certainty = .userConfirmed
+        memories[index].sourceMessageIDs = []
+        memories[index].status = .active
         memories[index].updatedAt = Date()
         editingMemoryID = nil
     }

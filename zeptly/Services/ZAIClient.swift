@@ -234,7 +234,7 @@ struct ZAIClient: AIProviderAdapter {
         }
 
         var repairHint: String?
-        var maxTokens = 1_600
+        var maxTokens = 3_200
         for attemptIndex in 0..<2 {
             let attempt = attemptIndex + 1
             eventReporter.record(
@@ -316,7 +316,7 @@ struct ZAIClient: AIProviderAdapter {
                 }
                 repairHint = SuggestedReplyResultDecoder.repairHint(for: failure)
                 if failure.kind == .truncatedResponse {
-                    maxTokens = 2_400
+                    maxTokens = 4_096
                 }
             }
         }
