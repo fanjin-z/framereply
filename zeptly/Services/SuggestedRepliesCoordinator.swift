@@ -176,12 +176,16 @@ final class SuggestedRepliesCoordinator {
             historySummary = olderMessages.isEmpty ? "" : generated.historySummary
         }
 
-        let evidenceMessageIDs = Set((summaryPlan.messages + recentMessages).map(\.id))
+        let contactEvidenceMessageIDs = Set(
+            (summaryPlan.messages + recentMessages)
+                .filter { $0.senderKind == "contact" }
+                .map(\.id)
+        )
         var reconciledContext = contactContext
         reconciledContext.contactMemories = ContactMemoryReconciler.reconcile(
             memories: contactContext.contactMemories,
             changes: generated.memoryChanges,
-            allowedSourceMessageIDs: evidenceMessageIDs
+            allowedContactSourceMessageIDs: contactEvidenceMessageIDs
         )
         let persistedFingerprint = fingerprint(
             chatName: chat.name,

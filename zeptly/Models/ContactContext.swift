@@ -82,7 +82,7 @@ nonisolated enum ContactMemoryReconciler {
     static func reconcile(
         memories: [ContactMemory],
         changes: [ContactMemoryChange],
-        allowedSourceMessageIDs: Set<UUID>,
+        allowedContactSourceMessageIDs: Set<UUID>,
         now: Date = Date()
     ) -> [ContactMemory] {
         var result = memories
@@ -91,7 +91,7 @@ nonisolated enum ContactMemoryReconciler {
             let evidence = change.sourceMessageIDs
             guard !evidence.isEmpty,
                 Set(evidence).count == evidence.count,
-                evidence.allSatisfy(allowedSourceMessageIDs.contains)
+                evidence.allSatisfy(allowedContactSourceMessageIDs.contains)
             else {
                 continue
             }

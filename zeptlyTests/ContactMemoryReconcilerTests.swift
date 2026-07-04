@@ -59,7 +59,7 @@ final class ContactMemoryReconcilerTests: XCTestCase {
                     sourceMessageIDs: [evidenceID]
                 )
             ],
-            allowedSourceMessageIDs: [evidenceID],
+            allowedContactSourceMessageIDs: [evidenceID],
             now: now
         )
 
@@ -107,9 +107,29 @@ final class ContactMemoryReconcilerTests: XCTestCase {
                     sourceMessageIDs: [UUID()]
                 )
             ],
-            allowedSourceMessageIDs: [allowedID]
+            allowedContactSourceMessageIDs: [allowedID]
         )
 
         XCTAssertEqual(result, [memory])
+    }
+
+    func testRejectsOperationWhenAnyEvidenceIsNotContactAuthored() {
+        let contactID = UUID()
+        let disallowedID = UUID()
+        let result = ContactMemoryReconciler.reconcile(
+            memories: [],
+            changes: [
+                ContactMemoryChange(
+                    action: .add,
+                    targetMemoryID: nil,
+                    text: "Asked about partner hotels",
+                    kind: .fact,
+                    sourceMessageIDs: [contactID, disallowedID]
+                )
+            ],
+            allowedContactSourceMessageIDs: [contactID]
+        )
+
+        XCTAssertTrue(result.isEmpty)
     }
 }

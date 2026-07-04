@@ -170,7 +170,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let chatID = "memory-maintenance-chat"
-        let message = makeMessage(chatID: chatID, index: 0)
+        let message = makeMessage(chatID: chatID, index: 1)
         let userMemory = ContactMemory(text: "Lives in Paris", kind: .fact)
         let aiMemory = ContactMemory(
             text: "Conference next week",
@@ -232,6 +232,83 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertEqual(memories.first { $0.text == "Now lives in Berlin" }?.origin, .ai)
         XCTAssertEqual(memories.first { $0.text == "Vegetarian" }?.sourceMessageIDs, [message.id])
         XCTAssertNil(memories.first { $0.text == "Unsupported detail" })
+    }
+
+    @MainActor
+    func testPersistsOnlyMemorySupportedExclusivelyByContactMessages() async throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "contact-owned-memory-chat"
+        let userMessage = makeMessage(chatID: chatID, index: 0)
+        let contactMessage = makeMessage(chatID: chatID, index: 1)
+        let otherMessage = makeMessage(chatID: chatID, index: 2)
+        otherMessage.senderKind = "other"
+        otherMessage.senderName = "Alex"
+        let unknownMessage = makeMessage(chatID: chatID, index: 3)
+        unknownMessage.senderKind = "unknown"
+        unknownMessage.senderName = nil
+
+        container.mainContext.insert(makeChat(id: chatID))
+        for message in [userMessage, contactMessage, otherMessage, unknownMessage] {
+            container.mainContext.insert(message)
+        }
+        try container.mainContext.save()
+
+        let client = StubReplyService { request in
+            XCTAssertEqual(
+                request.recentMessages.map(\.sender),
+                ["user", "contact", "other", "unknown"]
+            )
+            return SuggestedReplyGenerationResult(
+                historySummary: request.existingHistorySummary,
+                replies: ["First", "Second"],
+                memoryChanges: [
+                    ContactMemoryChange(
+                        action: .add,
+                        targetMemoryID: nil,
+                        text: "Asked about partner hotels in Beijing",
+                        kind: .fact,
+                        sourceMessageIDs: [contactMessage.id]
+                    ),
+                    ContactMemoryChange(
+                        action: .add,
+                        targetMemoryID: nil,
+                        text: "No partner hotels in Beijing",
+                        kind: .fact,
+                        sourceMessageIDs: [userMessage.id]
+                    ),
+                    ContactMemoryChange(
+                        action: .add,
+                        targetMemoryID: nil,
+                        text: "Other participant detail",
+                        kind: .fact,
+                        sourceMessageIDs: [otherMessage.id]
+                    ),
+                    ContactMemoryChange(
+                        action: .add,
+                        targetMemoryID: nil,
+                        text: "Unknown sender detail",
+                        kind: .fact,
+                        sourceMessageIDs: [unknownMessage.id]
+                    ),
+                    ContactMemoryChange(
+                        action: .add,
+                        targetMemoryID: nil,
+                        text: "Mixed sender detail",
+                        kind: .fact,
+                        sourceMessageIDs: [contactMessage.id, userMessage.id]
+                    )
+                ]
+            )
+        }
+
+        let coordinator = SuggestedRepliesCoordinator(aiService: client, repository: repository)
+        _ = try await coordinator.generate(chatID: chatID)
+
+        let activeMemories = try repository.contactContextValue(chatID: chatID).contactMemories
+            .filter { $0.status == .active }
+        XCTAssertEqual(activeMemories.map(\.text), ["Asked about partner hotels in Beijing"])
+        XCTAssertEqual(activeMemories.first?.sourceMessageIDs, [contactMessage.id])
     }
 
     @MainActor

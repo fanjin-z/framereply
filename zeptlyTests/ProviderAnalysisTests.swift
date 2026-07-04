@@ -100,6 +100,22 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertFalse(prompt.contains("Archived detail"))
         XCTAssertTrue(prompt.contains(#""origin":"user""#))
         XCTAssertFalse(prompt.contains(#""memoryChanges":[]"#))
+        XCTAssertTrue(SuggestedReplyPrompt.instructions.contains("Contact memory describes the contact only."))
+        XCTAssertTrue(
+            SuggestedReplyPrompt.instructions.contains(
+                #"exclusively from supplied messages whose sender is "contact""#
+            )
+        )
+        XCTAssertTrue(
+            SuggestedReplyPrompt.instructions.contains(
+                #"Never use messages whose sender is "user", "other", or "unknown" as memory evidence."#
+            )
+        )
+        XCTAssertTrue(
+            SuggestedReplyPrompt.instructions.contains(
+                "User-authored messages may inform replies but must not support contact-memory changes."
+            )
+        )
 
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
