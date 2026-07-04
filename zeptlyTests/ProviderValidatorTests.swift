@@ -109,6 +109,34 @@ final class ProviderValidatorTests: XCTestCase {
     }
 
     @MainActor
+    func testZAIRetainsInvalidRequestMetadataAndMapsShortcutCode() async {
+        URLProtocolStub.stub(
+            statusCode: 400,
+            body: #"{"error":{"code":1214,"message":"Invalid API parameter, please check the documentation."}}"#
+        )
+
+        do {
+            try await ZAIClient(region: .china, session: makeSession()).validate(
+                apiKey: "key",
+                model: .glm46V
+            )
+            XCTFail("Expected invalid request")
+        } catch let error as ProviderConnectionError {
+            guard case let .invalidRequest(details) = error else {
+                return XCTFail("Expected invalidRequest, got \(error)")
+            }
+            XCTAssertEqual(details.provider, ProviderPlatform.zhipuChina.rawValue)
+            XCTAssertEqual(details.httpStatus, 400)
+            XCTAssertEqual(details.providerCode, "1214")
+            XCTAssertEqual(error.shortcutErrorCode, "provider_invalid_request")
+            XCTAssertEqual(error.localizedDescription, "Invalid API parameter, please check the documentation.")
+            XCTAssertFalse(String(describing: details).contains("key"))
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    @MainActor
     func testOpenAIMapsHTTPFailures() async {
         await assertHTTPError(.invalidKey, statusCode: 401, validator: OpenAIClient(session: makeSession()), model: .gpt54Mini)
         await assertHTTPError(

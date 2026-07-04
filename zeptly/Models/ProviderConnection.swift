@@ -129,6 +129,18 @@ enum ProviderModel: String, Codable, CaseIterable, Identifiable {
             self
         }
     }
+
+    /// Z.ai's `response_format` JSON mode is a text-model capability. The
+    /// GLM-4.6V family can still produce JSON when instructed, but rejects the
+    /// API parameter on endpoints that do not expose structured output for VLMs.
+    var supportsZAIJSONResponseFormat: Bool {
+        switch self {
+        case .glm47FlashX, .glm47Flash, .glm47:
+            true
+        default:
+            false
+        }
+    }
 }
 
 enum ProviderValidationState: String, Codable {

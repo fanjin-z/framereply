@@ -89,6 +89,19 @@ final class ShortcutResponsePayloadTests: XCTestCase {
         XCTAssertTrue(response.json.contains("\"diagnosticID\":\"ABCDEF12\""))
     }
 
+    func testInvalidProviderParameterUsesSpecificShortcutCode() {
+        let error = ProviderConnectionError.invalidRequest(
+            ProviderInvalidRequestError(
+                provider: ProviderPlatform.zhipuChina.rawValue,
+                httpStatus: 400,
+                providerCode: "1214",
+                message: "Invalid API parameter, please check the documentation."
+            )
+        )
+
+        XCTAssertEqual(error.shortcutErrorCode, "provider_invalid_request")
+    }
+
     private func outcome(
         matchedExisting: Bool,
         reviewRequired: Bool,

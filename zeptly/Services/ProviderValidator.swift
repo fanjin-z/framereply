@@ -19,12 +19,20 @@ protocol ChatScreenshotAnalyzing {
 
 protocol AIProviderClient: ProviderValidator, ChatScreenshotAnalyzing {}
 
+nonisolated struct ProviderInvalidRequestError: Error, Equatable, Sendable {
+    let provider: String
+    let httpStatus: Int
+    let providerCode: String?
+    let message: String
+}
+
 nonisolated enum ProviderConnectionError: LocalizedError, Sendable {
     case missingAPIKey
     case invalidKey
     case insufficientBalance
     case rateLimited
     case providerUnavailable
+    case invalidRequest(ProviderInvalidRequestError)
     case invalidResponse(String)
     case structuredOutput(ProviderStructuredOutputError)
     case networkFailure(String)
@@ -43,6 +51,8 @@ nonisolated enum ProviderConnectionError: LocalizedError, Sendable {
             "This provider is rate limiting the key. Wait a moment and try again."
         case .providerUnavailable:
             "This provider is temporarily unavailable. Try again shortly."
+        case let .invalidRequest(error):
+            error.message
         case let .invalidResponse(message):
             message
         case let .structuredOutput(error):
@@ -71,6 +81,8 @@ nonisolated enum ProviderConnectionError: LocalizedError, Sendable {
 
     var shortcutErrorCode: String {
         switch self {
+        case .invalidRequest:
+            "provider_invalid_request"
         case let .structuredOutput(error):
             error.failure.kind.shortcutErrorCode
         default:

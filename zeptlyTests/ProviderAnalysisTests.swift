@@ -156,32 +156,35 @@ final class ProviderAnalysisTests: XCTestCase {
     }
 
     @MainActor
-    func testBothZAIRegionsUseTheirOwnEndpointAndMultimodalShape() async throws {
+    func testAllZAI46VModelsUseTheirRegionalEndpointWithoutJSONMode() async throws {
         let cases: [(ZAIClient.Region, String)] = [
             (.international, "api.z.ai"),
             (.china, "open.bigmodel.cn")
         ]
+        let models: [ProviderModel] = [.glm46VFlashX, .glm46VFlash, .glm46V]
 
         for (region, host) in cases {
-            AnalysisURLProtocolStub.responses = [(200, zaiResponse(content: validAnalysisJSON(matchedChatID: nil)))]
-            _ = try await ZAIClient(region: region, session: makeSession()).analyzeChatScreenshot(
-                makeRequest(), apiKey: "regional-key", model: .glm46VFlashX
-            )
+            for model in models {
+                AnalysisURLProtocolStub.responses = [(200, zaiResponse(content: validAnalysisJSON(matchedChatID: nil)))]
+                _ = try await ZAIClient(region: region, session: makeSession()).analyzeChatScreenshot(
+                    makeRequest(), apiKey: "regional-key", model: model
+                )
 
-            let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.last)
-            XCTAssertEqual(request.url?.host, host)
-            XCTAssertEqual(request.url?.path, "/api/paas/v4/chat/completions")
-            let body = try jsonBody(request)
-            XCTAssertEqual(body["model"] as? String, "glm-4.6v-flashx")
-            XCTAssertEqual((body["response_format"] as? [String: Any])?["type"] as? String, "json_object")
-            XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
-            XCTAssertEqual(body["do_sample"] as? Bool, false)
-            let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
-            XCTAssertTrue(try XCTUnwrap(messages.first?["content"] as? String).contains("Literal visual observations"))
-            let userContent = try XCTUnwrap(messages.last?["content"] as? [[String: Any]])
-            let image = try XCTUnwrap(userContent.first { $0["type"] as? String == "image_url" })
-            let imageURL = try XCTUnwrap((image["image_url"] as? [String: Any])?["url"] as? String)
-            XCTAssertTrue(imageURL.hasPrefix("data:image/png;base64,"))
+                let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.last)
+                XCTAssertEqual(request.url?.host, host)
+                XCTAssertEqual(request.url?.path, "/api/paas/v4/chat/completions")
+                let body = try jsonBody(request)
+                XCTAssertEqual(body["model"] as? String, model.rawValue)
+                XCTAssertNil(body["response_format"])
+                XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
+                XCTAssertEqual(body["do_sample"] as? Bool, false)
+                let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
+                XCTAssertTrue(try XCTUnwrap(messages.first?["content"] as? String).contains("Literal visual observations"))
+                let userContent = try XCTUnwrap(messages.last?["content"] as? [[String: Any]])
+                let image = try XCTUnwrap(userContent.first { $0["type"] as? String == "image_url" })
+                let imageURL = try XCTUnwrap((image["image_url"] as? [String: Any])?["url"] as? String)
+                XCTAssertTrue(imageURL.hasPrefix("data:image/png;base64,"))
+            }
         }
     }
 
@@ -261,8 +264,10 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 2)
         let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.last))
         XCTAssertEqual(body["model"] as? String, "glm-4.7-flashx")
+        XCTAssertEqual((body["response_format"] as? [String: Any])?["type"] as? String, "json_object")
         XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
         let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
+        XCTAssertTrue(messages.allSatisfy { $0["content"] is String })
         XCTAssertTrue(try XCTUnwrap(messages.last?["content"] as? String).contains("failed validation"))
     }
 

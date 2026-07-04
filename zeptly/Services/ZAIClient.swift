@@ -94,8 +94,7 @@ struct ZAIClient: AIProviderClient, SuggestedReplyGenerating {
             )
 
             let prompt = ChatScreenshotPrompt.input(for: analysisRequest, repairHint: repairHint)
-            var request = authorizedRequest(apiKey: apiKey)
-            request.httpBody = try JSONSerialization.data(withJSONObject: [
+            var body: [String: Any] = [
                 "model": model.rawValue,
                 "messages": [
                     ["role": "system", "content": ChatScreenshotPrompt.instructions],
@@ -110,9 +109,13 @@ struct ZAIClient: AIProviderClient, SuggestedReplyGenerating {
                 "max_tokens": maxTokens,
                 "thinking": ["type": "disabled"],
                 "do_sample": false,
-                "stream": false,
-                "response_format": ["type": "json_object"]
-            ])
+                "stream": false
+            ]
+            if model.supportsZAIJSONResponseFormat {
+                body["response_format"] = ["type": "json_object"]
+            }
+            var request = authorizedRequest(apiKey: apiKey)
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
             let startedAt = Date()
             let (data, response) = try await perform(request)
@@ -223,8 +226,7 @@ struct ZAIClient: AIProviderClient, SuggestedReplyGenerating {
                 )
             )
 
-            var request = authorizedRequest(apiKey: apiKey)
-            request.httpBody = try JSONSerialization.data(withJSONObject: [
+            var body: [String: Any] = [
                 "model": model.rawValue,
                 "messages": [
                     ["role": "system", "content": SuggestedReplyPrompt.instructions],
@@ -233,9 +235,13 @@ struct ZAIClient: AIProviderClient, SuggestedReplyGenerating {
                 "max_tokens": maxTokens,
                 "thinking": ["type": "disabled"],
                 "do_sample": false,
-                "stream": false,
-                "response_format": ["type": "json_object"]
-            ])
+                "stream": false
+            ]
+            if model.supportsZAIJSONResponseFormat {
+                body["response_format"] = ["type": "json_object"]
+            }
+            var request = authorizedRequest(apiKey: apiKey)
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
             let startedAt = Date()
             let (data, response) = try await perform(request)
@@ -332,6 +338,17 @@ struct ZAIClient: AIProviderClient, SuggestedReplyGenerating {
         case 402: throw ProviderConnectionError.insufficientBalance
         case 429: throw ProviderConnectionError.rateLimited
         case 500..<600: throw ProviderConnectionError.providerUnavailable
+        case 400, 422:
+            let providerError = try? JSONDecoder().decode(ZAIErrorResponse.self, from: data)
+            throw ProviderConnectionError.invalidRequest(
+                ProviderInvalidRequestError(
+                    provider: region.providerID,
+                    httpStatus: response.statusCode,
+                    providerCode: providerError?.error.code,
+                    message: providerError?.error.message
+                        ?? "\(region.platform.displayName) rejected an API parameter."
+                )
+            )
         default:
             let message = (try? JSONDecoder().decode(ZAIErrorResponse.self, from: data))?.error.message
             throw ProviderConnectionError.invalidResponse(
@@ -397,5 +414,23 @@ private struct ZAIErrorResponse: Decodable {
 }
 
 private struct ZAIError: Decodable {
+    let code: String?
     let message: String
+
+    private enum CodingKeys: String, CodingKey {
+        case code
+        case message
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        message = try container.decode(String.self, forKey: .message)
+        if let value = try? container.decode(String.self, forKey: .code) {
+            code = value
+        } else if let value = try? container.decode(Int.self, forKey: .code) {
+            code = String(value)
+        } else {
+            code = nil
+        }
+    }
 }
