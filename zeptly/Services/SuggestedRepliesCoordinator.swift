@@ -105,7 +105,7 @@ final class SuggestedRepliesCoordinator {
             throw SuggestedRepliesError.noMessages
         }
 
-        let contactContext = try repository.contactContext(chatID: chatID)?.value ?? .empty
+        let contactContext = try repository.contactContextValue(chatID: chatID)
         let cache = try repository.suggestedReplyCache(chatID: chatID)
         let replyModel = providerContext.effectiveModel
         let inputFingerprint = fingerprint(
@@ -135,8 +135,7 @@ final class SuggestedRepliesCoordinator {
         let request = SuggestedReplyGenerationRequest(
             chatName: chat.name,
             relationshipSubtitle: contactContext.relationshipSubtitle,
-            relationshipNotes: contactContext.relationshipNotes,
-            keyFacts: contactContext.keyFacts,
+            contactMemories: contactContext.contactMemories.filter { $0.status == .active },
             currentInteractionGoal: contactContext.currentInteractionGoal,
             preferredPersona: contactContext.preferredPersona,
             existingHistorySummary: summaryPlan.existingSummary,
@@ -251,8 +250,9 @@ final class SuggestedRepliesCoordinator {
             "chatName": chatName,
             "messages": messages.map(messageObject),
             "relationshipSubtitle": contactContext.relationshipSubtitle,
-            "relationshipNotes": contactContext.relationshipNotes,
-            "keyFacts": contactContext.keyFacts,
+            "contactMemories": contactContext.contactMemories
+                .filter { $0.status == .active }
+                .map(memoryObject),
             "currentInteractionGoal": contactContext.currentInteractionGoal,
             "preferredPersona": contactContext.preferredPersona,
             "provider": provider.rawValue,
@@ -274,7 +274,7 @@ final class SuggestedRepliesCoordinator {
             return false
         }
         let messages = try repository.messages(chatID: chatID)
-        let context = try repository.contactContext(chatID: chatID)?.value ?? .empty
+        let context = try repository.contactContextValue(chatID: chatID)
         return fingerprint(
             chatName: chat.name,
             messages: messages,
@@ -296,6 +296,14 @@ final class SuggestedRepliesCoordinator {
             "text": message.text,
             "timeLabel": message.timeLabel,
             "sortIndex": message.sortIndex
+        ]
+    }
+
+    private func memoryObject(_ memory: ContactMemory) -> [String: Any] {
+        [
+            "text": memory.text,
+            "kind": memory.kind.rawValue,
+            "certainty": memory.certainty.rawValue
         ]
     }
 

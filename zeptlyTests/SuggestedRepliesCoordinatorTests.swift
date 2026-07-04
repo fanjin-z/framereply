@@ -5,6 +5,43 @@ import XCTest
 
 final class SuggestedRepliesCoordinatorTests: XCTestCase {
     @MainActor
+    func testChangingActiveMemoryInvalidatesCachedRepliesWhileArchivedMemoryDoesNot() async throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "memory-cache-chat"
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
+        let active = ContactMemoryRecord(
+            chatID: chatID,
+            value: ContactMemory(text: "Likes tea", kind: .preference)
+        )
+        let archived = ContactMemoryRecord(
+            chatID: chatID,
+            value: ContactMemory(text: "Old office", status: .archived)
+        )
+        container.mainContext.insert(active)
+        container.mainContext.insert(archived)
+        try container.mainContext.save()
+
+        let client = StubReplyService()
+        let coordinator = SuggestedRepliesCoordinator(aiService: client, repository: repository)
+        _ = try await coordinator.generate(chatID: chatID)
+        _ = try await coordinator.generate(chatID: chatID)
+        XCTAssertEqual(client.requests.count, 1)
+
+        archived.text = "Older office"
+        try container.mainContext.save()
+        _ = try await coordinator.generate(chatID: chatID)
+        XCTAssertEqual(client.requests.count, 1)
+
+        active.text = "Likes coffee"
+        try container.mainContext.save()
+        _ = try await coordinator.generate(chatID: chatID)
+        XCTAssertEqual(client.requests.count, 2)
+        XCTAssertEqual(client.requests.last?.contactMemories.map(\.text), ["Likes coffee"])
+    }
+
+    @MainActor
     func testCachesRepliesAndIncrementallySummarizesMessagesBeyondRecentTwenty() async throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
@@ -14,10 +51,20 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
             ContactContextRecord(
                 chatID: chatID,
                 relationshipSubtitle: "Friend",
-                relationshipNotes: "Met at university",
-                keyFactsJSON: "[\"Vegetarian\"]",
                 currentInteractionGoal: "Confirm dinner",
                 preferredPersona: "Warm & Collaborative"
+            )
+        )
+        container.mainContext.insert(
+            ContactMemoryRecord(
+                chatID: chatID,
+                value: ContactMemory(text: "Met at university", kind: .relationship)
+            )
+        )
+        container.mainContext.insert(
+            ContactMemoryRecord(
+                chatID: chatID,
+                value: ContactMemory(text: "Vegetarian", kind: .preference)
             )
         )
         for index in 0..<22 {
@@ -37,6 +84,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertEqual(client.requests[0].summaryMode, .rebuild)
         XCTAssertEqual(client.requests[0].olderMessagesToSummarize.count, 2)
         XCTAssertEqual(client.requests[0].recentMessages.count, 20)
+        XCTAssertEqual(client.requests[0].contactMemories.map(\.text), ["Met at university", "Vegetarian"])
         XCTAssertEqual(client.models, [.glm47FlashX])
 
         let cached = try await coordinator.generate(chatID: chatID)

@@ -16,8 +16,7 @@ nonisolated enum SuggestedReplySummaryMode: String, Codable, Equatable, Sendable
 nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
     let chatName: String
     let relationshipSubtitle: String
-    let relationshipNotes: String
-    let keyFacts: [String]
+    let contactMemories: [ContactMemory]
     let currentInteractionGoal: String
     let preferredPersona: String
     let existingHistorySummary: String

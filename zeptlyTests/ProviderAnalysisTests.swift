@@ -84,6 +84,11 @@ final class ProviderAnalysisTests: XCTestCase {
         ] {
             XCTAssertTrue(prompt.contains(value), "Missing reply grounding: \(value)")
         }
+        XCTAssertTrue(prompt.contains(#""kind":"relationship""#))
+        XCTAssertTrue(prompt.contains(#""certainty":"userConfirmed""#))
+        XCTAssertFalse(prompt.contains("Archived detail"))
+        XCTAssertFalse(prompt.contains("sourceMessageIDs"))
+        XCTAssertFalse(prompt.contains(#""origin""#))
 
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
@@ -296,8 +301,11 @@ final class ProviderAnalysisTests: XCTestCase {
         SuggestedReplyGenerationRequest(
             chatName: "Sarah",
             relationshipSubtitle: "Friend",
-            relationshipNotes: "Met at university",
-            keyFacts: ["Vegetarian"],
+            contactMemories: [
+                ContactMemory(text: "Met at university", kind: .relationship),
+                ContactMemory(text: "Vegetarian", kind: .preference),
+                ContactMemory(text: "Archived detail", status: .archived)
+            ],
             currentInteractionGoal: "Confirm dinner",
             preferredPersona: "Warm & Collaborative",
             existingHistorySummary: "",

@@ -11,6 +11,7 @@ enum ZeptlyDataStore {
         ChatRecord.self,
         ChatMessageRecord.self,
         ContactContextRecord.self,
+        ContactMemoryRecord.self,
         SuggestedReplyCacheRecord.self,
         ChatImportRecord.self,
         StoreMetadataRecord.self

@@ -118,8 +118,6 @@ final class ContactContextRecord {
     var id: UUID
     var chatID: String
     var relationshipSubtitle: String
-    var relationshipNotes: String
-    var keyFactsJSON: String
     var currentInteractionGoal: String
     var preferredPersona: String
 
@@ -127,18 +125,52 @@ final class ContactContextRecord {
         id: UUID = UUID(),
         chatID: String,
         relationshipSubtitle: String,
-        relationshipNotes: String,
-        keyFactsJSON: String,
         currentInteractionGoal: String,
         preferredPersona: String
     ) {
         self.id = id
         self.chatID = chatID
         self.relationshipSubtitle = relationshipSubtitle
-        self.relationshipNotes = relationshipNotes
-        self.keyFactsJSON = keyFactsJSON
         self.currentInteractionGoal = currentInteractionGoal
         self.preferredPersona = preferredPersona
+    }
+}
+
+@Model
+final class ContactMemoryRecord {
+    var id: UUID
+    var chatID: String
+    var text: String
+    var kind: String
+    var origin: String
+    var certainty: String
+    var sourceMessageIDsJSON: String
+    var status: String
+    var createdAt: Date
+    var updatedAt: Date
+
+    init(
+        id: UUID = UUID(),
+        chatID: String,
+        text: String,
+        kind: String,
+        origin: String,
+        certainty: String,
+        sourceMessageIDsJSON: String = "[]",
+        status: String,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date()
+    ) {
+        self.id = id
+        self.chatID = chatID
+        self.text = text
+        self.kind = kind
+        self.origin = origin
+        self.certainty = certainty
+        self.sourceMessageIDsJSON = sourceMessageIDsJSON
+        self.status = status
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
     }
 }
 

@@ -35,8 +35,8 @@ struct ContactContextView: View {
                     ContactProfileCard(chat: chat, subtitle: context.relationshipSubtitle)
 
                     AboutContactCard(
-                        relationshipNotes: $context.relationshipNotes,
-                        keyFacts: $context.keyFacts
+                        contactName: chat.name,
+                        memories: $context.contactMemories
                     )
 
                     ContactContextInfoGrid(

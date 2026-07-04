@@ -59,20 +59,10 @@ extension ChatMessage {
 }
 
 extension ContactContextRecord {
-    var value: ContactContext {
-        let facts: [String]
-        if let data = keyFactsJSON.data(using: .utf8),
-            let decoded = try? JSONDecoder().decode([String].self, from: data)
-        {
-            facts = decoded
-        } else {
-            facts = []
-        }
-
+    func value(contactMemories: [ContactMemory] = []) -> ContactContext {
         return ContactContext(
             relationshipSubtitle: relationshipSubtitle,
-            relationshipNotes: relationshipNotes,
-            keyFacts: facts,
+            contactMemories: contactMemories,
             currentInteractionGoal: currentInteractionGoal,
             preferredPersona: preferredPersona
         )
@@ -80,10 +70,63 @@ extension ContactContextRecord {
 
     func update(from value: ContactContext) {
         relationshipSubtitle = value.relationshipSubtitle
-        relationshipNotes = value.relationshipNotes
-        keyFactsJSON = (try? String(data: JSONEncoder().encode(value.keyFacts), encoding: .utf8)) ?? "[]"
         currentInteractionGoal = value.currentInteractionGoal
         preferredPersona = value.preferredPersona
+    }
+}
+
+extension ContactMemoryRecord {
+    var value: ContactMemory {
+        let sourceMessageIDs: [UUID]
+        if let data = sourceMessageIDsJSON.data(using: .utf8),
+            let decoded = try? JSONDecoder().decode([UUID].self, from: data)
+        {
+            sourceMessageIDs = decoded
+        } else {
+            sourceMessageIDs = []
+        }
+
+        return ContactMemory(
+            id: id,
+            text: text,
+            kind: ContactMemoryKind(rawValue: kind) ?? .other,
+            origin: ContactMemoryOrigin(rawValue: origin) ?? .user,
+            certainty: ContactMemoryCertainty(rawValue: certainty) ?? .userConfirmed,
+            sourceMessageIDs: sourceMessageIDs,
+            status: ContactMemoryStatus(rawValue: status) ?? .active,
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
+    }
+
+    convenience init(chatID: String, value: ContactMemory) {
+        let sourceData = try? JSONEncoder().encode(value.sourceMessageIDs)
+        self.init(
+            id: value.id,
+            chatID: chatID,
+            text: value.text,
+            kind: value.kind.rawValue,
+            origin: value.origin.rawValue,
+            certainty: value.certainty.rawValue,
+            sourceMessageIDsJSON: sourceData.flatMap { String(data: $0, encoding: .utf8) } ?? "[]",
+            status: value.status.rawValue,
+            createdAt: value.createdAt,
+            updatedAt: value.updatedAt
+        )
+    }
+
+    func update(from value: ContactMemory) {
+        text = value.text
+        kind = value.kind.rawValue
+        origin = value.origin.rawValue
+        certainty = value.certainty.rawValue
+        sourceMessageIDsJSON = (try? String(
+            data: JSONEncoder().encode(value.sourceMessageIDs),
+            encoding: .utf8
+        )) ?? "[]"
+        status = value.status.rawValue
+        createdAt = value.createdAt
+        updatedAt = value.updatedAt
     }
 }
 

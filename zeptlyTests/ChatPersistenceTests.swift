@@ -155,6 +155,12 @@ final class ChatPersistenceTests: XCTestCase {
             provider: .openAI,
             model: .gpt54Mini
         )
+        container.mainContext.insert(
+            ContactMemoryRecord(
+                chatID: outcome.chatID,
+                value: ContactMemory(text: "Met on the trail")
+            )
+        )
         insertReplyCache(chatID: outcome.chatID, into: container)
         try container.mainContext.save()
 
@@ -163,6 +169,34 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertNil(try repository.chat(id: outcome.chatID))
         XCTAssertNil(try repository.suggestedReplyCache(chatID: outcome.chatID))
         XCTAssertEqual(try repository.messages(chatID: "target-chat").count, originalCount + 1)
+        XCTAssertTrue(try repository.contactMemories(chatID: outcome.chatID).isEmpty)
+        XCTAssertEqual(try repository.contactMemories(chatID: "target-chat").map(\.text), ["Met on the trail"])
+    }
+
+    func testAtomicContactMemoriesPreserveMultilineTextAndMetadata() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "memory-chat"
+        insertChat(id: chatID, name: "Memory", into: container)
+        let sourceID = UUID()
+        let memory = ContactMemory(
+            text: "Met at university.\nPlanning a reunion next spring.",
+            kind: .relationship,
+            origin: .ai,
+            certainty: .aiInferred,
+            sourceMessageIDs: [sourceID]
+        )
+        container.mainContext.insert(ContactMemoryRecord(chatID: chatID, value: memory))
+        try container.mainContext.save()
+
+        let stored = try XCTUnwrap(repository.contactMemories(chatID: chatID).first?.value)
+        XCTAssertEqual(stored.id, memory.id)
+        XCTAssertEqual(stored.text, memory.text)
+        XCTAssertEqual(stored.kind, .relationship)
+        XCTAssertEqual(stored.origin, .ai)
+        XCTAssertEqual(stored.certainty, .aiInferred)
+        XCTAssertEqual(stored.status, .active)
+        XCTAssertEqual(stored.sourceMessageIDs, [sourceID])
     }
 
     func testDeleteChatRemovesRelatedDataAndLeavesOtherChatsUntouched() throws {
@@ -181,12 +215,12 @@ final class ChatPersistenceTests: XCTestCase {
 
         XCTAssertNil(try repository.chat(id: "delete-me"))
         XCTAssertTrue(try repository.messages(chatID: "delete-me").isEmpty)
-        XCTAssertEqual(try relatedRecordCounts(chatID: "delete-me", in: container), [0, 0])
+        XCTAssertEqual(try relatedRecordCounts(chatID: "delete-me", in: container), [0, 0, 0])
         XCTAssertNil(try repository.suggestedReplyCache(chatID: "delete-me"))
 
         XCTAssertNotNil(try repository.chat(id: "keep-me"))
         XCTAssertEqual(try repository.messages(chatID: "keep-me").count, 1)
-        XCTAssertEqual(try relatedRecordCounts(chatID: "keep-me", in: container), [1, 1])
+        XCTAssertEqual(try relatedRecordCounts(chatID: "keep-me", in: container), [1, 1, 1])
         XCTAssertNotNil(try repository.suggestedReplyCache(chatID: "keep-me"))
     }
 
@@ -361,10 +395,14 @@ final class ChatPersistenceTests: XCTestCase {
             ContactContextRecord(
                 chatID: chatID,
                 relationshipSubtitle: "Friend",
-                relationshipNotes: "Notes",
-                keyFactsJSON: "[]",
                 currentInteractionGoal: "Reconnect",
                 preferredPersona: "Friendly"
+            )
+        )
+        container.mainContext.insert(
+            ContactMemoryRecord(
+                chatID: chatID,
+                value: ContactMemory(text: "Notes")
             )
         )
         container.mainContext.insert(
@@ -408,7 +446,12 @@ final class ChatPersistenceTests: XCTestCase {
                 predicate: #Predicate { $0.chatID == chatID }
             )
         )
-        return [contactRecords.count, importRecords.count]
+        let memoryRecords = try container.mainContext.fetch(
+            FetchDescriptor<ContactMemoryRecord>(
+                predicate: #Predicate { $0.chatID == chatID }
+            )
+        )
+        return [contactRecords.count, memoryRecords.count, importRecords.count]
     }
 
     private func provisionalAnalysis() -> ChatImportAnalysis {

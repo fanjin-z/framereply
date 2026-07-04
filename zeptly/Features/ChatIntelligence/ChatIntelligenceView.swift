@@ -22,6 +22,7 @@ struct ChatIntelligenceView: View {
     @State private var deleteErrorMessage: String?
     @Query private var messageRecords: [ChatMessageRecord]
     @Query private var contactContextRecords: [ContactContextRecord]
+    @Query private var contactMemoryRecords: [ContactMemoryRecord]
     @StateObject private var suggestedRepliesModel: SuggestedRepliesViewModel
 
     init(
@@ -41,6 +42,10 @@ struct ChatIntelligenceView: View {
         )
         _contactContextRecords = Query(
             filter: #Predicate<ContactContextRecord> { $0.chatID == chatID }
+        )
+        _contactMemoryRecords = Query(
+            filter: #Predicate<ContactMemoryRecord> { $0.chatID == chatID },
+            sort: \ContactMemoryRecord.createdAt
         )
         _suggestedRepliesModel = StateObject(
             wrappedValue: SuggestedRepliesViewModel(
@@ -69,10 +74,15 @@ struct ChatIntelligenceView: View {
         }
         if let context = contactContextRecords.first {
             hasher.combine(context.relationshipSubtitle)
-            hasher.combine(context.relationshipNotes)
-            hasher.combine(context.keyFactsJSON)
             hasher.combine(context.currentInteractionGoal)
             hasher.combine(context.preferredPersona)
+        }
+        for memory in contactMemoryRecords where memory.status == ContactMemoryStatus.active.rawValue {
+            hasher.combine(memory.id)
+            hasher.combine(memory.text)
+            hasher.combine(memory.kind)
+            hasher.combine(memory.certainty)
+            hasher.combine(memory.status)
         }
         hasher.combine(providerStore.activeProvider?.platform.rawValue)
         hasher.combine(providerStore.activeProvider?.model.rawValue)

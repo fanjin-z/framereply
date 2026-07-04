@@ -66,6 +66,25 @@ final class ChatRepository {
         ).first
     }
 
+    func contactMemories(chatID: String) throws -> [ContactMemoryRecord] {
+        var descriptor = FetchDescriptor<ContactMemoryRecord>(
+            predicate: #Predicate { $0.chatID == chatID }
+        )
+        descriptor.sortBy = [SortDescriptor(\.createdAt), SortDescriptor(\.id)]
+        return try context.fetch(descriptor)
+    }
+
+    func contactContextValue(chatID: String) throws -> ContactContext {
+        let memories = try contactMemories(chatID: chatID).map(\.value)
+        return try contactContext(chatID: chatID)?.value(contactMemories: memories)
+            ?? ContactContext(
+                relationshipSubtitle: "",
+                contactMemories: memories,
+                currentInteractionGoal: "",
+                preferredPersona: "Professional"
+            )
+    }
+
     func suggestedReplyCache(chatID: String) throws -> SuggestedReplyCacheRecord? {
         try context.fetch(
             FetchDescriptor<SuggestedReplyCacheRecord>(predicate: #Predicate { $0.chatID == chatID })
@@ -133,6 +152,7 @@ final class ChatRepository {
                 predicate: #Predicate { $0.chatID == chatID }
             )
         )
+        let memoryRecords = try contactMemories(chatID: chatID)
         let importRecords = try imports(chatID: chatID)
         let replyCache = try suggestedReplyCache(chatID: chatID)
 
@@ -141,6 +161,9 @@ final class ChatRepository {
         }
         for contact in contactRecords {
             context.delete(contact)
+        }
+        for memory in memoryRecords {
+            context.delete(memory)
         }
         for importRecord in importRecords {
             context.delete(importRecord)
@@ -421,6 +444,9 @@ final class ChatRepository {
         if let contact = try contactContext(chatID: provisionalChatID) {
             context.delete(contact)
         }
+        for memory in try contactMemories(chatID: provisionalChatID) {
+            memory.chatID = targetChatID
+        }
         if let replyCache = try suggestedReplyCache(chatID: provisionalChatID) {
             context.delete(replyCache)
         }
@@ -498,13 +524,9 @@ final class ChatRepository {
     }
 
     private func makeContactRecord(_ contact: ContactContext, chatID: String) -> ContactContextRecord {
-        let keyFactsData = try? JSONEncoder().encode(contact.keyFacts)
-        let keyFactsJSON = keyFactsData.flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
         return ContactContextRecord(
             chatID: chatID,
             relationshipSubtitle: contact.relationshipSubtitle,
-            relationshipNotes: contact.relationshipNotes,
-            keyFactsJSON: keyFactsJSON,
             currentInteractionGoal: contact.currentInteractionGoal,
             preferredPersona: contact.preferredPersona
         )

@@ -63,8 +63,7 @@ final class AIProviderGatewayTests: XCTestCase {
         SuggestedReplyGenerationRequest(
             chatName: "Sarah",
             relationshipSubtitle: "Friend",
-            relationshipNotes: "",
-            keyFacts: [],
+            contactMemories: [],
             currentInteractionGoal: "Reply",
             preferredPersona: "Warm",
             existingHistorySummary: "",
