@@ -31,46 +31,46 @@ enum ScreenshotImportError: LocalizedError {
             "unsupported_provider"
         }
     }
+
+    init(_ error: AIServiceError) {
+        switch error {
+        case .noActiveProvider:
+            self = .noActiveProvider
+        case .missingAPIKey:
+            self = .missingAPIKey
+        case .unsupportedProvider, .unsupportedCapability:
+            self = .unsupportedProvider
+        }
+    }
 }
 
 @MainActor
 final class ScreenshotImportCoordinator {
-    typealias ClientResolver = (ProviderPlatform) -> (any AIProviderClient)?
-
-    private let providerStore: any ProviderConfigurationProviding
+    private let aiService: any AIServiceProviding
     private let repository: ChatRepository
-    private let clientResolver: ClientResolver
     private let eventReporter: any ImportEventReporting
 
     convenience init() {
         let eventReporter = OSLogImportEventReporter()
+        let providerStore = ProviderStore()
         self.init(
-            providerStore: ProviderStore(),
+            aiService: AIService(
+                providerConfiguration: providerStore,
+                registry: .live(eventReporter: eventReporter)
+            ),
             repository: ChatRepository(),
-            eventReporter: eventReporter,
-            clientResolver: { platform in
-                switch platform {
-                case .openAI:
-                    OpenAIClient(eventReporter: eventReporter)
-                case .zaiInternational:
-                    ZAIClient(region: .international, eventReporter: eventReporter)
-                case .zhipuChina:
-                    ZAIClient(region: .china, eventReporter: eventReporter)
-                }
-            }
+            eventReporter: eventReporter
         )
     }
 
     init(
-        providerStore: any ProviderConfigurationProviding,
+        aiService: any AIServiceProviding,
         repository: ChatRepository,
-        eventReporter: any ImportEventReporting = OSLogImportEventReporter(),
-        clientResolver: @escaping ClientResolver
+        eventReporter: any ImportEventReporting = OSLogImportEventReporter()
     ) {
-        self.providerStore = providerStore
+        self.aiService = aiService
         self.repository = repository
         self.eventReporter = eventReporter
-        self.clientResolver = clientResolver
     }
 
     func process(
@@ -78,17 +78,15 @@ final class ScreenshotImportCoordinator {
         traceID: ImportTraceID = ImportTraceID()
     ) async throws -> ScreenshotImportOutcome {
         eventReporter.record(.stageStarted(traceID: traceID, stage: .shortcut))
-        guard let activeProvider = providerStore.activeProvider else {
-            eventReporter.record(.importFailed(traceID: traceID, stage: .shortcut, errorCode: "no_provider"))
-            throw ScreenshotImportError.noActiveProvider
-        }
-        guard let apiKey = providerStore.savedAPIKey(for: activeProvider.platform), !apiKey.isEmpty else {
-            eventReporter.record(.importFailed(traceID: traceID, stage: .shortcut, errorCode: "missing_api_key"))
-            throw ScreenshotImportError.missingAPIKey
-        }
-        guard let client = clientResolver(activeProvider.platform) else {
-            eventReporter.record(.importFailed(traceID: traceID, stage: .shortcut, errorCode: "unsupported_provider"))
-            throw ScreenshotImportError.unsupportedProvider
+        let providerContext: AIProviderExecutionContext
+        do {
+            providerContext = try aiService.activeContext(requiring: .screenshotAnalysis)
+        } catch let error as AIServiceError {
+            let importError = ScreenshotImportError(error)
+            eventReporter.record(
+                .importFailed(traceID: traceID, stage: .shortcut, errorCode: importError.code)
+            )
+            throw importError
         }
 
         try repository.seedIfNeeded()
@@ -101,10 +99,9 @@ final class ScreenshotImportCoordinator {
         eventReporter.record(.stageStarted(traceID: traceID, stage: .provider))
         let analysis: ChatImportAnalysis
         do {
-            let providerAnalysis = try await client.analyzeChatScreenshot(
+            let providerAnalysis = try await aiService.analyzeChatScreenshot(
                 request,
-                apiKey: apiKey,
-                model: activeProvider.model
+                using: providerContext
             )
             analysis = try ChatImportAnalysisDecoder.validate(
                 providerAnalysis,
@@ -113,7 +110,7 @@ final class ScreenshotImportCoordinator {
         } catch let failure as StructuredOutputFailure {
             let error = ProviderConnectionError.structuredOutput(
                 ProviderStructuredOutputError(
-                    provider: activeProvider.platform.rawValue,
+                    provider: providerContext.platform.rawValue,
                     traceID: traceID,
                     failure: failure
                 )
@@ -126,6 +123,16 @@ final class ScreenshotImportCoordinator {
                 )
             )
             throw error
+        } catch let error as AIServiceError {
+            let importError = ScreenshotImportError(error)
+            eventReporter.record(
+                .importFailed(
+                    traceID: traceID,
+                    stage: .provider,
+                    errorCode: importError.code
+                )
+            )
+            throw importError
         } catch let error as ProviderConnectionError {
             eventReporter.record(
                 .importFailed(
@@ -159,8 +166,8 @@ final class ScreenshotImportCoordinator {
                 confirmedChatID: matchDecision.confirmedChatID,
                 matchDecision: matchDecision,
                 avatarArtifact: avatarArtifact,
-                provider: activeProvider.platform,
-                model: activeProvider.model,
+                provider: providerContext.platform,
+                model: providerContext.effectiveModel,
                 traceID: traceID
             )
             eventReporter.record(

@@ -4,15 +4,30 @@ import XCTest
 @testable import zeptly
 
 final class ProviderStoreTests: XCTestCase {
+    @MainActor
     func testVisionTiersResolveToEquivalentReplyModels() {
-        XCTAssertEqual(ProviderModel.gpt54Mini.suggestedReplyModel, .gpt54Mini)
-        XCTAssertEqual(ProviderModel.gpt54.suggestedReplyModel, .gpt54)
-        XCTAssertEqual(ProviderModel.gpt55.suggestedReplyModel, .gpt55)
-        XCTAssertEqual(ProviderModel.glm46VFlashX.suggestedReplyModel, .glm47FlashX)
-        XCTAssertEqual(ProviderModel.glm46VFlash.suggestedReplyModel, .glm47Flash)
-        XCTAssertEqual(ProviderModel.glm46V.suggestedReplyModel, .glm47)
-        XCTAssertTrue(ProviderModel.glm47.isSupported(by: .zaiInternational))
-        XCTAssertFalse(ProviderPlatform.zaiInternational.supportedModels.contains(.glm47))
+        let registry = AIProviderRegistry.live()
+        XCTAssertEqual(
+            registry.profile(for: .openAI, selectedModel: .gpt54Mini)?.suggestedReplyModel,
+            .gpt54Mini
+        )
+        XCTAssertEqual(
+            registry.profile(for: .openAI, selectedModel: .gpt55)?.screenshotAnalysisModel,
+            .gpt55
+        )
+        XCTAssertEqual(
+            registry.profile(for: .zaiInternational, selectedModel: .glm46VFlashX)?.suggestedReplyModel,
+            .glm47FlashX
+        )
+        XCTAssertEqual(
+            registry.profile(for: .zhipuChina, selectedModel: .glm46VFlash)?.suggestedReplyModel,
+            .glm47Flash
+        )
+        XCTAssertEqual(
+            registry.profile(for: .zhipuChina, selectedModel: .glm46V)?.suggestedReplyModel,
+            .glm47
+        )
+        XCTAssertNil(registry.profile(for: .zaiInternational, selectedModel: .glm47))
     }
 
     @MainActor
@@ -30,7 +45,7 @@ final class ProviderStoreTests: XCTestCase {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         try saveProviders(makeProviders(), to: defaults)
-        let store = ProviderStore(userDefaults: defaults, validators: [:])
+        let store = ProviderStore(userDefaults: defaults)
 
         store.setModel(.glm46V, for: .zaiInternational)
         XCTAssertEqual(
@@ -65,7 +80,7 @@ final class ProviderStoreTests: XCTestCase {
         try saveProviders(makeProviders(), to: defaults)
         defaults.set("zaiInternational", forKey: ProviderStoreTestKey.activePlatform)
 
-        let store = ProviderStore(userDefaults: defaults, validators: [:])
+        let store = ProviderStore(userDefaults: defaults)
         XCTAssertEqual(store.activePlatform, .zaiInternational)
 
         store.activate(platform: .openAI)
@@ -74,7 +89,7 @@ final class ProviderStoreTests: XCTestCase {
         XCTAssertEqual(store.activeProvider?.platform, .openAI)
         XCTAssertEqual(defaults.string(forKey: ProviderStoreTestKey.activePlatform), "openAI")
 
-        let reloadedStore = ProviderStore(userDefaults: defaults, validators: [:])
+        let reloadedStore = ProviderStore(userDefaults: defaults)
         XCTAssertEqual(reloadedStore.activePlatform, .openAI)
         XCTAssertEqual(reloadedStore.activeProvider?.platform, .openAI)
     }
@@ -93,7 +108,7 @@ final class ProviderStoreTests: XCTestCase {
             try saveProviders([provider], to: defaults)
             defaults.set("retiredProvider", forKey: ProviderStoreTestKey.activePlatform)
 
-            let store = ProviderStore(userDefaults: defaults, validators: [:])
+            let store = ProviderStore(userDefaults: defaults)
 
             XCTAssertEqual(store.activePlatform, .openAI)
             XCTAssertEqual(defaults.string(forKey: ProviderStoreTestKey.activePlatform), "openAI")
@@ -104,7 +119,7 @@ final class ProviderStoreTests: XCTestCase {
             defer { defaults.removePersistentDomain(forName: suiteName) }
             defaults.set("openAI", forKey: ProviderStoreTestKey.activePlatform)
 
-            let store = ProviderStore(userDefaults: defaults, validators: [:])
+            let store = ProviderStore(userDefaults: defaults)
 
             XCTAssertNil(store.activePlatform)
             XCTAssertNil(store.activeProvider)

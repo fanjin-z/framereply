@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct OpenAIClient: AIProviderClient, SuggestedReplyGenerating {
+struct OpenAIClient: AIProviderAdapter {
     private let baseURL = URL(string: "https://api.openai.com/v1")!
     private let session: URLSession
     private let eventReporter: any ImportEventReporting
@@ -19,8 +19,19 @@ struct OpenAIClient: AIProviderClient, SuggestedReplyGenerating {
         self.eventReporter = eventReporter
     }
 
+    var platform: ProviderPlatform { .openAI }
+
+    func modelProfile(for selectedModel: ProviderModel) -> ProviderModelProfile? {
+        guard Self.supportedModels.contains(selectedModel) else { return nil }
+        return ProviderModelProfile(
+            selectedModel: selectedModel,
+            screenshotAnalysisModel: selectedModel,
+            suggestedReplyModel: selectedModel
+        )
+    }
+
     func validate(apiKey: String, model: ProviderModel) async throws {
-        guard model.isSupported(by: .openAI) else {
+        guard Self.supportedModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
         var request = URLRequest(url: baseURL.appending(path: "responses"))
@@ -60,7 +71,7 @@ struct OpenAIClient: AIProviderClient, SuggestedReplyGenerating {
         apiKey: String,
         model: ProviderModel
     ) async throws -> ChatImportAnalysis {
-        guard model.isSupported(by: .openAI) else {
+        guard Self.supportedModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
         let image = try ScreenshotImagePayload(data: analysisRequest.imageData)
@@ -220,7 +231,7 @@ struct OpenAIClient: AIProviderClient, SuggestedReplyGenerating {
         apiKey: String,
         model: ProviderModel
     ) async throws -> SuggestedReplyGenerationResult {
-        guard model.isSupported(by: .openAI) else {
+        guard Self.supportedModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
         let maxTokens = 1_600
@@ -313,6 +324,8 @@ struct OpenAIClient: AIProviderClient, SuggestedReplyGenerating {
             )
         }
     }
+
+    private static let supportedModels: Set<ProviderModel> = [.gpt54Mini, .gpt54, .gpt55]
 
     private func summaryFallback(for request: SuggestedReplyGenerationRequest) -> String? {
         if request.summaryMode == .unchanged {

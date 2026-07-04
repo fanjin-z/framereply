@@ -1,6 +1,6 @@
 import Foundation
 
-struct ZAIClient: AIProviderClient, SuggestedReplyGenerating {
+struct ZAIClient: AIProviderAdapter {
     enum Region: Sendable {
         case international
         case china
@@ -38,8 +38,29 @@ struct ZAIClient: AIProviderClient, SuggestedReplyGenerating {
         self.eventReporter = eventReporter
     }
 
+    var platform: ProviderPlatform { region.platform }
+
+    func modelProfile(for selectedModel: ProviderModel) -> ProviderModelProfile? {
+        let replyModel: ProviderModel
+        switch selectedModel {
+        case .glm46VFlashX:
+            replyModel = .glm47FlashX
+        case .glm46VFlash:
+            replyModel = .glm47Flash
+        case .glm46V:
+            replyModel = .glm47
+        default:
+            return nil
+        }
+        return ProviderModelProfile(
+            selectedModel: selectedModel,
+            screenshotAnalysisModel: selectedModel,
+            suggestedReplyModel: replyModel
+        )
+    }
+
     func validate(apiKey: String, model: ProviderModel) async throws {
-        guard model.isSupported(by: region.platform) else {
+        guard Self.supportedModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
 
@@ -73,7 +94,7 @@ struct ZAIClient: AIProviderClient, SuggestedReplyGenerating {
         apiKey: String,
         model: ProviderModel
     ) async throws -> ChatImportAnalysis {
-        guard model.isSupported(by: region.platform) else {
+        guard Self.visionModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
         let image = try ScreenshotImagePayload(data: analysisRequest.imageData)
@@ -111,7 +132,7 @@ struct ZAIClient: AIProviderClient, SuggestedReplyGenerating {
                 "do_sample": false,
                 "stream": false
             ]
-            if model.supportsZAIJSONResponseFormat {
+            if supportsJSONResponseFormat(model) {
                 body["response_format"] = ["type": "json_object"]
             }
             var request = authorizedRequest(apiKey: apiKey)
@@ -208,7 +229,7 @@ struct ZAIClient: AIProviderClient, SuggestedReplyGenerating {
         apiKey: String,
         model: ProviderModel
     ) async throws -> SuggestedReplyGenerationResult {
-        guard model.isSupported(by: region.platform) else {
+        guard Self.textModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
 
@@ -237,7 +258,7 @@ struct ZAIClient: AIProviderClient, SuggestedReplyGenerating {
                 "do_sample": false,
                 "stream": false
             ]
-            if model.supportsZAIJSONResponseFormat {
+            if supportsJSONResponseFormat(model) {
                 body["response_format"] = ["type": "json_object"]
             }
             var request = authorizedRequest(apiKey: apiKey)
@@ -309,6 +330,18 @@ struct ZAIClient: AIProviderClient, SuggestedReplyGenerating {
         }
         return request.olderMessagesToSummarize.isEmpty ? "" : nil
     }
+
+    private func supportsJSONResponseFormat(_ model: ProviderModel) -> Bool {
+        Self.textModels.contains(model)
+    }
+
+    private static let visionModels: Set<ProviderModel> = [
+        .glm46VFlashX, .glm46VFlash, .glm46V
+    ]
+    private static let textModels: Set<ProviderModel> = [
+        .glm47FlashX, .glm47Flash, .glm47
+    ]
+    private static let supportedModels = visionModels.union(textModels)
 
     private func authorizedRequest(apiKey: String) -> URLRequest {
         var request = URLRequest(url: region.baseURL.appending(path: "chat/completions"))

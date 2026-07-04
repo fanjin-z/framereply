@@ -17,8 +17,6 @@ protocol ChatScreenshotAnalyzing {
     ) async throws -> ChatImportAnalysis
 }
 
-protocol AIProviderClient: ProviderValidator, ChatScreenshotAnalyzing {}
-
 nonisolated struct ProviderInvalidRequestError: Error, Equatable, Sendable {
     let provider: String
     let httpStatus: Int

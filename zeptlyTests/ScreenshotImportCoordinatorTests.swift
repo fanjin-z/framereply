@@ -23,7 +23,6 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
                 isOnline: false
             )
         )
-        let credentials = StubProviderConfiguration()
         let analysis = ChatImportAnalysis(
             conversationTitle: "Sarah Jenkins",
             messages: [
@@ -65,12 +64,11 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             )
         )
         let reporter = CoordinatorEventReporter()
-        let client = StubAnalysisClient(analysis: analysis)
+        let aiService = StubAnalysisService(analysis: analysis)
         let coordinator = ScreenshotImportCoordinator(
-            providerStore: credentials,
+            aiService: aiService,
             repository: repository,
-            eventReporter: reporter,
-            clientResolver: { _ in client }
+            eventReporter: reporter
         )
 
         let traceID = ImportTraceID(
@@ -87,7 +85,8 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         XCTAssertEqual(outcome.diagnosticID, "12345678")
         XCTAssertEqual(outcome.insertedMessageCount, 3)
         XCTAssertFalse(outcome.reviewRequired)
-        XCTAssertEqual(client.receivedImageData, imageData)
+        XCTAssertEqual(aiService.receivedImageData, imageData)
+        XCTAssertEqual(aiService.receivedContext?.effectiveModel, .gpt54Mini)
         let messages = try repository.messages(chatID: "sarah-jenkins")
         XCTAssertTrue(messages.contains { $0.text == "A newly imported reply" && $0.senderKind == "user" })
         XCTAssertTrue(messages.contains { $0.text == "你好，很高兴认识你" && $0.senderKind == "contact" })
@@ -117,36 +116,48 @@ private final class CoordinatorEventReporter: ImportEventReporting, @unchecked S
 }
 
 @MainActor
-private final class StubProviderConfiguration: ProviderConfigurationProviding {
-    let activeProvider: ProviderConnection? = ProviderConnection(
-        platform: .openAI,
-        model: .gpt54Mini,
-        lastValidatedAt: Date(),
-        validationState: .connected
-    )
-
-    func savedAPIKey(for platform: ProviderPlatform) -> String? {
-        "test-key"
-    }
-}
-
-@MainActor
-private final class StubAnalysisClient: AIProviderClient {
+private final class StubAnalysisService: AIServiceProviding {
     let analysis: ChatImportAnalysis
     private(set) var receivedImageData: Data?
+    private(set) var receivedContext: AIProviderExecutionContext?
+
+    private let context = AIProviderExecutionContext(
+        platform: .openAI,
+        profile: ProviderModelProfile(
+            selectedModel: .gpt54Mini,
+            screenshotAnalysisModel: .gpt54Mini,
+            suggestedReplyModel: .gpt54Mini
+        ),
+        capability: .screenshotAnalysis,
+        effectiveModel: .gpt54Mini
+    )
 
     init(analysis: ChatImportAnalysis) {
         self.analysis = analysis
     }
 
-    func validate(apiKey: String, model: ProviderModel) async throws {}
+    func activeContext(
+        requiring capability: AIProviderCapability
+    ) throws -> AIProviderExecutionContext {
+        guard capability == .screenshotAnalysis else {
+            throw AIServiceError.unsupportedCapability
+        }
+        return context
+    }
 
     func analyzeChatScreenshot(
         _ request: ChatScreenshotAnalysisRequest,
-        apiKey: String,
-        model: ProviderModel
+        using context: AIProviderExecutionContext
     ) async throws -> ChatImportAnalysis {
         receivedImageData = request.imageData
+        receivedContext = context
         return analysis
+    }
+
+    func generateSuggestedReplies(
+        _ request: SuggestedReplyGenerationRequest,
+        using context: AIProviderExecutionContext
+    ) async throws -> SuggestedReplyGenerationResult {
+        throw AIServiceError.unsupportedCapability
     }
 }

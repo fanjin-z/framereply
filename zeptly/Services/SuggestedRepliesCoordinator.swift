@@ -46,17 +46,25 @@ nonisolated enum SuggestedRepliesError: LocalizedError, Sendable {
         case .invalidProviderResponse: "reply_schema_mismatch"
         }
     }
+
+    init(_ error: AIServiceError) {
+        switch error {
+        case .noActiveProvider:
+            self = .noActiveProvider
+        case .missingAPIKey:
+            self = .missingAPIKey
+        case .unsupportedProvider, .unsupportedCapability:
+            self = .unsupportedProvider
+        }
+    }
 }
 
 @MainActor
 final class SuggestedRepliesCoordinator {
-    typealias ClientResolver = (ProviderPlatform) -> (any SuggestedReplyGenerating)?
-
     static let recentMessageLimit = 20
 
-    private let providerStore: any ProviderConfigurationProviding
+    private let aiService: any AIServiceProviding
     private let repository: ChatRepository
-    private let clientResolver: ClientResolver
 
     convenience init() {
         self.init(providerStore: ProviderStore())
@@ -64,20 +72,17 @@ final class SuggestedRepliesCoordinator {
 
     convenience init(providerStore: any ProviderConfigurationProviding) {
         self.init(
-            providerStore: providerStore,
-            repository: ChatRepository(),
-            clientResolver: Self.defaultClient(for:)
+            aiService: AIService(providerConfiguration: providerStore),
+            repository: ChatRepository()
         )
     }
 
     init(
-        providerStore: any ProviderConfigurationProviding,
-        repository: ChatRepository,
-        clientResolver: @escaping ClientResolver
+        aiService: any AIServiceProviding,
+        repository: ChatRepository
     ) {
-        self.providerStore = providerStore
+        self.aiService = aiService
         self.repository = repository
-        self.clientResolver = clientResolver
     }
 
     func generate(
@@ -85,14 +90,11 @@ final class SuggestedRepliesCoordinator {
         force: Bool = false,
         traceID: ImportTraceID = ImportTraceID()
     ) async throws -> SuggestedRepliesOutcome {
-        guard let activeProvider = providerStore.activeProvider else {
-            throw SuggestedRepliesError.noActiveProvider
-        }
-        guard let apiKey = providerStore.savedAPIKey(for: activeProvider.platform), !apiKey.isEmpty else {
-            throw SuggestedRepliesError.missingAPIKey
-        }
-        guard let client = clientResolver(activeProvider.platform) else {
-            throw SuggestedRepliesError.unsupportedProvider
+        let providerContext: AIProviderExecutionContext
+        do {
+            providerContext = try aiService.activeContext(requiring: .suggestedReplies)
+        } catch let error as AIServiceError {
+            throw SuggestedRepliesError(error)
         }
         guard let chat = try repository.chat(id: chatID) else {
             throw SuggestedRepliesError.chatNotFound
@@ -105,12 +107,12 @@ final class SuggestedRepliesCoordinator {
 
         let contactContext = try repository.contactContext(chatID: chatID)?.value ?? .empty
         let cache = try repository.suggestedReplyCache(chatID: chatID)
-        let replyModel = activeProvider.model.suggestedReplyModel
+        let replyModel = providerContext.effectiveModel
         let inputFingerprint = fingerprint(
             chatName: chat.name,
             messages: messages,
             contactContext: contactContext,
-            provider: activeProvider.platform,
+            provider: providerContext.platform,
             model: replyModel
         )
 
@@ -146,11 +148,12 @@ final class SuggestedRepliesCoordinator {
 
         let generated: SuggestedReplyGenerationResult
         do {
-            generated = try await client.generateSuggestedReplies(
+            generated = try await aiService.generateSuggestedReplies(
                 request,
-                apiKey: apiKey,
-                model: replyModel
+                using: providerContext
             )
+        } catch let error as AIServiceError {
+            throw SuggestedRepliesError(error)
         } catch let error as ProviderConnectionError {
             if case .structuredOutput = error {
                 throw SuggestedRepliesError.invalidProviderResponse
@@ -161,8 +164,7 @@ final class SuggestedRepliesCoordinator {
         guard try inputIsCurrent(
             chatID: chatID,
             expectedFingerprint: inputFingerprint,
-            provider: activeProvider.platform,
-            model: replyModel
+            providerContext: providerContext
         ) else {
             throw CancellationError()
         }
@@ -182,7 +184,7 @@ final class SuggestedRepliesCoordinator {
             summarizedPrefixFingerprint: messageFingerprint(olderMessages),
             replies: generated.replies,
             inputFingerprint: inputFingerprint,
-            provider: activeProvider.platform,
+            provider: providerContext.platform,
             model: replyModel,
             promptVersion: SuggestedReplyPrompt.version
         )
@@ -263,12 +265,10 @@ final class SuggestedRepliesCoordinator {
     private func inputIsCurrent(
         chatID: String,
         expectedFingerprint: String,
-        provider: ProviderPlatform,
-        model: ProviderModel
+        providerContext: AIProviderExecutionContext
     ) throws -> Bool {
-        guard let activeProvider = providerStore.activeProvider,
-            activeProvider.platform == provider,
-            activeProvider.model.suggestedReplyModel == model,
+        guard let currentContext = try? aiService.activeContext(requiring: .suggestedReplies),
+            currentContext == providerContext,
             let chat = try repository.chat(id: chatID)
         else {
             return false
@@ -279,8 +279,8 @@ final class SuggestedRepliesCoordinator {
             chatName: chat.name,
             messages: messages,
             contactContext: context,
-            provider: provider,
-            model: model
+            provider: providerContext.platform,
+            model: providerContext.effectiveModel
         ) == expectedFingerprint
     }
 
@@ -304,14 +304,4 @@ final class SuggestedRepliesCoordinator {
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
-    private static func defaultClient(for platform: ProviderPlatform) -> (any SuggestedReplyGenerating)? {
-        switch platform {
-        case .openAI:
-            OpenAIClient()
-        case .zaiInternational:
-            ZAIClient(region: .international)
-        case .zhipuChina:
-            ZAIClient(region: .china)
-        }
-    }
 }

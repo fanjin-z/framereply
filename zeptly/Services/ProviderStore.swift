@@ -21,7 +21,7 @@ final class ProviderStore: ObservableObject {
 
     private let userDefaults: UserDefaults
     private let keychain: KeychainStore
-    private let validators: [ProviderPlatform: any ProviderValidator]
+    private let registry: AIProviderRegistry
     private let providersKey = "zeptly.providerConnections.v1"
     private let activePlatformKey = "zeptly.activeProviderPlatform.v1"
 
@@ -32,18 +32,19 @@ final class ProviderStore: ObservableObject {
         return providers.first { $0.platform == activePlatform }
     }
 
-    init(
-        userDefaults: UserDefaults = .standard,
-        validators: [ProviderPlatform: any ProviderValidator]? = nil
-    ) {
+    convenience init(userDefaults: UserDefaults = .standard) {
+        self.init(userDefaults: userDefaults, registry: .live())
+    }
+
+    init(userDefaults: UserDefaults, registry: AIProviderRegistry) {
         self.userDefaults = userDefaults
         keychain = KeychainStore()
-        self.validators = validators ?? [
-            .openAI: OpenAIClient(),
-            .zaiInternational: ZAIClient(region: .international),
-            .zhipuChina: ZAIClient(region: .china)
-        ]
-        let loadedProviders = Self.loadProviders(from: userDefaults, key: providersKey)
+        self.registry = registry
+        let loadedProviders = Self.loadProviders(
+            from: userDefaults,
+            key: providersKey,
+            registry: registry
+        )
         providers = loadedProviders
         activePlatform = Self.loadActivePlatform(
             from: userDefaults,
@@ -55,7 +56,7 @@ final class ProviderStore: ObservableObject {
     }
 
     func connect(platform: ProviderPlatform, model: ProviderModel, apiKey: String) async throws {
-        guard platform.isConnectable, platform.supportedModels.contains(model) else {
+        guard platform.isConnectable, registry.profile(for: platform, selectedModel: model) != nil else {
             throw ProviderConnectionError.unsupportedProvider
         }
 
@@ -64,10 +65,15 @@ final class ProviderStore: ObservableObject {
             throw ProviderConnectionError.missingAPIKey
         }
 
-        guard let validator = validators[platform] else {
+        do {
+            try await AIService(registry: registry).validate(
+                platform: platform,
+                selectedModel: model,
+                apiKey: trimmedKey
+            )
+        } catch is AIServiceError {
             throw ProviderConnectionError.unsupportedProvider
         }
-        try await validator.validate(apiKey: trimmedKey, model: model)
 
         do {
             try keychain.set(trimmedKey, for: keychainAccount(for: platform))
@@ -94,7 +100,7 @@ final class ProviderStore: ObservableObject {
 
     func setModel(_ model: ProviderModel, for platform: ProviderPlatform) {
         guard
-            platform.supportedModels.contains(model),
+            registry.profile(for: platform, selectedModel: model) != nil,
             let index = providers.firstIndex(where: { $0.platform == platform })
         else {
             return
@@ -138,7 +144,11 @@ final class ProviderStore: ObservableObject {
         }
     }
 
-    private static func loadProviders(from userDefaults: UserDefaults, key: String) -> [ProviderConnection] {
+    private static func loadProviders(
+        from userDefaults: UserDefaults,
+        key: String,
+        registry: AIProviderRegistry
+    ) -> [ProviderConnection] {
         guard let data = userDefaults.data(forKey: key) else {
             return []
         }
@@ -147,7 +157,10 @@ final class ProviderStore: ObservableObject {
             return try JSONDecoder().decode([ProviderConnection].self, from: data)
                 .filter { provider in
                     provider.platform.isConnectable
-                        && provider.platform.supportedModels.contains(provider.model)
+                        && registry.profile(
+                            for: provider.platform,
+                            selectedModel: provider.model
+                        ) != nil
                 }
         } catch {
             return []

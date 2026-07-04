@@ -108,39 +108,6 @@ enum ProviderModel: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    func isSupported(by platform: ProviderPlatform) -> Bool {
-        switch platform {
-        case .openAI:
-            return self == .gpt54Mini || self == .gpt54 || self == .gpt55
-        case .zaiInternational, .zhipuChina:
-            return [.glm46VFlashX, .glm46VFlash, .glm46V, .glm47FlashX, .glm47Flash, .glm47].contains(self)
-        }
-    }
-
-    var suggestedReplyModel: ProviderModel {
-        switch self {
-        case .glm46VFlashX:
-            .glm47FlashX
-        case .glm46VFlash:
-            .glm47Flash
-        case .glm46V:
-            .glm47
-        default:
-            self
-        }
-    }
-
-    /// Z.ai's `response_format` JSON mode is a text-model capability. The
-    /// GLM-4.6V family can still produce JSON when instructed, but rejects the
-    /// API parameter on endpoints that do not expose structured output for VLMs.
-    var supportsZAIJSONResponseFormat: Bool {
-        switch self {
-        case .glm47FlashX, .glm47Flash, .glm47:
-            true
-        default:
-            false
-        }
-    }
 }
 
 enum ProviderValidationState: String, Codable {

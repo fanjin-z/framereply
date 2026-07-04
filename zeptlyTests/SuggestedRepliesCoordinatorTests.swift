@@ -25,12 +25,10 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         }
         try container.mainContext.save()
 
-        let provider = ReplyProviderConfiguration()
-        let client = StubReplyGenerator()
+        let client = StubReplyService()
         let coordinator = SuggestedRepliesCoordinator(
-            providerStore: provider,
-            repository: repository,
-            clientResolver: { _ in client }
+            aiService: client,
+            repository: repository
         )
 
         let first = try await coordinator.generate(chatID: chatID)
@@ -71,11 +69,10 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         }
         try container.mainContext.save()
 
-        let client = StubReplyGenerator()
+        let client = StubReplyService()
         let coordinator = SuggestedRepliesCoordinator(
-            providerStore: ReplyProviderConfiguration(),
-            repository: repository,
-            clientResolver: { _ in client }
+            aiService: client,
+            repository: repository
         )
         _ = try await coordinator.generate(chatID: chatID)
 
@@ -98,14 +95,17 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
         try container.mainContext.save()
 
-        let client = MutatingReplyGenerator {
+        let client = StubReplyService { request in
             container.mainContext.insert(self.makeMessage(chatID: chatID, index: 1))
             try! container.mainContext.save()
+            return SuggestedReplyGenerationResult(
+                historySummary: request.existingHistorySummary,
+                replies: ["First", "Second"]
+            )
         }
         let coordinator = SuggestedRepliesCoordinator(
-            providerStore: ReplyProviderConfiguration(),
-            repository: repository,
-            clientResolver: { _ in client }
+            aiService: client,
+            repository: repository
         )
 
         do {
@@ -126,11 +126,16 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
         try container.mainContext.save()
 
-        let coordinator = SuggestedRepliesCoordinator(
-            providerStore: ReplyProviderConfiguration(),
-            repository: repository,
-            clientResolver: { _ in StructuredFailureReplyGenerator() }
-        )
+        let client = StubReplyService { request in
+            throw ProviderConnectionError.structuredOutput(
+                ProviderStructuredOutputError(
+                    provider: "test",
+                    traceID: request.traceID,
+                    failure: StructuredOutputFailure(kind: .schemaMismatch, codingPath: "replies")
+                )
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(aiService: client, repository: repository)
 
         do {
             _ = try await coordinator.generate(chatID: chatID)
@@ -139,6 +144,34 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
             XCTAssertEqual(error.code, "reply_schema_mismatch")
             XCTAssertTrue(error.localizedDescription.contains("generate replies"))
         }
+    }
+
+    @MainActor
+    func testSwitchingProviderInvalidatesReplyCacheWithoutChangingCoordinator() async throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "provider-switch-chat"
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
+        try container.mainContext.save()
+
+        let service = StubReplyService()
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+        _ = try await coordinator.generate(chatID: chatID)
+        XCTAssertEqual(
+            (try repository.suggestedReplyCache(chatID: chatID))?.provider,
+            ProviderPlatform.zaiInternational.rawValue
+        )
+
+        service.context = .zhipuDefaultReplies
+        _ = try await coordinator.generate(chatID: chatID)
+
+        XCTAssertEqual(service.requests.count, 2)
+        XCTAssertEqual(
+            (try repository.suggestedReplyCache(chatID: chatID))?.provider,
+            ProviderPlatform.zhipuChina.rawValue
+        )
+        XCTAssertEqual(service.models, [.glm47FlashX, .glm47FlashX])
     }
 
     @MainActor
@@ -173,30 +206,47 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
 }
 
 @MainActor
-private final class ReplyProviderConfiguration: ProviderConfigurationProviding {
-    let activeProvider: ProviderConnection? = ProviderConnection(
-        platform: .zaiInternational,
-        model: .glm46VFlashX,
-        lastValidatedAt: Date(),
-        validationState: .connected
-    )
+private final class StubReplyService: AIServiceProviding {
+    typealias Handler = (SuggestedReplyGenerationRequest) throws -> SuggestedReplyGenerationResult
 
-    func savedAPIKey(for platform: ProviderPlatform) -> String? {
-        "test-key"
-    }
-}
-
-private final class StubReplyGenerator: SuggestedReplyGenerating, @unchecked Sendable {
     private(set) var requests: [SuggestedReplyGenerationRequest] = []
     private(set) var models: [ProviderModel] = []
+    var context: AIProviderExecutionContext
+    private let handler: Handler?
+
+    init(
+        context: AIProviderExecutionContext = .zaiDefaultReplies,
+        handler: Handler? = nil
+    ) {
+        self.context = context
+        self.handler = handler
+    }
+
+    func activeContext(
+        requiring capability: AIProviderCapability
+    ) throws -> AIProviderExecutionContext {
+        guard capability == context.capability else {
+            throw AIServiceError.unsupportedCapability
+        }
+        return context
+    }
+
+    func analyzeChatScreenshot(
+        _ request: ChatScreenshotAnalysisRequest,
+        using context: AIProviderExecutionContext
+    ) async throws -> ChatImportAnalysis {
+        throw AIServiceError.unsupportedCapability
+    }
 
     func generateSuggestedReplies(
         _ request: SuggestedReplyGenerationRequest,
-        apiKey: String,
-        model: ProviderModel
+        using context: AIProviderExecutionContext
     ) async throws -> SuggestedReplyGenerationResult {
         requests.append(request)
-        models.append(model)
+        models.append(context.effectiveModel)
+        if let handler {
+            return try handler(request)
+        }
         let summary: String
         if let last = request.olderMessagesToSummarize.last {
             summary = "Summary through \(last.text)"
@@ -210,38 +260,30 @@ private final class StubReplyGenerator: SuggestedReplyGenerating, @unchecked Sen
     }
 }
 
-private final class MutatingReplyGenerator: SuggestedReplyGenerating {
-    let mutate: () -> Void
-
-    init(mutate: @escaping () -> Void) {
-        self.mutate = mutate
-    }
-
-    func generateSuggestedReplies(
-        _ request: SuggestedReplyGenerationRequest,
-        apiKey: String,
-        model: ProviderModel
-    ) async throws -> SuggestedReplyGenerationResult {
-        mutate()
-        return SuggestedReplyGenerationResult(
-            historySummary: request.existingHistorySummary,
-            replies: ["First", "Second"]
+private extension AIProviderExecutionContext {
+    static var zaiDefaultReplies: AIProviderExecutionContext {
+        AIProviderExecutionContext(
+            platform: .zaiInternational,
+            profile: ProviderModelProfile(
+                selectedModel: .glm46VFlashX,
+                screenshotAnalysisModel: .glm46VFlashX,
+                suggestedReplyModel: .glm47FlashX
+            ),
+            capability: .suggestedReplies,
+            effectiveModel: .glm47FlashX
         )
     }
-}
 
-private final class StructuredFailureReplyGenerator: SuggestedReplyGenerating {
-    func generateSuggestedReplies(
-        _ request: SuggestedReplyGenerationRequest,
-        apiKey: String,
-        model: ProviderModel
-    ) async throws -> SuggestedReplyGenerationResult {
-        throw ProviderConnectionError.structuredOutput(
-            ProviderStructuredOutputError(
-                provider: "test",
-                traceID: request.traceID,
-                failure: StructuredOutputFailure(kind: .schemaMismatch, codingPath: "replies")
-            )
+    static var zhipuDefaultReplies: AIProviderExecutionContext {
+        AIProviderExecutionContext(
+            platform: .zhipuChina,
+            profile: ProviderModelProfile(
+                selectedModel: .glm46VFlashX,
+                screenshotAnalysisModel: .glm46VFlashX,
+                suggestedReplyModel: .glm47FlashX
+            ),
+            capability: .suggestedReplies,
+            effectiveModel: .glm47FlashX
         )
     }
 }
