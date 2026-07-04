@@ -165,14 +165,14 @@ nonisolated enum ShortcutResponseBuilder {
 }
 
 struct ProcessScreenshotIntent: AppIntent {
-    static let title: LocalizedStringResource = "Process Screenshot"
+    static let title: LocalizedStringResource = "Process Chat Screenshot"
     static let description = IntentDescription(
-        "Extract chat messages from a screenshot, merge them into Zeptly history, and return suggested replies in a JSON result.")
+        "Adds visible messages to Zeptly and suggests two replies. The screenshot itself isn't saved.")
     static let openAppWhenRun = false
 
     @Parameter(
         title: "Screenshot",
-        description: "Pass the output from Take Screenshot or Get Clipboard.",
+        description: "Pass an image, such as the output from Take Screenshot or Get Clipboard.",
         supportedContentTypes: [.image],
         inputConnectionBehavior: .connectToPreviousIntentResult
     )
@@ -282,10 +282,10 @@ struct ZeptlyShortcutsProvider: AppShortcutsProvider {
         AppShortcut(
             intent: ProcessScreenshotIntent(),
             phrases: [
-                "Process screenshot in \(.applicationName)",
-                "Run screenshot processor in \(.applicationName)"
+                "Process chat screenshot in \(.applicationName)",
+                "Process my chat screenshot with \(.applicationName)"
             ],
-            shortTitle: "Process Screenshot",
+            shortTitle: "Process Chat Screenshot",
             systemImageName: "photo.on.rectangle.angled"
         )
     }

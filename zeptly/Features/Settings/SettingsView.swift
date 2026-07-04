@@ -56,6 +56,8 @@ struct SettingsView: View {
                         .foregroundStyle(RezplyColor.outline)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+
+                shortcutSection
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 94)
@@ -147,6 +149,88 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private var shortcutSection: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(spacing: 10) {
+                Image(systemName: "camera.viewfinder")
+                    .font(.system(size: 20, weight: .medium))
+                Text("Screenshot Shortcut")
+                    .font(.system(size: 21, weight: .bold, design: .rounded))
+            }
+            .foregroundStyle(RezplyColor.primary)
+
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(alignment: .top, spacing: 14) {
+                    Circle()
+                        .fill(Color.white.opacity(0.78))
+                        .frame(width: 42, height: 42)
+                        .shadow(color: RezplyColor.primaryContainer.opacity(0.18), radius: 12, x: 0, y: 8)
+                        .overlay {
+                            Image(systemName: "photo.badge.arrow.down")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundStyle(RezplyColor.primary)
+                        }
+
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text("Capture with Zeptly")
+                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                            .foregroundStyle(RezplyColor.onSurface)
+
+                        Text("Takes a screenshot, imports the visible chat, and shows two suggested replies.")
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(RezplyColor.onSurfaceVariant)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                shortcutInstallControl
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                RoundedRectangle(cornerRadius: 0)
+                    .fill(Color.white.opacity(0.42))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var shortcutInstallControl: some View {
+        if let installationURL = ScreenshotShortcutConfiguration.installationURL {
+            Link(destination: installationURL) {
+                shortcutInstallLabel(title: "Add Shortcut", symbol: "arrow.up.forward.app")
+            }
+            .buttonStyle(SoftPressButtonStyle())
+            .accessibilityHint("Opens the Capture with Zeptly shortcut preview")
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                Button(action: {}) {
+                    shortcutInstallLabel(title: "Add Shortcut", symbol: "arrow.up.forward.app")
+                }
+                .buttonStyle(SoftPressButtonStyle())
+                .disabled(true)
+
+                Text("The installer link has not been configured yet.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(RezplyColor.outline)
+            }
+        }
+    }
+
+    private func shortcutInstallLabel(title: String, symbol: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .bold))
+            Text(title)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 18)
+        .frame(minHeight: 44)
+        .background(RezplyColor.primary)
+        .clipShape(Capsule())
     }
 
     private var addProviderPopup: some View {
