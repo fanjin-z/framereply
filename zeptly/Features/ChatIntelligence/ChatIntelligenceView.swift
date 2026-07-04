@@ -107,8 +107,6 @@ struct ChatIntelligenceView: View {
                         }
                     )
 
-                    ChatContextChipPanel(chips: intelligence.contextChips)
-
                     RecentChatSection(
                         messages: latestMessages,
                         onHistoryTap: {
