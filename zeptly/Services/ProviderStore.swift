@@ -55,7 +55,7 @@ final class ProviderStore: ObservableObject {
     }
 
     func connect(platform: ProviderPlatform, model: ProviderModel, apiKey: String) async throws {
-        guard platform.isConnectable, model.isSupported(by: platform) else {
+        guard platform.isConnectable, platform.supportedModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
 
@@ -94,7 +94,7 @@ final class ProviderStore: ObservableObject {
 
     func setModel(_ model: ProviderModel, for platform: ProviderPlatform) {
         guard
-            model.isSupported(by: platform),
+            platform.supportedModels.contains(model),
             let index = providers.firstIndex(where: { $0.platform == platform })
         else {
             return
@@ -147,7 +147,7 @@ final class ProviderStore: ObservableObject {
             return try JSONDecoder().decode([ProviderConnection].self, from: data)
                 .filter { provider in
                     provider.platform.isConnectable
-                        && provider.model.isSupported(by: provider.platform)
+                        && provider.platform.supportedModels.contains(provider.model)
                 }
         } catch {
             return []

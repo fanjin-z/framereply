@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct OpenAIClient: AIProviderClient {
+struct OpenAIClient: AIProviderClient, SuggestedReplyGenerating {
     private let baseURL = URL(string: "https://api.openai.com/v1")!
     private let session: URLSession
     private let eventReporter: any ImportEventReporting
@@ -213,6 +213,112 @@ struct OpenAIClient: AIProviderClient {
                 )
             )
         }
+    }
+
+    func generateSuggestedReplies(
+        _ generationRequest: SuggestedReplyGenerationRequest,
+        apiKey: String,
+        model: ProviderModel
+    ) async throws -> SuggestedReplyGenerationResult {
+        guard model.isSupported(by: .openAI) else {
+            throw ProviderConnectionError.unsupportedProvider
+        }
+        let maxTokens = 1_600
+        eventReporter.record(
+            .providerAttempt(
+                traceID: generationRequest.traceID,
+                provider: "openai",
+                model: model.rawValue,
+                attempt: 1,
+                maxTokens: maxTokens
+            )
+        )
+
+        var request = URLRequest(url: baseURL.appending(path: "responses"))
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "model": model.rawValue,
+            "instructions": SuggestedReplyPrompt.instructions,
+            "input": [[
+                "role": "user",
+                "content": [[
+                    "type": "input_text",
+                    "text": SuggestedReplyPrompt.input(for: generationRequest)
+                ]]
+            ]],
+            "max_output_tokens": maxTokens,
+            "reasoning": ["effort": "none"],
+            "store": false,
+            "text": [
+                "verbosity": "low",
+                "format": [
+                    "type": "json_schema",
+                    "name": "suggested_replies",
+                    "strict": true,
+                    "schema": SuggestedReplyPrompt.jsonSchema
+                ]
+            ]
+        ])
+
+        let startedAt = Date()
+        let (data, response) = try await perform(request)
+        let duration = Int(Date().timeIntervalSince(startedAt) * 1_000)
+        let httpResponse = response as? HTTPURLResponse
+        eventReporter.record(
+            .providerResponse(
+                traceID: generationRequest.traceID,
+                provider: "openai",
+                model: model.rawValue,
+                attempt: 1,
+                durationMilliseconds: duration,
+                httpStatus: httpResponse?.statusCode,
+                requestID: requestID(from: httpResponse),
+                finishReason: nil,
+                byteCount: data.count
+            )
+        )
+        try validateHTTPResponse(response, data: data)
+
+        let completion: OpenAIResponse
+        do {
+            completion = try JSONDecoder().decode(OpenAIResponse.self, from: data)
+        } catch {
+            throw ProviderConnectionError.invalidResponse("OpenAI returned an unexpected reply response.")
+        }
+
+        do {
+            return try SuggestedReplyResultDecoder.decode(
+                content: completion.outputText,
+                finishReason: completion.status == "completed" ? nil : "length",
+                historySummaryFallback: summaryFallback(for: generationRequest)
+            )
+        } catch let failure as StructuredOutputFailure {
+            eventReporter.record(
+                .structuredOutputFailure(
+                    traceID: generationRequest.traceID,
+                    provider: "openai",
+                    attempt: 1,
+                    kind: failure.kind,
+                    codingPath: failure.codingPath
+                )
+            )
+            throw ProviderConnectionError.structuredOutput(
+                ProviderStructuredOutputError(
+                    provider: "openai",
+                    traceID: generationRequest.traceID,
+                    failure: failure
+                )
+            )
+        }
+    }
+
+    private func summaryFallback(for request: SuggestedReplyGenerationRequest) -> String? {
+        if request.summaryMode == .unchanged {
+            return request.existingHistorySummary
+        }
+        return request.olderMessagesToSummarize.isEmpty ? "" : nil
     }
 
     private func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {

@@ -4,6 +4,17 @@ import XCTest
 @testable import zeptly
 
 final class ProviderStoreTests: XCTestCase {
+    func testVisionTiersResolveToEquivalentReplyModels() {
+        XCTAssertEqual(ProviderModel.gpt54Mini.suggestedReplyModel, .gpt54Mini)
+        XCTAssertEqual(ProviderModel.gpt54.suggestedReplyModel, .gpt54)
+        XCTAssertEqual(ProviderModel.gpt55.suggestedReplyModel, .gpt55)
+        XCTAssertEqual(ProviderModel.glm46VFlashX.suggestedReplyModel, .glm47FlashX)
+        XCTAssertEqual(ProviderModel.glm46VFlash.suggestedReplyModel, .glm47Flash)
+        XCTAssertEqual(ProviderModel.glm46V.suggestedReplyModel, .glm47)
+        XCTAssertTrue(ProviderModel.glm47.isSupported(by: .zaiInternational))
+        XCTAssertFalse(ProviderPlatform.zaiInternational.supportedModels.contains(.glm47))
+    }
+
     @MainActor
     func testProviderCatalogAndModelCompatibility() throws {
         XCTAssertEqual(ProviderPlatform.allCases, [.openAI, .zaiInternational, .zhipuChina])

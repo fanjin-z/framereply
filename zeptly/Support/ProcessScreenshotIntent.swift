@@ -15,6 +15,12 @@ nonisolated enum ShortcutResponseStatus: String, Codable, Equatable, Sendable {
     case fail
 }
 
+nonisolated enum ShortcutReplyStatus: String, Codable, Equatable, Sendable {
+    case generated
+    case cached
+    case failed
+}
+
 nonisolated struct ShortcutResponsePayload: Codable, Equatable, Sendable {
     let status: ShortcutResponseStatus
     let message: String
@@ -27,6 +33,41 @@ nonisolated struct ShortcutResponsePayload: Codable, Equatable, Sendable {
     let duplicate: Bool?
     let insertedMessageCount: Int?
     let errorCode: String?
+    let suggestedReplies: [String]?
+    let replyStatus: ShortcutReplyStatus?
+    let replyErrorCode: String?
+
+    init(
+        status: ShortcutResponseStatus,
+        message: String,
+        diagnosticID: String,
+        chatID: String?,
+        chatName: String?,
+        importID: UUID?,
+        matchedExisting: Bool?,
+        reviewRequired: Bool?,
+        duplicate: Bool?,
+        insertedMessageCount: Int?,
+        errorCode: String?,
+        suggestedReplies: [String]? = nil,
+        replyStatus: ShortcutReplyStatus? = nil,
+        replyErrorCode: String? = nil
+    ) {
+        self.status = status
+        self.message = message
+        self.diagnosticID = diagnosticID
+        self.chatID = chatID
+        self.chatName = chatName
+        self.importID = importID
+        self.matchedExisting = matchedExisting
+        self.reviewRequired = reviewRequired
+        self.duplicate = duplicate
+        self.insertedMessageCount = insertedMessageCount
+        self.errorCode = errorCode
+        self.suggestedReplies = suggestedReplies
+        self.replyStatus = replyStatus
+        self.replyErrorCode = replyErrorCode
+    }
 }
 
 nonisolated struct ShortcutResponsePresentation: Equatable, Sendable {
@@ -45,7 +86,11 @@ nonisolated struct ShortcutResponsePresentation: Equatable, Sendable {
 }
 
 nonisolated enum ShortcutResponseBuilder {
-    static func success(_ outcome: ScreenshotImportOutcome) -> ShortcutResponsePresentation {
+    static func success(
+        _ outcome: ScreenshotImportOutcome,
+        repliesOutcome: SuggestedRepliesOutcome? = nil,
+        replyErrorCode: String? = nil
+    ) -> ShortcutResponsePresentation {
         let count = outcome.insertedMessageCount
         let noun = count == 1 ? "message" : "messages"
         let message: String
@@ -55,6 +100,20 @@ nonisolated enum ShortcutResponseBuilder {
             message = "Imported \(count) \(noun) as \(outcome.chatName). Review it in Zeptly."
         } else {
             message = "Added \(count) new \(noun) to \(outcome.chatName)."
+        }
+
+        let replies = repliesOutcome?.replies
+        let replyStatus = repliesOutcome.map {
+            switch $0.source {
+            case .generated: ShortcutReplyStatus.generated
+            case .cached: ShortcutReplyStatus.cached
+            }
+        } ?? .failed
+        let dialog: String
+        if let replies, replies.count == 2 {
+            dialog = "\(message)\n\nSuggested replies:\n1. \(replies[0])\n2. \(replies[1])"
+        } else {
+            dialog = "\(message) Suggested replies are unavailable; open Zeptly to retry."
         }
 
         return ShortcutResponsePresentation(
@@ -69,9 +128,12 @@ nonisolated enum ShortcutResponseBuilder {
                 reviewRequired: outcome.reviewRequired,
                 duplicate: outcome.duplicate,
                 insertedMessageCount: count,
-                errorCode: nil
+                errorCode: nil,
+                suggestedReplies: replies,
+                replyStatus: replyStatus,
+                replyErrorCode: repliesOutcome == nil ? (replyErrorCode ?? "reply_generation_failed") : nil
             ),
-            dialog: message
+            dialog: dialog
         )
     }
 
@@ -92,7 +154,10 @@ nonisolated enum ShortcutResponseBuilder {
                 reviewRequired: nil,
                 duplicate: nil,
                 insertedMessageCount: nil,
-                errorCode: errorCode
+                errorCode: errorCode,
+                suggestedReplies: nil,
+                replyStatus: nil,
+                replyErrorCode: nil
             ),
             dialog: "\(message) Reference \(traceID.diagnosticID)."
         )
@@ -102,7 +167,7 @@ nonisolated enum ShortcutResponseBuilder {
 struct ProcessScreenshotIntent: AppIntent {
     static let title: LocalizedStringResource = "Process Screenshot"
     static let description = IntentDescription(
-        "Extract chat messages from a screenshot, merge them into Zeptly history, and return a JSON result.")
+        "Extract chat messages from a screenshot, merge them into Zeptly history, and return suggested replies in a JSON result.")
     static let openAppWhenRun = false
 
     @Parameter(
@@ -141,7 +206,20 @@ struct ProcessScreenshotIntent: AppIntent {
                 imageData: screenshot.data,
                 traceID: traceID
             )
-            let response = ShortcutResponseBuilder.success(outcome)
+            let response: ShortcutResponsePresentation
+            do {
+                let replies = try await SuggestedRepliesCoordinator().generate(
+                    chatID: outcome.chatID,
+                    traceID: traceID
+                )
+                response = ShortcutResponseBuilder.success(outcome, repliesOutcome: replies)
+            } catch let error as SuggestedRepliesError {
+                response = ShortcutResponseBuilder.success(outcome, replyErrorCode: error.code)
+            } catch let error as ProviderConnectionError {
+                response = ShortcutResponseBuilder.success(outcome, replyErrorCode: error.shortcutErrorCode)
+            } catch {
+                response = ShortcutResponseBuilder.success(outcome, replyErrorCode: "reply_generation_failed")
+            }
             return .result(value: response.json, dialog: IntentDialog(stringLiteral: response.dialog))
         } catch let error as ScreenshotImportError {
             let response = ShortcutResponseBuilder.failure(

@@ -27,7 +27,7 @@ By default, `run.sh` builds and launches the app on an `iPhone 17` simulator. Yo
 
 ## Screenshot Shortcut
 
-Create a Shortcut with **Take Screenshot** followed by Zeptly's **Process Screenshot** action. The action automatically shows a native result dialog and also returns a JSON string for automation, including the chat/import IDs, message count, and a privacy-safe diagnostic reference.
+Create a Shortcut with **Take Screenshot** followed by Zeptly's **Process Screenshot** action. The action automatically shows a native result dialog with two suggested replies and also returns a JSON string for automation, including the replies, chat/import IDs, message count, reply status, and a privacy-safe diagnostic reference. Screenshot import remains successful if reply generation is temporarily unavailable.
 
 Adding **Show Result** or **Quick Look** after Process Screenshot is optional. Use one only when you want to inspect the raw JSON output; it is not required for normal success or failure feedback.
 

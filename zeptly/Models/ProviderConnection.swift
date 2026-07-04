@@ -56,6 +56,9 @@ enum ProviderModel: String, Codable, CaseIterable, Identifiable {
     case glm46VFlashX = "glm-4.6v-flashx"
     case glm46VFlash = "glm-4.6v-flash"
     case glm46V = "glm-4.6v"
+    case glm47FlashX = "glm-4.7-flashx"
+    case glm47Flash = "glm-4.7-flash"
+    case glm47 = "glm-4.7"
 
     var id: String { rawValue }
 
@@ -73,6 +76,12 @@ enum ProviderModel: String, Codable, CaseIterable, Identifiable {
             "Free"
         case .glm46V:
             "Quality"
+        case .glm47FlashX:
+            "Default Replies"
+        case .glm47Flash:
+            "Free Replies"
+        case .glm47:
+            "Quality Replies"
         }
     }
 
@@ -85,16 +94,40 @@ enum ProviderModel: String, Codable, CaseIterable, Identifiable {
         case .gpt55:
             "Highest-quality, polished replies"
         case .glm46VFlashX:
-            "Fast vision analysis for everyday imports"
+            "Fast screenshot analysis and everyday replies"
         case .glm46VFlash:
-            "Free vision model"
+            "Free screenshot analysis and replies"
         case .glm46V:
-            "Highest-quality GLM vision analysis"
+            "Highest-quality GLM analysis and replies"
+        case .glm47FlashX:
+            "Fast text generation for everyday replies"
+        case .glm47Flash:
+            "Free text generation for replies"
+        case .glm47:
+            "Highest-quality GLM text generation"
         }
     }
 
     func isSupported(by platform: ProviderPlatform) -> Bool {
-        platform.supportedModels.contains(self)
+        switch platform {
+        case .openAI:
+            return self == .gpt54Mini || self == .gpt54 || self == .gpt55
+        case .zaiInternational, .zhipuChina:
+            return [.glm46VFlashX, .glm46VFlash, .glm46V, .glm47FlashX, .glm47Flash, .glm47].contains(self)
+        }
+    }
+
+    var suggestedReplyModel: ProviderModel {
+        switch self {
+        case .glm46VFlashX:
+            .glm47FlashX
+        case .glm46VFlash:
+            .glm47Flash
+        case .glm46V:
+            .glm47
+        default:
+            self
+        }
     }
 }
 

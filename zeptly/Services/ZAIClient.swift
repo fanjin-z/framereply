@@ -1,6 +1,6 @@
 import Foundation
 
-struct ZAIClient: AIProviderClient {
+struct ZAIClient: AIProviderClient, SuggestedReplyGenerating {
     enum Region: Sendable {
         case international
         case china
@@ -198,6 +198,110 @@ struct ZAIClient: AIProviderClient {
         }
 
         throw ProviderConnectionError.invalidResponse("\(region.platform.displayName) returned invalid chat data.")
+    }
+
+    func generateSuggestedReplies(
+        _ generationRequest: SuggestedReplyGenerationRequest,
+        apiKey: String,
+        model: ProviderModel
+    ) async throws -> SuggestedReplyGenerationResult {
+        guard model.isSupported(by: region.platform) else {
+            throw ProviderConnectionError.unsupportedProvider
+        }
+
+        var repairHint: String?
+        var maxTokens = 1_600
+        for attemptIndex in 0..<2 {
+            let attempt = attemptIndex + 1
+            eventReporter.record(
+                .providerAttempt(
+                    traceID: generationRequest.traceID,
+                    provider: region.providerID,
+                    model: model.rawValue,
+                    attempt: attempt,
+                    maxTokens: maxTokens
+                )
+            )
+
+            var request = authorizedRequest(apiKey: apiKey)
+            request.httpBody = try JSONSerialization.data(withJSONObject: [
+                "model": model.rawValue,
+                "messages": [
+                    ["role": "system", "content": SuggestedReplyPrompt.instructions],
+                    ["role": "user", "content": SuggestedReplyPrompt.input(for: generationRequest, repairHint: repairHint)]
+                ],
+                "max_tokens": maxTokens,
+                "thinking": ["type": "disabled"],
+                "do_sample": false,
+                "stream": false,
+                "response_format": ["type": "json_object"]
+            ])
+
+            let startedAt = Date()
+            let (data, response) = try await perform(request)
+            let duration = Int(Date().timeIntervalSince(startedAt) * 1_000)
+            let httpResponse = response as? HTTPURLResponse
+            eventReporter.record(
+                .providerResponse(
+                    traceID: generationRequest.traceID,
+                    provider: region.providerID,
+                    model: model.rawValue,
+                    attempt: attempt,
+                    durationMilliseconds: duration,
+                    httpStatus: httpResponse?.statusCode,
+                    requestID: httpResponse?.value(forHTTPHeaderField: "x-request-id")
+                        ?? httpResponse?.value(forHTTPHeaderField: "request-id"),
+                    finishReason: nil,
+                    byteCount: data.count
+                )
+            )
+            try validateHTTPResponse(response, data: data)
+
+            let completion = try? decodeResponse(data)
+            let choice = completion?.choices.first
+            do {
+                guard let choice else {
+                    throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "response.choices")
+                }
+                return try SuggestedReplyResultDecoder.decode(
+                    content: choice.message.content,
+                    finishReason: choice.finishReason,
+                    historySummaryFallback: summaryFallback(for: generationRequest)
+                )
+            } catch let failure as StructuredOutputFailure {
+                eventReporter.record(
+                    .structuredOutputFailure(
+                        traceID: generationRequest.traceID,
+                        provider: region.providerID,
+                        attempt: attempt,
+                        kind: failure.kind,
+                        codingPath: failure.codingPath
+                    )
+                )
+                guard attemptIndex == 0, failure.kind.isRetryable else {
+                    throw ProviderConnectionError.structuredOutput(
+                        ProviderStructuredOutputError(
+                            provider: region.providerID,
+                            traceID: generationRequest.traceID,
+                            failure: failure
+                        )
+                    )
+                }
+                repairHint = SuggestedReplyResultDecoder.repairHint(for: failure)
+                if failure.kind == .truncatedResponse {
+                    maxTokens = 2_400
+                }
+            }
+        }
+
+        throw ProviderConnectionError.invalidResponse("\(region.platform.displayName) returned invalid suggested replies.")
+    }
+
+    private func summaryFallback(for request: SuggestedReplyGenerationRequest) -> String? {
+        if request.summaryMode == .unchanged {
+            return request.existingHistorySummary
+        }
+        return request.olderMessagesToSummarize.isEmpty ? "" : nil
     }
 
     private func authorizedRequest(apiKey: String) -> URLRequest {

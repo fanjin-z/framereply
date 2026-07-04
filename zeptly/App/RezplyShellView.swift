@@ -57,6 +57,7 @@ struct RezplyShellView: View {
                         ChatIntelligenceView(
                             chat: chat,
                             intelligence: RezplySampleData.chatIntelligence(withID: chatID),
+                            providerStore: providerStore,
                             onContactTap: {
                                 navigationPath.append(.contactContext(chatID))
                             }

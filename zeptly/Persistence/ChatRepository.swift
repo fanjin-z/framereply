@@ -66,6 +66,61 @@ final class ChatRepository {
         ).first
     }
 
+    func suggestedReplyCache(chatID: String) throws -> SuggestedReplyCacheRecord? {
+        try context.fetch(
+            FetchDescriptor<SuggestedReplyCacheRecord>(predicate: #Predicate { $0.chatID == chatID })
+        ).first
+    }
+
+    func saveSuggestedReplyCache(
+        chatID: String,
+        historySummary: String,
+        summarizedMessageCount: Int,
+        summarizedPrefixFingerprint: String,
+        replies: [String],
+        inputFingerprint: String,
+        provider: ProviderPlatform,
+        model: ProviderModel,
+        promptVersion: Int
+    ) throws {
+        let repliesData = try JSONEncoder().encode(replies)
+        let repliesJSON = String(data: repliesData, encoding: .utf8) ?? "[]"
+        let record: SuggestedReplyCacheRecord
+        if let existing = try suggestedReplyCache(chatID: chatID) {
+            record = existing
+        } else {
+            record = SuggestedReplyCacheRecord(
+                chatID: chatID,
+                historySummary: "",
+                summarizedMessageCount: 0,
+                summarizedPrefixFingerprint: "",
+                repliesJSON: "[]",
+                inputFingerprint: "",
+                provider: provider.rawValue,
+                model: model.rawValue,
+                promptVersion: promptVersion
+            )
+            context.insert(record)
+        }
+        record.historySummary = historySummary
+        record.summarizedMessageCount = summarizedMessageCount
+        record.summarizedPrefixFingerprint = summarizedPrefixFingerprint
+        record.repliesJSON = repliesJSON
+        record.inputFingerprint = inputFingerprint
+        record.provider = provider.rawValue
+        record.model = model.rawValue
+        record.promptVersion = promptVersion
+        record.generatedAt = Date()
+        try context.save()
+    }
+
+    func deleteSuggestedReplyCache(chatID: String) throws {
+        if let record = try suggestedReplyCache(chatID: chatID) {
+            context.delete(record)
+            try context.save()
+        }
+    }
+
     func deleteChat(id: String) throws {
         guard let chat = try chat(id: id) else {
             return
@@ -79,6 +134,7 @@ final class ChatRepository {
             )
         )
         let importRecords = try imports(chatID: chatID)
+        let replyCache = try suggestedReplyCache(chatID: chatID)
 
         for message in messageRecords {
             context.delete(message)
@@ -88,6 +144,9 @@ final class ChatRepository {
         }
         for importRecord in importRecords {
             context.delete(importRecord)
+        }
+        if let replyCache {
+            context.delete(replyCache)
         }
         context.delete(chat)
 
@@ -361,6 +420,9 @@ final class ChatRepository {
         }
         if let contact = try contactContext(chatID: provisionalChatID) {
             context.delete(contact)
+        }
+        if let replyCache = try suggestedReplyCache(chatID: provisionalChatID) {
+            context.delete(replyCache)
         }
         let provisionalImports = try imports(chatID: provisionalChatID)
         for importRecord in provisionalImports {

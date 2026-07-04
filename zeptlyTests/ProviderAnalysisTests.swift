@@ -75,6 +75,44 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertNotNil(messages[1]["quotedReply"] as? [String: Any])
     }
 
+    func testSuggestedReplyPromptIncludesAllGroundingAndRequiresTwoDistinctReplies() throws {
+        let prompt = SuggestedReplyPrompt.input(for: makeReplyRequest())
+        XCTAssertTrue(prompt.contains(SuggestedReplyPrompt.canonicalJSONExample))
+        for value in [
+            "Sarah", "Friend", "Met at university", "Vegetarian", "Confirm dinner",
+            "Warm & Collaborative", "Dinner at 7?"
+        ] {
+            XCTAssertTrue(prompt.contains(value), "Missing reply grounding: \(value)")
+        }
+
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content: "{\"historySummary\":\"\",\"replies\":[\"Same\",\"Same\"]}",
+                finishReason: "stop"
+            )
+        )
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content: "{\"historySummary\":\"\",\"replies\":[\"Only one\"]}",
+                finishReason: "stop"
+            )
+        )
+
+        let normalized = try SuggestedReplyResultDecoder.decode(
+            content: "Here is the requested JSON:\n{\"history_summary\":\"Earlier context\",\"suggestedReplies\":[{\"text\":\"First\"},{\"reply\":\"Second\"}]}",
+            finishReason: "stop"
+        )
+        XCTAssertEqual(normalized.historySummary, "Earlier context")
+        XCTAssertEqual(normalized.replies, ["First", "Second"])
+
+        let fallback = try SuggestedReplyResultDecoder.decode(
+            content: "{\"reply1\":\"First\",\"reply2\":\"Second\"}",
+            finishReason: "stop",
+            historySummaryFallback: "Saved summary"
+        )
+        XCTAssertEqual(fallback.historySummary, "Saved summary")
+    }
+
     @MainActor
     func testOpenAISendsBase64ImageWithStructuredOutputAndNoOCRTranscript() async throws {
         AnalysisURLProtocolStub.responses = [
@@ -186,8 +224,91 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertFalse(description.contains(screenshotData.base64EncodedString()))
     }
 
+    @MainActor
+    func testOpenAIGeneratesRepliesWithTextOnlyStrictOutput() async throws {
+        AnalysisURLProtocolStub.responses = [
+            (200, openAIResponse(content: validRepliesJSON()))
+        ]
+
+        let result = try await OpenAIClient(session: makeSession()).generateSuggestedReplies(
+            makeReplyRequest(), apiKey: "key", model: .gpt54Mini
+        )
+
+        XCTAssertEqual(result.replies, ["Sounds good to me.", "That works — looking forward to it!"])
+        let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
+        XCTAssertEqual(body["model"] as? String, "gpt-5.4-mini")
+        XCTAssertEqual(body["store"] as? Bool, false)
+        XCTAssertEqual((body["reasoning"] as? [String: Any])?["effort"] as? String, "none")
+        let format = try XCTUnwrap((body["text"] as? [String: Any])?["format"] as? [String: Any])
+        XCTAssertEqual(format["type"] as? String, "json_schema")
+        let input = try XCTUnwrap(body["input"] as? [[String: Any]])
+        let content = try XCTUnwrap(input.first?["content"] as? [[String: Any]])
+        XCTAssertNil(content.first { $0["type"] as? String == "input_image" })
+        XCTAssertNotNil(content.first { $0["type"] as? String == "input_text" })
+    }
+
+    @MainActor
+    func testZAIGeneratesRepliesWithPairedTextModelAndRetriesMalformedJSON() async throws {
+        AnalysisURLProtocolStub.responses = [
+            (200, zaiResponse(content: "{}")),
+            (200, zaiResponse(content: validRepliesJSON()))
+        ]
+
+        let result = try await ZAIClient(region: .international, session: makeSession())
+            .generateSuggestedReplies(makeReplyRequest(), apiKey: "key", model: .glm47FlashX)
+
+        XCTAssertEqual(result.replies.count, 2)
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 2)
+        let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.last))
+        XCTAssertEqual(body["model"] as? String, "glm-4.7-flashx")
+        XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
+        let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
+        XCTAssertTrue(try XCTUnwrap(messages.last?["content"] as? String).contains("failed validation"))
+    }
+
+    @MainActor
+    func testBothZAIRegionsGenerateRepliesThroughRegionalTextEndpoint() async throws {
+        let cases: [(ZAIClient.Region, String)] = [
+            (.international, "api.z.ai"),
+            (.china, "open.bigmodel.cn")
+        ]
+        for (region, host) in cases {
+            AnalysisURLProtocolStub.responses = [(200, zaiResponse(content: validRepliesJSON()))]
+            _ = try await ZAIClient(region: region, session: makeSession())
+                .generateSuggestedReplies(makeReplyRequest(), apiKey: "key", model: .glm47Flash)
+
+            let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.last)
+            XCTAssertEqual(request.url?.host, host)
+            XCTAssertEqual(try jsonBody(request)["model"] as? String, "glm-4.7-flash")
+        }
+    }
+
     private var screenshotData: Data {
         Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x01, 0x02])
+    }
+
+    private func makeReplyRequest() -> SuggestedReplyGenerationRequest {
+        SuggestedReplyGenerationRequest(
+            chatName: "Sarah",
+            relationshipSubtitle: "Friend",
+            relationshipNotes: "Met at university",
+            keyFacts: ["Vegetarian"],
+            currentInteractionGoal: "Confirm dinner",
+            preferredPersona: "Warm & Collaborative",
+            existingHistorySummary: "",
+            summaryMode: .unchanged,
+            olderMessagesToSummarize: [],
+            recentMessages: [
+                SuggestedReplyPromptMessage(
+                    sender: "contact", senderName: "Sarah", text: "Dinner at 7?", timeLabel: "6:00 PM"
+                )
+            ],
+            traceID: ImportTraceID()
+        )
+    }
+
+    private func validRepliesJSON() -> String {
+        "{\"historySummary\":\"\",\"replies\":[\"Sounds good to me.\",\"That works — looking forward to it!\"]}"
     }
 
     private func makeRequest() -> ChatScreenshotAnalysisRequest {

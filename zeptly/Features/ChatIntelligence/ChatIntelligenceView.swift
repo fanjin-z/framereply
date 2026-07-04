@@ -9,6 +9,7 @@ import SwiftUI
 struct ChatIntelligenceView: View {
     let chat: Chat
     let intelligence: ChatIntelligence
+    @ObservedObject var providerStore: ProviderStore
     let onContactTap: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -20,15 +21,32 @@ struct ChatIntelligenceView: View {
     @State private var isDeleteConfirmationPresented = false
     @State private var deleteErrorMessage: String?
     @Query private var messageRecords: [ChatMessageRecord]
+    @Query private var contactContextRecords: [ContactContextRecord]
+    @StateObject private var suggestedRepliesModel: SuggestedRepliesViewModel
 
-    init(chat: Chat, intelligence: ChatIntelligence, onContactTap: @escaping () -> Void) {
+    init(
+        chat: Chat,
+        intelligence: ChatIntelligence,
+        providerStore: ProviderStore,
+        onContactTap: @escaping () -> Void
+    ) {
         self.chat = chat
         self.intelligence = intelligence
+        self.providerStore = providerStore
         self.onContactTap = onContactTap
         let chatID = chat.id
         _messageRecords = Query(
             filter: #Predicate<ChatMessageRecord> { $0.chatID == chatID },
             sort: \ChatMessageRecord.sortIndex
+        )
+        _contactContextRecords = Query(
+            filter: #Predicate<ContactContextRecord> { $0.chatID == chatID }
+        )
+        _suggestedRepliesModel = StateObject(
+            wrappedValue: SuggestedRepliesViewModel(
+                chatID: chatID,
+                coordinator: SuggestedRepliesCoordinator(providerStore: providerStore)
+            )
         )
     }
 
@@ -38,6 +56,27 @@ struct ChatIntelligenceView: View {
 
     private var latestMessages: [ChatMessage] {
         Array(messages.suffix(3))
+    }
+
+    private var replyGenerationKey: Int {
+        var hasher = Hasher()
+        for message in messageRecords {
+            hasher.combine(message.id)
+            hasher.combine(message.senderKind)
+            hasher.combine(message.senderName)
+            hasher.combine(message.text)
+            hasher.combine(message.sortIndex)
+        }
+        if let context = contactContextRecords.first {
+            hasher.combine(context.relationshipSubtitle)
+            hasher.combine(context.relationshipNotes)
+            hasher.combine(context.keyFactsJSON)
+            hasher.combine(context.currentInteractionGoal)
+            hasher.combine(context.preferredPersona)
+        }
+        hasher.combine(providerStore.activeProvider?.platform.rawValue)
+        hasher.combine(providerStore.activeProvider?.model.rawValue)
+        return hasher.finalize()
     }
 
     var body: some View {
@@ -80,9 +119,13 @@ struct ChatIntelligenceView: View {
                     )
 
                     SuggestedRepliesSection(
-                        replies: intelligence.suggestedReplies,
+                        replies: suggestedRepliesModel.replies,
                         copiedReplyID: copiedReplyID,
-                        onCopy: copyReply
+                        isLoading: suggestedRepliesModel.isLoading,
+                        errorMessage: suggestedRepliesModel.errorMessage,
+                        onCopy: copyReply,
+                        onRetry: regenerateReplies,
+                        onRegenerate: regenerateReplies
                     )
 
                     SuggestedActionCard(action: intelligence.suggestedAction)
@@ -125,6 +168,9 @@ struct ChatIntelligenceView: View {
         } message: {
             Text(deleteErrorMessage ?? "Try again.")
         }
+        .task(id: replyGenerationKey) {
+            await suggestedRepliesModel.load()
+        }
     }
 
     private var deleteErrorBinding: Binding<Bool> {
@@ -143,6 +189,12 @@ struct ChatIntelligenceView: View {
 
         withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             copiedReplyID = reply.id
+        }
+    }
+
+    private func regenerateReplies() {
+        Task {
+            await suggestedRepliesModel.load(force: true, discardExisting: false)
         }
     }
 

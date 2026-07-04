@@ -143,6 +143,44 @@ final class ContactContextRecord {
 }
 
 @Model
+final class SuggestedReplyCacheRecord {
+    @Attribute(.unique) var chatID: String
+    var historySummary: String
+    var summarizedMessageCount: Int
+    var summarizedPrefixFingerprint: String
+    var repliesJSON: String
+    var inputFingerprint: String
+    var provider: String
+    var model: String
+    var promptVersion: Int
+    var generatedAt: Date
+
+    init(
+        chatID: String,
+        historySummary: String,
+        summarizedMessageCount: Int,
+        summarizedPrefixFingerprint: String,
+        repliesJSON: String,
+        inputFingerprint: String,
+        provider: String,
+        model: String,
+        promptVersion: Int,
+        generatedAt: Date = Date()
+    ) {
+        self.chatID = chatID
+        self.historySummary = historySummary
+        self.summarizedMessageCount = summarizedMessageCount
+        self.summarizedPrefixFingerprint = summarizedPrefixFingerprint
+        self.repliesJSON = repliesJSON
+        self.inputFingerprint = inputFingerprint
+        self.provider = provider
+        self.model = model
+        self.promptVersion = promptVersion
+        self.generatedAt = generatedAt
+    }
+}
+
+@Model
 final class ChatImportRecord {
     var id: UUID
     var chatID: String

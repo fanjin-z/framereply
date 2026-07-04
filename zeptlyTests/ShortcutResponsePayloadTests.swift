@@ -28,6 +28,7 @@ final class ShortcutResponsePayloadTests: XCTestCase {
         XCTAssertEqual(object["diagnosticID"] as? String, "ABC12345")
         XCTAssertEqual(object["matchedExisting"] as? Bool, true)
         XCTAssertEqual(object["insertedMessageCount"] as? Int, 2)
+        XCTAssertNil(object["suggestedReplies"])
     }
 
     func testSuccessPresentationStates() {
@@ -44,12 +45,32 @@ final class ShortcutResponsePayloadTests: XCTestCase {
                     reviewRequired: reviewRequired,
                     duplicate: duplicate,
                     count: count
+                ),
+                repliesOutcome: SuggestedRepliesOutcome(
+                    replies: ["First", "Second"],
+                    source: .generated
                 )
             )
 
-            XCTAssertEqual(response.dialog, expectedDialog)
+            XCTAssertTrue(response.dialog.hasPrefix(expectedDialog))
+            XCTAssertTrue(response.dialog.contains("1. First"))
+            XCTAssertEqual(response.payload.suggestedReplies, ["First", "Second"])
+            XCTAssertEqual(response.payload.replyStatus, .generated)
             XCTAssertEqual(response.payload.status, .success)
         }
+    }
+
+    func testReplyFailurePreservesSuccessfulImport() {
+        let response = ShortcutResponseBuilder.success(
+            outcome(matchedExisting: true, reviewRequired: false, duplicate: false, count: 2),
+            replyErrorCode: "provider_rate_limited"
+        )
+
+        XCTAssertEqual(response.payload.status, .success)
+        XCTAssertEqual(response.payload.replyStatus, .failed)
+        XCTAssertEqual(response.payload.replyErrorCode, "provider_rate_limited")
+        XCTAssertNil(response.payload.suggestedReplies)
+        XCTAssertTrue(response.dialog.contains("Added 2 new messages"))
     }
 
     func testFailurePresentationIncludesCodeAndReference() {

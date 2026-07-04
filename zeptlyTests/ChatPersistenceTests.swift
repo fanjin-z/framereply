@@ -155,10 +155,13 @@ final class ChatPersistenceTests: XCTestCase {
             provider: .openAI,
             model: .gpt54Mini
         )
+        insertReplyCache(chatID: outcome.chatID, into: container)
+        try container.mainContext.save()
 
         try repository.mergeProvisionalChat(outcome.chatID, into: "target-chat")
 
         XCTAssertNil(try repository.chat(id: outcome.chatID))
+        XCTAssertNil(try repository.suggestedReplyCache(chatID: outcome.chatID))
         XCTAssertEqual(try repository.messages(chatID: "target-chat").count, originalCount + 1)
     }
 
@@ -169,6 +172,8 @@ final class ChatPersistenceTests: XCTestCase {
         insertChat(id: "keep-me", name: "Keep Me", message: "Keep this", into: container)
         insertRelatedRecords(chatID: "delete-me", into: container)
         insertRelatedRecords(chatID: "keep-me", into: container)
+        insertReplyCache(chatID: "delete-me", into: container)
+        insertReplyCache(chatID: "keep-me", into: container)
         try container.mainContext.save()
 
         try repository.deleteChat(id: "delete-me")
@@ -177,10 +182,12 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertNil(try repository.chat(id: "delete-me"))
         XCTAssertTrue(try repository.messages(chatID: "delete-me").isEmpty)
         XCTAssertEqual(try relatedRecordCounts(chatID: "delete-me", in: container), [0, 0])
+        XCTAssertNil(try repository.suggestedReplyCache(chatID: "delete-me"))
 
         XCTAssertNotNil(try repository.chat(id: "keep-me"))
         XCTAssertEqual(try repository.messages(chatID: "keep-me").count, 1)
         XCTAssertEqual(try relatedRecordCounts(chatID: "keep-me", in: container), [1, 1])
+        XCTAssertNotNil(try repository.suggestedReplyCache(chatID: "keep-me"))
     }
 
     func testImportStoresAvatarAndMatchEvidenceWithoutRemovedAIAppMetadata() throws {
@@ -370,6 +377,22 @@ final class ChatPersistenceTests: XCTestCase {
                 insertedMessageCount: 1,
                 isDuplicate: false,
                 requiresReview: false
+            )
+        )
+    }
+
+    private func insertReplyCache(chatID: String, into container: ModelContainer) {
+        container.mainContext.insert(
+            SuggestedReplyCacheRecord(
+                chatID: chatID,
+                historySummary: "Summary",
+                summarizedMessageCount: 0,
+                summarizedPrefixFingerprint: "fingerprint",
+                repliesJSON: "[\"One\",\"Two\"]",
+                inputFingerprint: "input",
+                provider: "openAI",
+                model: "gpt-5.4-mini",
+                promptVersion: SuggestedReplyPrompt.version
             )
         )
     }

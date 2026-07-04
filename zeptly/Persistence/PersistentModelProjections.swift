@@ -86,3 +86,12 @@ extension ContactContextRecord {
         preferredPersona = value.preferredPersona
     }
 }
+
+extension SuggestedReplyCacheRecord {
+    var replies: [String] {
+        guard let data = repliesJSON.data(using: .utf8) else {
+            return []
+        }
+        return (try? JSONDecoder().decode([String].self, from: data)) ?? []
+    }
+}

@@ -36,10 +36,6 @@ enum RezplySampleData {
         ChatIntelligence(
             contextChips: ["Recent context", "Reply support", "Chat Intel"],
             messages: [],
-            suggestedReplies: [
-                SuggestedReply(text: "Thanks for the context. I'll review this and send back a clear next step shortly."),
-                SuggestedReply(text: "Got it. I'll take a look and follow up with the most important points first.")
-            ],
             suggestedAction: "Ask one clarifying question only if the next step is still ambiguous.",
             reasoning: "There is limited saved context for this chat, so the safest recommendation is concise and low-commitment while still moving the exchange forward."
         )
