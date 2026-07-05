@@ -7,6 +7,10 @@ import SwiftUI
 
 struct PersonaCard: View {
     let persona: Persona
+    let usageCount: Int
+    let onTap: () -> Void
+    let onDuplicate: () -> Void
+    let onDelete: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -22,7 +26,11 @@ struct PersonaCard: View {
 
                 Spacer()
 
-                Button {
+                Menu {
+                    Button("Duplicate", systemImage: "plus.square.on.square", action: onDuplicate)
+                    if let onDelete {
+                        Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
+                    }
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 20, weight: .bold))
@@ -34,7 +42,7 @@ struct PersonaCard: View {
             }
 
             VStack(alignment: .leading, spacing: 10) {
-                Text(persona.title)
+                Text(persona.name)
                     .font(.system(size: 21, weight: .bold, design: .rounded))
                     .foregroundStyle(RezplyColor.onSurface)
                     .lineLimit(2)
@@ -48,12 +56,22 @@ struct PersonaCard: View {
             }
 
             HStack(spacing: 10) {
-                ForEach(persona.tags, id: \.self) { tag in
+                ForEach(Array([persona.formality.rawValue.capitalized, persona.warmth.rawValue.capitalized, persona.length.rawValue.capitalized].enumerated()), id: \.offset) { _, tag in
                     PillChip(title: tag, tint: RezplyColor.secondary)
                 }
             }
+
+            HStack {
+                Label("\(usageCount) chats", systemImage: "message")
+                Spacer()
+                Label(persona.learningEnabled ? "Learning on" : "Learning off", systemImage: "sparkles")
+            }
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .foregroundStyle(RezplyColor.outline)
         }
         .padding(18)
         .glassPanel(cornerRadius: 24)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
     }
 }

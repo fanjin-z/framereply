@@ -119,20 +119,141 @@ final class ContactContextRecord {
     var chatID: String
     var relationshipSubtitle: String
     var currentInteractionGoal: String
-    var preferredPersona: String
+    var personaID: UUID
+    var personaAssignedAt: Date
 
     init(
         id: UUID = UUID(),
         chatID: String,
         relationshipSubtitle: String,
         currentInteractionGoal: String,
-        preferredPersona: String
+        personaID: UUID = PersonaDefaults.professionalID,
+        personaAssignedAt: Date = Date()
     ) {
         self.id = id
         self.chatID = chatID
         self.relationshipSubtitle = relationshipSubtitle
         self.currentInteractionGoal = currentInteractionGoal
-        self.preferredPersona = preferredPersona
+        self.personaID = personaID
+        self.personaAssignedAt = personaAssignedAt
+    }
+
+    convenience init(
+        id: UUID = UUID(), chatID: String, relationshipSubtitle: String,
+        currentInteractionGoal: String, preferredPersona: String
+    ) {
+        let personaID: UUID
+        switch preferredPersona.lowercased() {
+        case let value where value.contains("spark") || value.contains("dating"):
+            personaID = PersonaDefaults.sparkID
+        case let value where value.contains("thought") || value.contains("warm") || value.contains("friendly"):
+            personaID = PersonaDefaults.thoughtfulID
+        default:
+            personaID = PersonaDefaults.professionalID
+        }
+        self.init(
+            id: id, chatID: chatID, relationshipSubtitle: relationshipSubtitle,
+            currentInteractionGoal: currentInteractionGoal, personaID: personaID
+        )
+    }
+}
+
+@Model
+final class PersonaRecord {
+    @Attribute(.unique) var id: UUID
+    var name: String
+    var summary: String
+    var symbolName: String
+    var accentKey: String
+    var templateKey: String
+    var isBuiltIn: Bool
+    var baseInstructions: String
+    var formality: String
+    var warmth: String
+    var replyLength: String
+    var emojiUse: String
+    var additionalGuidance: String
+    var learningEnabled: Bool
+    var learningEnabledAt: Date
+    var sampleCount: Int
+    var lastLearnedAt: Date?
+    var createdAt: Date
+    var updatedAt: Date
+
+    init(
+        id: UUID = UUID(), name: String, summary: String, symbolName: String,
+        accentKey: String, templateKey: String, isBuiltIn: Bool,
+        baseInstructions: String, formality: String, warmth: String,
+        replyLength: String, emojiUse: String, additionalGuidance: String = "",
+        learningEnabled: Bool = true, learningEnabledAt: Date = Date(),
+        sampleCount: Int = 0, lastLearnedAt: Date? = nil,
+        createdAt: Date = Date(), updatedAt: Date = Date()
+    ) {
+        self.id = id
+        self.name = name
+        self.summary = summary
+        self.symbolName = symbolName
+        self.accentKey = accentKey
+        self.templateKey = templateKey
+        self.isBuiltIn = isBuiltIn
+        self.baseInstructions = baseInstructions
+        self.formality = formality
+        self.warmth = warmth
+        self.replyLength = replyLength
+        self.emojiUse = emojiUse
+        self.additionalGuidance = additionalGuidance
+        self.learningEnabled = learningEnabled
+        self.learningEnabledAt = learningEnabledAt
+        self.sampleCount = sampleCount
+        self.lastLearnedAt = lastLearnedAt
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
+@Model
+final class PersonaLearnedTraitRecord {
+    @Attribute(.unique) var id: UUID
+    var personaID: UUID
+    var category: String
+    var observation: String
+    var confidence: Double
+    var evidenceCount: Int
+    var origin: String
+    var status: String
+    var updatedAt: Date
+
+    init(
+        id: UUID = UUID(), personaID: UUID, category: String, observation: String,
+        confidence: Double, evidenceCount: Int, origin: String,
+        status: String = PersonaTraitStatus.active.rawValue, updatedAt: Date = Date()
+    ) {
+        self.id = id
+        self.personaID = personaID
+        self.category = category
+        self.observation = observation
+        self.confidence = confidence
+        self.evidenceCount = evidenceCount
+        self.origin = origin
+        self.status = status
+        self.updatedAt = updatedAt
+    }
+}
+
+@Model
+final class PersonaLearningReceiptRecord {
+    @Attribute(.unique) var key: String
+    var personaID: UUID
+    var chatID: String
+    var messageID: UUID
+    var analyzedAt: Date
+
+    init(personaID: UUID, chatID: String, messageID: UUID, analyzedAt: Date = Date()) {
+        self.key = "\(personaID.uuidString.lowercased())|\(messageID.uuidString.lowercased())"
+        self.personaID = personaID
+        self.chatID = chatID
+        self.messageID = messageID
+        self.analyzedAt = analyzedAt
     }
 }
 

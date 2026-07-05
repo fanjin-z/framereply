@@ -33,7 +33,9 @@ struct RezplyShellView: View {
                             }
                         )
                     case .personas:
-                        PersonasView()
+                        PersonasView { personaID in
+                            navigationPath.append(.persona(personaID))
+                        }
                     case .settings:
                         SettingsView(
                             providerStore: providerStore,
@@ -63,6 +65,8 @@ struct RezplyShellView: View {
                             }
                         )
                     }
+                case let .persona(personaID):
+                    PersonaDetailView(personaID: personaID, providerStore: providerStore)
                 }
             }
         }

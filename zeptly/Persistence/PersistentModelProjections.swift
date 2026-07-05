@@ -64,14 +64,48 @@ extension ContactContextRecord {
             relationshipSubtitle: relationshipSubtitle,
             contactMemories: contactMemories,
             currentInteractionGoal: currentInteractionGoal,
-            preferredPersona: preferredPersona
+            personaID: personaID,
+            personaAssignedAt: personaAssignedAt
         )
     }
 
     func update(from value: ContactContext) {
         relationshipSubtitle = value.relationshipSubtitle
         currentInteractionGoal = value.currentInteractionGoal
-        preferredPersona = value.preferredPersona
+        personaID = value.personaID
+        personaAssignedAt = value.personaAssignedAt
+    }
+}
+
+extension PersonaRecord {
+    var value: Persona {
+        Persona(
+            id: id, name: name, summary: summary, symbolName: symbolName,
+            accentKey: accentKey,
+            template: PersonaTemplate(rawValue: templateKey) ?? .professional,
+            isBuiltIn: isBuiltIn, baseInstructions: baseInstructions,
+            formality: PersonaFormality(rawValue: formality) ?? .balanced,
+            warmth: PersonaWarmth(rawValue: warmth) ?? .balanced,
+            length: PersonaLength(rawValue: replyLength) ?? .balanced,
+            emojiUse: PersonaEmojiUse(rawValue: emojiUse) ?? .light,
+            additionalGuidance: additionalGuidance, learningEnabled: learningEnabled,
+            sampleCount: sampleCount, lastLearnedAt: lastLearnedAt
+        )
+    }
+}
+
+extension PersonaLearnedTraitRecord {
+    var value: PersonaLearnedTrait {
+        PersonaLearnedTrait(
+            id: id,
+            category: PersonaTraitCategory(rawValue: category) ?? .vocabulary,
+            observation: observation,
+            confidence: confidence,
+            evidenceCount: evidenceCount,
+            origin: PersonaTraitOrigin(rawValue: origin) ?? .aiInferred,
+            status: PersonaTraitStatus(rawValue: status) ?? .active,
+            updatedAt: updatedAt
+        )
     }
 }
 

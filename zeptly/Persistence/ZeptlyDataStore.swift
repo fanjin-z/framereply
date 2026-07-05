@@ -12,6 +12,9 @@ enum ZeptlyDataStore {
         ChatMessageRecord.self,
         ContactContextRecord.self,
         ContactMemoryRecord.self,
+        PersonaRecord.self,
+        PersonaLearnedTraitRecord.self,
+        PersonaLearningReceiptRecord.self,
         SuggestedReplyCacheRecord.self,
         ChatImportRecord.self,
         StoreMetadataRecord.self
@@ -29,7 +32,7 @@ enum ZeptlyDataStore {
         let configuration: ModelConfiguration
         if let url {
             configuration = ModelConfiguration(
-                "Zeptly",
+                "ZeptlyPersonasV1",
                 schema: schema,
                 url: url,
                 allowsSave: true,
@@ -37,7 +40,7 @@ enum ZeptlyDataStore {
             )
         } else {
             configuration = ModelConfiguration(
-                "Zeptly",
+                "ZeptlyPersonasV1",
                 schema: schema,
                 isStoredInMemoryOnly: inMemory,
                 cloudKitDatabase: .none

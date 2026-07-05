@@ -3,18 +3,14 @@
 //  zeptly
 //
 
+import SwiftData
 import SwiftUI
 
 struct ContactContextInfoGrid: View {
     @Binding var currentInteractionGoal: String
-    @Binding var preferredPersona: String
-
-    private let personaOptions = [
-        "Warm & Collaborative",
-        "Professional",
-        "Creative",
-        "Minimalist"
-    ]
+    @Binding var personaID: UUID
+    @Binding var personaAssignedAt: Date
+    @Query(sort: \PersonaRecord.createdAt) private var personas: [PersonaRecord]
 
     private var columns: [GridItem] {
         [GridItem(.adaptive(minimum: 240), spacing: 16)]
@@ -35,14 +31,16 @@ struct ContactContextInfoGrid: View {
                 SectionHeader(symbolName: "theatermasks", title: "Preferred Persona")
 
                 Menu {
-                    ForEach(personaOptions, id: \.self) { option in
-                        Button(option) {
-                            preferredPersona = option
+                    ForEach(personas) { persona in
+                        Button(persona.name) {
+                            guard personaID != persona.id else { return }
+                            personaID = persona.id
+                            personaAssignedAt = Date()
                         }
                     }
                 } label: {
                     HStack(spacing: 10) {
-                        Text(preferredPersona)
+                        Text(personas.first(where: { $0.id == personaID })?.name ?? "The Professional")
                             .font(.system(size: 16, weight: .regular, design: .rounded))
                             .foregroundStyle(RezplyColor.onSurface)
                             .lineLimit(1)

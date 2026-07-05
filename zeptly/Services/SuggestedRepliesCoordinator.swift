@@ -106,12 +106,20 @@ final class SuggestedRepliesCoordinator {
         }
 
         let contactContext = try repository.contactContextValue(chatID: chatID)
+        let persona = try repository.personaPromptContext(personaID: contactContext.personaID)
+        let learningMessages = try repository.personaLearningMessages(
+            chatID: chatID,
+            personaID: persona.id,
+            assignedAt: contactContext.personaAssignedAt
+        )
         let cache = try repository.suggestedReplyCache(chatID: chatID)
         let replyModel = providerContext.effectiveModel
         let inputFingerprint = fingerprint(
             chatName: chat.name,
             messages: messages,
             contactContext: contactContext,
+            persona: persona,
+            learningMessageIDs: learningMessages.map(\.id),
             provider: providerContext.platform,
             model: replyModel
         )
@@ -137,7 +145,8 @@ final class SuggestedRepliesCoordinator {
             relationshipSubtitle: contactContext.relationshipSubtitle,
             contactMemories: contactContext.contactMemories.filter { $0.status == .active },
             currentInteractionGoal: contactContext.currentInteractionGoal,
-            preferredPersona: contactContext.preferredPersona,
+            persona: persona,
+            personaLearningMessages: learningMessages.map(promptMessage),
             existingHistorySummary: summaryPlan.existingSummary,
             summaryMode: summaryPlan.mode,
             olderMessagesToSummarize: summaryPlan.messages.map(promptMessage),
@@ -187,10 +196,16 @@ final class SuggestedRepliesCoordinator {
             changes: generated.memoryChanges,
             allowedContactSourceMessageIDs: contactEvidenceMessageIDs
         )
+        let learningMessageIDs = Set(learningMessages.map(\.id))
+        let validTraitChanges = generated.personaTraitChanges.filter {
+            !$0.sourceMessageIDs.isEmpty && $0.sourceMessageIDs.allSatisfy(learningMessageIDs.contains)
+        }
         let persistedFingerprint = fingerprint(
             chatName: chat.name,
             messages: messages,
             contactContext: reconciledContext,
+            persona: projectedPersona(persona, changes: validTraitChanges),
+            learningMessageIDs: [],
             provider: providerContext.platform,
             model: replyModel
         )
@@ -198,6 +213,9 @@ final class SuggestedRepliesCoordinator {
         try repository.saveSuggestedReplyGeneration(
             chatID: chatID,
             contactMemories: reconciledContext.contactMemories,
+            personaID: persona.id,
+            personaTraitChanges: validTraitChanges,
+            learningMessageIDs: learningMessageIDs,
             historySummary: historySummary,
             summarizedMessageCount: olderMessages.count,
             summarizedPrefixFingerprint: messageFingerprint(olderMessages),
@@ -264,6 +282,8 @@ final class SuggestedRepliesCoordinator {
         chatName: String,
         messages: [ChatMessageRecord],
         contactContext: ContactContext,
+        persona: PersonaPromptContext,
+        learningMessageIDs: [UUID],
         provider: ProviderPlatform,
         model: ProviderModel
     ) -> String {
@@ -276,7 +296,8 @@ final class SuggestedRepliesCoordinator {
                 .sorted { $0.id.uuidString < $1.id.uuidString }
                 .map(memoryObject),
             "currentInteractionGoal": contactContext.currentInteractionGoal,
-            "preferredPersona": contactContext.preferredPersona,
+            "persona": personaObject(persona),
+            "personaLearningMessageIDs": learningMessageIDs.map(\.uuidString),
             "provider": provider.rawValue,
             "model": model.rawValue,
             "promptVersion": SuggestedReplyPrompt.version
@@ -297,10 +318,16 @@ final class SuggestedRepliesCoordinator {
         }
         let messages = try repository.messages(chatID: chatID)
         let context = try repository.contactContextValue(chatID: chatID)
+        let persona = try repository.personaPromptContext(personaID: context.personaID)
+        let learningMessages = try repository.personaLearningMessages(
+            chatID: chatID, personaID: persona.id, assignedAt: context.personaAssignedAt
+        )
         return fingerprint(
             chatName: chat.name,
             messages: messages,
             contactContext: context,
+            persona: persona,
+            learningMessageIDs: learningMessages.map(\.id),
             provider: providerContext.platform,
             model: providerContext.effectiveModel
         ) == expectedFingerprint
@@ -329,6 +356,49 @@ final class SuggestedRepliesCoordinator {
             "origin": memory.origin.rawValue,
             "certainty": memory.certainty.rawValue
         ]
+    }
+
+    private func personaObject(_ persona: PersonaPromptContext) -> [String: Any] {
+        [
+            "id": persona.id.uuidString,
+            "name": persona.name,
+            "baseInstructions": persona.baseInstructions,
+            "formality": persona.formality.rawValue,
+            "warmth": persona.warmth.rawValue,
+            "length": persona.length.rawValue,
+            "emojiUse": persona.emojiUse.rawValue,
+            "additionalGuidance": persona.additionalGuidance,
+            "learnedTraits": persona.learnedTraits.map {
+                ["category": $0.category.rawValue, "observation": $0.observation,
+                 "confidence": $0.confidence, "origin": $0.origin.rawValue] as [String: Any]
+            }
+        ]
+    }
+
+    private func projectedPersona(
+        _ persona: PersonaPromptContext, changes: [PersonaTraitChange]
+    ) -> PersonaPromptContext {
+        var traits = persona.learnedTraits
+        for change in changes {
+            if let index = traits.firstIndex(where: { $0.category == change.category }) {
+                guard traits[index].origin != .userConfirmed, traits[index].status != .dismissed else { continue }
+                traits[index].observation = change.observation
+                traits[index].confidence = change.confidence
+                traits[index].evidenceCount += change.sourceMessageIDs.count
+            } else {
+                traits.append(PersonaLearnedTrait(
+                    id: UUID(), category: change.category, observation: change.observation,
+                    confidence: change.confidence, evidenceCount: change.sourceMessageIDs.count,
+                    origin: .aiInferred, status: .active, updatedAt: Date()
+                ))
+            }
+        }
+        return PersonaPromptContext(
+            id: persona.id, name: persona.name, baseInstructions: persona.baseInstructions,
+            formality: persona.formality, warmth: persona.warmth, length: persona.length,
+            emojiUse: persona.emojiUse, additionalGuidance: persona.additionalGuidance,
+            learnedTraits: traits
+        )
     }
 
     private func digest(_ value: Any) -> String {

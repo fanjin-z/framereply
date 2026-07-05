@@ -3,33 +3,7 @@
 //  zeptly
 //
 
-import SwiftUI
-
 enum RezplySampleData {
-    static let personas: [Persona] = [
-        Persona(
-            title: "The Professional",
-            summary: "Ideal for client communications, official emails, and structured reports.",
-            symbolName: "briefcase",
-            accent: RezplyColor.primary,
-            tags: ["Concise", "Formal", "Objective"]
-        ),
-        Persona(
-            title: "The Creative",
-            summary: "Brainstorming, marketing copy, and engaging storytelling.",
-            symbolName: "paintpalette",
-            accent: RezplyColor.secondary,
-            tags: ["Imaginative", "Expressive", "Warm"]
-        ),
-        Persona(
-            title: "The Minimalist",
-            summary: "Quick replies, direct answers, and cutting through the noise.",
-            symbolName: "text.alignleft",
-            accent: RezplyColor.onSurface,
-            tags: ["Direct", "Simple", "Factual"]
-        )
-    ]
-
     static let providers: [ProviderConnection] = []
 
     static func chatIntelligence(withID _: String) -> ChatIntelligence {

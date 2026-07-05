@@ -20,6 +20,8 @@ final class ChatRepository {
         context = container.mainContext
     }
 
+    nonisolated deinit {}
+
     func seedIfNeeded() throws {
         let metadata = try context.fetch(
             FetchDescriptor<StoreMetadataRecord>(
@@ -81,7 +83,8 @@ final class ChatRepository {
                 relationshipSubtitle: "",
                 contactMemories: memories,
                 currentInteractionGoal: "",
-                preferredPersona: "Professional"
+                personaID: PersonaDefaults.professionalID,
+                personaAssignedAt: Date()
             )
     }
 
@@ -91,9 +94,56 @@ final class ChatRepository {
         ).first
     }
 
+    func persona(id: UUID) throws -> PersonaRecord? {
+        try context.fetch(FetchDescriptor<PersonaRecord>(predicate: #Predicate { $0.id == id })).first
+    }
+
+    func personaTraits(personaID: UUID) throws -> [PersonaLearnedTraitRecord] {
+        try context.fetch(
+            FetchDescriptor<PersonaLearnedTraitRecord>(predicate: #Predicate { $0.personaID == personaID })
+        )
+    }
+
+    func personaPromptContext(personaID: UUID) throws -> PersonaPromptContext {
+        let record = try persona(id: personaID)
+            ?? persona(id: PersonaDefaults.professionalID)
+            ?? PersonaRepository.makeBuiltIn(.professional)
+        let traits = try personaTraits(personaID: record.id)
+            .filter { $0.status == PersonaTraitStatus.active.rawValue }
+            .map(\.value)
+        return PersonaPromptContext(
+            id: record.id, name: record.name, baseInstructions: record.baseInstructions,
+            formality: PersonaFormality(rawValue: record.formality) ?? .balanced,
+            warmth: PersonaWarmth(rawValue: record.warmth) ?? .balanced,
+            length: PersonaLength(rawValue: record.replyLength) ?? .balanced,
+            emojiUse: PersonaEmojiUse(rawValue: record.emojiUse) ?? .light,
+            additionalGuidance: record.additionalGuidance,
+            learnedTraits: traits
+        )
+    }
+
+    func personaLearningMessages(
+        chatID: String, personaID: UUID, assignedAt: Date, limit: Int = 30
+    ) throws -> [ChatMessageRecord] {
+        guard let persona = try persona(id: personaID), persona.learningEnabled else { return [] }
+        let cutoff = max(assignedAt, persona.learningEnabledAt)
+        let receiptIDs = Set(try context.fetch(
+            FetchDescriptor<PersonaLearningReceiptRecord>(predicate: #Predicate {
+                $0.personaID == personaID && $0.chatID == chatID
+            })
+        ).map(\.messageID))
+        return try messages(chatID: chatID)
+            .filter { $0.senderKind == "user" && $0.createdAt >= cutoff && !receiptIDs.contains($0.id) }
+            .prefix(limit)
+            .map { $0 }
+    }
+
     func saveSuggestedReplyGeneration(
         chatID: String,
         contactMemories: [ContactMemory],
+        personaID: UUID,
+        personaTraitChanges: [PersonaTraitChange],
+        learningMessageIDs: Set<UUID>,
         historySummary: String,
         summarizedMessageCount: Int,
         summarizedPrefixFingerprint: String,
@@ -112,6 +162,27 @@ final class ChatRepository {
                 } else {
                     context.insert(ContactMemoryRecord(chatID: chatID, value: memory))
                 }
+            }
+
+            try reconcilePersonaTraits(
+                personaID: personaID,
+                changes: personaTraitChanges,
+                allowedMessageIDs: learningMessageIDs
+            )
+            let now = Date()
+            for messageID in learningMessageIDs {
+                let key = "\(personaID.uuidString.lowercased())|\(messageID.uuidString.lowercased())"
+                let exists = try context.fetch(
+                    FetchDescriptor<PersonaLearningReceiptRecord>(predicate: #Predicate { $0.key == key })
+                ).first != nil
+                if !exists {
+                    context.insert(PersonaLearningReceiptRecord(personaID: personaID, chatID: chatID, messageID: messageID, analyzedAt: now))
+                }
+            }
+            if !learningMessageIDs.isEmpty, let persona = try persona(id: personaID) {
+                persona.sampleCount += learningMessageIDs.count
+                persona.lastLearnedAt = now
+                persona.updatedAt = now
             }
 
             let repliesData = try JSONEncoder().encode(replies)
@@ -149,6 +220,63 @@ final class ChatRepository {
         }
     }
 
+    private func reconcilePersonaTraits(
+        personaID: UUID,
+        changes: [PersonaTraitChange],
+        allowedMessageIDs: Set<UUID>
+    ) throws {
+        var storedByCategory = Dictionary(
+            uniqueKeysWithValues: try personaTraits(personaID: personaID).map { ($0.category, $0) }
+        )
+        for change in changes {
+            guard !change.sourceMessageIDs.isEmpty,
+                change.sourceMessageIDs.allSatisfy(allowedMessageIDs.contains)
+            else { continue }
+            if let current = storedByCategory[change.category.rawValue] {
+                guard current.origin != PersonaTraitOrigin.userConfirmed.rawValue,
+                    current.status != PersonaTraitStatus.dismissed.rawValue
+                else { continue }
+                current.observation = change.observation
+                current.confidence = change.confidence
+                current.evidenceCount += change.sourceMessageIDs.count
+                current.updatedAt = Date()
+            } else {
+                let record = PersonaLearnedTraitRecord(
+                    personaID: personaID, category: change.category.rawValue,
+                    observation: change.observation, confidence: change.confidence,
+                    evidenceCount: change.sourceMessageIDs.count,
+                    origin: PersonaTraitOrigin.aiInferred.rawValue
+                )
+                context.insert(record)
+                storedByCategory[change.category.rawValue] = record
+            }
+        }
+    }
+
+    func savePersonaExampleAnalysis(
+        personaID: UUID,
+        changes: [PersonaTraitChange],
+        sampleMessageIDs: Set<UUID>,
+        sampleCount: Int
+    ) throws {
+        do {
+            try reconcilePersonaTraits(
+                personaID: personaID,
+                changes: changes,
+                allowedMessageIDs: sampleMessageIDs
+            )
+            if let persona = try persona(id: personaID) {
+                persona.sampleCount += sampleCount
+                persona.lastLearnedAt = Date()
+                persona.updatedAt = Date()
+            }
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
     func deleteSuggestedReplyCache(chatID: String) throws {
         if let record = try suggestedReplyCache(chatID: chatID) {
             context.delete(record)
@@ -171,6 +299,9 @@ final class ChatRepository {
         let memoryRecords = try contactMemories(chatID: chatID)
         let importRecords = try imports(chatID: chatID)
         let replyCache = try suggestedReplyCache(chatID: chatID)
+        let learningReceipts = try context.fetch(
+            FetchDescriptor<PersonaLearningReceiptRecord>(predicate: #Predicate { $0.chatID == chatID })
+        )
 
         for message in messageRecords {
             context.delete(message)
@@ -183,6 +314,9 @@ final class ChatRepository {
         }
         for importRecord in importRecords {
             context.delete(importRecord)
+        }
+        for receipt in learningReceipts {
+            context.delete(receipt)
         }
         if let replyCache {
             context.delete(replyCache)
@@ -544,7 +678,8 @@ final class ChatRepository {
             chatID: chatID,
             relationshipSubtitle: contact.relationshipSubtitle,
             currentInteractionGoal: contact.currentInteractionGoal,
-            preferredPersona: contact.preferredPersona
+            personaID: contact.personaID,
+            personaAssignedAt: contact.personaAssignedAt
         )
     }
 

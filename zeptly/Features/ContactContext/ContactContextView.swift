@@ -41,7 +41,8 @@ struct ContactContextView: View {
 
                     ContactContextInfoGrid(
                         currentInteractionGoal: $context.currentInteractionGoal,
-                        preferredPersona: $context.preferredPersona
+                        personaID: $context.personaID,
+                        personaAssignedAt: $context.personaAssignedAt
                     )
                 }
                 .padding(.horizontal, 24)

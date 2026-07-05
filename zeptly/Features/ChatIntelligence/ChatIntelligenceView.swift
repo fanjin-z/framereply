@@ -75,7 +75,8 @@ struct ChatIntelligenceView: View {
         if let context = contactContextRecords.first {
             hasher.combine(context.relationshipSubtitle)
             hasher.combine(context.currentInteractionGoal)
-            hasher.combine(context.preferredPersona)
+            hasher.combine(context.personaID)
+            hasher.combine(context.personaAssignedAt)
         }
         for memory in contactMemoryRecords where memory.status == ContactMemoryStatus.active.rawValue {
             hasher.combine(memory.id)

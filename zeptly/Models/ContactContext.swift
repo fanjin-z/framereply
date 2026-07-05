@@ -68,13 +68,15 @@ struct ContactContext: Equatable {
     var relationshipSubtitle: String
     var contactMemories: [ContactMemory]
     var currentInteractionGoal: String
-    var preferredPersona: String
+    var personaID: UUID
+    var personaAssignedAt: Date
 
     static let empty = ContactContext(
         relationshipSubtitle: "",
         contactMemories: [],
         currentInteractionGoal: "",
-        preferredPersona: "Professional"
+        personaID: PersonaDefaults.professionalID,
+        personaAssignedAt: Date()
     )
 }
 

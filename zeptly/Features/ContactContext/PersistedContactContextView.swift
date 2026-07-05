@@ -41,7 +41,8 @@ struct PersistedContactContextView: View {
             relationshipSubtitle: "",
             contactMemories: memoryRecords.map(\.value),
             currentInteractionGoal: "",
-            preferredPersona: "Professional"
+            personaID: PersonaDefaults.professionalID,
+            personaAssignedAt: Date()
         )
         hasLoaded = true
     }
@@ -55,7 +56,8 @@ struct PersistedContactContextView: View {
                 chatID: chat.id,
                 relationshipSubtitle: "",
                 currentInteractionGoal: "",
-                preferredPersona: "Professional"
+                personaID: PersonaDefaults.professionalID,
+                personaAssignedAt: Date()
             )
             modelContext.insert(record)
         }

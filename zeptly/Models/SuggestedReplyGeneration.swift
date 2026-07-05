@@ -33,7 +33,8 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
     let relationshipSubtitle: String
     let contactMemories: [ContactMemory]
     let currentInteractionGoal: String
-    let preferredPersona: String
+    let persona: PersonaPromptContext
+    let personaLearningMessages: [SuggestedReplyPromptMessage]
     let existingHistorySummary: String
     let summaryMode: SuggestedReplySummaryMode
     let olderMessagesToSummarize: [SuggestedReplyPromptMessage]
@@ -41,19 +42,68 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
     let traceID: ImportTraceID
 }
 
+extension SuggestedReplyGenerationRequest {
+    init(
+        chatName: String,
+        relationshipSubtitle: String,
+        contactMemories: [ContactMemory],
+        currentInteractionGoal: String,
+        preferredPersona: String,
+        existingHistorySummary: String,
+        summaryMode: SuggestedReplySummaryMode,
+        olderMessagesToSummarize: [SuggestedReplyPromptMessage],
+        recentMessages: [SuggestedReplyPromptMessage],
+        traceID: ImportTraceID
+    ) {
+        self.init(
+            chatName: chatName,
+            relationshipSubtitle: relationshipSubtitle,
+            contactMemories: contactMemories,
+            currentInteractionGoal: currentInteractionGoal,
+            persona: PersonaPromptContext(
+                id: PersonaDefaults.professionalID,
+                name: preferredPersona,
+                baseInstructions: preferredPersona,
+                formality: .balanced,
+                warmth: .balanced,
+                length: .balanced,
+                emojiUse: .light,
+                additionalGuidance: "",
+                learnedTraits: []
+            ),
+            personaLearningMessages: [],
+            existingHistorySummary: existingHistorySummary,
+            summaryMode: summaryMode,
+            olderMessagesToSummarize: olderMessagesToSummarize,
+            recentMessages: recentMessages,
+            traceID: traceID
+        )
+    }
+}
+
+nonisolated struct PersonaTraitChange: Codable, Equatable, Sendable {
+    let category: PersonaTraitCategory
+    let observation: String
+    let confidence: Double
+    let sourceMessageIDs: [UUID]
+}
+
 nonisolated struct SuggestedReplyGenerationResult: Codable, Equatable, Sendable {
     let historySummary: String
     let replies: [String]
     let memoryChanges: [ContactMemoryChange]
+    let personaTraitChanges: [PersonaTraitChange]
 
     init(
         historySummary: String,
         replies: [String],
-        memoryChanges: [ContactMemoryChange] = []
+        memoryChanges: [ContactMemoryChange] = [],
+        personaTraitChanges: [PersonaTraitChange] = []
     ) {
         self.historySummary = historySummary
         self.replies = replies
         self.memoryChanges = memoryChanges
+        self.personaTraitChanges = personaTraitChanges
     }
 }
 
@@ -140,10 +190,19 @@ nonisolated enum SuggestedReplyResultDecoder {
             try decodeMemoryChange(object, index: index)
         }
 
+        let traitObjects = object["personaTraitChanges"] as? [[String: Any]] ?? []
+        guard traitObjects.count <= PersonaTraitCategory.allCases.count else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "personaTraitChanges")
+        }
+        let personaTraitChanges = try traitObjects.enumerated().map { index, value in
+            try decodePersonaTraitChange(value, index: index)
+        }
+
         return SuggestedReplyGenerationResult(
             historySummary: summary,
             replies: replies,
-            memoryChanges: memoryChanges
+            memoryChanges: memoryChanges,
+            personaTraitChanges: personaTraitChanges
         )
     }
 
@@ -236,6 +295,33 @@ nonisolated enum SuggestedReplyResultDecoder {
             text: text,
             kind: kind,
             sourceMessageIDs: sourceMessageIDs
+        )
+    }
+
+    private static func decodePersonaTraitChange(
+        _ object: [String: Any], index: Int
+    ) throws -> PersonaTraitChange {
+        let path = "personaTraitChanges[\(index)]"
+        guard Set(object.keys) == ["category", "observation", "confidence", "sourceMessageIDs"],
+            let categoryValue = object["category"] as? String,
+            let category = PersonaTraitCategory(rawValue: categoryValue),
+            let observation = object["observation"] as? String,
+            !observation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            observation.count <= 180,
+            let confidence = object["confidence"] as? Double,
+            (0...1).contains(confidence),
+            let sourceValues = object["sourceMessageIDs"] as? [String],
+            (1...10).contains(sourceValues.count)
+        else { throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path) }
+        let ids = sourceValues.compactMap(UUID.init(uuidString:))
+        guard ids.count == sourceValues.count, Set(ids).count == ids.count else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "\(path).sourceMessageIDs")
+        }
+        return PersonaTraitChange(
+            category: category,
+            observation: observation.trimmingCharacters(in: .whitespacesAndNewlines),
+            confidence: confidence,
+            sourceMessageIDs: ids
         )
     }
 
