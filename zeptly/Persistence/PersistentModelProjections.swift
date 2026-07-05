@@ -78,17 +78,19 @@ extension ContactContextRecord {
 }
 
 extension PersonaRecord {
+    var baselineStyle: [String: Double] {
+        guard let data = baselineStyleJSON.data(using: .utf8) else { return [:] }
+        return (try? JSONDecoder().decode([String: Double].self, from: data)) ?? [:]
+    }
+
     var value: Persona {
         Persona(
             id: id, name: name, summary: summary, symbolName: symbolName,
             accentKey: accentKey,
             template: PersonaTemplate(rawValue: templateKey) ?? .professional,
-            isBuiltIn: isBuiltIn, baseInstructions: baseInstructions,
-            formality: PersonaFormality(rawValue: formality) ?? .balanced,
-            warmth: PersonaWarmth(rawValue: warmth) ?? .balanced,
-            length: PersonaLength(rawValue: replyLength) ?? .balanced,
-            emojiUse: PersonaEmojiUse(rawValue: emojiUse) ?? .light,
-            additionalGuidance: additionalGuidance, learningEnabled: learningEnabled,
+            isBuiltIn: isBuiltIn, purposeInstructions: purposeInstructions,
+            baselineStyle: baselineStyle, alwaysFollowRules: alwaysFollowRules,
+            learningEnabled: learningEnabled,
             sampleCount: sampleCount, lastLearnedAt: lastLearnedAt
         )
     }
@@ -98,7 +100,8 @@ extension PersonaLearnedTraitRecord {
     var value: PersonaLearnedTrait {
         PersonaLearnedTrait(
             id: id,
-            category: PersonaTraitCategory(rawValue: category) ?? .vocabulary,
+            dimensionKey: dimensionKey,
+            learnedLevel: learnedLevel,
             observation: observation,
             confidence: confidence,
             evidenceCount: evidenceCount,

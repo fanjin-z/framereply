@@ -7,6 +7,7 @@ import SwiftUI
 
 struct PersonaCard: View {
     let persona: Persona
+    let styleTags: [String]
     let usageCount: Int
     let onTap: () -> Void
     let onDuplicate: () -> Void
@@ -56,7 +57,7 @@ struct PersonaCard: View {
             }
 
             HStack(spacing: 10) {
-                ForEach(Array([persona.formality.rawValue.capitalized, persona.warmth.rawValue.capitalized, persona.length.rawValue.capitalized].enumerated()), id: \.offset) { _, tag in
+                ForEach(Array(styleTags.prefix(3).enumerated()), id: \.offset) { _, tag in
                     PillChip(title: tag, tint: RezplyColor.secondary)
                 }
             }

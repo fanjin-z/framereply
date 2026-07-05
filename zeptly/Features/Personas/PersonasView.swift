@@ -14,6 +14,9 @@ struct PersonasView: View {
                     ForEach(records) { record in
                         PersonaCard(
                             persona: record.value,
+                            styleTags: ((try? PersonaRepository().promptContext(personaID: record.id))?.resolvedStyle
+                                .filter { ["formality", "warmth", "length"].contains($0.dimensionKey) }
+                                .map(\.shortLabel)) ?? [],
                             usageCount: (try? PersonaRepository().usageCount(personaID: record.id)) ?? 0,
                             onTap: { onPersonaTap(record.id) },
                             onDuplicate: { _ = try? PersonaRepository().duplicate(record) },

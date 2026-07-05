@@ -204,7 +204,9 @@ final class SuggestedRepliesCoordinator {
             chatName: chat.name,
             messages: messages,
             contactContext: reconciledContext,
-            persona: projectedPersona(persona, changes: validTraitChanges),
+            persona: try repository.projectedPersonaPromptContext(
+                personaID: persona.id, changes: validTraitChanges
+            ),
             learningMessageIDs: [],
             provider: providerContext.platform,
             model: replyModel
@@ -362,43 +364,19 @@ final class SuggestedRepliesCoordinator {
         [
             "id": persona.id.uuidString,
             "name": persona.name,
-            "baseInstructions": persona.baseInstructions,
-            "formality": persona.formality.rawValue,
-            "warmth": persona.warmth.rawValue,
-            "length": persona.length.rawValue,
-            "emojiUse": persona.emojiUse.rawValue,
-            "additionalGuidance": persona.additionalGuidance,
-            "learnedTraits": persona.learnedTraits.map {
-                ["category": $0.category.rawValue, "observation": $0.observation,
-                 "confidence": $0.confidence, "origin": $0.origin.rawValue] as [String: Any]
-            }
+            "purposeInstructions": persona.purposeInstructions,
+            "resolvedStyle": persona.resolvedStyle.map {
+                ["dimensionKey": $0.dimensionKey, "descriptor": $0.descriptor,
+                 "instruction": $0.instruction, "source": $0.source.rawValue] as [String: Any]
+            },
+            "descriptiveObservations": persona.descriptiveObservations.map {
+                ["dimensionKey": $0.dimensionKey, "observation": $0.observation,
+                 "origin": $0.origin.rawValue] as [String: Any]
+            },
+            "alwaysFollowRules": persona.alwaysFollowRules,
+            "registryVersion": persona.registryVersion,
+            "resolverVersion": persona.resolverVersion
         ]
-    }
-
-    private func projectedPersona(
-        _ persona: PersonaPromptContext, changes: [PersonaTraitChange]
-    ) -> PersonaPromptContext {
-        var traits = persona.learnedTraits
-        for change in changes {
-            if let index = traits.firstIndex(where: { $0.category == change.category }) {
-                guard traits[index].origin != .userConfirmed, traits[index].status != .dismissed else { continue }
-                traits[index].observation = change.observation
-                traits[index].confidence = change.confidence
-                traits[index].evidenceCount += change.sourceMessageIDs.count
-            } else {
-                traits.append(PersonaLearnedTrait(
-                    id: UUID(), category: change.category, observation: change.observation,
-                    confidence: change.confidence, evidenceCount: change.sourceMessageIDs.count,
-                    origin: .aiInferred, status: .active, updatedAt: Date()
-                ))
-            }
-        }
-        return PersonaPromptContext(
-            id: persona.id, name: persona.name, baseInstructions: persona.baseInstructions,
-            formality: persona.formality, warmth: persona.warmth, length: persona.length,
-            emojiUse: persona.emojiUse, additionalGuidance: persona.additionalGuidance,
-            learnedTraits: traits
-        )
     }
 
     private func digest(_ value: Any) -> String {

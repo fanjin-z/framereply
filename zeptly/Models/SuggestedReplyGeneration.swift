@@ -63,13 +63,12 @@ extension SuggestedReplyGenerationRequest {
             persona: PersonaPromptContext(
                 id: PersonaDefaults.professionalID,
                 name: preferredPersona,
-                baseInstructions: preferredPersona,
-                formality: .balanced,
-                warmth: .balanced,
-                length: .balanced,
-                emojiUse: .light,
-                additionalGuidance: "",
-                learnedTraits: []
+                purposeInstructions: preferredPersona,
+                resolvedStyle: [],
+                descriptiveObservations: [],
+                alwaysFollowRules: "",
+                registryVersion: PersonaStyleDimensionRegistry.version,
+                resolverVersion: PersonaStyleResolver.version
             ),
             personaLearningMessages: [],
             existingHistorySummary: existingHistorySummary,
@@ -82,9 +81,9 @@ extension SuggestedReplyGenerationRequest {
 }
 
 nonisolated struct PersonaTraitChange: Codable, Equatable, Sendable {
-    let category: PersonaTraitCategory
+    let dimensionKey: String
+    let levelBand: PersonaStyleBand?
     let observation: String
-    let confidence: Double
     let sourceMessageIDs: [UUID]
 }
 
@@ -191,11 +190,14 @@ nonisolated enum SuggestedReplyResultDecoder {
         }
 
         let traitObjects = object["personaTraitChanges"] as? [[String: Any]] ?? []
-        guard traitObjects.count <= PersonaTraitCategory.allCases.count else {
+        guard traitObjects.count <= PersonaStyleDimensionRegistry.learnableDefinitions.count else {
             throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "personaTraitChanges")
         }
         let personaTraitChanges = try traitObjects.enumerated().map { index, value in
             try decodePersonaTraitChange(value, index: index)
+        }
+        guard Set(personaTraitChanges.map(\.dimensionKey)).count == personaTraitChanges.count else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "personaTraitChanges.dimensionKey")
         }
 
         return SuggestedReplyGenerationResult(
@@ -302,25 +304,35 @@ nonisolated enum SuggestedReplyResultDecoder {
         _ object: [String: Any], index: Int
     ) throws -> PersonaTraitChange {
         let path = "personaTraitChanges[\(index)]"
-        guard Set(object.keys) == ["category", "observation", "confidence", "sourceMessageIDs"],
-            let categoryValue = object["category"] as? String,
-            let category = PersonaTraitCategory(rawValue: categoryValue),
+        guard Set(object.keys) == ["dimensionKey", "levelBand", "observation", "sourceMessageIDs"],
+            let dimensionKey = object["dimensionKey"] as? String,
+            let definition = PersonaStyleDimensionRegistry.definition(for: dimensionKey),
+            definition.learnable,
             let observation = object["observation"] as? String,
             !observation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
             observation.count <= 180,
-            let confidence = object["confidence"] as? Double,
-            (0...1).contains(confidence),
             let sourceValues = object["sourceMessageIDs"] as? [String],
             (1...10).contains(sourceValues.count)
         else { throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path) }
+        let levelBand: PersonaStyleBand?
+        if object["levelBand"] is NSNull {
+            levelBand = nil
+        } else if let rawBand = object["levelBand"] as? String {
+            levelBand = PersonaStyleBand(rawValue: rawBand)
+        } else {
+            levelBand = nil
+        }
+        guard definition.observationOnly == (levelBand == nil) else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "\(path).levelBand")
+        }
         let ids = sourceValues.compactMap(UUID.init(uuidString:))
         guard ids.count == sourceValues.count, Set(ids).count == ids.count else {
             throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "\(path).sourceMessageIDs")
         }
         return PersonaTraitChange(
-            category: category,
+            dimensionKey: dimensionKey,
+            levelBand: levelBand,
             observation: observation.trimmingCharacters(in: .whitespacesAndNewlines),
-            confidence: confidence,
             sourceMessageIDs: ids
         )
     }

@@ -104,21 +104,83 @@ final class ChatRepository {
         )
     }
 
+    func personaAdjustments(personaID: UUID) throws -> [PersonaStyleAdjustmentRecord] {
+        try context.fetch(
+            FetchDescriptor<PersonaStyleAdjustmentRecord>(predicate: #Predicate { $0.personaID == personaID })
+        )
+    }
+
     func personaPromptContext(personaID: UUID) throws -> PersonaPromptContext {
         let record = try persona(id: personaID)
             ?? persona(id: PersonaDefaults.professionalID)
             ?? PersonaRepository.makeBuiltIn(.professional)
         let traits = try personaTraits(personaID: record.id)
             .filter { $0.status == PersonaTraitStatus.active.rawValue }
-            .map(\.value)
+        return PersonaRepository.promptContext(
+            record: record,
+            traits: traits,
+            adjustments: try personaAdjustments(personaID: record.id)
+        )
+    }
+
+    func projectedPersonaPromptContext(
+        personaID: UUID,
+        changes: [PersonaTraitChange]
+    ) throws -> PersonaPromptContext {
+        let record = try persona(id: personaID)
+            ?? persona(id: PersonaDefaults.professionalID)
+            ?? PersonaRepository.makeBuiltIn(.professional)
+        var traits = try personaTraits(personaID: record.id).map(\.value)
+        for change in changes {
+            guard let definition = PersonaStyleDimensionRegistry.definition(for: change.dimensionKey),
+                definition.learnable,
+                definition.observationOnly == (change.levelBand == nil)
+            else { continue }
+            if let index = traits.firstIndex(where: { $0.dimensionKey == change.dimensionKey }) {
+                guard traits[index].origin != .userConfirmed, traits[index].status != .dismissed else { continue }
+                let previousCount = traits[index].evidenceCount
+                let addedCount = change.sourceMessageIDs.count
+                if let level = change.levelBand?.level {
+                    let previous = traits[index].learnedLevel ?? level
+                    traits[index].learnedLevel = (
+                        previous * Double(previousCount) + level * Double(addedCount)
+                    ) / Double(previousCount + addedCount)
+                }
+                traits[index].observation = change.observation
+                traits[index].evidenceCount += addedCount
+                traits[index].confidence = PersonaStyleResolver.confidence(
+                    evidenceCount: traits[index].evidenceCount, origin: .aiInferred
+                )
+            } else {
+                let evidenceCount = change.sourceMessageIDs.count
+                traits.append(PersonaLearnedTrait(
+                    id: UUID(), dimensionKey: change.dimensionKey,
+                    learnedLevel: change.levelBand?.level,
+                    observation: change.observation,
+                    confidence: PersonaStyleResolver.confidence(evidenceCount: evidenceCount, origin: .aiInferred),
+                    evidenceCount: evidenceCount, origin: .aiInferred, status: .active,
+                    updatedAt: Date()
+                ))
+            }
+        }
+        let adjustments = Dictionary(uniqueKeysWithValues: try personaAdjustments(personaID: record.id).map {
+            ($0.dimensionKey, $0.adjustment)
+        })
+        let descriptive = traits.filter { trait in
+            guard trait.status == .active else { return false }
+            guard let definition = PersonaStyleDimensionRegistry.definition(for: trait.dimensionKey) else { return false }
+            return definition.observationOnly || trait.origin == .userConfirmed
+        }
         return PersonaPromptContext(
-            id: record.id, name: record.name, baseInstructions: record.baseInstructions,
-            formality: PersonaFormality(rawValue: record.formality) ?? .balanced,
-            warmth: PersonaWarmth(rawValue: record.warmth) ?? .balanced,
-            length: PersonaLength(rawValue: record.replyLength) ?? .balanced,
-            emojiUse: PersonaEmojiUse(rawValue: record.emojiUse) ?? .light,
-            additionalGuidance: record.additionalGuidance,
-            learnedTraits: traits
+            id: record.id, name: record.name,
+            purposeInstructions: record.purposeInstructions,
+            resolvedStyle: PersonaStyleResolver.resolve(
+                baseline: record.baselineStyle, adjustments: adjustments, traits: traits
+            ),
+            descriptiveObservations: descriptive,
+            alwaysFollowRules: record.alwaysFollowRules,
+            registryVersion: PersonaStyleDimensionRegistry.version,
+            resolverVersion: PersonaStyleResolver.version
         )
     }
 
@@ -225,30 +287,48 @@ final class ChatRepository {
         changes: [PersonaTraitChange],
         allowedMessageIDs: Set<UUID>
     ) throws {
-        var storedByCategory = Dictionary(
-            uniqueKeysWithValues: try personaTraits(personaID: personaID).map { ($0.category, $0) }
+        var storedByDimension = Dictionary(
+            uniqueKeysWithValues: try personaTraits(personaID: personaID).map { ($0.dimensionKey, $0) }
         )
         for change in changes {
             guard !change.sourceMessageIDs.isEmpty,
-                change.sourceMessageIDs.allSatisfy(allowedMessageIDs.contains)
+                change.sourceMessageIDs.allSatisfy(allowedMessageIDs.contains),
+                let definition = PersonaStyleDimensionRegistry.definition(for: change.dimensionKey),
+                definition.learnable,
+                definition.observationOnly == (change.levelBand == nil)
             else { continue }
-            if let current = storedByCategory[change.category.rawValue] {
+            if let current = storedByDimension[change.dimensionKey] {
                 guard current.origin != PersonaTraitOrigin.userConfirmed.rawValue,
                     current.status != PersonaTraitStatus.dismissed.rawValue
                 else { continue }
+                let previousCount = current.evidenceCount
+                let addedCount = change.sourceMessageIDs.count
+                if let level = change.levelBand?.level {
+                    let previous = current.learnedLevel ?? level
+                    current.learnedLevel = (
+                        previous * Double(previousCount) + level * Double(addedCount)
+                    ) / Double(previousCount + addedCount)
+                }
                 current.observation = change.observation
-                current.confidence = change.confidence
-                current.evidenceCount += change.sourceMessageIDs.count
+                current.evidenceCount += addedCount
+                current.confidence = PersonaStyleResolver.confidence(
+                    evidenceCount: current.evidenceCount, origin: .aiInferred
+                )
                 current.updatedAt = Date()
             } else {
+                let evidenceCount = change.sourceMessageIDs.count
                 let record = PersonaLearnedTraitRecord(
-                    personaID: personaID, category: change.category.rawValue,
-                    observation: change.observation, confidence: change.confidence,
-                    evidenceCount: change.sourceMessageIDs.count,
+                    personaID: personaID, dimensionKey: change.dimensionKey,
+                    learnedLevel: change.levelBand?.level,
+                    observation: change.observation,
+                    confidence: PersonaStyleResolver.confidence(
+                        evidenceCount: evidenceCount, origin: .aiInferred
+                    ),
+                    evidenceCount: evidenceCount,
                     origin: PersonaTraitOrigin.aiInferred.rawValue
                 )
                 context.insert(record)
-                storedByCategory[change.category.rawValue] = record
+                storedByDimension[change.dimensionKey] = record
             }
         }
     }

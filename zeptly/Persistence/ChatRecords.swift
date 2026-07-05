@@ -167,12 +167,9 @@ final class PersonaRecord {
     var accentKey: String
     var templateKey: String
     var isBuiltIn: Bool
-    var baseInstructions: String
-    var formality: String
-    var warmth: String
-    var replyLength: String
-    var emojiUse: String
-    var additionalGuidance: String
+    var purposeInstructions: String
+    var baselineStyleJSON: String
+    var alwaysFollowRules: String
     var learningEnabled: Bool
     var learningEnabledAt: Date
     var sampleCount: Int
@@ -183,8 +180,8 @@ final class PersonaRecord {
     init(
         id: UUID = UUID(), name: String, summary: String, symbolName: String,
         accentKey: String, templateKey: String, isBuiltIn: Bool,
-        baseInstructions: String, formality: String, warmth: String,
-        replyLength: String, emojiUse: String, additionalGuidance: String = "",
+        purposeInstructions: String, baselineStyleJSON: String,
+        alwaysFollowRules: String = "",
         learningEnabled: Bool = true, learningEnabledAt: Date = Date(),
         sampleCount: Int = 0, lastLearnedAt: Date? = nil,
         createdAt: Date = Date(), updatedAt: Date = Date()
@@ -196,12 +193,9 @@ final class PersonaRecord {
         self.accentKey = accentKey
         self.templateKey = templateKey
         self.isBuiltIn = isBuiltIn
-        self.baseInstructions = baseInstructions
-        self.formality = formality
-        self.warmth = warmth
-        self.replyLength = replyLength
-        self.emojiUse = emojiUse
-        self.additionalGuidance = additionalGuidance
+        self.purposeInstructions = purposeInstructions
+        self.baselineStyleJSON = baselineStyleJSON
+        self.alwaysFollowRules = alwaysFollowRules
         self.learningEnabled = learningEnabled
         self.learningEnabledAt = learningEnabledAt
         self.sampleCount = sampleCount
@@ -212,10 +206,28 @@ final class PersonaRecord {
 }
 
 @Model
+final class PersonaStyleAdjustmentRecord {
+    @Attribute(.unique) var key: String
+    var personaID: UUID
+    var dimensionKey: String
+    var adjustment: Int
+    var updatedAt: Date
+
+    init(personaID: UUID, dimensionKey: String, adjustment: Int, updatedAt: Date = Date()) {
+        self.key = "\(personaID.uuidString.lowercased())|\(dimensionKey)"
+        self.personaID = personaID
+        self.dimensionKey = dimensionKey
+        self.adjustment = min(2, max(-2, adjustment))
+        self.updatedAt = updatedAt
+    }
+}
+
+@Model
 final class PersonaLearnedTraitRecord {
     @Attribute(.unique) var id: UUID
     var personaID: UUID
-    var category: String
+    var dimensionKey: String
+    var learnedLevel: Double?
     var observation: String
     var confidence: Double
     var evidenceCount: Int
@@ -224,13 +236,15 @@ final class PersonaLearnedTraitRecord {
     var updatedAt: Date
 
     init(
-        id: UUID = UUID(), personaID: UUID, category: String, observation: String,
+        id: UUID = UUID(), personaID: UUID, dimensionKey: String,
+        learnedLevel: Double? = nil, observation: String,
         confidence: Double, evidenceCount: Int, origin: String,
         status: String = PersonaTraitStatus.active.rawValue, updatedAt: Date = Date()
     ) {
         self.id = id
         self.personaID = personaID
-        self.category = category
+        self.dimensionKey = dimensionKey
+        self.learnedLevel = learnedLevel
         self.observation = observation
         self.confidence = confidence
         self.evidenceCount = evidenceCount

@@ -1,7 +1,7 @@
 import Foundation
 
 nonisolated enum SuggestedReplyPrompt {
-    static let version = 6
+    static let version = 7
 
     static let canonicalJSONExample = #"{"historySummary":"They agreed to meet for dinner on Friday.","replies":["Friday works for me—shall we book the vegetarian place?","Sounds good. Want me to reserve the vegetarian restaurant for Friday?"],"memoryChanges":[{"action":"add","text":"Prefers vegetarian restaurants","kind":"preference","sourceMessageIDs":["7c4f75aa-80e6-45c1-bc0b-6f85a12ac9d2"]}],"personaTraitChanges":[]}"#
 
@@ -16,7 +16,7 @@ nonisolated enum SuggestedReplyPrompt {
     Contact memory describes the contact only. Return only durable, contact-specific facts useful in future replies: relationships, preferences, people, lasting facts, or meaningful events and commitments. Create, update, or archive memory using direct evidence exclusively from supplied messages whose sender is "contact"; cite 1–3 of their message IDs. Never use messages whose sender is "user", "other", or "unknown" as memory evidence. User-authored messages may inform replies but must not support contact-memory changes. Exclude greetings, transient details, unsupported inferences, and duplicates. Add an explicit new fact. Update an active memory only when newer evidence explicitly corrects or changes it; conflict alone is insufficient. Archive an active memory only when evidence makes it obsolete without replacement. When uncertain, return no change.
 
     Persona rules
-    Follow persona inputs in this priority: additionalGuidance, explicit controls, user-confirmed learned traits, AI-inferred traits, baseInstructions. Learn style only from personaLearningMessages, all of which are user-authored. Infer reusable form only: length, formality, warmth, directness, grammar/casing, punctuation, emoji, vocabulary patterns, humor, or language mixing. Never store names, relationships, private facts, topics, promises, dates, or message meaning as style. Cite only supplied personaLearningMessages. Return at most one concise observation per category and [] when evidence is weak.
+    Follow the already-resolved persona inputs in this priority: alwaysFollowRules, resolvedStyle instructions, user-confirmed descriptiveObservations, purposeInstructions. Never reinterpret or numerically rebalance the resolved style. Learn style only from personaLearningMessages, all of which are user-authored. Infer reusable form only for supplied learningDimensions. Never store names, relationships, private facts, topics, promises, dates, or message meaning as style. Cite only supplied personaLearningMessages. Return at most one concise observation per dimension and [] when evidence is weak. For an axis-based dimension return its closest categorical levelBand. For an observation-only dimension levelBand must be null. Do not estimate confidence; the application derives it from validated evidence.
 
     Output contract
     Return JSON only. This is a complete example; its values are illustrative and must never be copied unless supported by the supplied data:
@@ -25,7 +25,7 @@ nonisolated enum SuggestedReplyPrompt {
     historySummary: null for unchanged; otherwise a compact summary of older messages only. Incremental merges new older messages into existingHistorySummary; rebuild uses only olderMessagesToSummarize. Preserve durable topics, decisions, commitments, unresolved questions, and relationship dynamics. Use "" when rebuild has no older messages.
     replies: exactly two distinct strings.
     memoryChanges: [] when no change. Add fields: action="add",text,kind,sourceMessageIDs. Update fields: action="update",targetMemoryID,text,kind,sourceMessageIDs. Archive fields: action="archive",targetMemoryID,sourceMessageIDs.
-    personaTraitChanges: [] when no learning. Each item has category, observation, confidence from 0 to 1, and sourceMessageIDs.
+    personaTraitChanges: [] when no learning. Each item has dimensionKey, categorical levelBand (or null for observation-only dimensions), observation, and sourceMessageIDs.
     """
 
     static let jsonSchema: [String: Any] = [
@@ -50,20 +50,25 @@ nonisolated enum SuggestedReplyPrompt {
             ],
             "personaTraitChanges": [
                 "type": "array",
-                "maxItems": PersonaTraitCategory.allCases.count,
+                "maxItems": PersonaStyleDimensionRegistry.learnableDefinitions.count,
                 "items": [
                     "type": "object",
                     "additionalProperties": false,
                     "properties": [
-                        "category": ["type": "string", "enum": PersonaTraitCategory.allCases.map(\.rawValue)],
+                        "dimensionKey": ["type": "string", "enum": PersonaStyleDimensionRegistry.learnableDefinitions.map(\.key)],
+                        "levelBand": [
+                            "anyOf": [
+                                ["type": "string", "enum": PersonaStyleBand.allCases.map(\.rawValue)],
+                                ["type": "null"]
+                            ]
+                        ],
                         "observation": ["type": "string", "minLength": 1, "maxLength": 180],
-                        "confidence": ["type": "number", "minimum": 0, "maximum": 1],
                         "sourceMessageIDs": [
                             "type": "array", "minItems": 1, "maxItems": 10, "uniqueItems": true,
                             "items": ["type": "string"]
                         ]
                     ],
-                    "required": ["category", "observation", "confidence", "sourceMessageIDs"]
+                    "required": ["dimensionKey", "levelBand", "observation", "sourceMessageIDs"]
                 ]
             ]
         ],
@@ -82,6 +87,7 @@ nonisolated enum SuggestedReplyPrompt {
                 .map(memoryObject),
             "currentInteractionGoal": request.currentInteractionGoal,
             "persona": personaObject(request.persona),
+            "learningDimensions": PersonaStyleDimensionRegistry.learnableDefinitions.map(dimensionObject),
             "personaLearningMessages": request.personaLearningMessages.map(messageObject),
             "existingHistorySummary": request.existingHistorySummary,
             "summaryMode": request.summaryMode.rawValue,
@@ -153,22 +159,36 @@ nonisolated enum SuggestedReplyPrompt {
         [
             "id": persona.id.uuidString.lowercased(),
             "name": persona.name,
-            "baseInstructions": persona.baseInstructions,
-            "controls": [
-                "formality": persona.formality.rawValue,
-                "warmth": persona.warmth.rawValue,
-                "length": persona.length.rawValue,
-                "emojiUse": persona.emojiUse.rawValue
-            ],
-            "additionalGuidance": persona.additionalGuidance,
-            "learnedTraits": persona.learnedTraits.filter { $0.status == .active }.map {
+            "purposeInstructions": persona.purposeInstructions,
+            "alwaysFollowRules": persona.alwaysFollowRules,
+            "resolvedStyle": persona.resolvedStyle.map {
                 [
-                    "category": $0.category.rawValue,
+                    "dimensionKey": $0.dimensionKey,
+                    "descriptor": $0.descriptor,
+                    "instruction": $0.instruction,
+                    "source": $0.source.rawValue
+                ] as [String: Any]
+            },
+            "descriptiveObservations": persona.descriptiveObservations.filter { $0.status == .active }.map {
+                [
+                    "dimensionKey": $0.dimensionKey,
                     "observation": $0.observation,
-                    "confidence": $0.confidence,
                     "origin": $0.origin.rawValue
                 ] as [String: Any]
-            }
+            },
+            "registryVersion": persona.registryVersion,
+            "resolverVersion": persona.resolverVersion
+        ]
+    }
+
+    private static func dimensionObject(_ definition: PersonaStyleDimensionDefinition) -> [String: Any] {
+        [
+            "key": definition.key,
+            "title": definition.title,
+            "observationOnly": definition.observationOnly,
+            "lowAnchor": definition.lowAnchor,
+            "highAnchor": definition.highAnchor,
+            "allowedBands": definition.observationOnly ? [] : PersonaStyleBand.allCases.map(\.rawValue)
         ]
     }
 }

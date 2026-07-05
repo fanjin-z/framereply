@@ -8,6 +8,7 @@ struct PersonaDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var personas: [PersonaRecord]
     @Query private var traits: [PersonaLearnedTraitRecord]
+    @Query private var adjustments: [PersonaStyleAdjustmentRecord]
     @Query private var assignments: [ContactContextRecord]
     @State private var showsGuidance = false
     @State private var examples = ""
@@ -22,7 +23,11 @@ struct PersonaDetailView: View {
         _personas = Query(filter: #Predicate<PersonaRecord> { $0.id == personaID })
         _traits = Query(
             filter: #Predicate<PersonaLearnedTraitRecord> { $0.personaID == personaID },
-            sort: \PersonaLearnedTraitRecord.category
+            sort: \PersonaLearnedTraitRecord.dimensionKey
+        )
+        _adjustments = Query(
+            filter: #Predicate<PersonaStyleAdjustmentRecord> { $0.personaID == personaID },
+            sort: \PersonaStyleAdjustmentRecord.dimensionKey
         )
         _assignments = Query(filter: #Predicate<ContactContextRecord> { $0.personaID == personaID })
     }
@@ -81,7 +86,7 @@ struct PersonaDetailView: View {
                 } else {
                     TextField("Name", text: binding(persona, \.name))
                         .font(.system(size: 24, weight: .bold, design: .rounded))
-                    TextField("What is this voice for?", text: binding(persona, \.summary), axis: .vertical)
+                    TextField("What is this voice for?", text: binding(persona, \.purposeInstructions), axis: .vertical)
                 }
                 Label(persona.isBuiltIn ? "Built-in · \(assignments.count) chats" : "Custom · \(assignments.count) chats", systemImage: "message")
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
@@ -96,29 +101,73 @@ struct PersonaDetailView: View {
 
     private func controls(_ persona: PersonaRecord) -> some View {
         VStack(alignment: .leading, spacing: 18) {
-            SectionHeader(symbolName: "slider.horizontal.3", title: "Style Controls")
-            control("Formality", selection: binding(persona, \.formality), values: PersonaFormality.allCases.map(\.rawValue))
-            control("Warmth", selection: binding(persona, \.warmth), values: PersonaWarmth.allCases.map(\.rawValue))
-            control("Reply length", selection: binding(persona, \.replyLength), values: PersonaLength.allCases.map(\.rawValue))
-            control("Emoji", selection: binding(persona, \.emojiUse), values: PersonaEmojiUse.allCases.map(\.rawValue))
+            SectionHeader(symbolName: "slider.horizontal.3", title: "Voice Tuning")
+            Text("Current follows your learned voice, or this persona’s preset while it is still learning.")
+                .font(.system(size: 13, design: .rounded))
+                .foregroundStyle(RezplyColor.outline)
+            ForEach(PersonaStyleDimensionRegistry.adjustableDefinitions) { definition in
+                control(definition, persona: persona)
+            }
         }
         .padding(22)
         .glassPanel(cornerRadius: 28)
     }
 
-    private func control(_ title: String, selection: Binding<String>, values: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.system(size: 13, weight: .bold, design: .rounded))
-            Picker(title, selection: selection) {
-                ForEach(values, id: \.self) { Text($0.capitalized).tag($0) }
+    private func control(_ definition: PersonaStyleDimensionDefinition, persona: PersonaRecord) -> some View {
+        let selection = adjustment(for: definition.key)
+        let signal = resolvedSignals(persona).first { $0.dimensionKey == definition.key }
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(definition.title).font(.system(size: 13, weight: .bold, design: .rounded))
+                Spacer()
+                Text(definition.adjustmentLabel(selection))
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(RezplyColor.primary)
             }
-            .pickerStyle(.segmented)
+            HStack(spacing: 0) {
+                ForEach(-2...2, id: \.self) { value in
+                    Button {
+                        try? PersonaRepository().setAdjustment(
+                            value, dimensionKey: definition.key, personaID: persona.id
+                        )
+                    } label: {
+                        Circle()
+                            .fill(value == selection ? RezplyColor.primary : RezplyColor.surfaceContainerHigh)
+                            .frame(width: value == selection ? 18 : 12, height: value == selection ? 18 : 12)
+                            .frame(maxWidth: .infinity, minHeight: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(definition.adjustmentLabel(value))
+                }
+            }
+            .background(alignment: .center) {
+                Capsule().fill(RezplyColor.outline.opacity(0.18)).frame(height: 2).padding(.horizontal, 18)
+            }
+            HStack {
+                Text(definition.lowAnchor)
+                Spacer()
+                Text("Current")
+                Spacer()
+                Text(definition.highAnchor)
+            }
+            .font(.system(size: 10, weight: .semibold, design: .rounded))
+            .foregroundStyle(RezplyColor.outline)
+            if let signal {
+                Text("\(signal.shortLabel) · \(signal.source.displayName)")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurfaceVariant)
+            }
         }
     }
 
     private func guidance(_ persona: PersonaRecord) -> some View {
         DisclosureGroup(isExpanded: $showsGuidance) {
-            TextEditor(text: binding(persona, \.additionalGuidance))
+            Text("Rules here always take priority over tuning and learned style.")
+                .font(.system(size: 12, design: .rounded))
+                .foregroundStyle(RezplyColor.outline)
+                .padding(.top, 10)
+            TextEditor(text: binding(persona, \.alwaysFollowRules))
                 .font(.system(size: 15, design: .rounded))
                 .scrollContentBackground(.hidden)
                 .frame(minHeight: 110)
@@ -126,7 +175,7 @@ struct PersonaDetailView: View {
                 .background(RezplyColor.secondaryContainer.opacity(0.28), in: RoundedRectangle(cornerRadius: 18))
                 .padding(.top, 12)
         } label: {
-            SectionHeader(symbolName: "text.quote", title: "Additional Guidance")
+            SectionHeader(symbolName: "text.badge.checkmark", title: "Always Follow")
         }
         .padding(22)
         .glassPanel(cornerRadius: 28)
@@ -161,7 +210,7 @@ struct PersonaDetailView: View {
     private func traitRow(_ trait: PersonaLearnedTraitRecord) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(PersonaTraitCategory(rawValue: trait.category)?.displayName ?? trait.category)
+                Text(PersonaStyleDimensionRegistry.definition(for: trait.dimensionKey)?.title ?? trait.dimensionKey)
                     .font(.system(size: 12, weight: .bold, design: .rounded))
                 Spacer()
                 Text(trait.confidence >= 0.8 ? "Established" : trait.confidence >= 0.55 ? "Growing" : "Emerging")
@@ -241,6 +290,18 @@ struct PersonaDetailView: View {
 
     private func binding(_ record: PersonaRecord, _ keyPath: ReferenceWritableKeyPath<PersonaRecord, String>) -> Binding<String> {
         Binding(get: { record[keyPath: keyPath] }, set: { record[keyPath: keyPath] = $0; record.updatedAt = Date(); save() })
+    }
+
+    private func adjustment(for dimensionKey: String) -> Int {
+        adjustments.first { $0.dimensionKey == dimensionKey }?.adjustment ?? 0
+    }
+
+    private func resolvedSignals(_ persona: PersonaRecord) -> [PersonaResolvedStyleSignal] {
+        PersonaStyleResolver.resolve(
+            baseline: persona.baselineStyle,
+            adjustments: Dictionary(uniqueKeysWithValues: adjustments.map { ($0.dimensionKey, $0.adjustment) }),
+            traits: traits.map(\.value)
+        )
     }
 
     private func save() { try? modelContext.save() }
