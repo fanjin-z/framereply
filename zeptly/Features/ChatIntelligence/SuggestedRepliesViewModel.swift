@@ -16,7 +16,22 @@ final class SuggestedRepliesViewModel: ObservableObject {
         self.coordinator = coordinator
     }
 
-    func load(force: Bool = false, discardExisting: Bool = true) async {
+    func loadCached() {
+        do {
+            let outcome = try coordinator.cachedReplies(chatID: chatID)
+            replies = outcome?.replies.map(SuggestedReply.init(text:)) ?? []
+            if !isLoading {
+                errorMessage = nil
+            }
+        } catch {
+            replies = []
+            if !isLoading {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func regenerate(discardExisting: Bool = false) async {
         loadID += 1
         let currentLoadID = loadID
         if discardExisting {
@@ -31,7 +46,7 @@ final class SuggestedRepliesViewModel: ObservableObject {
         }
 
         do {
-            let outcome = try await coordinator.generate(chatID: chatID, force: force)
+            let outcome = try await coordinator.generate(chatID: chatID, force: true)
             try Task.checkCancellation()
             guard loadID == currentLoadID else { return }
             replies = outcome.replies.map(SuggestedReply.init(text:))

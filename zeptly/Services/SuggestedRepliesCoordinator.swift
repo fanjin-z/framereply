@@ -85,6 +85,43 @@ final class SuggestedRepliesCoordinator {
         self.repository = repository
     }
 
+    func cachedReplies(chatID: String) throws -> SuggestedRepliesOutcome? {
+        guard let providerContext = try? aiService.activeContext(requiring: .suggestedReplies),
+            let chat = try repository.chat(id: chatID)
+        else {
+            return nil
+        }
+        let messages = try repository.messages(chatID: chatID)
+        guard !messages.isEmpty else { return nil }
+
+        let contactContext = try repository.contactContextValue(chatID: chatID)
+        let persona = try repository.personaPromptContext(personaID: contactContext.personaID)
+        let learningMessages = try repository.personaLearningMessages(
+            chatID: chatID,
+            personaID: persona.id,
+            assignedAt: contactContext.personaAssignedAt
+        )
+        guard let cache = try repository.suggestedReplyCache(chatID: chatID) else {
+            return nil
+        }
+        let inputFingerprint = fingerprint(
+            chatName: chat.name,
+            messages: messages,
+            contactContext: contactContext,
+            persona: persona,
+            learningMessageIDs: learningMessages.map(\.id),
+            provider: providerContext.platform,
+            model: providerContext.effectiveModel
+        )
+        guard cache.inputFingerprint == inputFingerprint,
+            cache.promptVersion == SuggestedReplyPrompt.version,
+            cache.replies.count == 2
+        else {
+            return nil
+        }
+        return SuggestedRepliesOutcome(replies: cache.replies, source: .cached)
+    }
+
     func generate(
         chatID: String,
         draftingInput: String? = nil,
@@ -207,9 +244,17 @@ final class SuggestedRepliesCoordinator {
             !$0.sourceMessageIDs.isEmpty && $0.sourceMessageIDs.allSatisfy(learningMessageIDs.contains)
         }
 
-        // Input-specific replies are intentionally not persisted as the generic
-        // chat cache, and their output cannot affect memory or persona learning.
+        // Input-specific output cannot affect summaries, memory, or persona
+        // learning. Cache only its replies so the app can show the same result.
         if oneUseInput != nil {
+            try repository.saveSuggestedRepliesOnly(
+                chatID: chatID,
+                replies: generated.replies,
+                inputFingerprint: inputFingerprint,
+                provider: providerContext.platform,
+                model: replyModel,
+                promptVersion: SuggestedReplyPrompt.version
+            )
             return SuggestedRepliesOutcome(replies: generated.replies, source: .generated)
         }
 

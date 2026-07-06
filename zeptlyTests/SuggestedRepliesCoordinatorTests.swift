@@ -5,7 +5,7 @@ import XCTest
 
 final class SuggestedRepliesCoordinatorTests: XCTestCase {
     @MainActor
-    func testOneUseDraftBypassesGenericReplyCache() async throws {
+    func testOneUseDraftCachesRepliesForSubsequentAppLoad() async throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let chatID = "drafting-input-chat"
@@ -23,8 +23,124 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertEqual(result.source, .generated)
         XCTAssertEqual(service.requests.count, 1)
         XCTAssertEqual(service.requests[0].draftingInput, "Tell her Friday works, but make it warmer.")
-        XCTAssertNil(try repository.suggestedReplyCache(chatID: chatID))
         XCTAssertTrue(SuggestedReplyPrompt.input(for: service.requests[0]).contains("Tell her Friday works"))
+
+        let cache = try XCTUnwrap(repository.suggestedReplyCache(chatID: chatID))
+        XCTAssertEqual(cache.replies, result.replies)
+        XCTAssertEqual(cache.historySummary, "")
+        XCTAssertEqual(cache.summarizedMessageCount, 0)
+        XCTAssertEqual(cache.summarizedPrefixFingerprint, "")
+
+        let appLoad = try XCTUnwrap(coordinator.cachedReplies(chatID: chatID))
+        XCTAssertEqual(appLoad.source, .cached)
+        XCTAssertEqual(appLoad.replies, result.replies)
+        XCTAssertEqual(service.requests.count, 1)
+    }
+
+    @MainActor
+    func testCacheOnlyLoadDoesNotGenerateWhenCacheIsMissingOrStale() async throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "cache-only-chat"
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
+        try container.mainContext.save()
+        let service = StubReplyService()
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+        let viewModel = SuggestedRepliesViewModel(chatID: chatID, coordinator: coordinator)
+
+        viewModel.loadCached()
+        XCTAssertTrue(viewModel.replies.isEmpty)
+        XCTAssertEqual(service.requests.count, 0)
+
+        _ = try await coordinator.generate(chatID: chatID, draftingInput: "Use this")
+        viewModel.loadCached()
+        XCTAssertEqual(viewModel.replies.map(\.text), ["Reply 1A", "Reply 1B"])
+        XCTAssertEqual(service.requests.count, 1)
+
+        container.mainContext.insert(makeMessage(chatID: chatID, index: 1))
+        try container.mainContext.save()
+        viewModel.loadCached()
+        XCTAssertTrue(viewModel.replies.isEmpty)
+        XCTAssertEqual(service.requests.count, 1)
+    }
+
+    @MainActor
+    func testExplicitRegenerateMakesOneProviderRequestAndUpdatesCache() async throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "explicit-regenerate-chat"
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
+        try container.mainContext.save()
+        let service = StubReplyService()
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+        let viewModel = SuggestedRepliesViewModel(chatID: chatID, coordinator: coordinator)
+
+        await viewModel.regenerate()
+
+        XCTAssertEqual(service.requests.count, 1)
+        XCTAssertEqual(viewModel.replies.map(\.text), ["Reply 1A", "Reply 1B"])
+        XCTAssertEqual(try repository.suggestedReplyCache(chatID: chatID)?.replies, ["Reply 1A", "Reply 1B"])
+    }
+
+    @MainActor
+    func testOneUseDraftPreservesExistingSummaryAndDoesNotApplyAnalysisOutput() async throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "drafting-input-existing-cache-chat"
+        let message = makeMessage(chatID: chatID, index: 0)
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(message)
+        container.mainContext.insert(
+            SuggestedReplyCacheRecord(
+                chatID: chatID,
+                historySummary: "Existing summary",
+                summarizedMessageCount: 7,
+                summarizedPrefixFingerprint: "existing-prefix",
+                repliesJSON: "[\"Old A\",\"Old B\"]",
+                inputFingerprint: "old-fingerprint",
+                provider: ProviderPlatform.zaiInternational.rawValue,
+                model: ProviderModel.glm47FlashX.rawValue,
+                promptVersion: SuggestedReplyPrompt.version
+            )
+        )
+        try container.mainContext.save()
+
+        let service = StubReplyService { _ in
+            SuggestedReplyGenerationResult(
+                historySummary: "Draft-generated summary must be ignored",
+                replies: ["Draft A", "Draft B"],
+                memoryChanges: [
+                    ContactMemoryChange(
+                        action: .add,
+                        targetMemoryID: nil,
+                        text: "Must not be saved",
+                        kind: .fact,
+                        sourceMessageIDs: [message.id]
+                    )
+                ],
+                personaTraitChanges: []
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+
+        _ = try await coordinator.generate(chatID: chatID, draftingInput: "Use this once")
+
+        let cache = try XCTUnwrap(repository.suggestedReplyCache(chatID: chatID))
+        XCTAssertEqual(cache.replies, ["Draft A", "Draft B"])
+        XCTAssertEqual(cache.historySummary, "Existing summary")
+        XCTAssertEqual(cache.summarizedMessageCount, 7)
+        XCTAssertEqual(cache.summarizedPrefixFingerprint, "existing-prefix")
+        XCTAssertTrue(try repository.contactMemories(chatID: chatID).isEmpty)
+        XCTAssertTrue(
+            try repository.personaLearningMessages(
+                chatID: chatID,
+                personaID: PersonaDefaults.professionalID,
+                assignedAt: .distantPast
+            ).isEmpty
+        )
+        XCTAssertTrue(try repository.personaTraits(personaID: PersonaDefaults.professionalID).isEmpty)
     }
 
     @MainActor

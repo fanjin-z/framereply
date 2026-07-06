@@ -23,6 +23,7 @@ struct ChatIntelligenceView: View {
     @Query private var messageRecords: [ChatMessageRecord]
     @Query private var contactContextRecords: [ContactContextRecord]
     @Query private var contactMemoryRecords: [ContactMemoryRecord]
+    @Query private var suggestedReplyCacheRecords: [SuggestedReplyCacheRecord]
     @StateObject private var suggestedRepliesModel: SuggestedRepliesViewModel
 
     init(
@@ -47,6 +48,9 @@ struct ChatIntelligenceView: View {
             filter: #Predicate<ContactMemoryRecord> { $0.chatID == chatID },
             sort: \ContactMemoryRecord.createdAt
         )
+        _suggestedReplyCacheRecords = Query(
+            filter: #Predicate<SuggestedReplyCacheRecord> { $0.chatID == chatID }
+        )
         _suggestedRepliesModel = StateObject(
             wrappedValue: SuggestedRepliesViewModel(
                 chatID: chatID,
@@ -63,7 +67,7 @@ struct ChatIntelligenceView: View {
         Array(messages.suffix(3))
     }
 
-    private var replyGenerationKey: Int {
+    private var replyCacheKey: Int {
         var hasher = Hasher()
         for message in messageRecords {
             hasher.combine(message.id)
@@ -85,6 +89,12 @@ struct ChatIntelligenceView: View {
             hasher.combine(memory.origin)
             hasher.combine(memory.certainty)
             hasher.combine(memory.status)
+        }
+        if let cache = suggestedReplyCacheRecords.first {
+            hasher.combine(cache.inputFingerprint)
+            hasher.combine(cache.repliesJSON)
+            hasher.combine(cache.promptVersion)
+            hasher.combine(cache.generatedAt)
         }
         hasher.combine(providerStore.activeProvider?.platform.rawValue)
         hasher.combine(providerStore.activeProvider?.model.rawValue)
@@ -135,7 +145,7 @@ struct ChatIntelligenceView: View {
                         errorMessage: suggestedRepliesModel.errorMessage,
                         onCopy: copyReply,
                         onRetry: regenerateReplies,
-                        onRegenerate: regenerateReplies
+                        onGenerate: regenerateReplies
                     )
 
                     SuggestedActionCard(action: intelligence.suggestedAction)
@@ -178,8 +188,8 @@ struct ChatIntelligenceView: View {
         } message: {
             Text(deleteErrorMessage ?? "Try again.")
         }
-        .task(id: replyGenerationKey) {
-            await suggestedRepliesModel.load()
+        .task(id: replyCacheKey) {
+            suggestedRepliesModel.loadCached()
         }
     }
 
@@ -204,7 +214,7 @@ struct ChatIntelligenceView: View {
 
     private func regenerateReplies() {
         Task {
-            await suggestedRepliesModel.load(force: true, discardExisting: false)
+            await suggestedRepliesModel.regenerate()
         }
     }
 

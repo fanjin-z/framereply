@@ -12,20 +12,21 @@ struct SuggestedRepliesSection: View {
     let errorMessage: String?
     let onCopy: (SuggestedReply) -> Void
     let onRetry: () -> Void
-    let onRegenerate: () -> Void
+    let onGenerate: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader(symbolName: "rectangle.on.rectangle.angled", title: "Suggested Replies") {
-                if !replies.isEmpty {
-                    Button(action: onRegenerate) {
-                        Label("Regenerate", systemImage: "arrow.clockwise")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(RezplyColor.primary)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isLoading)
+                Button(action: onGenerate) {
+                    Label(
+                        replies.isEmpty ? "Generate Replies" : "Regenerate",
+                        systemImage: replies.isEmpty ? "sparkles" : "arrow.clockwise"
+                    )
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(RezplyColor.primary)
                 }
+                .buttonStyle(.plain)
+                .disabled(isLoading)
             }
 
             if isLoading && replies.isEmpty {
@@ -51,6 +52,13 @@ struct SuggestedRepliesSection: View {
                 .padding(22)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .glassPanel(cornerRadius: 24)
+            } else if replies.isEmpty {
+                Text("Generate replies when you’re ready.")
+                    .font(.system(size: 15, weight: .regular, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurfaceVariant)
+                    .padding(22)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .glassPanel(cornerRadius: 24)
             } else {
                 VStack(spacing: 14) {
                     ForEach(replies) { reply in

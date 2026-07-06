@@ -404,6 +404,50 @@ final class ChatRepository {
         }
     }
 
+    /// Caches reply text without applying generation output to conversation
+    /// summaries, contact memory, or persona learning.
+    func saveSuggestedRepliesOnly(
+        chatID: String,
+        replies: [String],
+        inputFingerprint: String,
+        provider: ProviderPlatform,
+        model: ProviderModel,
+        promptVersion: Int
+    ) throws {
+        do {
+            let repliesData = try JSONEncoder().encode(replies)
+            let repliesJSON = String(data: repliesData, encoding: .utf8) ?? "[]"
+            let cache: SuggestedReplyCacheRecord
+            if let existing = try suggestedReplyCache(chatID: chatID) {
+                cache = existing
+            } else {
+                cache = SuggestedReplyCacheRecord(
+                    chatID: chatID,
+                    historySummary: "",
+                    summarizedMessageCount: 0,
+                    summarizedPrefixFingerprint: "",
+                    repliesJSON: "[]",
+                    inputFingerprint: "",
+                    provider: provider.rawValue,
+                    model: model.rawValue,
+                    promptVersion: promptVersion
+                )
+                context.insert(cache)
+            }
+
+            cache.repliesJSON = repliesJSON
+            cache.inputFingerprint = inputFingerprint
+            cache.provider = provider.rawValue
+            cache.model = model.rawValue
+            cache.promptVersion = promptVersion
+            cache.generatedAt = Date()
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
     private func reconcilePersonaTraits(
         personaID: UUID,
         changes: [PersonaTraitChange],
