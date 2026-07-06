@@ -5,34 +5,113 @@ import XCTest
 
 @MainActor
 final class ChatPersistenceTests: XCTestCase {
-    func testDraftingInputIsOneUseAndExpiresAfterFifteenMinutes() throws {
+    func testDraftingInputTransitionsFromPendingToSubmittedAndIsOneUse() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
+        let operationID = UUID()
         let current = ChatImportRecord(
             chatID: "chat", transcriptFingerprint: nil, provider: "test", model: "test",
-            confidence: 1, insertedMessageCount: 1, isDuplicate: false, requiresReview: false
-        )
-        let expired = ChatImportRecord(
-            chatID: "chat", transcriptFingerprint: nil, provider: "test", model: "test",
-            confidence: 1, insertedMessageCount: 1, isDuplicate: false, requiresReview: false
+            confidence: 1, insertedMessageCount: 1, isDuplicate: false, requiresReview: false,
+            operationID: operationID, draftingInputStateRaw: DraftingInputState.pending.rawValue
         )
         container.mainContext.insert(current)
+        try container.mainContext.save()
+        let now = Date()
+
+        XCTAssertEqual(
+            try repository.consumeDraftingInputIfReady(importID: current.id, operationID: operationID, now: now),
+            .pending
+        )
+        XCTAssertEqual(
+            try repository.resolveDraftingInput(
+                "  Make this warmer  ", importID: current.id, operationID: operationID, now: now
+            ),
+            .submitted
+        )
+        XCTAssertEqual(
+            try repository.consumeDraftingInputIfReady(importID: current.id, operationID: operationID, now: now),
+            .submitted("Make this warmer")
+        )
+        XCTAssertEqual(
+            try repository.consumeDraftingInputIfReady(importID: current.id, operationID: operationID, now: now),
+            .alreadyConsumed
+        )
+    }
+
+    func testBlankDraftingInputBecomesSkipped() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let operationID = UUID()
+        let record = makePendingImport(operationID: operationID)
+        container.mainContext.insert(record)
+        try container.mainContext.save()
+
+        XCTAssertEqual(
+            try repository.resolveDraftingInput(" \n ", importID: record.id, operationID: operationID),
+            .skipped
+        )
+        XCTAssertEqual(
+            try repository.consumeDraftingInputIfReady(importID: record.id, operationID: operationID),
+            .skipped
+        )
+    }
+
+    func testDraftingInputExpiryAndOperationMismatch() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let operationID = UUID()
+        let expired = makePendingImport(operationID: operationID)
         container.mainContext.insert(expired)
         try container.mainContext.save()
         let now = Date()
 
-        try repository.saveDraftingInput("  Make this warmer  ", importID: current.id, now: now)
-        try repository.saveDraftingInput("Old draft", importID: expired.id, now: now.addingTimeInterval(-901))
+        try repository.resolveDraftingInput(
+            "Old draft", importID: expired.id, operationID: operationID, now: now.addingTimeInterval(-901)
+        )
+        XCTAssertEqual(
+            try repository.consumeDraftingInputIfReady(importID: expired.id, operationID: operationID, now: now),
+            .expired
+        )
+        XCTAssertEqual(
+            try repository.consumeDraftingInputIfReady(importID: expired.id, operationID: UUID(), now: now),
+            .operationMismatch
+        )
 
-        XCTAssertEqual(try repository.consumeDraftingInput(importID: current.id, now: now), "Make this warmer")
-        XCTAssertNil(try repository.consumeDraftingInput(importID: current.id, now: now))
-        XCTAssertNil(try repository.consumeDraftingInput(importID: expired.id, now: now))
-        XCTAssertNil(expired.draftingInput)
-        XCTAssertNil(expired.draftingInputCreatedAt)
-
-        try repository.saveDraftingInput("Another old draft", importID: expired.id, now: now.addingTimeInterval(-901))
+        try repository.resolveDraftingInput(
+            "Another old draft", importID: expired.id, operationID: operationID, now: now.addingTimeInterval(-901)
+        )
         try repository.purgeExpiredDraftingInputs(now: now)
         XCTAssertNil(expired.draftingInput)
+    }
+
+    func testFreshContextObservesInputCommittedByAnotherContext() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let operationID = UUID()
+        let record = makePendingImport(operationID: operationID)
+        container.mainContext.insert(record)
+        try container.mainContext.save()
+
+        let staleRepository = ChatRepository(context: ModelContext(container))
+        XCTAssertEqual(try staleRepository.importRecord(id: record.id)?.draftingInputStateRaw, "pending")
+
+        let writer = ChatRepository(context: ModelContext(container))
+        try writer.resolveDraftingInput("Use Friday", importID: record.id, operationID: operationID)
+
+        let freshReader = ChatRepository(context: ModelContext(container))
+        XCTAssertEqual(
+            try freshReader.consumeDraftingInputIfReady(importID: record.id, operationID: operationID),
+            .submitted("Use Friday")
+        )
+    }
+
+    func testDraftingInputBarrierWaitsForReadyState() async throws {
+        let sequence = DraftingInputTestSequence([.pending, .pending, .submitted("Ready")])
+        let result = try await DraftingInputBarrier.waitUntilReady(pollInterval: .milliseconds(1)) {
+            await sequence.next()
+        }
+        XCTAssertEqual(result, .submitted("Ready"))
+        let readCount = await sequence.readCount
+        XCTAssertEqual(readCount, 3)
     }
 
     func testChatsPersistWhenTheContainerIsRecreated() throws {
@@ -449,6 +528,14 @@ final class ChatPersistenceTests: XCTestCase {
         )
     }
 
+    private func makePendingImport(operationID: UUID) -> ChatImportRecord {
+        ChatImportRecord(
+            chatID: "chat", transcriptFingerprint: nil, provider: "test", model: "test",
+            confidence: 1, insertedMessageCount: 1, isDuplicate: false, requiresReview: false,
+            operationID: operationID, draftingInputStateRaw: DraftingInputState.pending.rawValue
+        )
+    }
+
     private func insertReplyCache(chatID: String, into container: ModelContainer) {
         container.mainContext.insert(
             SuggestedReplyCacheRecord(
@@ -508,5 +595,19 @@ final class ChatPersistenceTests: XCTestCase {
             quality: quality,
             revision: AvatarArtifact.algorithmRevision
         )
+    }
+}
+
+private actor DraftingInputTestSequence {
+    private var values: [DraftingInputConsumption]
+    private(set) var readCount = 0
+
+    init(_ values: [DraftingInputConsumption]) {
+        self.values = values
+    }
+
+    func next() -> DraftingInputConsumption {
+        readCount += 1
+        return values.removeFirst()
     }
 }

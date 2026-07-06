@@ -126,6 +126,44 @@ nonisolated struct OSLogImportEventReporter: ImportEventReporting {
     }
 }
 
+nonisolated enum ShortcutLifecycleStage: String, Sendable {
+    case analysisStarted = "analysis_started"
+    case analysisCompleted = "analysis_completed"
+    case inputChoiceDisplayed = "input_choice_displayed"
+    case inputPromptDisplayed = "input_prompt_displayed"
+    case inputSubmitted = "input_submitted"
+    case inputSkipped = "input_skipped"
+    case inputCancelled = "input_cancelled"
+    case stateCommitted = "state_committed"
+    case analyzeReturned = "analyze_returned"
+    case generateStarted = "generate_started"
+    case stateObserved = "state_observed"
+    case contextConsumed = "context_consumed"
+}
+
+/// Records only workflow metadata. Screenshot pixels and user-entered text are
+/// intentionally not accepted by this API.
+nonisolated struct ShortcutLifecycleReporter: Sendable {
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.gigabeyond.zeptly",
+        category: "ShortcutLifecycle"
+    )
+
+    func record(
+        _ stage: ShortcutLifecycleStage,
+        operationID: UUID,
+        startedAt: Date,
+        state: DraftingInputState? = nil,
+        hasInput: Bool? = nil
+    ) {
+        let elapsed = max(0, Int(Date().timeIntervalSince(startedAt) * 1_000))
+        let operation = operationID.uuidString.uppercased()
+        let stateValue = state?.rawValue ?? "none"
+        let inputValue = hasInput ?? false
+        logger.info("operation=\(operation, privacy: .public) event=\(stage.rawValue, privacy: .public) elapsed_ms=\(elapsed) state=\(stateValue, privacy: .public) has_input=\(inputValue)")
+    }
+}
+
 nonisolated enum ChatImportDebugLogger {
     static func rawResponse(
         traceID: ImportTraceID,

@@ -367,6 +367,10 @@ final class ChatImportRecord {
     var sourceApp: String?
     var diagnosticID: String?
     var matchedExisting: Bool?
+    /// Correlates the Analyze and Generate Shortcut actions. Optional for
+    /// lightweight migration of imports created by older app versions.
+    var operationID: UUID?
+    var draftingInputStateRaw: String?
     /// One-use text supplied from the screenshot Shortcut. It is never promoted
     /// to chat history, contact memory, or persona learning.
     var draftingInput: String?
@@ -391,6 +395,8 @@ final class ChatImportRecord {
         sourceApp: String? = nil,
         diagnosticID: String? = nil,
         matchedExisting: Bool? = nil,
+        operationID: UUID? = nil,
+        draftingInputStateRaw: String? = nil,
         draftingInput: String? = nil,
         draftingInputCreatedAt: Date? = nil
     ) {
@@ -412,6 +418,8 @@ final class ChatImportRecord {
         self.sourceApp = sourceApp
         self.diagnosticID = diagnosticID
         self.matchedExisting = matchedExisting
+        self.operationID = operationID
+        self.draftingInputStateRaw = draftingInputStateRaw
         self.draftingInput = draftingInput
         self.draftingInputCreatedAt = draftingInputCreatedAt
     }

@@ -8,6 +8,7 @@
 import AppIntents
 import Foundation
 import ImageIO
+import SwiftData
 import UniformTypeIdentifiers
 
 nonisolated enum ShortcutResponseStatus: String, Codable, Equatable, Sendable {
@@ -169,6 +170,7 @@ nonisolated struct ScreenshotImportEntity: AppEntity {
     static let defaultQuery = ScreenshotImportEntityQuery()
 
     let id: UUID
+    let operationID: UUID
     let chatID: String
     let chatName: String
     let diagnosticID: String
@@ -181,8 +183,9 @@ nonisolated struct ScreenshotImportEntity: AppEntity {
         DisplayRepresentation(title: "\(chatName)", subtitle: "Analyzed chat screenshot")
     }
 
-    init(outcome: ScreenshotImportOutcome) {
+    init(outcome: ScreenshotImportOutcome, operationID: UUID) {
         id = outcome.importID
+        self.operationID = operationID
         chatID = outcome.chatID
         chatName = outcome.chatName
         diagnosticID = outcome.diagnosticID
@@ -192,8 +195,9 @@ nonisolated struct ScreenshotImportEntity: AppEntity {
         insertedMessageCount = outcome.insertedMessageCount
     }
 
-    init(record: ChatImportRecord, chatName: String) {
+    init(record: ChatImportRecord, chatName: String, operationID: UUID) {
         id = record.id
+        self.operationID = operationID
         chatID = record.chatID
         self.chatName = chatName
         diagnosticID = record.diagnosticID ?? "UNKNOWN"
@@ -222,14 +226,15 @@ nonisolated struct ScreenshotImportEntityQuery: EntityQuery {
 
     func entities(for identifiers: [UUID]) async throws -> [ScreenshotImportEntity] {
         try await MainActor.run {
-            let repository = ChatRepository()
+            let repository = ChatRepository(context: ModelContext(ZeptlyDataStore.shared))
             return try identifiers.compactMap { identifier in
                 guard let record = try repository.importRecord(id: identifier),
+                    let operationID = record.operationID,
                     let chat = try repository.chat(id: record.chatID)
                 else {
                     return nil
                 }
-                return ScreenshotImportEntity(record: record, chatName: chat.name)
+                return ScreenshotImportEntity(record: record, chatName: chat.name, operationID: operationID)
             }
         }
     }
@@ -274,7 +279,9 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ReturnsValue<ScreenshotImportEntity> {
         let traceID = ImportTraceID()
+        let startedAt = Date()
         let eventReporter = OSLogImportEventReporter()
+        let lifecycleReporter = ShortcutLifecycleReporter()
         guard let screenshot else {
             eventReporter.record(.importFailed(traceID: traceID, stage: .shortcut, errorCode: "no_image"))
             throw ShortcutExecutionError(
@@ -292,29 +299,77 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
 
         let coordinator = await MainActor.run { ScreenshotImportCoordinator() }
         do {
-            async let pendingOutcome = coordinator.process(
-                imageData: screenshot.data,
-                traceID: traceID
-            )
+            lifecycleReporter.record(.analysisStarted, operationID: traceID.value, startedAt: startedAt)
+            async let pendingOutcome: ScreenshotImportOutcome = {
+                let outcome = try await coordinator.process(
+                    imageData: screenshot.data,
+                    traceID: traceID
+                )
+                lifecycleReporter.record(.analysisCompleted, operationID: traceID.value, startedAt: startedAt)
+                return outcome
+            }()
 
             let input: String?
             if let draftingInput {
                 input = draftingInput
+            } else if #available(iOS 26.0, *) {
+                lifecycleReporter.record(.inputChoiceDisplayed, operationID: traceID.value, startedAt: startedAt)
+                let add = IntentChoiceOption(title: "Add Context or Draft")
+                let skip = IntentChoiceOption(title: "Skip")
+                let choice = try await requestChoice(
+                    between: [add, skip],
+                    dialog: "Add optional context or a rough draft while Zeptly analyzes the screenshot?"
+                )
+                if choice == skip {
+                    input = nil
+                } else {
+                    lifecycleReporter.record(.inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
+                    input = try await $draftingInput.requestValue(
+                        "Analyzing screenshot… Add context or draft what you want to say. Tap Done when finished. Cancel stops the shortcut."
+                    )
+                }
             } else {
+                lifecycleReporter.record(.inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                 input = try await $draftingInput.requestValue(
-                    "Analyzing screenshot… Add context or draft what you want to say. This is optional."
+                    "Analyzing screenshot… Add optional context or a draft. Tap Done empty to skip; Cancel stops the shortcut."
                 )
             }
 
             let outcome = try await pendingOutcome
             eventReporter.record(.stageStarted(traceID: traceID, stage: .persistence))
-            try await MainActor.run {
-                try ChatRepository().saveDraftingInput(input, importID: outcome.importID)
+            let state = try await MainActor.run {
+                let repository = ChatRepository(context: ModelContext(ZeptlyDataStore.shared))
+                return try repository.resolveDraftingInput(
+                    input,
+                    importID: outcome.importID,
+                    operationID: traceID.value
+                )
             }
-            return .result(value: ScreenshotImportEntity(outcome: outcome))
+            let hasInput = state == .submitted
+            lifecycleReporter.record(
+                hasInput ? .inputSubmitted : .inputSkipped,
+                operationID: traceID.value,
+                startedAt: startedAt,
+                state: state,
+                hasInput: hasInput
+            )
+            lifecycleReporter.record(
+                .stateCommitted,
+                operationID: traceID.value,
+                startedAt: startedAt,
+                state: state,
+                hasInput: hasInput
+            )
+            lifecycleReporter.record(.analyzeReturned, operationID: traceID.value, startedAt: startedAt)
+            return .result(value: ScreenshotImportEntity(outcome: outcome, operationID: traceID.value))
         } catch is CancellationError {
+            lifecycleReporter.record(.inputCancelled, operationID: traceID.value, startedAt: startedAt)
             eventReporter.record(.importFailed(traceID: traceID, stage: .shortcut, errorCode: "cancelled"))
             throw CancellationError()
+        } catch let error as AppIntentError {
+            lifecycleReporter.record(.inputCancelled, operationID: traceID.value, startedAt: startedAt)
+            eventReporter.record(.importFailed(traceID: traceID, stage: .shortcut, errorCode: "cancelled"))
+            throw error
         } catch let error as ScreenshotImportError {
             throw ShortcutExecutionError(
                 message: error.localizedDescription, diagnosticID: traceID.diagnosticID
@@ -322,6 +377,14 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
         } catch let error as ProviderConnectionError {
             throw ShortcutExecutionError(
                 message: error.localizedDescription, diagnosticID: traceID.diagnosticID
+            )
+        } catch is DraftingInputSynchronizationError {
+            eventReporter.record(
+                .importFailed(traceID: traceID, stage: .persistence, errorCode: "input_synchronization_failed")
+            )
+            throw ShortcutExecutionError(
+                message: "The optional input could not be synchronized with this screenshot import.",
+                diagnosticID: traceID.diagnosticID
             )
         } catch let error as ShortcutExecutionError {
             throw error
@@ -394,34 +457,94 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
         }
 
         let eventReporter = OSLogImportEventReporter()
-        let traceID = fallbackTraceID
+        let traceID = ImportTraceID(value: preparedChat.operationID)
+        let startedAt = Date()
+        let lifecycleReporter = ShortcutLifecycleReporter()
+        lifecycleReporter.record(.generateStarted, operationID: preparedChat.operationID, startedAt: startedAt)
         eventReporter.record(.stageStarted(traceID: traceID, stage: .replyGeneration))
         do {
-            let transient = try await MainActor.run { () -> (found: Bool, input: String?) in
-                let repository = ChatRepository()
-                guard let record = try repository.importRecord(id: preparedChat.id),
-                    record.chatID == preparedChat.chatID
-                else {
-                    return (false, nil)
+            let consumption = try await DraftingInputBarrier.waitUntilReady {
+                let result = try await MainActor.run {
+                    let repository = ChatRepository(context: ModelContext(ZeptlyDataStore.shared))
+                    guard let record = try repository.importRecord(id: preparedChat.id),
+                        record.chatID == preparedChat.chatID
+                    else {
+                        return DraftingInputConsumption.missing
+                    }
+                    return try repository.consumeDraftingInputIfReady(
+                        importID: preparedChat.id,
+                        operationID: preparedChat.operationID
+                    )
                 }
-                return (true, try repository.consumeDraftingInput(importID: preparedChat.id))
+                let state: DraftingInputState? = switch result {
+                case .pending: .pending
+                case .submitted: .submitted
+                case .skipped: .skipped
+                default: nil
+                }
+                let hasInput: Bool
+                if case .submitted = result {
+                    hasInput = true
+                } else {
+                    hasInput = false
+                }
+                lifecycleReporter.record(
+                    .stateObserved,
+                    operationID: preparedChat.operationID,
+                    startedAt: startedAt,
+                    state: state,
+                    hasInput: hasInput
+                )
+                return result
             }
-            guard transient.found else {
+
+            let input: String?
+            switch consumption {
+            case let .submitted(value):
+                input = value
+                lifecycleReporter.record(
+                    .contextConsumed,
+                    operationID: preparedChat.operationID,
+                    startedAt: startedAt,
+                    state: .submitted,
+                    hasInput: true
+                )
+            case .skipped:
+                input = nil
+            case .operationMismatch:
+                let response = ShortcutResponseBuilder.failure(
+                    message: "The analyzed chat does not match this Shortcut run.",
+                    errorCode: "operation_mismatch",
+                    traceID: traceID
+                )
+                return .result(value: response.dialog)
+            case .missing:
                 let response = ShortcutResponseBuilder.failure(
                     message: "The analyzed chat has expired or is unavailable.",
                     errorCode: "import_not_found",
                     traceID: traceID
                 )
                 return .result(value: response.dialog)
+            case .expired, .alreadyConsumed:
+                let response = ShortcutResponseBuilder.failure(
+                    message: "The optional context for this analyzed chat is no longer available. Run Analyze Chat Screenshot again.",
+                    errorCode: "input_handoff_unavailable",
+                    traceID: traceID
+                )
+                return .result(value: response.dialog)
+            case .pending:
+                preconditionFailure("The readiness barrier must not return pending.")
             }
             let replyCoordinator = await MainActor.run { SuggestedRepliesCoordinator() }
             let replies = try await replyCoordinator.generate(
                 chatID: preparedChat.chatID,
-                draftingInput: transient.input,
+                draftingInput: input,
                 traceID: traceID
             )
             let response = ShortcutResponseBuilder.success(preparedChat.outcome, repliesOutcome: replies)
             return .result(value: response.dialog)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch let error as SuggestedRepliesError {
             eventReporter.record(.importFailed(traceID: traceID, stage: .replyGeneration, errorCode: error.code))
             let response = ShortcutResponseBuilder.success(preparedChat.outcome, replyErrorCode: error.code)

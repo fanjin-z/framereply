@@ -34,7 +34,7 @@ Zeptly's recommended shortcut is **Capture with Zeptly**. Install it from the **
 3. **Generate Suggested Replies**
 4. **Show Result**
 
-While Zeptly analyzes the screenshot, **Analyze Chat Screenshot** asks for optional context or a rough draft. That text is used once and expires after 15 minutes if the workflow is abandoned. **Generate Suggested Replies** returns ready-to-display text containing the import status and two replies. Screenshot import remains successful if reply generation is temporarily unavailable.
+On iOS 26 or later, **Analyze Chat Screenshot** first offers **Add Context or Draft** and **Skip**. Choosing Add opens a multiline prompt while analysis continues; Done with blank text is also treated as Skip. The system Cancel button stops the Shortcut. On iOS 18–25, the text prompt explains that Done empty skips and Cancel stops. Submitted text is used once and expires after 15 minutes if the workflow is abandoned. **Generate Suggested Replies** waits until that input choice is durably committed, then returns ready-to-display text containing the import status and two replies. Screenshot import remains successful if reply generation is temporarily unavailable.
 
 For Back Tap, turn off **Settings → Accessibility → Touch → Back Tap → Show Banner**. The banner can cover a messaging app's conversation title before the screenshot is taken. The screenshot animation and context input sheet still provide visible confirmation that the shortcut ran; no vibration action is required.
 

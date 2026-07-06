@@ -6,6 +6,40 @@
 import Foundation
 import SwiftData
 
+nonisolated enum DraftingInputState: String, Codable, Equatable, Sendable {
+    case pending
+    case submitted
+    case skipped
+}
+
+nonisolated enum DraftingInputConsumption: Equatable, Sendable {
+    case pending
+    case submitted(String)
+    case skipped
+    case missing
+    case operationMismatch
+    case expired
+    case alreadyConsumed
+}
+
+nonisolated enum DraftingInputSynchronizationError: Error, Equatable, Sendable {
+    case importUnavailable
+}
+
+nonisolated enum DraftingInputBarrier {
+    static func waitUntilReady(
+        pollInterval: Duration = .milliseconds(150),
+        read: @escaping @Sendable () async throws -> DraftingInputConsumption
+    ) async throws -> DraftingInputConsumption {
+        while true {
+            try Task.checkCancellation()
+            let result = try await read()
+            guard result == .pending else { return result }
+            try await Task.sleep(for: pollInterval)
+        }
+    }
+}
+
 @MainActor
 final class ChatRepository {
     private let context: ModelContext
@@ -18,6 +52,10 @@ final class ChatRepository {
 
     init(container: ModelContainer) {
         context = container.mainContext
+    }
+
+    init(context: ModelContext) {
+        self.context = context
     }
 
     nonisolated deinit {}
@@ -101,30 +139,63 @@ final class ChatRepository {
         ).first
     }
 
-    func saveDraftingInput(_ input: String?, importID: UUID, now: Date = Date()) throws {
-        guard let record = try importRecord(id: importID) else { return }
+    @discardableResult
+    func resolveDraftingInput(
+        _ input: String?,
+        importID: UUID,
+        operationID: UUID,
+        now: Date = Date()
+    ) throws -> DraftingInputState {
+        guard let record = try importRecord(id: importID), record.operationID == operationID else {
+            throw DraftingInputSynchronizationError.importUnavailable
+        }
         let trimmed = input?.trimmingCharacters(in: .whitespacesAndNewlines)
         let limited = trimmed.map { String($0.prefix(2_000)) }
         record.draftingInput = limited?.isEmpty == false ? limited : nil
-        record.draftingInputCreatedAt = record.draftingInput == nil ? nil : now
+        let state: DraftingInputState = record.draftingInput == nil ? .skipped : .submitted
+        record.draftingInputStateRaw = state.rawValue
+        record.draftingInputCreatedAt = state == .submitted ? now : nil
         try context.save()
+        return state
     }
 
-    /// Atomically returns and removes valid one-use input. Expired input is
-    /// removed without being exposed to reply generation.
-    func consumeDraftingInput(
+    /// Reads the readiness state and atomically clears submitted one-use text.
+    /// A fresh repository/context should be used for each call by Shortcut code.
+    func consumeDraftingInputIfReady(
         importID: UUID,
+        operationID: UUID,
         now: Date = Date(),
         lifetime: TimeInterval = 15 * 60
-    ) throws -> String? {
-        guard let record = try importRecord(id: importID) else { return nil }
-        let age = record.draftingInputCreatedAt.map { now.timeIntervalSince($0) }
-        let isCurrent = age.map { $0 >= 0 && $0 <= lifetime } ?? false
-        let value = isCurrent ? record.draftingInput : nil
-        record.draftingInput = nil
-        record.draftingInputCreatedAt = nil
-        try context.save()
-        return value
+    ) throws -> DraftingInputConsumption {
+        guard let record = try importRecord(id: importID) else { return .missing }
+        guard record.operationID == operationID else { return .operationMismatch }
+        guard let rawState = record.draftingInputStateRaw,
+            let state = DraftingInputState(rawValue: rawState)
+        else {
+            return .operationMismatch
+        }
+
+        switch state {
+        case .pending:
+            let age = now.timeIntervalSince(record.createdAt)
+            return age >= 0 && age <= lifetime ? .pending : .expired
+        case .skipped:
+            return .skipped
+        case .submitted:
+            guard let createdAt = record.draftingInputCreatedAt else { return .alreadyConsumed }
+            let age = now.timeIntervalSince(createdAt)
+            guard age >= 0 && age <= lifetime else {
+                record.draftingInput = nil
+                record.draftingInputCreatedAt = nil
+                try context.save()
+                return .expired
+            }
+            guard let value = record.draftingInput, !value.isEmpty else { return .alreadyConsumed }
+            record.draftingInput = nil
+            record.draftingInputCreatedAt = nil
+            try context.save()
+            return .submitted(value)
+        }
     }
 
     func purgeExpiredDraftingInputs(
@@ -598,7 +669,9 @@ final class ChatRepository {
             transcriptEvidence: matchDecision?.transcriptEvidence.rawValue,
             sourceApp: nil,
             diagnosticID: traceID.diagnosticID,
-            matchedExisting: matchedExisting
+            matchedExisting: matchedExisting,
+            operationID: traceID.value,
+            draftingInputStateRaw: DraftingInputState.pending.rawValue
         )
         context.insert(importRecord)
 
