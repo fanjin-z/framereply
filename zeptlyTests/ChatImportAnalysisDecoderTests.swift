@@ -63,6 +63,18 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(unknownMetadata.titleSource, .unavailable)
     }
 
+    func testRejectsNavigationCountAsConversationTitle() throws {
+        let result = try decode(
+            validJSON().replacingOccurrences(
+                of: #""conversationTitle":"Alex""#,
+                with: #""conversationTitle":"19""#
+            )
+        )
+
+        XCTAssertNil(result.conversationTitle)
+        XCTAssertEqual(result.titleSource, .unavailable)
+    }
+
     func testSeparatesQuotedReplyFromOuterMessageAndCorrectsSenderFromOuterAlignment() throws {
         let json = validJSON(
             sender: "user",

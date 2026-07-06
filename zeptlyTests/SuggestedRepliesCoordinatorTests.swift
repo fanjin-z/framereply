@@ -5,6 +5,29 @@ import XCTest
 
 final class SuggestedRepliesCoordinatorTests: XCTestCase {
     @MainActor
+    func testOneUseDraftBypassesGenericReplyCache() async throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "drafting-input-chat"
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
+        try container.mainContext.save()
+        let service = StubReplyService()
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+
+        let result = try await coordinator.generate(
+            chatID: chatID,
+            draftingInput: "  Tell her Friday works, but make it warmer.  "
+        )
+
+        XCTAssertEqual(result.source, .generated)
+        XCTAssertEqual(service.requests.count, 1)
+        XCTAssertEqual(service.requests[0].draftingInput, "Tell her Friday works, but make it warmer.")
+        XCTAssertNil(try repository.suggestedReplyCache(chatID: chatID))
+        XCTAssertTrue(SuggestedReplyPrompt.input(for: service.requests[0]).contains("Tell her Friday works"))
+    }
+
+    @MainActor
     func testChangingActiveMemoryInvalidatesCachedRepliesWhileArchivedMemoryDoesNot() async throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)

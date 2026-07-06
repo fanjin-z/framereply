@@ -365,6 +365,12 @@ final class ChatImportRecord {
     var avatarEvidence: String?
     var transcriptEvidence: String?
     var sourceApp: String?
+    var diagnosticID: String?
+    var matchedExisting: Bool?
+    /// One-use text supplied from the screenshot Shortcut. It is never promoted
+    /// to chat history, contact memory, or persona learning.
+    var draftingInput: String?
+    var draftingInputCreatedAt: Date?
 
     init(
         id: UUID = UUID(),
@@ -382,7 +388,11 @@ final class ChatImportRecord {
         matchReason: String? = nil,
         avatarEvidence: String? = nil,
         transcriptEvidence: String? = nil,
-        sourceApp: String? = nil
+        sourceApp: String? = nil,
+        diagnosticID: String? = nil,
+        matchedExisting: Bool? = nil,
+        draftingInput: String? = nil,
+        draftingInputCreatedAt: Date? = nil
     ) {
         self.id = id
         self.chatID = chatID
@@ -400,6 +410,10 @@ final class ChatImportRecord {
         self.avatarEvidence = avatarEvidence
         self.transcriptEvidence = transcriptEvidence
         self.sourceApp = sourceApp
+        self.diagnosticID = diagnosticID
+        self.matchedExisting = matchedExisting
+        self.draftingInput = draftingInput
+        self.draftingInputCreatedAt = draftingInputCreatedAt
     }
 }
 

@@ -27,14 +27,18 @@ By default, `run.sh` builds and launches the app on an `iPhone 17` simulator. Yo
 
 ## Screenshot Shortcut
 
-Zeptly's recommended shortcut is **Capture with Zeptly**. Install it from the **Screenshot Shortcut** card in Zeptly's Settings, then run it from Shortcuts, Siri, the Action button, Back Tap, or another supported system surface. It performs two actions:
+Zeptly's recommended shortcut is **Capture with Zeptly**. Install it from the **Screenshot Shortcut** card in Zeptly's Settings, then run it from Shortcuts, Siri, the Action button, Back Tap, or another supported system surface. It performs four actions:
 
 1. **Take Screenshot**
-2. **Process Chat Screenshot**
+2. **Analyze Chat Screenshot**
+3. **Generate Suggested Replies**
+4. **Show Result**
 
-The Zeptly action automatically shows a native result dialog with two suggested replies. It also returns a JSON string for advanced automation, including the replies, chat/import IDs, message count, reply status, and a privacy-safe diagnostic reference. Screenshot import remains successful if reply generation is temporarily unavailable.
+While Zeptly analyzes the screenshot, **Analyze Chat Screenshot** asks for optional context or a rough draft. That text is used once and expires after 15 minutes if the workflow is abandoned. **Generate Suggested Replies** returns ready-to-display text containing the import status and two replies. Screenshot import remains successful if reply generation is temporarily unavailable.
 
-Until the canonical installer link is configured, create the shortcut manually using the same two actions. **Show Result** and **Quick Look** are unnecessary unless you explicitly want to inspect the raw JSON output.
+For Back Tap, turn off **Settings → Accessibility → Touch → Back Tap → Show Banner**. The banner can cover a messaging app's conversation title before the screenshot is taken. The screenshot animation and context input sheet still provide visible confirmation that the shortcut ran; no vibration action is required.
+
+Until the canonical installer link is configured, create the shortcut manually using the same four actions and connect each action to the previous action's output.
 
 ### Maintainer notes
 

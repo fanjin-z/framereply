@@ -23,6 +23,7 @@ final class ChatRepository {
     nonisolated deinit {}
 
     func seedIfNeeded() throws {
+        try purgeExpiredDraftingInputs()
         let metadata = try context.fetch(
             FetchDescriptor<StoreMetadataRecord>(
                 predicate: #Predicate { $0.key == "sampleSeedVersion" }
@@ -92,6 +93,56 @@ final class ChatRepository {
         try context.fetch(
             FetchDescriptor<SuggestedReplyCacheRecord>(predicate: #Predicate { $0.chatID == chatID })
         ).first
+    }
+
+    func importRecord(id: UUID) throws -> ChatImportRecord? {
+        try context.fetch(
+            FetchDescriptor<ChatImportRecord>(predicate: #Predicate { $0.id == id })
+        ).first
+    }
+
+    func saveDraftingInput(_ input: String?, importID: UUID, now: Date = Date()) throws {
+        guard let record = try importRecord(id: importID) else { return }
+        let trimmed = input?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let limited = trimmed.map { String($0.prefix(2_000)) }
+        record.draftingInput = limited?.isEmpty == false ? limited : nil
+        record.draftingInputCreatedAt = record.draftingInput == nil ? nil : now
+        try context.save()
+    }
+
+    /// Atomically returns and removes valid one-use input. Expired input is
+    /// removed without being exposed to reply generation.
+    func consumeDraftingInput(
+        importID: UUID,
+        now: Date = Date(),
+        lifetime: TimeInterval = 15 * 60
+    ) throws -> String? {
+        guard let record = try importRecord(id: importID) else { return nil }
+        let age = record.draftingInputCreatedAt.map { now.timeIntervalSince($0) }
+        let isCurrent = age.map { $0 >= 0 && $0 <= lifetime } ?? false
+        let value = isCurrent ? record.draftingInput : nil
+        record.draftingInput = nil
+        record.draftingInputCreatedAt = nil
+        try context.save()
+        return value
+    }
+
+    func purgeExpiredDraftingInputs(
+        now: Date = Date(),
+        lifetime: TimeInterval = 15 * 60
+    ) throws {
+        let records = try context.fetch(FetchDescriptor<ChatImportRecord>())
+        var changed = false
+        for record in records where record.draftingInput != nil {
+            let age = record.draftingInputCreatedAt.map { now.timeIntervalSince($0) }
+            guard age.map({ $0 < 0 || $0 > lifetime }) ?? true else { continue }
+            record.draftingInput = nil
+            record.draftingInputCreatedAt = nil
+            changed = true
+        }
+        if changed {
+            try context.save()
+        }
     }
 
     func persona(id: UUID) throws -> PersonaRecord? {
@@ -545,7 +596,9 @@ final class ChatRepository {
             matchReason: matchDecision?.reason.rawValue,
             avatarEvidence: matchDecision?.avatarEvidence.rawValue,
             transcriptEvidence: matchDecision?.transcriptEvidence.rawValue,
-            sourceApp: nil
+            sourceApp: nil,
+            diagnosticID: traceID.diagnosticID,
+            matchedExisting: matchedExisting
         )
         context.insert(importRecord)
 

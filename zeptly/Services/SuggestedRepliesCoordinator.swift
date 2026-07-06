@@ -87,9 +87,14 @@ final class SuggestedRepliesCoordinator {
 
     func generate(
         chatID: String,
+        draftingInput: String? = nil,
         force: Bool = false,
         traceID: ImportTraceID = ImportTraceID()
     ) async throws -> SuggestedRepliesOutcome {
+        let draftingInput = draftingInput?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .prefix(2_000)
+        let oneUseInput = draftingInput.map(String.init).flatMap { $0.isEmpty ? nil : $0 }
         let providerContext: AIProviderExecutionContext
         do {
             providerContext = try aiService.activeContext(requiring: .suggestedReplies)
@@ -124,7 +129,7 @@ final class SuggestedRepliesCoordinator {
             model: replyModel
         )
 
-        if !force,
+        if oneUseInput == nil, !force,
             let cache,
             cache.inputFingerprint == inputFingerprint,
             cache.promptVersion == SuggestedReplyPrompt.version,
@@ -151,6 +156,7 @@ final class SuggestedRepliesCoordinator {
             summaryMode: summaryPlan.mode,
             olderMessagesToSummarize: summaryPlan.messages.map(promptMessage),
             recentMessages: recentMessages.map(promptMessage),
+            draftingInput: oneUseInput,
             traceID: traceID
         )
 
@@ -200,6 +206,13 @@ final class SuggestedRepliesCoordinator {
         let validTraitChanges = generated.personaTraitChanges.filter {
             !$0.sourceMessageIDs.isEmpty && $0.sourceMessageIDs.allSatisfy(learningMessageIDs.contains)
         }
+
+        // Input-specific replies are intentionally not persisted as the generic
+        // chat cache, and their output cannot affect memory or persona learning.
+        if oneUseInput != nil {
+            return SuggestedRepliesOutcome(replies: generated.replies, source: .generated)
+        }
+
         let persistedFingerprint = fingerprint(
             chatName: chat.name,
             messages: messages,

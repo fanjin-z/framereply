@@ -39,7 +39,36 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
     let summaryMode: SuggestedReplySummaryMode
     let olderMessagesToSummarize: [SuggestedReplyPromptMessage]
     let recentMessages: [SuggestedReplyPromptMessage]
+    let draftingInput: String?
     let traceID: ImportTraceID
+
+    init(
+        chatName: String,
+        relationshipSubtitle: String,
+        contactMemories: [ContactMemory],
+        currentInteractionGoal: String,
+        persona: PersonaPromptContext,
+        personaLearningMessages: [SuggestedReplyPromptMessage],
+        existingHistorySummary: String,
+        summaryMode: SuggestedReplySummaryMode,
+        olderMessagesToSummarize: [SuggestedReplyPromptMessage],
+        recentMessages: [SuggestedReplyPromptMessage],
+        draftingInput: String? = nil,
+        traceID: ImportTraceID
+    ) {
+        self.chatName = chatName
+        self.relationshipSubtitle = relationshipSubtitle
+        self.contactMemories = contactMemories
+        self.currentInteractionGoal = currentInteractionGoal
+        self.persona = persona
+        self.personaLearningMessages = personaLearningMessages
+        self.existingHistorySummary = existingHistorySummary
+        self.summaryMode = summaryMode
+        self.olderMessagesToSummarize = olderMessagesToSummarize
+        self.recentMessages = recentMessages
+        self.draftingInput = draftingInput
+        self.traceID = traceID
+    }
 }
 
 extension SuggestedReplyGenerationRequest {
@@ -53,6 +82,7 @@ extension SuggestedReplyGenerationRequest {
         summaryMode: SuggestedReplySummaryMode,
         olderMessagesToSummarize: [SuggestedReplyPromptMessage],
         recentMessages: [SuggestedReplyPromptMessage],
+        draftingInput: String? = nil,
         traceID: ImportTraceID
     ) {
         self.init(
@@ -75,6 +105,7 @@ extension SuggestedReplyGenerationRequest {
             summaryMode: summaryMode,
             olderMessagesToSummarize: olderMessagesToSummarize,
             recentMessages: recentMessages,
+            draftingInput: draftingInput,
             traceID: traceID
         )
     }

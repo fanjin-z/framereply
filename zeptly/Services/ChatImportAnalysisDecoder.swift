@@ -87,6 +87,14 @@ nonisolated enum ChatImportAnalysisDecoder {
 
     static func normalize(_ analysis: ChatImportAnalysis) -> ChatImportNormalizationResult {
         var notes: [String] = []
+        let title = normalizedConversationTitle(analysis.conversationTitle)
+        let titleSource: ChatTitleSource
+        if analysis.conversationTitle != nil, title == nil {
+            notes.append("conversationTitle rejected as system or navigation UI")
+            titleSource = .unavailable
+        } else {
+            titleSource = analysis.titleSource
+        }
         let messages = analysis.messages.enumerated().map { index, message in
             let resolved = resolvedSender(for: message, convention: analysis.ownershipConvention, kind: analysis.conversationKind)
             guard resolved != message.sender else { return message }
@@ -107,17 +115,37 @@ nonisolated enum ChatImportAnalysisDecoder {
 
         return ChatImportNormalizationResult(
             analysis: ChatImportAnalysis(
-                conversationTitle: analysis.conversationTitle,
+                conversationTitle: title,
                 messages: messages,
                 matchedChatID: analysis.matchedChatID,
                 matchConfidence: analysis.matchConfidence,
                 conversationKind: analysis.conversationKind,
-                titleSource: analysis.titleSource,
+                titleSource: titleSource,
                 avatarBounds: analysis.avatarBounds,
                 ownershipConvention: analysis.ownershipConvention
             ),
             notes: notes
         )
+    }
+
+    private static func normalizedConversationTitle(_ value: String?) -> String? {
+        guard let title = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+            !title.isEmpty
+        else {
+            return nil
+        }
+        let compact = title.filter { !$0.isWhitespace }
+        if !compact.isEmpty, compact.allSatisfy(\.isNumber) {
+            return nil
+        }
+        let systemOverlayTitles = [
+            "back tap", "double tap detected", "triple tap detected",
+            "shortcuts", "screenshot", "take screenshot", "zeptly"
+        ]
+        if systemOverlayTitles.contains(title.lowercased()) {
+            return nil
+        }
+        return title
     }
 
     static func repairHint(for failure: StructuredOutputFailure) -> String {

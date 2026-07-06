@@ -78,6 +78,7 @@ enum ChatScreenshotPrompt {
 
         4. Conversation identity and output
         - conversationTitle is exact visible header title: usually the other display name in a direct chat or the group title; null if unavailable. conversationKind is "direct" for one other participant, "group" for multiple, otherwise "unknown".
+        - Ignore temporary system overlays in the top region, including Back Tap, Shortcut, notification, volume, call, and Dynamic Island banners. Text inside those overlays is never a conversation title.
         - titleSource is "header" for header text, "participant_label" when obtained only from an outer author label, otherwise "unavailable".
         - avatarBounds is the tight header-profile-image rectangle in normalized 0...1 top-left-origin coordinates; exclude borders/UI and use null if unclear or absent.
         - matchedChatID is an exact supplied candidate ID supported as the same conversation, otherwise null. matchConfidence measures only that identity match and must be 0 when matchedChatID is null.

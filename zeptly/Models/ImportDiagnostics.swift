@@ -20,9 +20,11 @@ nonisolated struct ImportTraceID: Codable, Equatable, Hashable, Sendable {
 
 nonisolated enum ImportStage: String, Sendable {
     case shortcut
+    case screenshotDecoding = "screenshot_decoding"
     case provider
     case matching
     case persistence
+    case replyGeneration = "reply_generation"
 }
 
 nonisolated enum StructuredOutputFailureKind: String, Codable, Equatable, Sendable {

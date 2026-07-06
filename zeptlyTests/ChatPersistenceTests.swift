@@ -5,6 +5,36 @@ import XCTest
 
 @MainActor
 final class ChatPersistenceTests: XCTestCase {
+    func testDraftingInputIsOneUseAndExpiresAfterFifteenMinutes() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let current = ChatImportRecord(
+            chatID: "chat", transcriptFingerprint: nil, provider: "test", model: "test",
+            confidence: 1, insertedMessageCount: 1, isDuplicate: false, requiresReview: false
+        )
+        let expired = ChatImportRecord(
+            chatID: "chat", transcriptFingerprint: nil, provider: "test", model: "test",
+            confidence: 1, insertedMessageCount: 1, isDuplicate: false, requiresReview: false
+        )
+        container.mainContext.insert(current)
+        container.mainContext.insert(expired)
+        try container.mainContext.save()
+        let now = Date()
+
+        try repository.saveDraftingInput("  Make this warmer  ", importID: current.id, now: now)
+        try repository.saveDraftingInput("Old draft", importID: expired.id, now: now.addingTimeInterval(-901))
+
+        XCTAssertEqual(try repository.consumeDraftingInput(importID: current.id, now: now), "Make this warmer")
+        XCTAssertNil(try repository.consumeDraftingInput(importID: current.id, now: now))
+        XCTAssertNil(try repository.consumeDraftingInput(importID: expired.id, now: now))
+        XCTAssertNil(expired.draftingInput)
+        XCTAssertNil(expired.draftingInputCreatedAt)
+
+        try repository.saveDraftingInput("Another old draft", importID: expired.id, now: now.addingTimeInterval(-901))
+        try repository.purgeExpiredDraftingInputs(now: now)
+        XCTAssertNil(expired.draftingInput)
+    }
+
     func testChatsPersistWhenTheContainerIsRecreated() throws {
         let storeURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
