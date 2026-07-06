@@ -5,15 +5,6 @@
 
 import Foundation
 
-nonisolated enum ContactMemoryKind: String, Codable, CaseIterable, Equatable, Sendable {
-    case relationship
-    case preference
-    case person
-    case event
-    case fact
-    case other
-}
-
 nonisolated enum ContactMemoryOrigin: String, Codable, Equatable, Sendable {
     case user
     case ai
@@ -33,7 +24,6 @@ nonisolated enum ContactMemoryStatus: String, Codable, Equatable, Sendable {
 nonisolated struct ContactMemory: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     var text: String
-    var kind: ContactMemoryKind
     var origin: ContactMemoryOrigin
     var certainty: ContactMemoryCertainty
     var sourceMessageIDs: [UUID]
@@ -44,7 +34,6 @@ nonisolated struct ContactMemory: Identifiable, Codable, Equatable, Sendable {
     init(
         id: UUID = UUID(),
         text: String,
-        kind: ContactMemoryKind = .other,
         origin: ContactMemoryOrigin = .user,
         certainty: ContactMemoryCertainty = .userConfirmed,
         sourceMessageIDs: [UUID] = [],
@@ -54,7 +43,6 @@ nonisolated struct ContactMemory: Identifiable, Codable, Equatable, Sendable {
     ) {
         self.id = id
         self.text = text
-        self.kind = kind
         self.origin = origin
         self.certainty = certainty
         self.sourceMessageIDs = sourceMessageIDs
@@ -102,15 +90,13 @@ nonisolated enum ContactMemoryReconciler {
             case .add:
                 guard change.targetMemoryID == nil,
                     let text = cleaned(change.text),
-                    let kind = change.kind,
-                    activeEquivalent(to: text, kind: kind, in: result, excluding: nil) == nil
+                    activeEquivalent(to: text, in: result, excluding: nil) == nil
                 else {
                     continue
                 }
                 result.append(
                     ContactMemory(
                         text: text,
-                        kind: kind,
                         origin: .ai,
                         certainty: .aiInferred,
                         sourceMessageIDs: evidence,
@@ -123,15 +109,13 @@ nonisolated enum ContactMemoryReconciler {
             case .update:
                 guard let targetID = change.targetMemoryID,
                     let targetIndex = result.firstIndex(where: { $0.id == targetID && $0.status == .active }),
-                    let text = cleaned(change.text),
-                    let kind = change.kind
+                    let text = cleaned(change.text)
                 else {
                     continue
                 }
 
                 if let duplicateIndex = activeEquivalent(
                     to: text,
-                    kind: kind,
                     in: result,
                     excluding: targetID
                 ) {
@@ -148,7 +132,6 @@ nonisolated enum ContactMemoryReconciler {
                     result[duplicateIndex].updatedAt = now
                 } else if result[targetIndex].origin == .ai {
                     result[targetIndex].text = text
-                    result[targetIndex].kind = kind
                     result[targetIndex].certainty = .aiInferred
                     result[targetIndex].sourceMessageIDs = merged(
                         result[targetIndex].sourceMessageIDs,
@@ -165,7 +148,6 @@ nonisolated enum ContactMemoryReconciler {
                     result.append(
                         ContactMemory(
                             text: text,
-                            kind: kind,
                             origin: .ai,
                             certainty: .aiInferred,
                             sourceMessageIDs: evidence,
@@ -202,7 +184,6 @@ nonisolated enum ContactMemoryReconciler {
 
     private static func activeEquivalent(
         to text: String,
-        kind: ContactMemoryKind,
         in memories: [ContactMemory],
         excluding excludedID: UUID?
     ) -> Int? {
@@ -210,7 +191,6 @@ nonisolated enum ContactMemoryReconciler {
         return memories.firstIndex {
             $0.id != excludedID
                 && $0.status == .active
-                && $0.kind == kind
                 && comparisonKey($0.text) == key
         }
     }

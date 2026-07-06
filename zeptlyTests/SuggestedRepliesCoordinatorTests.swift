@@ -116,7 +116,6 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                         action: .add,
                         targetMemoryID: nil,
                         text: "Must not be saved",
-                        kind: .fact,
                         sourceMessageIDs: [message.id]
                     )
                 ],
@@ -152,7 +151,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
         let active = ContactMemoryRecord(
             chatID: chatID,
-            value: ContactMemory(text: "Likes tea", kind: .preference)
+            value: ContactMemory(text: "Likes tea")
         )
         let archived = ContactMemoryRecord(
             chatID: chatID,
@@ -197,13 +196,13 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         container.mainContext.insert(
             ContactMemoryRecord(
                 chatID: chatID,
-                value: ContactMemory(text: "Met at university", kind: .relationship)
+                value: ContactMemory(text: "Met at university")
             )
         )
         container.mainContext.insert(
             ContactMemoryRecord(
                 chatID: chatID,
-                value: ContactMemory(text: "Vegetarian", kind: .preference)
+                value: ContactMemory(text: "Vegetarian")
             )
         )
         for index in 0..<22 {
@@ -310,10 +309,9 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let repository = ChatRepository(container: container)
         let chatID = "memory-maintenance-chat"
         let message = makeMessage(chatID: chatID, index: 1)
-        let userMemory = ContactMemory(text: "Lives in Paris", kind: .fact)
+        let userMemory = ContactMemory(text: "Lives in Paris")
         let aiMemory = ContactMemory(
             text: "Conference next week",
-            kind: .event,
             origin: .ai,
             certainty: .aiInferred
         )
@@ -332,28 +330,24 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                         action: .update,
                         targetMemoryID: userMemory.id,
                         text: "Now lives in Berlin",
-                        kind: .fact,
                         sourceMessageIDs: [message.id]
                     ),
                     ContactMemoryChange(
                         action: .archive,
                         targetMemoryID: aiMemory.id,
                         text: nil,
-                        kind: nil,
                         sourceMessageIDs: [message.id]
                     ),
                     ContactMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
                         text: "Vegetarian",
-                        kind: .preference,
                         sourceMessageIDs: [message.id]
                     ),
                     ContactMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
                         text: "Unsupported detail",
-                        kind: .fact,
                         sourceMessageIDs: [UUID()]
                     )
                 ]
@@ -406,35 +400,30 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                         action: .add,
                         targetMemoryID: nil,
                         text: "Asked about partner hotels in Beijing",
-                        kind: .fact,
                         sourceMessageIDs: [contactMessage.id]
                     ),
                     ContactMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
                         text: "No partner hotels in Beijing",
-                        kind: .fact,
                         sourceMessageIDs: [userMessage.id]
                     ),
                     ContactMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
                         text: "Other participant detail",
-                        kind: .fact,
                         sourceMessageIDs: [otherMessage.id]
                     ),
                     ContactMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
                         text: "Unknown sender detail",
-                        kind: .fact,
                         sourceMessageIDs: [unknownMessage.id]
                     ),
                     ContactMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
                         text: "Mixed sender detail",
-                        kind: .fact,
                         sourceMessageIDs: [contactMessage.id, userMessage.id]
                     )
                 ]

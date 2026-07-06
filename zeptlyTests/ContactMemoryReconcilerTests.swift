@@ -13,15 +13,13 @@ final class ContactMemoryReconcilerTests: XCTestCase {
             ContactMemory(
                 id: aiID,
                 text: "Likes tea",
-                kind: .preference,
                 origin: .ai,
                 certainty: .aiInferred
             ),
-            ContactMemory(id: userID, text: "Lives in Paris", kind: .fact),
+            ContactMemory(id: userID, text: "Lives in Paris"),
             ContactMemory(
                 id: archivedID,
                 text: "Conference next week",
-                kind: .event,
                 origin: .ai,
                 certainty: .aiInferred
             )
@@ -34,28 +32,24 @@ final class ContactMemoryReconcilerTests: XCTestCase {
                     action: .update,
                     targetMemoryID: aiID,
                     text: "Prefers coffee",
-                    kind: .preference,
                     sourceMessageIDs: [evidenceID]
                 ),
                 ContactMemoryChange(
                     action: .update,
                     targetMemoryID: userID,
                     text: "Now lives in Berlin",
-                    kind: .fact,
                     sourceMessageIDs: [evidenceID]
                 ),
                 ContactMemoryChange(
                     action: .archive,
                     targetMemoryID: archivedID,
                     text: nil,
-                    kind: nil,
                     sourceMessageIDs: [evidenceID]
                 ),
                 ContactMemoryChange(
                     action: .add,
                     targetMemoryID: nil,
                     text: "Vegetarian",
-                    kind: .preference,
                     sourceMessageIDs: [evidenceID]
                 )
             ],
@@ -81,7 +75,7 @@ final class ContactMemoryReconcilerTests: XCTestCase {
 
     func testRejectsUnknownEvidenceTargetsAndDuplicateAdds() {
         let allowedID = UUID()
-        let memory = ContactMemory(text: "Vegetarian", kind: .preference)
+        let memory = ContactMemory(text: "Vegetarian")
         let result = ContactMemoryReconciler.reconcile(
             memories: [memory],
             changes: [
@@ -89,21 +83,18 @@ final class ContactMemoryReconcilerTests: XCTestCase {
                     action: .add,
                     targetMemoryID: nil,
                     text: " vegetarian. ",
-                    kind: .preference,
                     sourceMessageIDs: [allowedID]
                 ),
                 ContactMemoryChange(
                     action: .archive,
                     targetMemoryID: UUID(),
                     text: nil,
-                    kind: nil,
                     sourceMessageIDs: [allowedID]
                 ),
                 ContactMemoryChange(
                     action: .archive,
                     targetMemoryID: memory.id,
                     text: nil,
-                    kind: nil,
                     sourceMessageIDs: [UUID()]
                 )
             ],
@@ -123,7 +114,6 @@ final class ContactMemoryReconcilerTests: XCTestCase {
                     action: .add,
                     targetMemoryID: nil,
                     text: "Asked about partner hotels",
-                    kind: .fact,
                     sourceMessageIDs: [contactID, disallowedID]
                 )
             ],

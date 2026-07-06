@@ -276,7 +276,6 @@ final class ContactMemoryRecord {
     var id: UUID
     var chatID: String
     var text: String
-    var kind: String
     var origin: String
     var certainty: String
     var sourceMessageIDsJSON: String
@@ -288,7 +287,6 @@ final class ContactMemoryRecord {
         id: UUID = UUID(),
         chatID: String,
         text: String,
-        kind: String,
         origin: String,
         certainty: String,
         sourceMessageIDsJSON: String = "[]",
@@ -299,7 +297,6 @@ final class ContactMemoryRecord {
         self.id = id
         self.chatID = chatID
         self.text = text
-        self.kind = kind
         self.origin = origin
         self.certainty = certainty
         self.sourceMessageIDsJSON = sourceMessageIDsJSON

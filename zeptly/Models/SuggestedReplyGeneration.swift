@@ -8,7 +8,7 @@ nonisolated struct SuggestedReplyPromptMessage: Codable, Equatable, Sendable {
     let timeLabel: String
 }
 
-nonisolated enum ContactMemoryChangeAction: String, Codable, Equatable, Sendable {
+nonisolated enum ContactMemoryChangeAction: String, Codable, CaseIterable, Equatable, Sendable {
     case add
     case update
     case archive
@@ -18,8 +18,21 @@ nonisolated struct ContactMemoryChange: Codable, Equatable, Sendable {
     let action: ContactMemoryChangeAction
     let targetMemoryID: UUID?
     let text: String?
-    let kind: ContactMemoryKind?
     let sourceMessageIDs: [UUID]
+}
+
+nonisolated enum PersonaLearningBand: String, Codable, CaseIterable, Equatable, Sendable {
+    case low
+    case middle
+    case high
+
+    var styleBand: PersonaStyleBand {
+        switch self {
+        case .low: .muchLower
+        case .middle: .middle
+        case .high: .muchHigher
+        }
+    }
 }
 
 nonisolated enum SuggestedReplySummaryMode: String, Codable, Equatable, Sendable {
@@ -220,15 +233,20 @@ nonisolated enum SuggestedReplyResultDecoder {
             try decodeMemoryChange(object, index: index)
         }
 
-        let traitObjects = object["personaTraitChanges"] as? [[String: Any]] ?? []
-        guard traitObjects.count <= PersonaStyleDimensionRegistry.learnableDefinitions.count else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "personaTraitChanges")
+        guard let levelObjects = object["personaStyleLevels"] as? [[String: Any]],
+            levelObjects.count <= axisDimensionCount,
+            let observationObjects = object["personaStyleObservations"] as? [[String: Any]],
+            observationObjects.count <= observationDimensionCount
+        else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "personaStyle")
         }
-        let personaTraitChanges = try traitObjects.enumerated().map { index, value in
-            try decodePersonaTraitChange(value, index: index)
+        let personaTraitChanges = try levelObjects.enumerated().map { index, value in
+            try decodePersonaStyleLevel(value, index: index)
+        } + observationObjects.enumerated().map { index, value in
+            try decodePersonaStyleObservation(value, index: index)
         }
         guard Set(personaTraitChanges.map(\.dimensionKey)).count == personaTraitChanges.count else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "personaTraitChanges.dimensionKey")
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "personaStyle.dimensionKey")
         }
 
         return SuggestedReplyGenerationResult(
@@ -273,9 +291,10 @@ nonisolated enum SuggestedReplyResultDecoder {
         index: Int
     ) throws -> ContactMemoryChange {
         let path = "memoryChanges[\(index)]"
-        guard let actionValue = object["action"] as? String,
+        guard Set(object.keys) == ["action", "targetMemoryID", "text", "evidenceMessageIDs"],
+            let actionValue = object["action"] as? String,
             let action = ContactMemoryChangeAction(rawValue: actionValue),
-            let sourceValues = object["sourceMessageIDs"] as? [String],
+            let sourceValues = object["evidenceMessageIDs"] as? [String],
             (1...3).contains(sourceValues.count)
         else {
             throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path)
@@ -285,35 +304,28 @@ nonisolated enum SuggestedReplyResultDecoder {
         guard sourceMessageIDs.count == sourceValues.count,
             Set(sourceMessageIDs).count == sourceMessageIDs.count
         else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "\(path).sourceMessageIDs")
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "\(path).evidenceMessageIDs")
         }
 
         let targetMemoryID = uuid(from: object["targetMemoryID"])
         let text = nullableString(from: object["text"])?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let kind = nullableString(from: object["kind"]).flatMap(ContactMemoryKind.init(rawValue:))
-
         switch action {
         case .add:
-            let expectedKeys: Set<String> = ["action", "text", "kind", "sourceMessageIDs"]
-            guard Set(object.keys) == expectedKeys,
-                let text, !text.isEmpty, text.count <= 240,
-                kind != nil
+            guard targetMemoryID == nil,
+                let text, !text.isEmpty, text.count <= 240
             else {
                 throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path)
             }
         case .update:
-            let expectedKeys: Set<String> = ["action", "targetMemoryID", "text", "kind", "sourceMessageIDs"]
-            guard Set(object.keys) == expectedKeys,
-                targetMemoryID != nil,
-                let text, !text.isEmpty, text.count <= 240,
-                kind != nil
+            guard targetMemoryID != nil,
+                let text, !text.isEmpty, text.count <= 240
             else {
                 throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path)
             }
         case .archive:
-            let expectedKeys: Set<String> = ["action", "targetMemoryID", "sourceMessageIDs"]
-            guard Set(object.keys) == expectedKeys, targetMemoryID != nil else {
+            guard targetMemoryID != nil, text == nil
+            else {
                 throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path)
             }
         }
@@ -322,43 +334,58 @@ nonisolated enum SuggestedReplyResultDecoder {
             action: action,
             targetMemoryID: targetMemoryID,
             text: text,
-            kind: kind,
             sourceMessageIDs: sourceMessageIDs
         )
     }
 
-    private static func decodePersonaTraitChange(
+    private static func decodePersonaStyleLevel(
         _ object: [String: Any], index: Int
     ) throws -> PersonaTraitChange {
-        let path = "personaTraitChanges[\(index)]"
-        guard Set(object.keys) == ["dimensionKey", "levelBand", "observation", "sourceMessageIDs"],
+        let path = "personaStyleLevels[\(index)]"
+        guard Set(object.keys) == ["dimensionKey", "level", "evidenceMessageIDs"],
             let dimensionKey = object["dimensionKey"] as? String,
             let definition = PersonaStyleDimensionRegistry.definition(for: dimensionKey),
             definition.learnable,
-            let observation = object["observation"] as? String,
-            !observation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            observation.count <= 180,
-            let sourceValues = object["sourceMessageIDs"] as? [String],
+            !definition.observationOnly,
+            let levelValue = object["level"] as? String,
+            let learningBand = PersonaLearningBand(rawValue: levelValue),
+            let sourceValues = object["evidenceMessageIDs"] as? [String],
             (1...10).contains(sourceValues.count)
         else { throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path) }
-        let levelBand: PersonaStyleBand?
-        if object["levelBand"] is NSNull {
-            levelBand = nil
-        } else if let rawBand = object["levelBand"] as? String {
-            levelBand = PersonaStyleBand(rawValue: rawBand)
-        } else {
-            levelBand = nil
-        }
-        guard definition.observationOnly == (levelBand == nil) else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "\(path).levelBand")
-        }
         let ids = sourceValues.compactMap(UUID.init(uuidString:))
         guard ids.count == sourceValues.count, Set(ids).count == ids.count else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "\(path).sourceMessageIDs")
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "\(path).evidenceMessageIDs")
         }
         return PersonaTraitChange(
             dimensionKey: dimensionKey,
-            levelBand: levelBand,
+            levelBand: learningBand.styleBand,
+            observation: learningObservation(for: definition, band: learningBand),
+            sourceMessageIDs: ids
+        )
+    }
+
+    private static func decodePersonaStyleObservation(
+        _ object: [String: Any], index: Int
+    ) throws -> PersonaTraitChange {
+        let path = "personaStyleObservations[\(index)]"
+        guard Set(object.keys) == ["dimensionKey", "observation", "evidenceMessageIDs"],
+            let dimensionKey = object["dimensionKey"] as? String,
+            let definition = PersonaStyleDimensionRegistry.definition(for: dimensionKey),
+            definition.learnable,
+            definition.observationOnly,
+            let observation = object["observation"] as? String,
+            !observation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            observation.count <= 180,
+            let sourceValues = object["evidenceMessageIDs"] as? [String],
+            (1...10).contains(sourceValues.count)
+        else { throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path) }
+        let ids = sourceValues.compactMap(UUID.init(uuidString:))
+        guard ids.count == sourceValues.count, Set(ids).count == ids.count else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "\(path).evidenceMessageIDs")
+        }
+        return PersonaTraitChange(
+            dimensionKey: dimensionKey,
+            levelBand: nil,
             observation: observation.trimmingCharacters(in: .whitespacesAndNewlines),
             sourceMessageIDs: ids
         )
@@ -371,6 +398,28 @@ nonisolated enum SuggestedReplyResultDecoder {
 
     private static func nullableString(from value: Any?) -> String? {
         value as? String
+    }
+
+    private static var axisDimensionCount: Int {
+        PersonaStyleDimensionRegistry.learnableDefinitions.filter { !$0.observationOnly }.count
+    }
+
+    private static var observationDimensionCount: Int {
+        PersonaStyleDimensionRegistry.learnableDefinitions.filter(\.observationOnly).count
+    }
+
+    private static func learningObservation(
+        for definition: PersonaStyleDimensionDefinition,
+        band: PersonaLearningBand
+    ) -> String {
+        switch band {
+        case .low:
+            "\(definition.title) generally leans \(definition.lowAnchor.lowercased())."
+        case .middle:
+            "\(definition.title) generally falls between \(definition.lowAnchor.lowercased()) and \(definition.highAnchor.lowercased())."
+        case .high:
+            "\(definition.title) generally leans \(definition.highAnchor.lowercased())."
+        }
     }
 
 }

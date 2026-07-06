@@ -85,7 +85,6 @@ struct ChatIntelligenceView: View {
         for memory in contactMemoryRecords where memory.status == ContactMemoryStatus.active.rawValue {
             hasher.combine(memory.id)
             hasher.combine(memory.text)
-            hasher.combine(memory.kind)
             hasher.combine(memory.origin)
             hasher.combine(memory.certainty)
             hasher.combine(memory.status)

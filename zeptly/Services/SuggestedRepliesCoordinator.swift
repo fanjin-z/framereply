@@ -412,7 +412,6 @@ final class SuggestedRepliesCoordinator {
         [
             "id": memory.id.uuidString.lowercased(),
             "text": memory.text,
-            "kind": memory.kind.rawValue,
             "origin": memory.origin.rawValue,
             "certainty": memory.certainty.rawValue
         ]

@@ -290,7 +290,6 @@ final class ChatPersistenceTests: XCTestCase {
         let sourceID = UUID()
         let memory = ContactMemory(
             text: "Met at university.\nPlanning a reunion next spring.",
-            kind: .relationship,
             origin: .ai,
             certainty: .aiInferred,
             sourceMessageIDs: [sourceID]
@@ -301,7 +300,6 @@ final class ChatPersistenceTests: XCTestCase {
         let stored = try XCTUnwrap(repository.contactMemories(chatID: chatID).first?.value)
         XCTAssertEqual(stored.id, memory.id)
         XCTAssertEqual(stored.text, memory.text)
-        XCTAssertEqual(stored.kind, .relationship)
         XCTAssertEqual(stored.origin, .ai)
         XCTAssertEqual(stored.certainty, .aiInferred)
         XCTAssertEqual(stored.status, .active)

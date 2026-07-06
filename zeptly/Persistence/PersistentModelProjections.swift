@@ -126,7 +126,6 @@ extension ContactMemoryRecord {
         return ContactMemory(
             id: id,
             text: text,
-            kind: ContactMemoryKind(rawValue: kind) ?? .other,
             origin: ContactMemoryOrigin(rawValue: origin) ?? .user,
             certainty: ContactMemoryCertainty(rawValue: certainty) ?? .userConfirmed,
             sourceMessageIDs: sourceMessageIDs,
@@ -142,7 +141,6 @@ extension ContactMemoryRecord {
             id: value.id,
             chatID: chatID,
             text: value.text,
-            kind: value.kind.rawValue,
             origin: value.origin.rawValue,
             certainty: value.certainty.rawValue,
             sourceMessageIDsJSON: sourceData.flatMap { String(data: $0, encoding: .utf8) } ?? "[]",
@@ -154,7 +152,6 @@ extension ContactMemoryRecord {
 
     func update(from value: ContactMemory) {
         text = value.text
-        kind = value.kind.rawValue
         origin = value.origin.rawValue
         certainty = value.certainty.rawValue
         sourceMessageIDsJSON = (try? String(

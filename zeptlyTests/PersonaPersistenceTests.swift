@@ -250,19 +250,86 @@ final class PersonaPersistenceTests: XCTestCase {
         XCTAssertFalse(input.contains("baselineStyle"))
     }
 
-    func testTraitDecoderRequiresBandOnlyForAxisDimensions() throws {
+    func testTraitDecoderSeparatesAxisLevelsFromStyleObservations() throws {
         let id = UUID().uuidString
         let valid = """
-        {"historySummary":"","replies":["One","Two"],"memoryChanges":[],"personaTraitChanges":[
-          {"dimensionKey":"formality","levelBand":"higher","observation":"Uses complete sentences","sourceMessageIDs":["\(id)"]},
-          {"dimensionKey":"vocabulary","levelBand":null,"observation":"Often says sounds good","sourceMessageIDs":["\(id)"]}
-        ]}
+        {"historySummary":"","replies":["One","Two"],"memoryChanges":[],
+         "personaStyleLevels":[
+          {"dimensionKey":"formality","level":"high","evidenceMessageIDs":["\(id)"]}
+         ],
+         "personaStyleObservations":[
+          {"dimensionKey":"vocabulary","observation":"Often says sounds good","evidenceMessageIDs":["\(id)"]}
+         ]}
         """
         let result = try SuggestedReplyResultDecoder.decode(content: valid, finishReason: "stop")
         XCTAssertEqual(result.personaTraitChanges.map(\.dimensionKey), ["formality", "vocabulary"])
+        XCTAssertEqual(result.personaTraitChanges.first?.levelBand, .muchHigher)
 
-        let invalid = valid.replacingOccurrences(of: "\"dimensionKey\":\"formality\",\"levelBand\":\"higher\"", with: "\"dimensionKey\":\"formality\",\"levelBand\":null")
+        let invalid = valid.replacingOccurrences(of: "\"level\":\"high\"", with: "\"level\":\"muchHigher\"")
         XCTAssertThrowsError(try SuggestedReplyResultDecoder.decode(content: invalid, finishReason: "stop"))
+    }
+
+    func testTraitDecoderAcceptsEveryRegisteredDimensionAndLearningLevel() throws {
+        let evidenceID = UUID().uuidString
+        let axisDefinitions = PersonaStyleDimensionRegistry.learnableDefinitions.filter { !$0.observationOnly }
+        let observationDefinitions = PersonaStyleDimensionRegistry.learnableDefinitions.filter(\.observationOnly)
+        let levels = axisDefinitions.enumerated().map { index, definition in
+            [
+                "dimensionKey": definition.key,
+                "level": PersonaLearningBand.allCases[index % PersonaLearningBand.allCases.count].rawValue,
+                "evidenceMessageIDs": [evidenceID]
+            ] as [String: Any]
+        }
+        let observations = observationDefinitions.map { definition in
+            [
+                "dimensionKey": definition.key,
+                "observation": "Recurring pattern for \(definition.title.lowercased()).",
+                "evidenceMessageIDs": [evidenceID]
+            ] as [String: Any]
+        }
+        let object: [String: Any] = [
+            "historySummary": "",
+            "replies": ["One", "Two"],
+            "memoryChanges": [],
+            "personaStyleLevels": levels,
+            "personaStyleObservations": observations
+        ]
+        let content = String(
+            data: try JSONSerialization.data(withJSONObject: object),
+            encoding: .utf8
+        )
+
+        let result = try SuggestedReplyResultDecoder.decode(content: content, finishReason: "stop")
+
+        XCTAssertEqual(
+            Set(result.personaTraitChanges.map(\.dimensionKey)),
+            Set(PersonaStyleDimensionRegistry.learnableDefinitions.map(\.key))
+        )
+        XCTAssertEqual(result.personaTraitChanges.filter { $0.levelBand != nil }.count, levels.count)
+        XCTAssertEqual(result.personaTraitChanges.filter { $0.levelBand == nil }.count, observations.count)
+    }
+
+    func testTraitDecoderRejectsDuplicateEvidenceIDs() throws {
+        let id = UUID().uuidString
+        let duplicateLevelEvidence = """
+        {"historySummary":"","replies":["One","Two"],"memoryChanges":[],
+         "personaStyleLevels":[
+          {"dimensionKey":"formality","level":"high","evidenceMessageIDs":["\(id)","\(id)"]}
+         ],"personaStyleObservations":[]}
+        """
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(content: duplicateLevelEvidence, finishReason: "stop")
+        )
+
+        let duplicateObservationEvidence = """
+        {"historySummary":"","replies":["One","Two"],"memoryChanges":[],
+         "personaStyleLevels":[],"personaStyleObservations":[
+          {"dimensionKey":"punctuation","observation":"Omits periods","evidenceMessageIDs":["\(id)","\(id)"]}
+         ]}
+        """
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(content: duplicateObservationEvidence, finishReason: "stop")
+        )
     }
 
     private func message(chatID: String, sender: String, createdAt: Date) -> ChatMessageRecord {
