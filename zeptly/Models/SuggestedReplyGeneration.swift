@@ -21,18 +21,17 @@ nonisolated struct ContactMemoryChange: Codable, Equatable, Sendable {
     let sourceMessageIDs: [UUID]
 }
 
-nonisolated enum PersonaLearningBand: String, Codable, CaseIterable, Equatable, Sendable {
-    case low
-    case middle
-    case high
+nonisolated enum PersonaObservationChangeAction: String, Codable, CaseIterable, Equatable, Sendable {
+    case add
+    case update
+    case archive
+}
 
-    var styleBand: PersonaStyleBand {
-        switch self {
-        case .low: .muchLower
-        case .middle: .middle
-        case .high: .muchHigher
-        }
-    }
+nonisolated struct PersonaObservationChange: Codable, Equatable, Sendable {
+    let action: PersonaObservationChangeAction
+    let targetObservationID: UUID?
+    let text: String?
+    let sourceMessageIDs: [UUID]
 }
 
 nonisolated enum SuggestedReplySummaryMode: String, Codable, Equatable, Sendable {
@@ -84,69 +83,22 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
     }
 }
 
-extension SuggestedReplyGenerationRequest {
-    init(
-        chatName: String,
-        relationshipSubtitle: String,
-        contactMemories: [ContactMemory],
-        currentInteractionGoal: String,
-        preferredPersona: String,
-        existingHistorySummary: String,
-        summaryMode: SuggestedReplySummaryMode,
-        olderMessagesToSummarize: [SuggestedReplyPromptMessage],
-        recentMessages: [SuggestedReplyPromptMessage],
-        draftingInput: String? = nil,
-        traceID: ImportTraceID
-    ) {
-        self.init(
-            chatName: chatName,
-            relationshipSubtitle: relationshipSubtitle,
-            contactMemories: contactMemories,
-            currentInteractionGoal: currentInteractionGoal,
-            persona: PersonaPromptContext(
-                id: PersonaDefaults.professionalID,
-                name: preferredPersona,
-                purposeInstructions: preferredPersona,
-                resolvedStyle: [],
-                descriptiveObservations: [],
-                alwaysFollowRules: "",
-                registryVersion: PersonaStyleDimensionRegistry.version,
-                resolverVersion: PersonaStyleResolver.version
-            ),
-            personaLearningMessages: [],
-            existingHistorySummary: existingHistorySummary,
-            summaryMode: summaryMode,
-            olderMessagesToSummarize: olderMessagesToSummarize,
-            recentMessages: recentMessages,
-            draftingInput: draftingInput,
-            traceID: traceID
-        )
-    }
-}
-
-nonisolated struct PersonaTraitChange: Codable, Equatable, Sendable {
-    let dimensionKey: String
-    let levelBand: PersonaStyleBand?
-    let observation: String
-    let sourceMessageIDs: [UUID]
-}
-
 nonisolated struct SuggestedReplyGenerationResult: Codable, Equatable, Sendable {
     let historySummary: String
     let replies: [String]
     let memoryChanges: [ContactMemoryChange]
-    let personaTraitChanges: [PersonaTraitChange]
+    let personaObservationChanges: [PersonaObservationChange]
 
     init(
         historySummary: String,
         replies: [String],
         memoryChanges: [ContactMemoryChange] = [],
-        personaTraitChanges: [PersonaTraitChange] = []
+        personaObservationChanges: [PersonaObservationChange] = []
     ) {
         self.historySummary = historySummary
         self.replies = replies
         self.memoryChanges = memoryChanges
-        self.personaTraitChanges = personaTraitChanges
+        self.personaObservationChanges = personaObservationChanges
     }
 }
 
@@ -167,259 +119,136 @@ nonisolated enum SuggestedReplyResultDecoder {
         if finishReason == "length" {
             throw StructuredOutputFailure(kind: .truncatedResponse, codingPath: nil)
         }
-
         let cleaned = clean(content)
-        guard !cleaned.isEmpty else {
+        guard let data = cleaned.data(using: .utf8), !cleaned.isEmpty else {
             throw StructuredOutputFailure(kind: .emptyResponse, codingPath: nil)
         }
-        guard let data = cleaned.data(using: .utf8) else {
-            throw StructuredOutputFailure(kind: .invalidJSON, codingPath: nil)
-        }
-
         let object: [String: Any]
         do {
             object = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
         } catch {
             throw StructuredOutputFailure(kind: .invalidJSON, codingPath: nil)
         }
+        guard !object.isEmpty else { throw schema("root") }
 
-        guard !object.isEmpty else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "root")
-        }
-
-        let summaryKeys = ["historySummary", "history_summary", "summary"]
-        guard let summaryValue = summaryKeys.lazy.compactMap({ object[$0] }).first else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "historySummary")
-        }
+        let summaryValue = ["historySummary", "history_summary", "summary"].lazy.compactMap { object[$0] }.first
         let summary: String
         if summaryValue is NSNull {
-            guard let historySummaryFallback else {
-                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "historySummary")
-            }
+            guard let historySummaryFallback else { throw schema("historySummary") }
             summary = historySummaryFallback
         } else if let value = summaryValue as? String {
             summary = value.trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "historySummary")
+            throw schema("historySummary")
         }
-        guard summary.count <= 2_000 else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "historySummary")
-        }
+        guard summary.count <= 2_000 else { throw schema("historySummary") }
 
-        let repliesValue = object["replies"]
-            ?? object["suggestedReplies"]
-            ?? object["suggested_replies"]
+        let repliesValue = object["replies"] ?? object["suggestedReplies"] ?? object["suggested_replies"]
         var replies = replyTexts(from: repliesValue)
-        if replies.isEmpty,
-            let first = object["reply1"] as? String,
-            let second = object["reply2"] as? String
-        {
+        if replies.isEmpty, let first = object["reply1"] as? String, let second = object["reply2"] as? String {
             replies = [first, second]
         }
         replies = replies.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         guard replies.count == 2,
             replies.allSatisfy({ !$0.isEmpty && $0.count <= 500 }),
             Set(replies.map { $0.lowercased() }).count == 2
-        else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "replies")
-        }
+        else { throw schema("replies") }
 
-        guard let memoryChangeObjects = object["memoryChanges"] as? [[String: Any]],
-            memoryChangeObjects.count <= 8
-        else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "memoryChanges")
+        guard let memoryObjects = object["memoryChanges"] as? [[String: Any]], memoryObjects.count <= 8 else {
+            throw schema("memoryChanges")
         }
-        let memoryChanges = try memoryChangeObjects.enumerated().map { index, object in
-            try decodeMemoryChange(object, index: index)
-        }
+        let memories = try memoryObjects.enumerated().map { try decodeMemoryChange($0.element, index: $0.offset) }
 
-        guard let levelObjects = object["personaStyleLevels"] as? [[String: Any]],
-            levelObjects.count <= axisDimensionCount,
-            let observationObjects = object["personaStyleObservations"] as? [[String: Any]],
-            observationObjects.count <= observationDimensionCount
-        else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "personaStyle")
-        }
-        let personaTraitChanges = try levelObjects.enumerated().map { index, value in
-            try decodePersonaStyleLevel(value, index: index)
-        } + observationObjects.enumerated().map { index, value in
-            try decodePersonaStyleObservation(value, index: index)
-        }
-        guard Set(personaTraitChanges.map(\.dimensionKey)).count == personaTraitChanges.count else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "personaStyle.dimensionKey")
+        guard let observationObjects = object["personaObservationChanges"] as? [[String: Any]],
+            observationObjects.count <= PersonaDefaults.maximumActiveObservations
+        else { throw schema("personaObservationChanges") }
+        let observations = try observationObjects.enumerated().map {
+            try decodeObservationChange($0.element, index: $0.offset)
         }
 
         return SuggestedReplyGenerationResult(
-            historySummary: summary,
-            replies: replies,
-            memoryChanges: memoryChanges,
-            personaTraitChanges: personaTraitChanges
+            historySummary: summary, replies: replies,
+            memoryChanges: memories, personaObservationChanges: observations
         )
+    }
+
+    private static func decodeMemoryChange(_ object: [String: Any], index: Int) throws -> ContactMemoryChange {
+        let path = "memoryChanges[\(index)]"
+        guard Set(object.keys) == ["action", "targetMemoryID", "text", "evidenceMessageIDs"],
+            let rawAction = object["action"] as? String,
+            let action = ContactMemoryChangeAction(rawValue: rawAction),
+            let sourceValues = object["evidenceMessageIDs"] as? [String],
+            (1...3).contains(sourceValues.count)
+        else { throw schema(path) }
+        let ids = try decodeIDs(sourceValues, path: "\(path).evidenceMessageIDs")
+        let target = uuid(from: object["targetMemoryID"])
+        let text = nullableString(from: object["text"])
+        try validate(action: action.rawValue, target: target, text: text, path: path)
+        return ContactMemoryChange(action: action, targetMemoryID: target, text: text, sourceMessageIDs: ids)
+    }
+
+    private static func decodeObservationChange(_ object: [String: Any], index: Int) throws -> PersonaObservationChange
+    {
+        let path = "personaObservationChanges[\(index)]"
+        guard Set(object.keys) == ["action", "targetObservationID", "text", "evidenceMessageIDs"],
+            let rawAction = object["action"] as? String,
+            let action = PersonaObservationChangeAction(rawValue: rawAction),
+            let sourceValues = object["evidenceMessageIDs"] as? [String],
+            (2...10).contains(sourceValues.count)
+        else { throw schema(path) }
+        let ids = try decodeIDs(sourceValues, path: "\(path).evidenceMessageIDs")
+        let target = uuid(from: object["targetObservationID"])
+        let text = nullableString(from: object["text"])
+        try validate(action: action.rawValue, target: target, text: text, path: path)
+        return PersonaObservationChange(action: action, targetObservationID: target, text: text, sourceMessageIDs: ids)
+    }
+
+    private static func validate(action: String, target: UUID?, text: String?, path: String) throws {
+        let value = text?.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch action {
+        case "add": guard target == nil, let value, !value.isEmpty, value.count <= 240 else { throw schema(path) }
+        case "update": guard target != nil, let value, !value.isEmpty, value.count <= 240 else { throw schema(path) }
+        case "archive": guard target != nil, text == nil else { throw schema(path) }
+        default: throw schema(path)
+        }
+    }
+
+    private static func decodeIDs(_ values: [String], path: String) throws -> [UUID] {
+        let ids = values.compactMap(UUID.init(uuidString:))
+        guard ids.count == values.count, Set(ids).count == ids.count else { throw schema(path) }
+        return ids
     }
 
     private static func clean(_ content: String?) -> String {
         var value = content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if value.hasPrefix("```"), let firstNewline = value.firstIndex(of: "\n") {
-            value = String(value[value.index(after: firstNewline)...])
-            if let fence = value.range(of: "```", options: .backwards) {
-                value = String(value[..<fence.lowerBound])
-            }
+        if value.hasPrefix("```"), let newline = value.firstIndex(of: "\n") {
+            value = String(value[value.index(after: newline)...])
+            if let fence = value.range(of: "```", options: .backwards) { value = String(value[..<fence.lowerBound]) }
         }
-        if let firstBrace = value.firstIndex(of: "{"),
-            let lastBrace = value.lastIndex(of: "}"),
-            firstBrace <= lastBrace
-        {
-            value = String(value[firstBrace...lastBrace])
+        if let first = value.firstIndex(of: "{"), let last = value.lastIndex(of: "}"), first <= last {
+            value = String(value[first...last])
         }
         return value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func replyTexts(from value: Any?) -> [String] {
-        if let strings = value as? [String] {
-            return strings
-        }
-        guard let objects = value as? [[String: Any]] else {
-            return []
-        }
+        if let strings = value as? [String] { return strings }
+        guard let objects = value as? [[String: Any]] else { return [] }
         return objects.compactMap { object in
             ["text", "reply", "content"].compactMap { object[$0] as? String }.first
         }
     }
 
-    private static func decodeMemoryChange(
-        _ object: [String: Any],
-        index: Int
-    ) throws -> ContactMemoryChange {
-        let path = "memoryChanges[\(index)]"
-        guard Set(object.keys) == ["action", "targetMemoryID", "text", "evidenceMessageIDs"],
-            let actionValue = object["action"] as? String,
-            let action = ContactMemoryChangeAction(rawValue: actionValue),
-            let sourceValues = object["evidenceMessageIDs"] as? [String],
-            (1...3).contains(sourceValues.count)
-        else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path)
-        }
-
-        let sourceMessageIDs = sourceValues.compactMap(UUID.init(uuidString:))
-        guard sourceMessageIDs.count == sourceValues.count,
-            Set(sourceMessageIDs).count == sourceMessageIDs.count
-        else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "\(path).evidenceMessageIDs")
-        }
-
-        let targetMemoryID = uuid(from: object["targetMemoryID"])
-        let text = nullableString(from: object["text"])?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        switch action {
-        case .add:
-            guard targetMemoryID == nil,
-                let text, !text.isEmpty, text.count <= 240
-            else {
-                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path)
-            }
-        case .update:
-            guard targetMemoryID != nil,
-                let text, !text.isEmpty, text.count <= 240
-            else {
-                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path)
-            }
-        case .archive:
-            guard targetMemoryID != nil, text == nil
-            else {
-                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path)
-            }
-        }
-
-        return ContactMemoryChange(
-            action: action,
-            targetMemoryID: targetMemoryID,
-            text: text,
-            sourceMessageIDs: sourceMessageIDs
-        )
-    }
-
-    private static func decodePersonaStyleLevel(
-        _ object: [String: Any], index: Int
-    ) throws -> PersonaTraitChange {
-        let path = "personaStyleLevels[\(index)]"
-        guard Set(object.keys) == ["dimensionKey", "level", "evidenceMessageIDs"],
-            let dimensionKey = object["dimensionKey"] as? String,
-            let definition = PersonaStyleDimensionRegistry.definition(for: dimensionKey),
-            definition.learnable,
-            !definition.observationOnly,
-            let levelValue = object["level"] as? String,
-            let learningBand = PersonaLearningBand(rawValue: levelValue),
-            let sourceValues = object["evidenceMessageIDs"] as? [String],
-            (1...10).contains(sourceValues.count)
-        else { throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path) }
-        let ids = sourceValues.compactMap(UUID.init(uuidString:))
-        guard ids.count == sourceValues.count, Set(ids).count == ids.count else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "\(path).evidenceMessageIDs")
-        }
-        return PersonaTraitChange(
-            dimensionKey: dimensionKey,
-            levelBand: learningBand.styleBand,
-            observation: learningObservation(for: definition, band: learningBand),
-            sourceMessageIDs: ids
-        )
-    }
-
-    private static func decodePersonaStyleObservation(
-        _ object: [String: Any], index: Int
-    ) throws -> PersonaTraitChange {
-        let path = "personaStyleObservations[\(index)]"
-        guard Set(object.keys) == ["dimensionKey", "observation", "evidenceMessageIDs"],
-            let dimensionKey = object["dimensionKey"] as? String,
-            let definition = PersonaStyleDimensionRegistry.definition(for: dimensionKey),
-            definition.learnable,
-            definition.observationOnly,
-            let observation = object["observation"] as? String,
-            !observation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            observation.count <= 180,
-            let sourceValues = object["evidenceMessageIDs"] as? [String],
-            (1...10).contains(sourceValues.count)
-        else { throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: path) }
-        let ids = sourceValues.compactMap(UUID.init(uuidString:))
-        guard ids.count == sourceValues.count, Set(ids).count == ids.count else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "\(path).evidenceMessageIDs")
-        }
-        return PersonaTraitChange(
-            dimensionKey: dimensionKey,
-            levelBand: nil,
-            observation: observation.trimmingCharacters(in: .whitespacesAndNewlines),
-            sourceMessageIDs: ids
-        )
-    }
-
     private static func uuid(from value: Any?) -> UUID? {
-        guard let value = value as? String else { return nil }
-        return UUID(uuidString: value)
+        (value as? String).flatMap(UUID.init(uuidString:))
     }
 
     private static func nullableString(from value: Any?) -> String? {
-        value as? String
+        guard let value = value as? String else { return nil }
+        return value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static var axisDimensionCount: Int {
-        PersonaStyleDimensionRegistry.learnableDefinitions.filter { !$0.observationOnly }.count
+    private static func schema(_ path: String) -> StructuredOutputFailure {
+        StructuredOutputFailure(kind: .schemaMismatch, codingPath: path)
     }
-
-    private static var observationDimensionCount: Int {
-        PersonaStyleDimensionRegistry.learnableDefinitions.filter(\.observationOnly).count
-    }
-
-    private static func learningObservation(
-        for definition: PersonaStyleDimensionDefinition,
-        band: PersonaLearningBand
-    ) -> String {
-        switch band {
-        case .low:
-            "\(definition.title) generally leans \(definition.lowAnchor.lowercased())."
-        case .middle:
-            "\(definition.title) generally falls between \(definition.lowAnchor.lowercased()) and \(definition.highAnchor.lowercased())."
-        case .high:
-            "\(definition.title) generally leans \(definition.highAnchor.lowercased())."
-        }
-    }
-
 }

@@ -1,8 +1,18 @@
 import Foundation
 import SwiftData
 
+nonisolated enum PersonaRepositoryError: Error, Equatable {
+    case noPersonas
+    case cannotDeleteLastPersona
+    case replacementDefaultRequired
+    case invalidDefaultPersona
+    case observationLimitReached
+}
+
 @MainActor
 final class PersonaRepository {
+    private static let seededKey = "personasSeeded"
+    private static let defaultPersonaKey = "defaultPersonaID"
     private let context: ModelContext
 
     convenience init() { self.init(container: ZeptlyDataStore.shared) }
@@ -10,10 +20,28 @@ final class PersonaRepository {
 
     nonisolated deinit {}
 
-    func seedBuiltInsIfNeeded() throws {
-        for template in PersonaTemplate.allCases where try persona(id: PersonaDefaults.id(for: template)) == nil {
-            context.insert(Self.makeBuiltIn(template))
+    func seedPersonasIfNeeded() throws {
+        guard try metadata(Self.seededKey) == nil else { return }
+        for seed in Self.seeds {
+            let record = PersonaRecord(
+                id: seed.id, name: seed.name, summary: seed.summary,
+                symbolName: seed.symbolName, accentKey: seed.accentKey,
+                instructions: seed.instructions
+            )
+            context.insert(record)
+            for text in seed.observations {
+                context.insert(
+                    observationRecord(
+                        personaID: seed.id, text: text, origin: .seed,
+                        isUserProtected: false, evidenceSource: .seed
+                    ))
+            }
         }
+        context.insert(StoreMetadataRecord(key: Self.seededKey, value: "1"))
+        context.insert(
+            StoreMetadataRecord(
+                key: Self.defaultPersonaKey, value: PersonaDefaults.professionalID.uuidString.lowercased()
+            ))
         try context.save()
     }
 
@@ -27,97 +55,138 @@ final class PersonaRepository {
         try context.fetch(FetchDescriptor<PersonaRecord>(predicate: #Predicate { $0.id == id })).first
     }
 
-    func traits(personaID: UUID, includeDismissed: Bool = false) throws -> [PersonaLearnedTraitRecord] {
-        var descriptor = FetchDescriptor<PersonaLearnedTraitRecord>(
+    func observations(personaID: UUID, includeInactive: Bool = false) throws -> [PersonaObservationRecord] {
+        var descriptor = FetchDescriptor<PersonaObservationRecord>(
             predicate: #Predicate { $0.personaID == personaID }
         )
-        descriptor.sortBy = [SortDescriptor(\.dimensionKey)]
+        descriptor.sortBy = [SortDescriptor(\.createdAt), SortDescriptor(\.id)]
         let records = try context.fetch(descriptor)
-        return includeDismissed ? records : records.filter { $0.status == PersonaTraitStatus.active.rawValue }
+        return includeInactive ? records : records.filter { $0.status == PersonaObservationStatus.active.rawValue }
     }
 
-    func adjustments(personaID: UUID) throws -> [PersonaStyleAdjustmentRecord] {
-        try context.fetch(FetchDescriptor<PersonaStyleAdjustmentRecord>(predicate: #Predicate { $0.personaID == personaID }))
+    func defaultPersonaID() throws -> UUID {
+        if let value = try metadata(Self.defaultPersonaKey)?.value,
+            let id = UUID(uuidString: value), try persona(id: id) != nil
+        {
+            return id
+        }
+        guard let first = try personas().first else { throw PersonaRepositoryError.noPersonas }
+        try setDefaultPersona(id: first.id)
+        return first.id
+    }
+
+    func setDefaultPersona(id: UUID) throws {
+        guard try persona(id: id) != nil else { throw PersonaRepositoryError.invalidDefaultPersona }
+        if let record = try metadata(Self.defaultPersonaKey) {
+            record.value = id.uuidString.lowercased()
+        } else {
+            context.insert(StoreMetadataRecord(key: Self.defaultPersonaKey, value: id.uuidString.lowercased()))
+        }
+        try context.save()
     }
 
     func promptContext(personaID: UUID) throws -> PersonaPromptContext {
-        let record = try persona(id: personaID)
-            ?? persona(id: PersonaDefaults.professionalID)
-            ?? Self.makeBuiltIn(.professional)
-        return try Self.promptContext(
+        let record = try persona(id: personaID) ?? persona(id: defaultPersonaID())
+        guard let record else { throw PersonaRepositoryError.noPersonas }
+        return Self.promptContext(
             record: record,
-            traits: traits(personaID: record.id),
-            adjustments: adjustments(personaID: record.id)
+            observations: try observations(personaID: record.id, includeInactive: true)
         )
     }
 
-    func create(name: String, template: PersonaTemplate) throws -> PersonaRecord {
-        let base = Self.makeBuiltIn(template)
+    func create(
+        name: String,
+        summary: String,
+        instructions: String,
+        observations: [PersonaObservation],
+        symbolName: String = "person.crop.circle",
+        accentKey: String = "primary"
+    ) throws -> PersonaRecord {
         let record = PersonaRecord(
-            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-            summary: "A custom voice based on \(template.displayName.lowercased()).",
-            symbolName: base.symbolName, accentKey: base.accentKey,
-            templateKey: template.rawValue, isBuiltIn: false,
-            purposeInstructions: base.purposeInstructions,
-            baselineStyleJSON: base.baselineStyleJSON
+            name: cleaned(name), summary: cleaned(summary), symbolName: symbolName,
+            accentKey: accentKey, instructions: cleaned(instructions)
         )
         context.insert(record)
+        for observation in uniqueActive(observations).prefix(PersonaDefaults.maximumActiveObservations) {
+            context.insert(PersonaObservationRecord(personaID: record.id, value: observation))
+        }
         try context.save()
         return record
     }
 
     func duplicate(_ source: PersonaRecord) throws -> PersonaRecord {
-        let record = PersonaRecord(
+        let copied = try observations(personaID: source.id).map {
+            Self.makeObservation(
+                text: $0.text, origin: .seed, isUserProtected: false,
+                evidenceSource: .seed
+            )
+        }
+        return try create(
             name: "\(source.name) Copy", summary: source.summary,
-            symbolName: source.symbolName, accentKey: source.accentKey,
-            templateKey: source.templateKey, isBuiltIn: false,
-            purposeInstructions: source.purposeInstructions,
-            baselineStyleJSON: source.baselineStyleJSON,
-            alwaysFollowRules: source.alwaysFollowRules
+            instructions: source.instructions, observations: copied,
+            symbolName: source.symbolName, accentKey: source.accentKey
         )
-        context.insert(record)
-        for adjustment in try adjustments(personaID: source.id) {
-            context.insert(PersonaStyleAdjustmentRecord(
-                personaID: record.id,
-                dimensionKey: adjustment.dimensionKey,
-                adjustment: adjustment.adjustment
+    }
+
+    func addUserObservation(_ text: String, personaID: UUID) throws {
+        guard try observations(personaID: personaID).count < PersonaDefaults.maximumActiveObservations else {
+            throw PersonaRepositoryError.observationLimitReached
+        }
+        let value = cleaned(text)
+        guard !value.isEmpty, try !containsActive(text: value, personaID: personaID) else { return }
+        context.insert(
+            observationRecord(
+                personaID: personaID, text: value, origin: .user,
+                isUserProtected: true, evidenceSource: .user
             ))
+        try touch(personaID: personaID)
+        try context.save()
+    }
+
+    func updateObservation(_ record: PersonaObservationRecord, text: String) throws {
+        let value = cleaned(text)
+        guard !value.isEmpty else { return }
+        record.text = value
+        record.origin = PersonaObservationOrigin.user.rawValue
+        record.isUserProtected = true
+        record.evidenceSource = PersonaObservationEvidenceSource.user.rawValue
+        record.sourceMessageIDsJSON = "[]"
+        record.updatedAt = Date()
+        try touch(personaID: record.personaID)
+        try context.save()
+    }
+
+    func archiveObservation(_ record: PersonaObservationRecord) throws {
+        record.status = PersonaObservationStatus.archived.rawValue
+        record.isUserProtected = true
+        record.updatedAt = Date()
+        try touch(personaID: record.personaID)
+        try context.save()
+    }
+
+    func clearLearnedObservations(personaID: UUID) throws {
+        for record in try observations(personaID: personaID)
+        where record.origin == PersonaObservationOrigin.ai.rawValue && !record.isUserProtected {
+            record.status = PersonaObservationStatus.archived.rawValue
+            record.updatedAt = Date()
+        }
+        if let persona = try persona(id: personaID) {
+            persona.sampleCount = 0
+            persona.lastLearnedAt = nil
+            persona.updatedAt = Date()
         }
         try context.save()
-        return record
     }
 
     func usageCount(personaID: UUID) throws -> Int {
-        try context.fetchCount(FetchDescriptor<ContactContextRecord>(predicate: #Predicate { $0.personaID == personaID }))
+        try context.fetchCount(
+            FetchDescriptor<ContactContextRecord>(predicate: #Predicate { $0.personaID == personaID }))
     }
 
     func assign(personaID: UUID, to contextRecord: ContactContextRecord, at date: Date = Date()) throws {
-        guard contextRecord.personaID != personaID else { return }
+        guard try persona(id: personaID) != nil, contextRecord.personaID != personaID else { return }
         contextRecord.personaID = personaID
         contextRecord.personaAssignedAt = date
-        try context.save()
-    }
-
-    func setAdjustment(_ adjustment: Int, dimensionKey: String, personaID: UUID) throws {
-        guard let definition = PersonaStyleDimensionRegistry.definition(for: dimensionKey),
-            definition.userAdjustable
-        else { return }
-        let key = "\(personaID.uuidString.lowercased())|\(dimensionKey)"
-        let existing = try context.fetch(
-            FetchDescriptor<PersonaStyleAdjustmentRecord>(predicate: #Predicate { $0.key == key })
-        ).first
-        let clamped = min(2, max(-2, adjustment))
-        if clamped == 0 {
-            if let existing { context.delete(existing) }
-        } else if let existing {
-            existing.adjustment = clamped
-            existing.updatedAt = Date()
-        } else {
-            context.insert(PersonaStyleAdjustmentRecord(
-                personaID: personaID, dimensionKey: dimensionKey, adjustment: clamped
-            ))
-        }
-        if let persona = try persona(id: personaID) { persona.updatedAt = Date() }
         try context.save()
     }
 
@@ -128,98 +197,160 @@ final class PersonaRepository {
         try context.save()
     }
 
-    func resetLearnedStyle(personaID: UUID) throws {
-        for trait in try traits(personaID: personaID, includeDismissed: true) { context.delete(trait) }
-        if let persona = try persona(id: personaID) {
-            persona.sampleCount = 0
-            persona.lastLearnedAt = nil
-            persona.updatedAt = Date()
+    func delete(_ record: PersonaRecord, replacementDefaultID: UUID? = nil) throws {
+        guard try personas().count > 1 else { throw PersonaRepositoryError.cannotDeleteLastPersona }
+        let currentDefault = try defaultPersonaID()
+        let fallbackID: UUID
+        if record.id == currentDefault {
+            guard let replacementDefaultID else { throw PersonaRepositoryError.replacementDefaultRequired }
+            guard replacementDefaultID != record.id, try persona(id: replacementDefaultID) != nil else {
+                throw PersonaRepositoryError.invalidDefaultPersona
+            }
+            fallbackID = replacementDefaultID
+            try setDefaultPersona(id: fallbackID)
+        } else {
+            fallbackID = currentDefault
         }
-        try context.save()
-    }
 
-    func delete(_ record: PersonaRecord) throws {
-        guard !record.isBuiltIn else { return }
         let deletedID = record.id
-        for contact in try context.fetch(FetchDescriptor<ContactContextRecord>(predicate: #Predicate { $0.personaID == deletedID })) {
-            contact.personaID = PersonaDefaults.professionalID
+        for contact in try context.fetch(
+            FetchDescriptor<ContactContextRecord>(predicate: #Predicate { $0.personaID == deletedID }))
+        {
+            contact.personaID = fallbackID
             contact.personaAssignedAt = Date()
         }
-        for trait in try traits(personaID: deletedID, includeDismissed: true) { context.delete(trait) }
-        for adjustment in try adjustments(personaID: deletedID) { context.delete(adjustment) }
-        for receipt in try context.fetch(FetchDescriptor<PersonaLearningReceiptRecord>(predicate: #Predicate { $0.personaID == deletedID })) {
+        for observation in try observations(personaID: deletedID, includeInactive: true) { context.delete(observation) }
+        for receipt in try context.fetch(
+            FetchDescriptor<PersonaLearningReceiptRecord>(predicate: #Predicate { $0.personaID == deletedID }))
+        {
             context.delete(receipt)
         }
         context.delete(record)
         try context.save()
     }
 
-    static func promptContext(
-        record: PersonaRecord,
-        traits: [PersonaLearnedTraitRecord],
-        adjustments: [PersonaStyleAdjustmentRecord]
-    ) -> PersonaPromptContext {
-        let traitValues = traits.map(\.value)
-        let adjustmentValues = Dictionary(uniqueKeysWithValues: adjustments.map { ($0.dimensionKey, $0.adjustment) })
-        let resolved = PersonaStyleResolver.resolve(
-            baseline: record.baselineStyle,
-            adjustments: adjustmentValues,
-            traits: traitValues
-        )
-        let descriptive = traitValues.filter { trait in
-            guard let definition = PersonaStyleDimensionRegistry.definition(for: trait.dimensionKey) else { return false }
-            return definition.observationOnly || trait.origin == .userConfirmed
-        }
+    static func promptContext(record: PersonaRecord, observations: [PersonaObservationRecord]) -> PersonaPromptContext {
+        let values = observations.map(\.value)
+        let active =
+            values
+            .filter { $0.status == .active }
+            .sorted {
+                if $0.isUserProtected != $1.isUserProtected { return $0.isUserProtected }
+                return $0.createdAt < $1.createdAt
+            }
         return PersonaPromptContext(
-            id: record.id,
-            name: record.name,
-            purposeInstructions: record.purposeInstructions,
-            resolvedStyle: resolved,
-            descriptiveObservations: descriptive,
-            alwaysFollowRules: record.alwaysFollowRules,
-            registryVersion: PersonaStyleDimensionRegistry.version,
-            resolverVersion: PersonaStyleResolver.version
+            id: record.id, name: record.name,
+            instructions: record.instructions, observations: active,
+            protectedTombstones: values.filter {
+                $0.status == .archived && $0.isUserProtected
+            }
         )
     }
 
-    static func makeBuiltIn(_ template: PersonaTemplate) -> PersonaRecord {
-        let common = (
-            baselineStyleJSON: encodeBaseline(PersonaStyleDimensionRegistry.presetBaseline(for: template)),
-            id: PersonaDefaults.id(for: template)
+    static func makeObservation(
+        text: String,
+        origin: PersonaObservationOrigin,
+        isUserProtected: Bool,
+        evidenceSource: PersonaObservationEvidenceSource,
+        sourceMessageIDs: [UUID] = [],
+        evidenceCount: Int = 0,
+        now: Date = Date()
+    ) -> PersonaObservation {
+        PersonaObservation(
+            id: UUID(), text: text.trimmingCharacters(in: .whitespacesAndNewlines),
+            origin: origin, isUserProtected: isUserProtected, status: .active,
+            evidenceSource: evidenceSource, sourceMessageIDs: sourceMessageIDs,
+            evidenceCount: evidenceCount, supersededByID: nil,
+            createdAt: now, updatedAt: now
         )
-        switch template {
-        case .professional:
-            return PersonaRecord(
-                id: common.id, name: template.displayName,
-                summary: "Concise, polished replies for work and formal conversations.",
-                symbolName: "briefcase", accentKey: "primary", templateKey: template.rawValue,
-                isBuiltIn: true,
-                purposeInstructions: "Write clear, structured messages for professional and formal conversations. Be decisive and avoid filler.",
-                baselineStyleJSON: common.baselineStyleJSON
-            )
-        case .spark:
-            return PersonaRecord(
-                id: common.id, name: template.displayName,
-                summary: "Playful, confident, genuine dating messages that read the room.",
-                symbolName: "sparkles", accentKey: "peach", templateKey: template.rawValue,
-                isBuiltIn: true,
-                purposeInstructions: "Write genuine dating messages that read the room. Match the other person's emotional intensity and never force flirtation or over-escalate.",
-                baselineStyleJSON: common.baselineStyleJSON
-            )
-        case .thoughtful:
-            return PersonaRecord(
-                id: common.id, name: template.displayName,
-                summary: "Warm, empathetic replies for friends, family, and delicate moments.",
-                symbolName: "heart.text.square", accentKey: "secondary", templateKey: template.rawValue,
-                isBuiltIn: true,
-                purposeInstructions: "Write tactful messages for friends, family, and delicate moments. Acknowledge emotion without inventing feelings or becoming overly sentimental.",
-                baselineStyleJSON: common.baselineStyleJSON
-            )
+    }
+
+    private func observationRecord(
+        personaID: UUID, text: String, origin: PersonaObservationOrigin,
+        isUserProtected: Bool, evidenceSource: PersonaObservationEvidenceSource
+    ) -> PersonaObservationRecord {
+        PersonaObservationRecord(
+            personaID: personaID,
+            value: Self.makeObservation(
+                text: text, origin: origin, isUserProtected: isUserProtected,
+                evidenceSource: evidenceSource
+            ))
+    }
+
+    private func metadata(_ key: String) throws -> StoreMetadataRecord? {
+        try context.fetch(FetchDescriptor<StoreMetadataRecord>(predicate: #Predicate { $0.key == key })).first
+    }
+
+    private func containsActive(text: String, personaID: UUID) throws -> Bool {
+        let normalized = cleaned(text).lowercased()
+        return try observations(personaID: personaID).contains { cleaned($0.text).lowercased() == normalized }
+    }
+
+    private func uniqueActive(_ values: [PersonaObservation]) -> [PersonaObservation] {
+        var seen = Set<String>()
+        return values.filter {
+            guard $0.status == .active else { return false }
+            return seen.insert(cleaned($0.text).lowercased()).inserted
         }
     }
 
-    private static func encodeBaseline(_ baseline: [String: Double]) -> String {
-        guard let data = try? JSONEncoder().encode(baseline) else { return "{}" }
-        return String(data: data, encoding: .utf8) ?? "{}"
+    private func touch(personaID: UUID) throws {
+        try persona(id: personaID)?.updatedAt = Date()
     }
+
+    private func cleaned(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private struct Seed {
+        let id: UUID
+        let name: String
+        let summary: String
+        let symbolName: String
+        let accentKey: String
+        let instructions: String
+        let observations: [String]
+    }
+
+    private static let seeds: [Seed] = [
+        .init(
+            id: PersonaDefaults.professionalID, name: "The Professional",
+            summary: "Concise, polished replies for work and formal conversations.",
+            symbolName: "briefcase", accentKey: "primary",
+            instructions:
+                "Write clear, structured messages for professional and formal conversations. Be decisive and avoid filler.",
+            observations: [
+                "Uses polished, complete phrasing while remaining conversational.",
+                "Keeps replies concise and omits nonessential detail.",
+                "States the main point clearly and directly.",
+                "Does not use emoji."
+            ]
+        ),
+        .init(
+            id: PersonaDefaults.sparkID, name: "The Spark",
+            summary: "Playful, confident, genuine dating messages that read the room.",
+            symbolName: "sparkles", accentKey: "peach",
+            instructions:
+                "Write genuine dating messages that read the room. Match the other person's emotional intensity and never force flirtation or over-escalate.",
+            observations: [
+                "Keeps wording casual and conversational.",
+                "Shows clear warmth and considerate acknowledgment.",
+                "Keeps replies concise and omits nonessential detail.",
+                "Allows light playfulness when it fits naturally."
+            ]
+        ),
+        .init(
+            id: PersonaDefaults.thoughtfulID, name: "The Thoughtful",
+            summary: "Warm, empathetic replies for friends, family, and delicate moments.",
+            symbolName: "heart.text.square", accentKey: "secondary",
+            instructions:
+                "Write tactful messages for friends, family, and delicate moments. Acknowledge emotion without inventing feelings or becoming overly sentimental.",
+            observations: [
+                "Shows clear warmth and considerate acknowledgment.",
+                "Balances clarity with tact.",
+                "Uses the amount of detail naturally required by the message.",
+                "Uses an occasional emoji only when it fits the conversation."
+            ]
+        )
+    ]
 }

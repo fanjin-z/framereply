@@ -5,42 +5,81 @@ import XCTest
 
 @MainActor
 final class PersonaPersistenceTests: XCTestCase {
-    func testBuiltInSeedingIsIdempotent() throws {
+    func testSeedingIsIdempotentAndCreatesDefaultWithObservations() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = PersonaRepository(container: container)
+        try repository.seedPersonasIfNeeded()
+        try repository.seedPersonasIfNeeded()
 
-        try repository.seedBuiltInsIfNeeded()
-        try repository.seedBuiltInsIfNeeded()
-
-        XCTAssertEqual(try repository.personas().map(\.name), [
-            "The Professional", "The Spark", "The Thoughtful"
-        ])
-        XCTAssertEqual(Set(try repository.personas().map(\.id)).count, 3)
+        XCTAssertEqual(
+            try repository.personas().map(\.name),
+            [
+                "The Professional", "The Spark", "The Thoughtful"
+            ])
+        XCTAssertEqual(try repository.defaultPersonaID(), PersonaDefaults.professionalID)
+        XCTAssertFalse(try repository.observations(personaID: PersonaDefaults.professionalID).isEmpty)
     }
 
-    func testDeletingCustomPersonaReassignsChatsToProfessional() throws {
+    func testQuickSetupCompilesTextOnlyAndReplacesPriorQuickObservation() {
+        let first = PersonaQuickSetup.compile(selections: ["formality": 2, "emoji": -2])
+        XCTAssertEqual(first.count, 2)
+        XCTAssertTrue(first.contains("Does not use emoji."))
+
+        let replaced = PersonaQuickSetup.replacingQuickSetupObservations(
+            in: first + ["Uses sentence fragments."],
+            selections: ["formality": -1]
+        )
+        XCTAssertFalse(replaced.contains("Does not use emoji."))
+        XCTAssertTrue(replaced.contains("Keeps wording casual and conversational."))
+        XCTAssertTrue(replaced.contains("Uses sentence fragments."))
+    }
+
+    func testCreateAndDuplicatePersistOnlyObservationText() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = PersonaRepository(container: container)
-        try repository.seedBuiltInsIfNeeded()
-        let custom = try repository.create(name: "Weekend Voice", template: .spark)
+        try repository.seedPersonasIfNeeded()
+        let observation = PersonaRepository.makeObservation(
+            text: "Uses short sentences.", origin: .user,
+            isUserProtected: true, evidenceSource: .user
+        )
+        let created = try repository.create(
+            name: "Weekend", summary: "Casual", instructions: "Sound natural.",
+            observations: [observation]
+        )
+        let duplicate = try repository.duplicate(created)
+
+        XCTAssertEqual(duplicate.instructions, "Sound natural.")
+        let copied = try XCTUnwrap(repository.observations(personaID: duplicate.id).first)
+        XCTAssertEqual(copied.text, "Uses short sentences.")
+        XCTAssertEqual(copied.origin, PersonaObservationOrigin.seed.rawValue)
+        XCTAssertFalse(copied.isUserProtected)
+        XCTAssertEqual(copied.sourceMessageIDsJSON, "[]")
+    }
+
+    func testDeletingDefaultRequiresAndAppliesReplacement() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = PersonaRepository(container: container)
+        try repository.seedPersonasIfNeeded()
+        let professional = try XCTUnwrap(repository.persona(id: PersonaDefaults.professionalID))
         let assignment = ContactContextRecord(
             chatID: "chat", relationshipSubtitle: "", currentInteractionGoal: "",
-            personaID: custom.id
+            personaID: professional.id
         )
         container.mainContext.insert(assignment)
         try container.mainContext.save()
 
-        try repository.delete(custom)
+        XCTAssertThrowsError(try repository.delete(professional))
+        try repository.delete(professional, replacementDefaultID: PersonaDefaults.sparkID)
 
-        XCTAssertEqual(assignment.personaID, PersonaDefaults.professionalID)
-        XCTAssertNil(try repository.persona(id: custom.id))
+        XCTAssertEqual(try repository.defaultPersonaID(), PersonaDefaults.sparkID)
+        XCTAssertEqual(assignment.personaID, PersonaDefaults.sparkID)
     }
 
     func testLearningUsesOnlyFutureUnprocessedUserMessages() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let personas = PersonaRepository(container: container)
         let chats = ChatRepository(container: container)
-        try personas.seedBuiltInsIfNeeded()
+        try personas.seedPersonasIfNeeded()
         let assignedAt = Date()
         let old = message(chatID: "chat", sender: "user", createdAt: assignedAt.addingTimeInterval(-1))
         let contact = message(chatID: "chat", sender: "contact", createdAt: assignedAt.addingTimeInterval(1))
@@ -53,187 +92,94 @@ final class PersonaPersistenceTests: XCTestCase {
         XCTAssertEqual(
             try chats.personaLearningMessages(
                 chatID: "chat", personaID: PersonaDefaults.professionalID, assignedAt: assignedAt
-            ).map(\.id),
-            [future.id]
-        )
-
-        container.mainContext.insert(
-            PersonaLearningReceiptRecord(
-                personaID: PersonaDefaults.professionalID, chatID: "chat", messageID: future.id
-            )
-        )
-        try container.mainContext.save()
-        XCTAssertTrue(try chats.personaLearningMessages(
-            chatID: "chat", personaID: PersonaDefaults.professionalID, assignedAt: assignedAt
-        ).isEmpty)
+            ).map(\.id), [future.id])
     }
 
-    func testCurrentUsesSparseAdjustmentStorage() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = PersonaRepository(container: container)
-        try repository.seedBuiltInsIfNeeded()
-
-        try repository.setAdjustment(2, dimensionKey: "warmth", personaID: PersonaDefaults.professionalID)
-        XCTAssertEqual(try repository.adjustments(personaID: PersonaDefaults.professionalID).map(\.adjustment), [2])
-
-        try repository.setAdjustment(0, dimensionKey: "warmth", personaID: PersonaDefaults.professionalID)
-        XCTAssertTrue(try repository.adjustments(personaID: PersonaDefaults.professionalID).isEmpty)
-    }
-
-    func testRegistryDefinitionsAreStableAndSelfContained() {
-        let definitions = PersonaStyleDimensionRegistry.activeDefinitions
-        XCTAssertEqual(Set(definitions.map(\.key)).count, definitions.count)
-        XCTAssertEqual(definitions.map(\.order), definitions.map(\.order).sorted())
-        for definition in definitions where !definition.observationOnly {
-            XCTAssertEqual(definition.bandLabels.count, 5)
-            XCTAssertEqual(definition.bandInstructions.count, 5)
-            XCTAssertEqual(definition.adjustmentLabels.count, 5)
-        }
-    }
-
-    func testResolverMakesLearnedVoicePrimaryAndNudgesBounded() {
-        let learned = PersonaLearnedTrait(
-            id: UUID(), dimensionKey: "formality", learnedLevel: 1,
-            observation: "Uses polished phrasing", confidence: 1, evidenceCount: 8,
-            origin: .userConfirmed, status: .active, updatedAt: Date()
-        )
-
-        let current = PersonaStyleResolver.resolve(
-            baseline: ["formality": -1], adjustments: [:], traits: [learned]
-        ).first { $0.dimensionKey == "formality" }
-        let nudged = PersonaStyleResolver.resolve(
-            baseline: ["formality": -1], adjustments: ["formality": -2], traits: [learned]
-        ).first { $0.dimensionKey == "formality" }
-
-        XCTAssertEqual(current?.shortLabel, "Very formal")
-        XCTAssertEqual(current?.source, .userCorrected)
-        XCTAssertEqual(nudged?.shortLabel, "Formal", "A maximum nudge should shift, not replace, a fully learned voice")
-    }
-
-    func testCurrentTracksNewLearnedEvidence() {
-        func signal(level: Double) -> String? {
-            PersonaStyleResolver.resolve(
-                baseline: ["warmth": 0], adjustments: [:],
-                traits: [PersonaLearnedTrait(
-                    id: UUID(), dimensionKey: "warmth", learnedLevel: level,
-                    observation: "", confidence: 1, evidenceCount: 8,
-                    origin: .aiInferred, status: .active, updatedAt: Date()
-                )]
-            ).first { $0.dimensionKey == "warmth" }?.shortLabel
-        }
-
-        XCTAssertEqual(signal(level: -1), "Very reserved")
-        XCTAssertEqual(signal(level: 1), "Very warm")
-    }
-
-    func testTraitReconciliationUsesBandsAndDeterministicConfidence() throws {
+    func testObservationReconciliationAddsUpdatesAndArchivesWithEvidence() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let personas = PersonaRepository(container: container)
         let chats = ChatRepository(container: container)
-        try personas.seedBuiltInsIfNeeded()
+        try personas.seedPersonasIfNeeded()
         let ids = [UUID(), UUID()]
 
         try chats.savePersonaExampleAnalysis(
             personaID: PersonaDefaults.professionalID,
-            changes: [PersonaTraitChange(
-                dimensionKey: "formality", levelBand: .higher,
-                observation: "Usually writes complete sentences", sourceMessageIDs: ids
-            )],
-            sampleMessageIDs: Set(ids), sampleCount: 2
+            changes: [
+                PersonaObservationChange(
+                    action: .add, targetObservationID: nil,
+                    text: "Often uses sentence fragments.", sourceMessageIDs: ids
+                )
+            ], sampleMessageIDs: Set(ids), sampleCount: 2
         )
-
-        let trait = try XCTUnwrap(personas.traits(personaID: PersonaDefaults.professionalID).first)
-        XCTAssertEqual(trait.learnedLevel, 0.5)
-        XCTAssertEqual(trait.confidence, 0.45, accuracy: 0.0001)
-        XCTAssertEqual(trait.evidenceCount, 2)
-    }
-
-    func testUnknownAndMismatchedDimensionsAreIgnored() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let personas = PersonaRepository(container: container)
-        let chats = ChatRepository(container: container)
-        try personas.seedBuiltInsIfNeeded()
-        let id = UUID()
+        let added = try XCTUnwrap(
+            personas.observations(personaID: PersonaDefaults.professionalID)
+                .first { $0.text == "Often uses sentence fragments." })
 
         try chats.savePersonaExampleAnalysis(
             personaID: PersonaDefaults.professionalID,
             changes: [
-                PersonaTraitChange(
-                    dimensionKey: "notRegistered", levelBand: .higher,
-                    observation: "Unknown", sourceMessageIDs: [id]
-                ),
-                PersonaTraitChange(
-                    dimensionKey: "vocabulary", levelBand: .higher,
-                    observation: "Should have no level", sourceMessageIDs: [id]
+                PersonaObservationChange(
+                    action: .update, targetObservationID: added.id,
+                    text: "Usually writes in sentence fragments.", sourceMessageIDs: ids
                 )
-            ],
-            sampleMessageIDs: [id], sampleCount: 1
+            ], sampleMessageIDs: Set(ids), sampleCount: 2
         )
-
-        XCTAssertTrue(try personas.traits(personaID: PersonaDefaults.professionalID).isEmpty)
-    }
-
-    func testConfirmedAndDismissedTraitsCannotBeOverwritten() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let personas = PersonaRepository(container: container)
-        let chats = ChatRepository(container: container)
-        try personas.seedBuiltInsIfNeeded()
-        let confirmed = PersonaLearnedTraitRecord(
-            personaID: PersonaDefaults.professionalID, dimensionKey: "warmth",
-            learnedLevel: 1, observation: "My correction", confidence: 1,
-            evidenceCount: 4, origin: PersonaTraitOrigin.userConfirmed.rawValue
-        )
-        let dismissed = PersonaLearnedTraitRecord(
-            personaID: PersonaDefaults.professionalID, dimensionKey: "humor",
-            learnedLevel: -1, observation: "Suppressed", confidence: 0.5,
-            evidenceCount: 2, origin: PersonaTraitOrigin.aiInferred.rawValue,
-            status: PersonaTraitStatus.dismissed.rawValue
-        )
-        container.mainContext.insert(confirmed)
-        container.mainContext.insert(dismissed)
-        try container.mainContext.save()
-        let id = UUID()
-        let changes = [
-            PersonaTraitChange(
-                dimensionKey: "warmth", levelBand: .muchLower,
-                observation: "Overwrite", sourceMessageIDs: [id]
-            ),
-            PersonaTraitChange(
-                dimensionKey: "humor", levelBand: .muchHigher,
-                observation: "Restore", sourceMessageIDs: [id]
-            )
-        ]
-
-        XCTAssertEqual(
-            try chats.projectedPersonaPromptContext(
-                personaID: PersonaDefaults.professionalID, changes: changes
-            ),
-            try chats.personaPromptContext(personaID: PersonaDefaults.professionalID)
-        )
+        XCTAssertEqual(added.status, PersonaObservationStatus.superseded.rawValue)
+        let replacement = try XCTUnwrap(
+            personas.observations(personaID: PersonaDefaults.professionalID)
+                .first { $0.text == "Usually writes in sentence fragments." })
 
         try chats.savePersonaExampleAnalysis(
             personaID: PersonaDefaults.professionalID,
-            changes: changes,
-            sampleMessageIDs: [id], sampleCount: 1
+            changes: [
+                PersonaObservationChange(
+                    action: .archive, targetObservationID: replacement.id,
+                    text: nil, sourceMessageIDs: ids
+                )
+            ], sampleMessageIDs: Set(ids), sampleCount: 2
         )
-
-        XCTAssertEqual(confirmed.observation, "My correction")
-        XCTAssertEqual(confirmed.learnedLevel, 1)
-        XCTAssertEqual(dismissed.observation, "Suppressed")
-        XCTAssertEqual(dismissed.status, PersonaTraitStatus.dismissed.rawValue)
+        XCTAssertEqual(replacement.status, PersonaObservationStatus.archived.rawValue)
     }
 
-    func testPromptContainsResolvedSemanticsWithoutStyleFloats() throws {
+    func testProtectedObservationAndTombstoneCannotBeChangedOrRecreated() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let personas = PersonaRepository(container: container)
+        let chats = ChatRepository(container: container)
+        try personas.seedPersonasIfNeeded()
+        try personas.addUserObservation("Never uses exclamation marks.", personaID: PersonaDefaults.professionalID)
+        let protected = try XCTUnwrap(
+            personas.observations(personaID: PersonaDefaults.professionalID)
+                .first { $0.text == "Never uses exclamation marks." })
+        try personas.archiveObservation(protected)
+        let ids = [UUID(), UUID()]
+
+        try chats.savePersonaExampleAnalysis(
+            personaID: PersonaDefaults.professionalID,
+            changes: [
+                PersonaObservationChange(
+                    action: .update, targetObservationID: protected.id,
+                    text: "Uses lots of exclamation marks!", sourceMessageIDs: ids
+                ),
+                PersonaObservationChange(
+                    action: .add, targetObservationID: nil,
+                    text: "Never uses exclamation marks.", sourceMessageIDs: ids
+                )
+            ], sampleMessageIDs: Set(ids), sampleCount: 2
+        )
+
+        let all = try personas.observations(personaID: PersonaDefaults.professionalID, includeInactive: true)
+        XCTAssertEqual(all.filter { $0.text == "Never uses exclamation marks." }.count, 1)
+        XCTAssertFalse(all.contains { $0.text == "Uses lots of exclamation marks!" })
+    }
+
+    func testPromptContainsInstructionsAndObservationTextOnly() {
+        let observation = PersonaRepository.makeObservation(
+            text: "Uses concise sentences.", origin: .seed,
+            isUserProtected: false, evidenceSource: .seed
+        )
         let context = PersonaPromptContext(
-            id: PersonaDefaults.professionalID, name: "The Professional",
-            purposeInstructions: "Write for work.",
-            resolvedStyle: [PersonaResolvedStyleSignal(
-                dimensionKey: "formality", title: "Formality", shortLabel: "Formal",
-                descriptor: "formal", instruction: "Use polished, complete phrasing.", source: .learnedVoice
-            )],
-            descriptiveObservations: [], alwaysFollowRules: "Never use emoji.",
-            registryVersion: PersonaStyleDimensionRegistry.version,
-            resolverVersion: PersonaStyleResolver.version
+            id: UUID(), name: "Test", instructions: "Write naturally.",
+            observations: [observation], protectedTombstones: []
         )
         let request = SuggestedReplyGenerationRequest(
             chatName: "Chat", relationshipSubtitle: "", contactMemories: [],
@@ -241,95 +187,26 @@ final class PersonaPersistenceTests: XCTestCase {
             existingHistorySummary: "", summaryMode: .unchanged,
             olderMessagesToSummarize: [], recentMessages: [], traceID: ImportTraceID()
         )
-
         let input = SuggestedReplyPrompt.input(for: request)
-        XCTAssertTrue(input.contains("Use polished, complete phrasing."))
-        XCTAssertTrue(input.contains("Never use emoji."))
+        XCTAssertTrue(input.contains("Write naturally."))
+        XCTAssertTrue(input.contains("Uses concise sentences."))
+        XCTAssertFalse(input.contains("dimensionKey"))
         XCTAssertFalse(input.contains("learnedLevel"))
-        XCTAssertFalse(input.contains("confidence"))
-        XCTAssertFalse(input.contains("baselineStyle"))
     }
 
-    func testTraitDecoderSeparatesAxisLevelsFromStyleObservations() throws {
-        let id = UUID().uuidString
+    func testObservationDecoderRequiresTwoDistinctEvidenceMessages() throws {
+        let first = UUID().uuidString
+        let second = UUID().uuidString
         let valid = """
-        {"historySummary":"","replies":["One","Two"],"memoryChanges":[],
-         "personaStyleLevels":[
-          {"dimensionKey":"formality","level":"high","evidenceMessageIDs":["\(id)"]}
-         ],
-         "personaStyleObservations":[
-          {"dimensionKey":"vocabulary","observation":"Often says sounds good","evidenceMessageIDs":["\(id)"]}
-         ]}
-        """
+            {"historySummary":"","replies":["One","Two"],"memoryChanges":[],
+             "personaObservationChanges":[{"action":"add","targetObservationID":null,
+             "text":"Uses short sentences.","evidenceMessageIDs":["\(first)","\(second)"]}]}
+            """
         let result = try SuggestedReplyResultDecoder.decode(content: valid, finishReason: "stop")
-        XCTAssertEqual(result.personaTraitChanges.map(\.dimensionKey), ["formality", "vocabulary"])
-        XCTAssertEqual(result.personaTraitChanges.first?.levelBand, .muchHigher)
+        XCTAssertEqual(result.personaObservationChanges.first?.text, "Uses short sentences.")
 
-        let invalid = valid.replacingOccurrences(of: "\"level\":\"high\"", with: "\"level\":\"muchHigher\"")
+        let invalid = valid.replacingOccurrences(of: "\"\(second)\"", with: "\"\(first)\"")
         XCTAssertThrowsError(try SuggestedReplyResultDecoder.decode(content: invalid, finishReason: "stop"))
-    }
-
-    func testTraitDecoderAcceptsEveryRegisteredDimensionAndLearningLevel() throws {
-        let evidenceID = UUID().uuidString
-        let axisDefinitions = PersonaStyleDimensionRegistry.learnableDefinitions.filter { !$0.observationOnly }
-        let observationDefinitions = PersonaStyleDimensionRegistry.learnableDefinitions.filter(\.observationOnly)
-        let levels = axisDefinitions.enumerated().map { index, definition in
-            [
-                "dimensionKey": definition.key,
-                "level": PersonaLearningBand.allCases[index % PersonaLearningBand.allCases.count].rawValue,
-                "evidenceMessageIDs": [evidenceID]
-            ] as [String: Any]
-        }
-        let observations = observationDefinitions.map { definition in
-            [
-                "dimensionKey": definition.key,
-                "observation": "Recurring pattern for \(definition.title.lowercased()).",
-                "evidenceMessageIDs": [evidenceID]
-            ] as [String: Any]
-        }
-        let object: [String: Any] = [
-            "historySummary": "",
-            "replies": ["One", "Two"],
-            "memoryChanges": [],
-            "personaStyleLevels": levels,
-            "personaStyleObservations": observations
-        ]
-        let content = String(
-            data: try JSONSerialization.data(withJSONObject: object),
-            encoding: .utf8
-        )
-
-        let result = try SuggestedReplyResultDecoder.decode(content: content, finishReason: "stop")
-
-        XCTAssertEqual(
-            Set(result.personaTraitChanges.map(\.dimensionKey)),
-            Set(PersonaStyleDimensionRegistry.learnableDefinitions.map(\.key))
-        )
-        XCTAssertEqual(result.personaTraitChanges.filter { $0.levelBand != nil }.count, levels.count)
-        XCTAssertEqual(result.personaTraitChanges.filter { $0.levelBand == nil }.count, observations.count)
-    }
-
-    func testTraitDecoderRejectsDuplicateEvidenceIDs() throws {
-        let id = UUID().uuidString
-        let duplicateLevelEvidence = """
-        {"historySummary":"","replies":["One","Two"],"memoryChanges":[],
-         "personaStyleLevels":[
-          {"dimensionKey":"formality","level":"high","evidenceMessageIDs":["\(id)","\(id)"]}
-         ],"personaStyleObservations":[]}
-        """
-        XCTAssertThrowsError(
-            try SuggestedReplyResultDecoder.decode(content: duplicateLevelEvidence, finishReason: "stop")
-        )
-
-        let duplicateObservationEvidence = """
-        {"historySummary":"","replies":["One","Two"],"memoryChanges":[],
-         "personaStyleLevels":[],"personaStyleObservations":[
-          {"dimensionKey":"punctuation","observation":"Omits periods","evidenceMessageIDs":["\(id)","\(id)"]}
-         ]}
-        """
-        XCTAssertThrowsError(
-            try SuggestedReplyResultDecoder.decode(content: duplicateObservationEvidence, finishReason: "stop")
-        )
     }
 
     private func message(chatID: String, sender: String, createdAt: Date) -> ChatMessageRecord {

@@ -37,13 +37,16 @@ struct PersistedContactContextView: View {
     }
 
     private func load() {
-        context = records.first?.value(contactMemories: memoryRecords.map(\.value)) ?? ContactContext(
-            relationshipSubtitle: "",
-            contactMemories: memoryRecords.map(\.value),
-            currentInteractionGoal: "",
-            personaID: PersonaDefaults.professionalID,
-            personaAssignedAt: Date()
-        )
+        let defaultID = (try? PersonaRepository().defaultPersonaID()) ?? PersonaDefaults.professionalID
+        context =
+            records.first?.value(contactMemories: memoryRecords.map(\.value))
+            ?? ContactContext(
+                relationshipSubtitle: "",
+                contactMemories: memoryRecords.map(\.value),
+                currentInteractionGoal: "",
+                personaID: defaultID,
+                personaAssignedAt: Date()
+            )
         hasLoaded = true
     }
 
@@ -56,7 +59,7 @@ struct PersistedContactContextView: View {
                 chatID: chat.id,
                 relationshipSubtitle: "",
                 currentInteractionGoal: "",
-                personaID: PersonaDefaults.professionalID,
+                personaID: (try? PersonaRepository().defaultPersonaID()) ?? PersonaDefaults.professionalID,
                 personaAssignedAt: Date()
             )
             modelContext.insert(record)
@@ -69,11 +72,12 @@ struct PersistedContactContextView: View {
 
     private func syncMemories(_ memories: [ContactMemory]) {
         let chatID = chat.id
-        let stored = (try? modelContext.fetch(
-            FetchDescriptor<ContactMemoryRecord>(
-                predicate: #Predicate { $0.chatID == chatID }
-            )
-        )) ?? []
+        let stored =
+            (try? modelContext.fetch(
+                FetchDescriptor<ContactMemoryRecord>(
+                    predicate: #Predicate { $0.chatID == chatID }
+                )
+            )) ?? []
         let memoriesByID = Dictionary(uniqueKeysWithValues: memories.map { ($0.id, $0) })
         let recordsByID = Dictionary(uniqueKeysWithValues: stored.map { ($0.id, $0) })
 

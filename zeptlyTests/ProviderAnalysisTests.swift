@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+
 @testable import zeptly
 
 final class ProviderAnalysisTests: XCTestCase {
@@ -79,7 +80,8 @@ final class ProviderAnalysisTests: XCTestCase {
         let prompt = SuggestedReplyPrompt.input(for: makeReplyRequest())
         XCTAssertFalse(prompt.contains(SuggestedReplyPrompt.canonicalJSONExample))
         XCTAssertEqual(
-            SuggestedReplyPrompt.instructions.components(separatedBy: SuggestedReplyPrompt.canonicalJSONExample).count - 1,
+            SuggestedReplyPrompt.instructions.components(separatedBy: SuggestedReplyPrompt.canonicalJSONExample).count
+                - 1,
             1
         )
         let exampleData = try XCTUnwrap(SuggestedReplyPrompt.canonicalJSONExample.data(using: .utf8))
@@ -90,12 +92,11 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(exampleChanges.first?["action"] as? String, "add")
         XCTAssertTrue(exampleChanges.first?["targetMemoryID"] is NSNull)
         XCTAssertNil(exampleChanges.first?["kind"])
-        XCTAssertNotNil(UUID(uuidString: try XCTUnwrap((exampleChanges.first?["evidenceMessageIDs"] as? [String])?.first)))
-        let exampleLevels = try XCTUnwrap(example["personaStyleLevels"] as? [[String: Any]])
-        XCTAssertEqual(exampleLevels.first?["dimensionKey"] as? String, "formality")
-        XCTAssertEqual(exampleLevels.first?["level"] as? String, "low")
-        let exampleObservations = try XCTUnwrap(example["personaStyleObservations"] as? [[String: Any]])
-        XCTAssertEqual(exampleObservations.first?["dimensionKey"] as? String, "punctuation")
+        XCTAssertNotNil(
+            UUID(uuidString: try XCTUnwrap((exampleChanges.first?["evidenceMessageIDs"] as? [String])?.first)))
+        let exampleObservations = try XCTUnwrap(example["personaObservationChanges"] as? [[String: Any]])
+        XCTAssertEqual(exampleObservations.first?["action"] as? String, "add")
+        XCTAssertTrue(exampleObservations.first?["targetObservationID"] is NSNull)
 
         let schemaData = try JSONSerialization.data(withJSONObject: SuggestedReplyPrompt.jsonSchema)
         let schemaText = try XCTUnwrap(String(data: schemaData, encoding: .utf8))
@@ -105,7 +106,7 @@ final class ProviderAnalysisTests: XCTestCase {
         )
         XCTAssertEqual(
             Set(rootProperties.keys),
-            ["historySummary", "replies", "memoryChanges", "personaStyleLevels", "personaStyleObservations"]
+            ["historySummary", "replies", "memoryChanges", "personaObservationChanges"]
         )
         let memoryChangesSchema = try XCTUnwrap(rootProperties["memoryChanges"] as? [String: Any])
         let memoryItemSchema = try XCTUnwrap(memoryChangesSchema["items"] as? [String: Any])
@@ -114,13 +115,11 @@ final class ProviderAnalysisTests: XCTestCase {
             Set(try XCTUnwrap(memoryItemSchema["required"] as? [String])),
             ["action", "targetMemoryID", "text", "evidenceMessageIDs"]
         )
-        let levelsSchema = try XCTUnwrap(rootProperties["personaStyleLevels"] as? [String: Any])
-        let levelItem = try XCTUnwrap(levelsSchema["items"] as? [String: Any])
-        let levelProperties = try XCTUnwrap(levelItem["properties"] as? [String: Any])
-        let levelSchema = try XCTUnwrap(levelProperties["level"] as? [String: Any])
+        let observationSchema = try XCTUnwrap(rootProperties["personaObservationChanges"] as? [String: Any])
+        let observationItem = try XCTUnwrap(observationSchema["items"] as? [String: Any])
         XCTAssertEqual(
-            levelSchema["enum"] as? [String],
-            PersonaLearningBand.allCases.map(\.rawValue)
+            Set(try XCTUnwrap(observationItem["required"] as? [String])),
+            ["action", "targetObservationID", "text", "evidenceMessageIDs"]
         )
 
         let decodedExample = try SuggestedReplyResultDecoder.decode(
@@ -128,7 +127,7 @@ final class ProviderAnalysisTests: XCTestCase {
             finishReason: "stop"
         )
         XCTAssertEqual(decodedExample.memoryChanges.count, 1)
-        XCTAssertEqual(decodedExample.personaTraitChanges.count, 2)
+        XCTAssertEqual(decodedExample.personaObservationChanges.count, 1)
         for value in [
             "Sarah", "Friend", "Met at university", "Vegetarian", "Confirm dinner",
             "Warm & Collaborative", "Dinner at 7?"
@@ -137,8 +136,8 @@ final class ProviderAnalysisTests: XCTestCase {
         }
         XCTAssertFalse(prompt.contains(#""kind":"relationship""#))
         XCTAssertTrue(prompt.contains(#""certainty":"userConfirmed""#))
-        XCTAssertTrue(prompt.contains("personaStyleLevelDimensions"))
-        XCTAssertTrue(prompt.contains("personaStyleObservationDimensions"))
+        XCTAssertTrue(prompt.contains("activeObservations"))
+        XCTAssertTrue(prompt.contains("maxActiveObservations"))
         XCTAssertTrue(prompt.hasPrefix("<conversation_data>"))
         XCTAssertTrue(prompt.hasSuffix("</conversation_data>"))
         XCTAssertFalse(prompt.contains("Archived detail"))
@@ -147,17 +146,17 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(SuggestedReplyPrompt.instructions.contains("Contact memory describes the contact only."))
         XCTAssertTrue(
             SuggestedReplyPrompt.instructions.contains(
-                #"exclusively from supplied messages whose sender is "contact""#
+                #"exclusively from messages whose sender is "contact""#
             )
         )
         XCTAssertTrue(
             SuggestedReplyPrompt.instructions.contains(
-                #"Never use messages whose sender is "user", "other", or "unknown" as memory evidence."#
+                "Persona-learning rules"
             )
         )
         XCTAssertTrue(
             SuggestedReplyPrompt.instructions.contains(
-                "User-authored messages may inform replies but must not support contact-memory changes."
+                "Never target protected observations"
             )
         )
 
@@ -175,14 +174,16 @@ final class ProviderAnalysisTests: XCTestCase {
         )
 
         let normalized = try SuggestedReplyResultDecoder.decode(
-            content: "Here is the requested JSON:\n{\"history_summary\":\"Earlier context\",\"suggestedReplies\":[{\"text\":\"First\"},{\"reply\":\"Second\"}],\"memoryChanges\":[],\"personaStyleLevels\":[],\"personaStyleObservations\":[]}",
+            content:
+                "Here is the requested JSON:\n{\"history_summary\":\"Earlier context\",\"suggestedReplies\":[{\"text\":\"First\"},{\"reply\":\"Second\"}],\"memoryChanges\":[],\"personaObservationChanges\":[]}",
             finishReason: "stop"
         )
         XCTAssertEqual(normalized.historySummary, "Earlier context")
         XCTAssertEqual(normalized.replies, ["First", "Second"])
 
         let fallback = try SuggestedReplyResultDecoder.decode(
-            content: "{\"historySummary\":null,\"reply1\":\"First\",\"reply2\":\"Second\",\"memoryChanges\":[],\"personaStyleLevels\":[],\"personaStyleObservations\":[]}",
+            content:
+                "{\"historySummary\":null,\"reply1\":\"First\",\"reply2\":\"Second\",\"memoryChanges\":[],\"personaObservationChanges\":[]}",
             finishReason: "stop",
             historySummaryFallback: "Saved summary"
         )
@@ -198,22 +199,24 @@ final class ProviderAnalysisTests: XCTestCase {
         let memoryID = UUID()
         let withChange = try SuggestedReplyResultDecoder.decode(
             content: """
-            {"historySummary":"","replies":["First","Second"],"memoryChanges":[{"action":"update","targetMemoryID":"\(memoryID.uuidString)","text":"Now lives in Berlin","evidenceMessageIDs":["\(messageID.uuidString)"]}],"personaStyleLevels":[],"personaStyleObservations":[]}
-            """,
+                {"historySummary":"","replies":["First","Second"],"memoryChanges":[{"action":"update","targetMemoryID":"\(memoryID.uuidString)","text":"Now lives in Berlin","evidenceMessageIDs":["\(messageID.uuidString)"]}],"personaObservationChanges":[]}
+                """,
             finishReason: "stop"
         )
         XCTAssertEqual(withChange.memoryChanges.first?.targetMemoryID, memoryID)
         XCTAssertEqual(withChange.memoryChanges.first?.sourceMessageIDs, [messageID])
 
         let added = try SuggestedReplyResultDecoder.decode(
-            content: "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Vegetarian\",\"evidenceMessageIDs\":[\"\(messageID.uuidString)\"]}],\"personaStyleLevels\":[],\"personaStyleObservations\":[]}",
+            content:
+                "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Vegetarian\",\"evidenceMessageIDs\":[\"\(messageID.uuidString)\"]}],\"personaObservationChanges\":[]}",
             finishReason: "stop"
         )
         XCTAssertEqual(added.memoryChanges.first?.action, .add)
         XCTAssertNil(added.memoryChanges.first?.targetMemoryID)
 
         let archived = try SuggestedReplyResultDecoder.decode(
-            content: "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"archive\",\"targetMemoryID\":\"\(memoryID.uuidString)\",\"text\":null,\"evidenceMessageIDs\":[\"\(messageID.uuidString)\"]}],\"personaStyleLevels\":[],\"personaStyleObservations\":[]}",
+            content:
+                "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"archive\",\"targetMemoryID\":\"\(memoryID.uuidString)\",\"text\":null,\"evidenceMessageIDs\":[\"\(messageID.uuidString)\"]}],\"personaObservationChanges\":[]}",
             finishReason: "stop"
         )
         XCTAssertEqual(archived.memoryChanges.first?.action, .archive)
@@ -221,19 +224,22 @@ final class ProviderAnalysisTests: XCTestCase {
 
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
-                content: "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Vegetarian\",\"evidenceMessageIDs\":[\"not-a-uuid\"]}],\"personaStyleLevels\":[],\"personaStyleObservations\":[]}",
+                content:
+                    "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Vegetarian\",\"evidenceMessageIDs\":[\"not-a-uuid\"]}],\"personaObservationChanges\":[]}",
                 finishReason: "stop"
             )
         )
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
-                content: "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Vegetarian\",\"evidenceMessageIDs\":[\"\(messageID.uuidString)\",\"\(messageID.uuidString)\"]}],\"personaStyleLevels\":[],\"personaStyleObservations\":[]}",
+                content:
+                    "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Vegetarian\",\"evidenceMessageIDs\":[\"\(messageID.uuidString)\",\"\(messageID.uuidString)\"]}],\"personaObservationChanges\":[]}",
                 finishReason: "stop"
             )
         )
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
-                content: "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"archive\",\"targetMemoryID\":\"\(memoryID.uuidString)\",\"text\":null,\"sourceMessageIDs\":[\"\(messageID.uuidString)\"]}]}",
+                content:
+                    "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"archive\",\"targetMemoryID\":\"\(memoryID.uuidString)\",\"text\":null,\"sourceMessageIDs\":[\"\(messageID.uuidString)\"]}]}",
                 finishReason: "stop"
             )
         )
@@ -241,7 +247,8 @@ final class ProviderAnalysisTests: XCTestCase {
         let longSummary = String(repeating: "a", count: 2_001)
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
-                content: "{\"historySummary\":\"\(longSummary)\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[]}",
+                content:
+                    "{\"historySummary\":\"\(longSummary)\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[]}",
                 finishReason: "stop"
             )
         )
@@ -252,17 +259,20 @@ final class ProviderAnalysisTests: XCTestCase {
                 finishReason: "stop"
             )
         )
-        let addChange = "{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Fact\",\"evidenceMessageIDs\":[\"\(messageID.uuidString)\"]}"
+        let addChange =
+            "{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Fact\",\"evidenceMessageIDs\":[\"\(messageID.uuidString)\"]}"
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
-                content: "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[\(Array(repeating: addChange, count: 9).joined(separator: ","))]}",
+                content:
+                    "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[\(Array(repeating: addChange, count: 9).joined(separator: ","))]}",
                 finishReason: "stop"
             )
         )
         let fourSources = (0..<4).map { _ in "\"\(UUID().uuidString)\"" }.joined(separator: ",")
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
-                content: "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Fact\",\"evidenceMessageIDs\":[\(fourSources)]}],\"personaStyleLevels\":[],\"personaStyleObservations\":[]}",
+                content:
+                    "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Fact\",\"evidenceMessageIDs\":[\(fourSources)]}],\"personaObservationChanges\":[]}",
                 finishReason: "stop"
             )
         )
@@ -284,7 +294,8 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(request.url?.path, "/v1/responses")
         let body = try jsonBody(request)
         XCTAssertEqual(body["store"] as? Bool, false)
-        XCTAssertEqual(((body["text"] as? [String: Any])?["format"] as? [String: Any])?["type"] as? String, "json_schema")
+        XCTAssertEqual(
+            ((body["text"] as? [String: Any])?["format"] as? [String: Any])?["type"] as? String, "json_schema")
 
         let input = try XCTUnwrap(body["input"] as? [[String: Any]])
         let content = try XCTUnwrap(input.first?["content"] as? [[String: Any]])
@@ -334,7 +345,8 @@ final class ProviderAnalysisTests: XCTestCase {
                 XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
                 XCTAssertEqual(body["do_sample"] as? Bool, false)
                 let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
-                XCTAssertTrue(try XCTUnwrap(messages.first?["content"] as? String).contains("Literal visual observations"))
+                XCTAssertTrue(
+                    try XCTUnwrap(messages.first?["content"] as? String).contains("Literal visual observations"))
                 let userContent = try XCTUnwrap(messages.last?["content"] as? [[String: Any]])
                 let image = try XCTUnwrap(userContent.first { $0["type"] as? String == "image_url" })
                 let imageURL = try XCTUnwrap((image["image_url"] as? [String: Any])?["url"] as? String)
@@ -359,7 +371,7 @@ final class ProviderAnalysisTests: XCTestCase {
             ).analyzeChatScreenshot(makeRequest(), apiKey: "key", model: .glm46VFlash)
             XCTFail("Expected malformed chat analysis to fail")
         } catch let error as ProviderConnectionError {
-            guard case let .structuredOutput(details) = error else {
+            guard case .structuredOutput(let details) = error else {
                 return XCTFail("Expected structured-output failure, got \(error)")
             }
             XCTAssertEqual(details.failure.kind, .schemaMismatch)
@@ -418,18 +430,16 @@ final class ProviderAnalysisTests: XCTestCase {
     func testOpenAIAndZAINormalizeTheSameLearningContract() async throws {
         let memoryEvidenceID = UUID()
         let personaEvidenceID = UUID()
+        let secondPersonaEvidenceID = UUID()
         let content = """
-        {"historySummary":null,"replies":["First reply","Second reply"],
-         "memoryChanges":[
-          {"action":"add","targetMemoryID":null,"text":"Prefers vegetarian restaurants","evidenceMessageIDs":["\(memoryEvidenceID.uuidString)"]}
-         ],
-         "personaStyleLevels":[
-          {"dimensionKey":"formality","level":"low","evidenceMessageIDs":["\(personaEvidenceID.uuidString)"]}
-         ],
-         "personaStyleObservations":[
-          {"dimensionKey":"punctuation","observation":"Often omits final punctuation.","evidenceMessageIDs":["\(personaEvidenceID.uuidString)"]}
-         ]}
-        """
+            {"historySummary":null,"replies":["First reply","Second reply"],
+             "memoryChanges":[
+              {"action":"add","targetMemoryID":null,"text":"Prefers vegetarian restaurants","evidenceMessageIDs":["\(memoryEvidenceID.uuidString)"]}
+             ],
+             "personaObservationChanges":[
+              {"action":"add","targetObservationID":null,"text":"Often omits final punctuation.","evidenceMessageIDs":["\(personaEvidenceID.uuidString)","\(secondPersonaEvidenceID.uuidString)"]}
+             ]}
+            """
 
         AnalysisURLProtocolStub.responses = [(200, openAIResponse(content: content))]
         let openAIResult = try await OpenAIClient(session: makeSession()).generateSuggestedReplies(
@@ -443,8 +453,7 @@ final class ProviderAnalysisTests: XCTestCase {
 
         XCTAssertEqual(openAIResult, zaiResult)
         XCTAssertEqual(openAIResult.memoryChanges.first?.sourceMessageIDs, [memoryEvidenceID])
-        XCTAssertEqual(openAIResult.personaTraitChanges.map(\.dimensionKey), ["formality", "punctuation"])
-        XCTAssertEqual(openAIResult.personaTraitChanges.first?.levelBand, .muchLower)
+        XCTAssertEqual(openAIResult.personaObservationChanges.map(\.text), ["Often omits final punctuation."])
     }
 
     @MainActor
@@ -463,7 +472,7 @@ final class ProviderAnalysisTests: XCTestCase {
             ).generateSuggestedReplies(makeReplyRequest(), apiKey: "key", model: .glm47FlashX)
             XCTFail("Expected malformed suggested replies to fail")
         } catch let error as ProviderConnectionError {
-            guard case let .structuredOutput(details) = error else {
+            guard case .structuredOutput(let details) = error else {
                 return XCTFail("Expected structured-output failure, got \(error)")
             }
             XCTAssertEqual(details.failure.kind, .schemaMismatch)
@@ -494,7 +503,7 @@ final class ProviderAnalysisTests: XCTestCase {
                 .generateSuggestedReplies(makeReplyRequest(), apiKey: "key", model: .glm47FlashX)
             XCTFail("Expected truncated suggested replies to fail")
         } catch let error as ProviderConnectionError {
-            guard case let .structuredOutput(details) = error else {
+            guard case .structuredOutput(let details) = error else {
                 return XCTFail("Expected structured-output failure, got \(error)")
             }
             XCTAssertEqual(details.failure.kind, .truncatedResponse)
@@ -537,7 +546,11 @@ final class ProviderAnalysisTests: XCTestCase {
                 ContactMemory(text: "Archived detail", status: .archived)
             ],
             currentInteractionGoal: "Confirm dinner",
-            preferredPersona: "Warm & Collaborative",
+            persona: PersonaPromptContext(
+                id: PersonaDefaults.professionalID, name: "Warm & Collaborative",
+                instructions: "Write warmly and collaboratively.", observations: [], protectedTombstones: []
+            ),
+            personaLearningMessages: [],
             existingHistorySummary: "",
             summaryMode: .unchanged,
             olderMessagesToSummarize: [],
@@ -552,7 +565,7 @@ final class ProviderAnalysisTests: XCTestCase {
     }
 
     private func validRepliesJSON() -> String {
-        "{\"historySummary\":null,\"replies\":[\"Sounds good to me.\",\"That works — looking forward to it!\"],\"memoryChanges\":[],\"personaStyleLevels\":[],\"personaStyleObservations\":[]}"
+        "{\"historySummary\":null,\"replies\":[\"Sounds good to me.\",\"That works — looking forward to it!\"],\"memoryChanges\":[],\"personaObservationChanges\":[]}"
     }
 
     private func makeRequest() -> ChatScreenshotAnalysisRequest {
@@ -575,17 +588,19 @@ final class ProviderAnalysisTests: XCTestCase {
                 "screenshotOwnerAlignment": "right",
                 "screenshotOwnerAuthorLabel": NSNull()
             ],
-            "messages": [[
-                "sender": "contact",
-                "senderName": "Sarah Jenkins",
-                "text": "Can we meet tomorrow?",
-                "timestampLabel": "10:42 AM",
-                "outerAlignment": "left",
-                "outerAuthorLabel": NSNull(),
-                "senderConfidence": 0.95,
-                "senderEvidence": "alignment_convention",
-                "quotedReply": NSNull()
-            ]],
+            "messages": [
+                [
+                    "sender": "contact",
+                    "senderName": "Sarah Jenkins",
+                    "text": "Can we meet tomorrow?",
+                    "timestampLabel": "10:42 AM",
+                    "outerAlignment": "left",
+                    "outerAuthorLabel": NSNull(),
+                    "senderConfidence": 0.95,
+                    "senderEvidence": "alignment_convention",
+                    "quotedReply": NSNull()
+                ]
+            ],
             "matchedChatID": matchedChatID.map { $0 as Any } ?? NSNull(),
             "matchConfidence": matchedChatID == nil ? 0.0 : 0.96
         ]
@@ -603,10 +618,12 @@ final class ProviderAnalysisTests: XCTestCase {
 
     private func zaiResponse(content: String?, finishReason: String = "stop") -> String {
         let object: [String: Any] = [
-            "choices": [[
-                "message": ["content": content.map { $0 as Any } ?? NSNull()],
-                "finish_reason": finishReason
-            ]]
+            "choices": [
+                [
+                    "message": ["content": content.map { $0 as Any } ?? NSNull()],
+                    "finish_reason": finishReason
+                ]
+            ]
         ]
         return String(data: try! JSONSerialization.data(withJSONObject: object), encoding: .utf8)!
     }
@@ -624,7 +641,7 @@ final class ProviderAnalysisTests: XCTestCase {
 
     private func providerAttempts(in events: [ImportEvent]) -> [Int] {
         events.compactMap { event in
-            guard case let .providerAttempt(_, _, _, attempt, _) = event else { return nil }
+            guard case .providerAttempt(_, _, _, let attempt, _) = event else { return nil }
             return attempt
         }
     }

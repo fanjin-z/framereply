@@ -33,7 +33,7 @@ struct RezplyShellView: View {
                             }
                         )
                     case .personas:
-                        PersonasView { personaID in
+                        PersonasView(providerStore: providerStore) { personaID in
                             navigationPath.append(.persona(personaID))
                         }
                     case .settings:
@@ -50,11 +50,11 @@ struct RezplyShellView: View {
             }
             .navigationDestination(for: RezplyRoute.self) { route in
                 switch route {
-                case let .contactContext(chatID):
+                case .contactContext(let chatID):
                     if let chat = chat(withID: chatID) {
                         PersistedContactContextView(chat: chat)
                     }
-                case let .chatIntelligence(chatID):
+                case .chatIntelligence(let chatID):
                     if let chat = chat(withID: chatID) {
                         ChatIntelligenceView(
                             chat: chat,
@@ -65,7 +65,7 @@ struct RezplyShellView: View {
                             }
                         )
                     }
-                case let .persona(personaID):
+                case .persona(let personaID):
                     PersonaDetailView(personaID: personaID, providerStore: providerStore)
                 }
             }

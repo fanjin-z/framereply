@@ -7,27 +7,24 @@ struct PersonaDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var personas: [PersonaRecord]
-    @Query private var traits: [PersonaLearnedTraitRecord]
-    @Query private var adjustments: [PersonaStyleAdjustmentRecord]
+    @Query private var observations: [PersonaObservationRecord]
     @Query private var assignments: [ContactContextRecord]
-    @State private var showsGuidance = false
     @State private var examples = ""
-    @State private var editingTraitID: UUID?
-    @State private var traitDraft = ""
-    @State private var isAnalyzingExamples = false
+    @State private var newObservation = ""
+    @State private var editingID: UUID?
+    @State private var observationDraft = ""
+    @State private var isAnalyzing = false
     @State private var exampleError: String?
+    @State private var defaultPersonaID: UUID?
+    @State private var showsHistory = false
 
     init(personaID: UUID, providerStore: ProviderStore) {
         self.personaID = personaID
         self.providerStore = providerStore
         _personas = Query(filter: #Predicate<PersonaRecord> { $0.id == personaID })
-        _traits = Query(
-            filter: #Predicate<PersonaLearnedTraitRecord> { $0.personaID == personaID },
-            sort: \PersonaLearnedTraitRecord.dimensionKey
-        )
-        _adjustments = Query(
-            filter: #Predicate<PersonaStyleAdjustmentRecord> { $0.personaID == personaID },
-            sort: \PersonaStyleAdjustmentRecord.dimensionKey
+        _observations = Query(
+            filter: #Predicate<PersonaObservationRecord> { $0.personaID == personaID },
+            sort: \PersonaObservationRecord.createdAt
         )
         _assignments = Query(filter: #Predicate<ContactContextRecord> { $0.personaID == personaID })
     }
@@ -39,270 +36,220 @@ struct PersonaDetailView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         topBar
-                        hero(persona)
-                        controls(persona)
-                        guidance(persona)
-                        learnedStyle(persona)
-                        exampleCard(persona)
+                        identity(persona)
+                        instructionsCard(persona)
+                        observationsCard(persona)
+                        exampleCard
+                        historyCard
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 12)
-                    .padding(.bottom, 40)
-                    .frame(maxWidth: 720)
-                    .frame(maxWidth: .infinity)
-                }
-                .scrollIndicators(.hidden)
+                    .padding(.horizontal, 24).padding(.top, 12).padding(.bottom, 40)
+                    .frame(maxWidth: 720).frame(maxWidth: .infinity)
+                }.scrollIndicators(.hidden)
             }
         }
-        .interactiveSwipeBackEnabled()
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
+        .task { defaultPersonaID = try? PersonaRepository().defaultPersonaID() }
+        .interactiveSwipeBackEnabled().navigationBarBackButtonHidden(true).toolbar(.hidden, for: .navigationBar)
     }
 
     private var topBar: some View {
         HStack {
-            Button { dismiss() } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .semibold))
-                    .frame(width: 46, height: 46)
-                    .background(Color.white.opacity(0.68), in: Circle())
-            }
-            .buttonStyle(SoftPressButtonStyle())
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left").font(.system(size: 20, weight: .semibold))
+                    .frame(width: 46, height: 46).background(Color.white.opacity(0.68), in: Circle())
+            }.buttonStyle(SoftPressButtonStyle())
             Spacer()
-        }
-        .foregroundStyle(RezplyColor.primary)
+            if defaultPersonaID == personaID {
+                Label("Default", systemImage: "checkmark.circle.fill").font(.caption.bold())
+            } else {
+                Button("Set as Default") {
+                    try? PersonaRepository().setDefaultPersona(id: personaID)
+                    defaultPersonaID = personaID
+                }.font(.caption.bold())
+            }
+        }.foregroundStyle(RezplyColor.primary)
     }
 
-    private func hero(_ persona: PersonaRecord) -> some View {
+    private func identity(_ persona: PersonaRecord) -> some View {
         HStack(alignment: .top, spacing: 16) {
-            Circle()
-                .fill(persona.value.accent.opacity(0.14))
-                .frame(width: 58, height: 58)
-                .overlay(Image(systemName: persona.symbolName).font(.system(size: 24)).foregroundStyle(persona.value.accent))
+            Circle().fill(persona.value.accent.opacity(0.14)).frame(width: 58, height: 58)
+                .overlay(
+                    Image(systemName: persona.symbolName).font(.system(size: 24)).foregroundStyle(persona.value.accent))
             VStack(alignment: .leading, spacing: 8) {
-                if persona.isBuiltIn {
-                    Text(persona.name).font(.system(size: 24, weight: .bold, design: .rounded))
-                    Text(persona.summary)
-                } else {
-                    TextField("Name", text: binding(persona, \.name))
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                    TextField("What is this voice for?", text: binding(persona, \.purposeInstructions), axis: .vertical)
-                }
-                Label(persona.isBuiltIn ? "Built-in · \(assignments.count) chats" : "Custom · \(assignments.count) chats", systemImage: "message")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(RezplyColor.outline)
+                TextField("Name", text: binding(persona, \.name))
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                TextField("Short summary", text: binding(persona, \.summary), axis: .vertical)
+                Label("\(assignments.count) chats", systemImage: "message")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(RezplyColor.outline)
             }
-            .foregroundStyle(RezplyColor.onSurface)
-        }
-        .padding(22)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassPanel(cornerRadius: 28)
+        }.padding(22).frame(maxWidth: .infinity, alignment: .leading).glassPanel(cornerRadius: 28)
     }
 
-    private func controls(_ persona: PersonaRecord) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            SectionHeader(symbolName: "slider.horizontal.3", title: "Voice Tuning")
-            Text("Current follows your learned voice, or this persona’s preset while it is still learning.")
-                .font(.system(size: 13, design: .rounded))
-                .foregroundStyle(RezplyColor.outline)
-            ForEach(PersonaStyleDimensionRegistry.adjustableDefinitions) { definition in
-                control(definition, persona: persona)
-            }
-        }
-        .padding(22)
-        .glassPanel(cornerRadius: 28)
-    }
-
-    private func control(_ definition: PersonaStyleDimensionDefinition, persona: PersonaRecord) -> some View {
-        let selection = adjustment(for: definition.key)
-        let signal = resolvedSignals(persona).first { $0.dimensionKey == definition.key }
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(definition.title).font(.system(size: 13, weight: .bold, design: .rounded))
-                Spacer()
-                Text(definition.adjustmentLabel(selection))
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(RezplyColor.primary)
-            }
-            HStack(spacing: 0) {
-                ForEach(-2...2, id: \.self) { value in
-                    Button {
-                        try? PersonaRepository().setAdjustment(
-                            value, dimensionKey: definition.key, personaID: persona.id
-                        )
-                    } label: {
-                        Circle()
-                            .fill(value == selection ? RezplyColor.primary : RezplyColor.surfaceContainerHigh)
-                            .frame(width: value == selection ? 18 : 12, height: value == selection ? 18 : 12)
-                            .frame(maxWidth: .infinity, minHeight: 32)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(definition.adjustmentLabel(value))
-                }
-            }
-            .background(alignment: .center) {
-                Capsule().fill(RezplyColor.outline.opacity(0.18)).frame(height: 2).padding(.horizontal, 18)
-            }
-            HStack {
-                Text(definition.lowAnchor)
-                Spacer()
-                Text("Current")
-                Spacer()
-                Text(definition.highAnchor)
-            }
-            .font(.system(size: 10, weight: .semibold, design: .rounded))
-            .foregroundStyle(RezplyColor.outline)
-            if let signal {
-                Text("\(signal.shortLabel) · \(signal.source.displayName)")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(RezplyColor.onSurfaceVariant)
-            }
-        }
-    }
-
-    private func guidance(_ persona: PersonaRecord) -> some View {
-        DisclosureGroup(isExpanded: $showsGuidance) {
-            Text("Rules here always take priority over tuning and learned style.")
-                .font(.system(size: 12, design: .rounded))
-                .foregroundStyle(RezplyColor.outline)
-                .padding(.top, 10)
-            TextEditor(text: binding(persona, \.alwaysFollowRules))
-                .font(.system(size: 15, design: .rounded))
-                .scrollContentBackground(.hidden)
-                .frame(minHeight: 110)
-                .padding(10)
+    private func instructionsCard(_ persona: PersonaRecord) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(symbolName: "text.badge.checkmark", title: "Instructions")
+            Text("Direct guidance always takes priority over learned observations.")
+                .font(.caption).foregroundStyle(RezplyColor.outline)
+            TextEditor(text: binding(persona, \.instructions)).frame(minHeight: 130)
+                .scrollContentBackground(.hidden).padding(10)
                 .background(RezplyColor.secondaryContainer.opacity(0.28), in: RoundedRectangle(cornerRadius: 18))
-                .padding(.top, 12)
-        } label: {
-            SectionHeader(symbolName: "text.badge.checkmark", title: "Always Follow")
-        }
-        .padding(22)
-        .glassPanel(cornerRadius: 28)
+        }.padding(22).glassPanel(cornerRadius: 28)
     }
 
-    private func learnedStyle(_ persona: PersonaRecord) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionHeader(symbolName: "sparkles", title: "Learned From Your Messages") {
-                Toggle("", isOn: Binding(
-                    get: { persona.learningEnabled },
-                    set: { try? PersonaRepository().setLearningEnabled($0, for: persona) }
-                )).labelsHidden()
+    private func observationsCard(_ persona: PersonaRecord) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader(symbolName: "sparkles", title: "Observations") {
+                Toggle(
+                    "",
+                    isOn: Binding(
+                        get: { persona.learningEnabled },
+                        set: { try? PersonaRepository().setLearningEnabled($0, for: persona) }
+                    )
+                ).labelsHidden()
             }
-            Text(persona.sampleCount == 0 ? "No future messages analyzed yet." : "Learned from \(persona.sampleCount) messages.")
-                .font(.system(size: 13, design: .rounded)).foregroundStyle(RezplyColor.outline)
+            Text(
+                persona.sampleCount == 0
+                    ? "Automatic learning has not analyzed messages yet."
+                    : "Learned from \(persona.sampleCount) messages."
+            )
+            .font(.caption).foregroundStyle(RezplyColor.outline)
 
-            ForEach(traits.filter { $0.status == PersonaTraitStatus.active.rawValue }) { trait in
-                traitRow(trait)
-            }
+            ForEach(activeObservations) { observationRow($0) }
 
-            if !traits.isEmpty {
-                Button("Reset Learned Style", role: .destructive) {
-                    try? PersonaRepository().resetLearnedStyle(personaID: personaID)
-                }
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+            HStack {
+                TextField("Add an observation", text: $newObservation, axis: .vertical)
+                Button("Add") {
+                    try? PersonaRepository().addUserObservation(newObservation, personaID: personaID)
+                    newObservation = ""
+                }.disabled(
+                    newObservation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        || activeObservations.count >= PersonaDefaults.maximumActiveObservations)
+            }.padding(14).background(
+                RezplyColor.secondaryContainer.opacity(0.2), in: RoundedRectangle(cornerRadius: 18))
+
+            if activeObservations.contains(where: { $0.origin == PersonaObservationOrigin.ai.rawValue }) {
+                Button("Clear Learned Observations", role: .destructive) {
+                    try? PersonaRepository().clearLearnedObservations(personaID: personaID)
+                }.font(.caption.bold())
             }
-        }
-        .padding(22)
-        .glassPanel(cornerRadius: 28)
+        }.padding(22).glassPanel(cornerRadius: 28)
     }
 
-    private func traitRow(_ trait: PersonaLearnedTraitRecord) -> some View {
+    private func observationRow(_ observation: PersonaObservationRecord) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(PersonaStyleDimensionRegistry.definition(for: trait.dimensionKey)?.title ?? trait.dimensionKey)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                Label(sourceLabel(observation), systemImage: observation.isUserProtected ? "lock.fill" : "sparkles")
+                    .font(.caption.bold()).foregroundStyle(RezplyColor.outline)
                 Spacer()
-                Text(trait.confidence >= 0.8 ? "Established" : trait.confidence >= 0.55 ? "Growing" : "Emerging")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded)).foregroundStyle(RezplyColor.outline)
+                Text(observation.updatedAt, style: .date).font(.caption2).foregroundStyle(RezplyColor.outline)
             }
-            if editingTraitID == trait.id {
-                TextField("Observation", text: $traitDraft, axis: .vertical)
+            if editingID == observation.id {
+                TextField("Observation", text: $observationDraft, axis: .vertical)
                 HStack {
-                    Button("Remove", role: .destructive) { trait.status = PersonaTraitStatus.dismissed.rawValue; save() }
+                    Button("Remove", role: .destructive) { archive(observation) }
                     Spacer()
-                    Button("Cancel") { editingTraitID = nil }
+                    Button("Cancel") { editingID = nil }
                     Button("Save") {
-                        trait.observation = traitDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-                        trait.origin = PersonaTraitOrigin.userConfirmed.rawValue
-                        trait.confidence = 1
-                        editingTraitID = nil
-                        save()
-                    }.disabled(traitDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }.font(.system(size: 12, weight: .bold, design: .rounded))
+                        try? PersonaRepository().updateObservation(observation, text: observationDraft)
+                        editingID = nil
+                    }.disabled(observationDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }.font(.caption.bold())
             } else {
                 Button {
-                    editingTraitID = trait.id; traitDraft = trait.observation
+                    editingID = observation.id
+                    observationDraft = observation.text
                 } label: {
-                    Text(trait.observation).frame(maxWidth: .infinity, alignment: .leading)
-                }.buttonStyle(.plain)
+                    Text(observation.text).frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
             }
-        }
-        .font(.system(size: 14, design: .rounded))
-        .foregroundStyle(RezplyColor.onSurface)
-        .padding(14)
-        .background(RezplyColor.secondaryContainer.opacity(0.28), in: RoundedRectangle(cornerRadius: 18))
+        }.padding(14).background(RezplyColor.secondaryContainer.opacity(0.28), in: RoundedRectangle(cornerRadius: 18))
     }
 
-    private func exampleCard(_ persona: PersonaRecord) -> some View {
+    private var exampleCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader(symbolName: "quote.bubble", title: "Teach It Your Voice")
-            Text("Optional: paste 3–10 messages you wrote, one per line. Examples are discarded after analysis.")
-                .font(.system(size: 13, design: .rounded)).foregroundStyle(RezplyColor.outline)
-            TextEditor(text: $examples)
-                .font(.system(size: 15, design: .rounded)).scrollContentBackground(.hidden)
-                .frame(minHeight: 120).padding(10)
+            Text("Paste 3–10 messages you wrote, one per line. Examples are discarded after analysis.")
+                .font(.caption).foregroundStyle(RezplyColor.outline)
+            TextEditor(text: $examples).frame(minHeight: 120).scrollContentBackground(.hidden).padding(10)
                 .background(RezplyColor.secondaryContainer.opacity(0.28), in: RoundedRectangle(cornerRadius: 18))
-            if let exampleError {
-                Text(exampleError).font(.system(size: 12, design: .rounded)).foregroundStyle(.red)
-            }
-            Button(isAnalyzingExamples ? "Analyzing…" : "Analyze Examples") {
-                analyzeExamples()
-            }
+            if let exampleError { Text(exampleError).font(.caption).foregroundStyle(.red) }
+            Button(isAnalyzing ? "Analyzing…" : "Analyze Examples") { analyzeExamples() }
                 .buttonStyle(SoftPressButtonStyle())
-                .disabled(exampleLines.count < 3 || exampleLines.count > 10 || isAnalyzingExamples)
-        }
-        .padding(22)
-        .glassPanel(cornerRadius: 28)
+                .disabled(!(3...10).contains(exampleLines.count) || isAnalyzing)
+        }.padding(22).glassPanel(cornerRadius: 28)
     }
 
+    private var historyCard: some View {
+        DisclosureGroup(isExpanded: $showsHistory) {
+            if inactiveObservations.isEmpty {
+                Text("No archived observations.").font(.caption).foregroundStyle(RezplyColor.outline).padding(.top, 8)
+            } else {
+                ForEach(inactiveObservations) { observation in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(observation.text)
+                        Text(observation.status.capitalized).font(.caption2).foregroundStyle(RezplyColor.outline)
+                    }.padding(.top, 10)
+                }
+            }
+        } label: {
+            SectionHeader(symbolName: "clock.arrow.circlepath", title: "Observation History")
+        }
+        .padding(22).glassPanel(cornerRadius: 28)
+    }
+
+    private var activeObservations: [PersonaObservationRecord] {
+        observations.filter { $0.status == PersonaObservationStatus.active.rawValue }
+    }
+    private var inactiveObservations: [PersonaObservationRecord] {
+        observations.filter { $0.status != PersonaObservationStatus.active.rawValue }
+    }
     private var exampleLines: [String] {
-        examples.split(whereSeparator: \.isNewline).map(String.init).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        examples.split(whereSeparator: \.isNewline).map(String.init)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+    }
+
+    private func sourceLabel(_ observation: PersonaObservationRecord) -> String {
+        if observation.isUserProtected { return "Your guidance" }
+        switch PersonaObservationOrigin(rawValue: observation.origin) {
+        case .seed: return "Seed"
+        case .ai: return "Learned"
+        case .user: return "Your guidance"
+        case nil: return "Observation"
+        }
+    }
+
+    private func archive(_ observation: PersonaObservationRecord) {
+        try? PersonaRepository().archiveObservation(observation)
+        editingID = nil
     }
 
     private func analyzeExamples() {
-        let lines = exampleLines
-        guard (3...10).contains(lines.count) else { return }
-        isAnalyzingExamples = true
+        isAnalyzing = true
         exampleError = nil
         Task {
             do {
                 try await PersonaExampleAnalyzer(providerStore: providerStore).analyze(
-                    personaID: personaID, examples: lines
+                    personaID: personaID, examples: exampleLines
                 )
                 examples = ""
-            } catch {
-                exampleError = error.localizedDescription
-            }
-            isAnalyzingExamples = false
+            } catch { exampleError = error.localizedDescription }
+            isAnalyzing = false
         }
     }
 
-    private func binding(_ record: PersonaRecord, _ keyPath: ReferenceWritableKeyPath<PersonaRecord, String>) -> Binding<String> {
-        Binding(get: { record[keyPath: keyPath] }, set: { record[keyPath: keyPath] = $0; record.updatedAt = Date(); save() })
-    }
-
-    private func adjustment(for dimensionKey: String) -> Int {
-        adjustments.first { $0.dimensionKey == dimensionKey }?.adjustment ?? 0
-    }
-
-    private func resolvedSignals(_ persona: PersonaRecord) -> [PersonaResolvedStyleSignal] {
-        PersonaStyleResolver.resolve(
-            baseline: persona.baselineStyle,
-            adjustments: Dictionary(uniqueKeysWithValues: adjustments.map { ($0.dimensionKey, $0.adjustment) }),
-            traits: traits.map(\.value)
+    private func binding(
+        _ record: PersonaRecord,
+        _ keyPath: ReferenceWritableKeyPath<PersonaRecord, String>
+    ) -> Binding<String> {
+        Binding(
+            get: { record[keyPath: keyPath] },
+            set: {
+                record[keyPath: keyPath] = $0
+                record.updatedAt = Date()
+                try? modelContext.save()
+            }
         )
     }
-
-    private func save() { try? modelContext.save() }
 }

@@ -52,6 +52,8 @@ final class ChatRepository {
 
     init(container: ModelContainer) {
         context = container.mainContext
+        // Persona availability is a store invariant for reply generation and new chats.
+        try? PersonaRepository(container: container).seedPersonasIfNeeded()
     }
 
     init(context: ModelContext) {
@@ -122,7 +124,7 @@ final class ChatRepository {
                 relationshipSubtitle: "",
                 contactMemories: memories,
                 currentInteractionGoal: "",
-                personaID: PersonaDefaults.professionalID,
+                personaID: try defaultPersona()?.id ?? PersonaDefaults.professionalID,
                 personaAssignedAt: Date()
             )
     }
@@ -220,89 +222,39 @@ final class ChatRepository {
         try context.fetch(FetchDescriptor<PersonaRecord>(predicate: #Predicate { $0.id == id })).first
     }
 
-    func personaTraits(personaID: UUID) throws -> [PersonaLearnedTraitRecord] {
+    func personaObservations(personaID: UUID) throws -> [PersonaObservationRecord] {
         try context.fetch(
-            FetchDescriptor<PersonaLearnedTraitRecord>(predicate: #Predicate { $0.personaID == personaID })
-        )
-    }
-
-    func personaAdjustments(personaID: UUID) throws -> [PersonaStyleAdjustmentRecord] {
-        try context.fetch(
-            FetchDescriptor<PersonaStyleAdjustmentRecord>(predicate: #Predicate { $0.personaID == personaID })
+            FetchDescriptor<PersonaObservationRecord>(predicate: #Predicate { $0.personaID == personaID })
         )
     }
 
     func personaPromptContext(personaID: UUID) throws -> PersonaPromptContext {
-        let record = try persona(id: personaID)
-            ?? persona(id: PersonaDefaults.professionalID)
-            ?? PersonaRepository.makeBuiltIn(.professional)
-        let traits = try personaTraits(personaID: record.id)
-            .filter { $0.status == PersonaTraitStatus.active.rawValue }
+        guard let record = try persona(id: personaID) ?? defaultPersona() else {
+            throw PersonaRepositoryError.noPersonas
+        }
         return PersonaRepository.promptContext(
-            record: record,
-            traits: traits,
-            adjustments: try personaAdjustments(personaID: record.id)
-        )
+            record: record, observations: try personaObservations(personaID: record.id))
     }
 
     func projectedPersonaPromptContext(
         personaID: UUID,
-        changes: [PersonaTraitChange]
+        changes: [PersonaObservationChange]
     ) throws -> PersonaPromptContext {
-        let record = try persona(id: personaID)
-            ?? persona(id: PersonaDefaults.professionalID)
-            ?? PersonaRepository.makeBuiltIn(.professional)
-        var traits = try personaTraits(personaID: record.id).map(\.value)
-        for change in changes {
-            guard let definition = PersonaStyleDimensionRegistry.definition(for: change.dimensionKey),
-                definition.learnable,
-                definition.observationOnly == (change.levelBand == nil)
-            else { continue }
-            if let index = traits.firstIndex(where: { $0.dimensionKey == change.dimensionKey }) {
-                guard traits[index].origin != .userConfirmed, traits[index].status != .dismissed else { continue }
-                let previousCount = traits[index].evidenceCount
-                let addedCount = change.sourceMessageIDs.count
-                if let level = change.levelBand?.level {
-                    let previous = traits[index].learnedLevel ?? level
-                    traits[index].learnedLevel = (
-                        previous * Double(previousCount) + level * Double(addedCount)
-                    ) / Double(previousCount + addedCount)
-                }
-                traits[index].observation = change.observation
-                traits[index].evidenceCount += addedCount
-                traits[index].confidence = PersonaStyleResolver.confidence(
-                    evidenceCount: traits[index].evidenceCount, origin: .aiInferred
-                )
-            } else {
-                let evidenceCount = change.sourceMessageIDs.count
-                traits.append(PersonaLearnedTrait(
-                    id: UUID(), dimensionKey: change.dimensionKey,
-                    learnedLevel: change.levelBand?.level,
-                    observation: change.observation,
-                    confidence: PersonaStyleResolver.confidence(evidenceCount: evidenceCount, origin: .aiInferred),
-                    evidenceCount: evidenceCount, origin: .aiInferred, status: .active,
-                    updatedAt: Date()
-                ))
-            }
+        guard let record = try persona(id: personaID) ?? defaultPersona() else {
+            throw PersonaRepositoryError.noPersonas
         }
-        let adjustments = Dictionary(uniqueKeysWithValues: try personaAdjustments(personaID: record.id).map {
-            ($0.dimensionKey, $0.adjustment)
-        })
-        let descriptive = traits.filter { trait in
-            guard trait.status == .active else { return false }
-            guard let definition = PersonaStyleDimensionRegistry.definition(for: trait.dimensionKey) else { return false }
-            return definition.observationOnly || trait.origin == .userConfirmed
+        var values = try personaObservations(personaID: record.id).map(\.value)
+        let allowed = Set(changes.flatMap(\.sourceMessageIDs))
+        for change in changes {
+            applyProjected(change, to: &values, allowedMessageIDs: allowed)
         }
         return PersonaPromptContext(
-            id: record.id, name: record.name,
-            purposeInstructions: record.purposeInstructions,
-            resolvedStyle: PersonaStyleResolver.resolve(
-                baseline: record.baselineStyle, adjustments: adjustments, traits: traits
-            ),
-            descriptiveObservations: descriptive,
-            alwaysFollowRules: record.alwaysFollowRules,
-            registryVersion: PersonaStyleDimensionRegistry.version,
-            resolverVersion: PersonaStyleResolver.version
+            id: record.id, name: record.name, instructions: record.instructions,
+            observations: values.filter { $0.status == .active }.sorted {
+                if $0.isUserProtected != $1.isUserProtected { return $0.isUserProtected }
+                return $0.createdAt < $1.createdAt
+            },
+            protectedTombstones: values.filter { $0.status == .archived && $0.isUserProtected }
         )
     }
 
@@ -311,11 +263,13 @@ final class ChatRepository {
     ) throws -> [ChatMessageRecord] {
         guard let persona = try persona(id: personaID), persona.learningEnabled else { return [] }
         let cutoff = max(assignedAt, persona.learningEnabledAt)
-        let receiptIDs = Set(try context.fetch(
-            FetchDescriptor<PersonaLearningReceiptRecord>(predicate: #Predicate {
-                $0.personaID == personaID && $0.chatID == chatID
-            })
-        ).map(\.messageID))
+        let receiptIDs = Set(
+            try context.fetch(
+                FetchDescriptor<PersonaLearningReceiptRecord>(
+                    predicate: #Predicate {
+                        $0.personaID == personaID && $0.chatID == chatID
+                    })
+            ).map(\.messageID))
         return try messages(chatID: chatID)
             .filter { $0.senderKind == "user" && $0.createdAt >= cutoff && !receiptIDs.contains($0.id) }
             .prefix(limit)
@@ -326,7 +280,7 @@ final class ChatRepository {
         chatID: String,
         contactMemories: [ContactMemory],
         personaID: UUID,
-        personaTraitChanges: [PersonaTraitChange],
+        personaObservationChanges: [PersonaObservationChange],
         learningMessageIDs: Set<UUID>,
         historySummary: String,
         summarizedMessageCount: Int,
@@ -348,19 +302,23 @@ final class ChatRepository {
                 }
             }
 
-            try reconcilePersonaTraits(
+            try reconcilePersonaObservations(
                 personaID: personaID,
-                changes: personaTraitChanges,
-                allowedMessageIDs: learningMessageIDs
+                changes: personaObservationChanges,
+                allowedMessageIDs: learningMessageIDs,
+                evidenceSource: .messages
             )
             let now = Date()
             for messageID in learningMessageIDs {
                 let key = "\(personaID.uuidString.lowercased())|\(messageID.uuidString.lowercased())"
-                let exists = try context.fetch(
-                    FetchDescriptor<PersonaLearningReceiptRecord>(predicate: #Predicate { $0.key == key })
-                ).first != nil
+                let exists =
+                    try context.fetch(
+                        FetchDescriptor<PersonaLearningReceiptRecord>(predicate: #Predicate { $0.key == key })
+                    ).first != nil
                 if !exists {
-                    context.insert(PersonaLearningReceiptRecord(personaID: personaID, chatID: chatID, messageID: messageID, analyzedAt: now))
+                    context.insert(
+                        PersonaLearningReceiptRecord(
+                            personaID: personaID, chatID: chatID, messageID: messageID, analyzedAt: now))
                 }
             }
             if !learningMessageIDs.isEmpty, let persona = try persona(id: personaID) {
@@ -448,68 +406,79 @@ final class ChatRepository {
         }
     }
 
-    private func reconcilePersonaTraits(
+    private func reconcilePersonaObservations(
         personaID: UUID,
-        changes: [PersonaTraitChange],
-        allowedMessageIDs: Set<UUID>
+        changes: [PersonaObservationChange],
+        allowedMessageIDs: Set<UUID>,
+        evidenceSource: PersonaObservationEvidenceSource
     ) throws {
-        var storedByDimension = Dictionary(
-            uniqueKeysWithValues: try personaTraits(personaID: personaID).map { ($0.dimensionKey, $0) }
-        )
+        var records = try personaObservations(personaID: personaID)
         for change in changes {
-            guard !change.sourceMessageIDs.isEmpty,
-                change.sourceMessageIDs.allSatisfy(allowedMessageIDs.contains),
-                let definition = PersonaStyleDimensionRegistry.definition(for: change.dimensionKey),
-                definition.learnable,
-                definition.observationOnly == (change.levelBand == nil)
+            guard (2...10).contains(change.sourceMessageIDs.count),
+                Set(change.sourceMessageIDs).count == change.sourceMessageIDs.count,
+                change.sourceMessageIDs.allSatisfy(allowedMessageIDs.contains)
             else { continue }
-            if let current = storedByDimension[change.dimensionKey] {
-                guard current.origin != PersonaTraitOrigin.userConfirmed.rawValue,
-                    current.status != PersonaTraitStatus.dismissed.rawValue
+            let now = Date()
+            switch change.action {
+            case .add:
+                guard change.targetObservationID == nil,
+                    let text = cleanedObservation(change.text),
+                    activeCount(records) < PersonaDefaults.maximumActiveObservations,
+                    !containsEquivalent(text, in: records)
                 else { continue }
-                let previousCount = current.evidenceCount
-                let addedCount = change.sourceMessageIDs.count
-                if let level = change.levelBand?.level {
-                    let previous = current.learnedLevel ?? level
-                    current.learnedLevel = (
-                        previous * Double(previousCount) + level * Double(addedCount)
-                    ) / Double(previousCount + addedCount)
-                }
-                current.observation = change.observation
-                current.evidenceCount += addedCount
-                current.confidence = PersonaStyleResolver.confidence(
-                    evidenceCount: current.evidenceCount, origin: .aiInferred
+                let value = PersonaRepository.makeObservation(
+                    text: text, origin: .ai, isUserProtected: false,
+                    evidenceSource: evidenceSource, sourceMessageIDs: change.sourceMessageIDs,
+                    evidenceCount: change.sourceMessageIDs.count, now: now
                 )
-                current.updatedAt = Date()
-            } else {
-                let evidenceCount = change.sourceMessageIDs.count
-                let record = PersonaLearnedTraitRecord(
-                    personaID: personaID, dimensionKey: change.dimensionKey,
-                    learnedLevel: change.levelBand?.level,
-                    observation: change.observation,
-                    confidence: PersonaStyleResolver.confidence(
-                        evidenceCount: evidenceCount, origin: .aiInferred
-                    ),
-                    evidenceCount: evidenceCount,
-                    origin: PersonaTraitOrigin.aiInferred.rawValue
-                )
+                let record = PersonaObservationRecord(personaID: personaID, value: value)
                 context.insert(record)
-                storedByDimension[change.dimensionKey] = record
+                records.append(record)
+            case .update:
+                guard let targetID = change.targetObservationID,
+                    let current = records.first(where: {
+                        $0.id == targetID && $0.status == PersonaObservationStatus.active.rawValue
+                            && !$0.isUserProtected
+                    }),
+                    let text = cleanedObservation(change.text),
+                    !containsEquivalent(text, in: records, excluding: targetID)
+                else { continue }
+                let value = PersonaRepository.makeObservation(
+                    text: text, origin: .ai, isUserProtected: false,
+                    evidenceSource: evidenceSource, sourceMessageIDs: change.sourceMessageIDs,
+                    evidenceCount: change.sourceMessageIDs.count, now: now
+                )
+                let replacement = PersonaObservationRecord(personaID: personaID, value: value)
+                current.status = PersonaObservationStatus.superseded.rawValue
+                current.supersededByID = replacement.id
+                current.updatedAt = now
+                context.insert(replacement)
+                records.append(replacement)
+            case .archive:
+                guard let targetID = change.targetObservationID,
+                    let current = records.first(where: {
+                        $0.id == targetID && $0.status == PersonaObservationStatus.active.rawValue
+                            && !$0.isUserProtected
+                    })
+                else { continue }
+                current.status = PersonaObservationStatus.archived.rawValue
+                current.updatedAt = now
             }
         }
     }
 
     func savePersonaExampleAnalysis(
         personaID: UUID,
-        changes: [PersonaTraitChange],
+        changes: [PersonaObservationChange],
         sampleMessageIDs: Set<UUID>,
         sampleCount: Int
     ) throws {
         do {
-            try reconcilePersonaTraits(
+            try reconcilePersonaObservations(
                 personaID: personaID,
                 changes: changes,
-                allowedMessageIDs: sampleMessageIDs
+                allowedMessageIDs: sampleMessageIDs,
+                evidenceSource: .examples
             )
             if let persona = try persona(id: personaID) {
                 persona.sampleCount += sampleCount
@@ -521,6 +490,92 @@ final class ChatRepository {
             context.rollback()
             throw error
         }
+    }
+
+    private func defaultPersona() throws -> PersonaRecord? {
+        let metadata = try context.fetch(
+            FetchDescriptor<StoreMetadataRecord>(
+                predicate: #Predicate {
+                    $0.key == "defaultPersonaID"
+                })
+        ).first
+        if let raw = metadata?.value, let id = UUID(uuidString: raw), let record = try persona(id: id) {
+            return record
+        }
+        return try context.fetch(FetchDescriptor<PersonaRecord>(sortBy: [SortDescriptor(\.createdAt)])).first
+    }
+
+    private func applyProjected(
+        _ change: PersonaObservationChange,
+        to values: inout [PersonaObservation],
+        allowedMessageIDs: Set<UUID>
+    ) {
+        guard (2...10).contains(change.sourceMessageIDs.count),
+            Set(change.sourceMessageIDs).count == change.sourceMessageIDs.count,
+            change.sourceMessageIDs.allSatisfy(allowedMessageIDs.contains)
+        else { return }
+        let now = Date()
+        switch change.action {
+        case .add:
+            guard change.targetObservationID == nil,
+                let text = cleanedObservation(change.text),
+                values.filter({ $0.status == .active }).count < PersonaDefaults.maximumActiveObservations,
+                !values.contains(where: { normalized($0.text) == normalized(text) })
+            else { return }
+            values.append(
+                PersonaRepository.makeObservation(
+                    text: text, origin: .ai, isUserProtected: false,
+                    evidenceSource: .messages, sourceMessageIDs: change.sourceMessageIDs,
+                    evidenceCount: change.sourceMessageIDs.count, now: now
+                ))
+        case .update:
+            guard let target = change.targetObservationID,
+                let index = values.firstIndex(where: { $0.id == target && $0.status == .active && !$0.isUserProtected }
+                ),
+                let text = cleanedObservation(change.text),
+                !values.contains(where: { $0.id != target && normalized($0.text) == normalized(text) })
+            else { return }
+            let replacement = PersonaRepository.makeObservation(
+                text: text, origin: .ai, isUserProtected: false,
+                evidenceSource: .messages, sourceMessageIDs: change.sourceMessageIDs,
+                evidenceCount: change.sourceMessageIDs.count, now: now
+            )
+            values[index].status = .superseded
+            values[index].supersededByID = replacement.id
+            values[index].updatedAt = now
+            values.append(replacement)
+        case .archive:
+            guard let target = change.targetObservationID,
+                let index = values.firstIndex(where: { $0.id == target && $0.status == .active && !$0.isUserProtected })
+            else { return }
+            values[index].status = .archived
+            values[index].updatedAt = now
+        }
+    }
+
+    private func activeCount(_ records: [PersonaObservationRecord]) -> Int {
+        records.filter { $0.status == PersonaObservationStatus.active.rawValue }.count
+    }
+
+    private func containsEquivalent(
+        _ text: String,
+        in records: [PersonaObservationRecord],
+        excluding id: UUID? = nil
+    ) -> Bool {
+        records.contains {
+            $0.id != id && normalized($0.text) == normalized(text)
+                && ($0.status == PersonaObservationStatus.active.rawValue || $0.isUserProtected)
+        }
+    }
+
+    private func cleanedObservation(_ text: String?) -> String? {
+        guard let text else { return nil }
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty || value.count > 240 ? nil : value
+    }
+
+    private func normalized(_ text: String) -> String {
+        text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     func deleteSuggestedReplyCache(chatID: String) throws {
@@ -634,7 +689,7 @@ final class ChatRepository {
         } else {
             targetChat = makeProvisionalChat(from: analysis)
             context.insert(targetChat)
-            context.insert(makeContactRecord(.empty, chatID: targetChat.id))
+            context.insert(makeContactRecord(try emptyContactContext(), chatID: targetChat.id))
         }
 
         if let avatarArtifact,
@@ -763,9 +818,10 @@ final class ChatRepository {
         guard sender == .user || sender == .contact || sender == .other else {
             return
         }
-        guard let message = try context.fetch(
-            FetchDescriptor<ChatMessageRecord>(predicate: #Predicate { $0.id == messageID })
-        ).first, message.senderKind == "unknown"
+        guard
+            let message = try context.fetch(
+                FetchDescriptor<ChatMessageRecord>(predicate: #Predicate { $0.id == messageID })
+            ).first, message.senderKind == "unknown"
         else {
             return
         }
@@ -903,7 +959,7 @@ final class ChatRepository {
         case .contact:
             senderKind = "contact"
             senderName = nil
-        case let .other(name):
+        case .other(let name):
             senderKind = "other"
             senderName = name
         case .unknown:
@@ -933,6 +989,14 @@ final class ChatRepository {
         )
     }
 
+    private func emptyContactContext() throws -> ContactContext {
+        ContactContext(
+            relationshipSubtitle: "", contactMemories: [], currentInteractionGoal: "",
+            personaID: try defaultPersona()?.id ?? PersonaDefaults.professionalID,
+            personaAssignedAt: Date()
+        )
+    }
+
     private func makeProvisionalChat(from analysis: ChatImportAnalysis) -> ChatRecord {
         let title = analysis.conversationTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
         let participant = analysis.messages.lazy.compactMap { message -> String? in
@@ -942,12 +1006,13 @@ final class ChatRepository {
             let name = message.senderName?.trimmingCharacters(in: .whitespacesAndNewlines)
             return name?.isEmpty == false ? name : nil
         }.first
-        let name = [title, participant].compactMap { value -> String? in
-            guard let value, !value.isEmpty else {
-                return nil
-            }
-            return value
-        }.first ?? "Imported Chat"
+        let name =
+            [title, participant].compactMap { value -> String? in
+                guard let value, !value.isEmpty else {
+                    return nil
+                }
+                return value
+            }.first ?? "Imported Chat"
         let chatInitials = initials(for: name)
 
         return ChatRecord(
@@ -1010,10 +1075,12 @@ final class ChatRepository {
             quality: storedQuality,
             revision: chat.avatarAlgorithmRevision ?? 0
         )
-        guard let similarity = AvatarIdentityService.similarities(
-            artifact: artifact,
-            candidates: [current]
-        ).first else {
+        guard
+            let similarity = AvatarIdentityService.similarities(
+                artifact: artifact,
+                candidates: [current]
+            ).first
+        else {
             return false
         }
 

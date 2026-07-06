@@ -138,24 +138,6 @@ final class ContactContextRecord {
         self.personaAssignedAt = personaAssignedAt
     }
 
-    convenience init(
-        id: UUID = UUID(), chatID: String, relationshipSubtitle: String,
-        currentInteractionGoal: String, preferredPersona: String
-    ) {
-        let personaID: UUID
-        switch preferredPersona.lowercased() {
-        case let value where value.contains("spark") || value.contains("dating"):
-            personaID = PersonaDefaults.sparkID
-        case let value where value.contains("thought") || value.contains("warm") || value.contains("friendly"):
-            personaID = PersonaDefaults.thoughtfulID
-        default:
-            personaID = PersonaDefaults.professionalID
-        }
-        self.init(
-            id: id, chatID: chatID, relationshipSubtitle: relationshipSubtitle,
-            currentInteractionGoal: currentInteractionGoal, personaID: personaID
-        )
-    }
 }
 
 @Model
@@ -165,11 +147,7 @@ final class PersonaRecord {
     var summary: String
     var symbolName: String
     var accentKey: String
-    var templateKey: String
-    var isBuiltIn: Bool
-    var purposeInstructions: String
-    var baselineStyleJSON: String
-    var alwaysFollowRules: String
+    var instructions: String
     var learningEnabled: Bool
     var learningEnabledAt: Date
     var sampleCount: Int
@@ -179,9 +157,7 @@ final class PersonaRecord {
 
     init(
         id: UUID = UUID(), name: String, summary: String, symbolName: String,
-        accentKey: String, templateKey: String, isBuiltIn: Bool,
-        purposeInstructions: String, baselineStyleJSON: String,
-        alwaysFollowRules: String = "",
+        accentKey: String, instructions: String,
         learningEnabled: Bool = true, learningEnabledAt: Date = Date(),
         sampleCount: Int = 0, lastLearnedAt: Date? = nil,
         createdAt: Date = Date(), updatedAt: Date = Date()
@@ -191,11 +167,7 @@ final class PersonaRecord {
         self.summary = summary
         self.symbolName = symbolName
         self.accentKey = accentKey
-        self.templateKey = templateKey
-        self.isBuiltIn = isBuiltIn
-        self.purposeInstructions = purposeInstructions
-        self.baselineStyleJSON = baselineStyleJSON
-        self.alwaysFollowRules = alwaysFollowRules
+        self.instructions = instructions
         self.learningEnabled = learningEnabled
         self.learningEnabledAt = learningEnabledAt
         self.sampleCount = sampleCount
@@ -206,50 +178,39 @@ final class PersonaRecord {
 }
 
 @Model
-final class PersonaStyleAdjustmentRecord {
-    @Attribute(.unique) var key: String
-    var personaID: UUID
-    var dimensionKey: String
-    var adjustment: Int
-    var updatedAt: Date
-
-    init(personaID: UUID, dimensionKey: String, adjustment: Int, updatedAt: Date = Date()) {
-        self.key = "\(personaID.uuidString.lowercased())|\(dimensionKey)"
-        self.personaID = personaID
-        self.dimensionKey = dimensionKey
-        self.adjustment = min(2, max(-2, adjustment))
-        self.updatedAt = updatedAt
-    }
-}
-
-@Model
-final class PersonaLearnedTraitRecord {
+final class PersonaObservationRecord {
     @Attribute(.unique) var id: UUID
     var personaID: UUID
-    var dimensionKey: String
-    var learnedLevel: Double?
-    var observation: String
-    var confidence: Double
-    var evidenceCount: Int
+    var text: String
     var origin: String
+    var isUserProtected: Bool
     var status: String
+    var evidenceSource: String
+    var sourceMessageIDsJSON: String
+    var evidenceCount: Int
+    var supersededByID: UUID?
+    var createdAt: Date
     var updatedAt: Date
 
     init(
-        id: UUID = UUID(), personaID: UUID, dimensionKey: String,
-        learnedLevel: Double? = nil, observation: String,
-        confidence: Double, evidenceCount: Int, origin: String,
-        status: String = PersonaTraitStatus.active.rawValue, updatedAt: Date = Date()
+        id: UUID = UUID(), personaID: UUID, text: String,
+        origin: String, isUserProtected: Bool = false,
+        status: String = PersonaObservationStatus.active.rawValue,
+        evidenceSource: String, sourceMessageIDsJSON: String = "[]",
+        evidenceCount: Int = 0, supersededByID: UUID? = nil,
+        createdAt: Date = Date(), updatedAt: Date = Date()
     ) {
         self.id = id
         self.personaID = personaID
-        self.dimensionKey = dimensionKey
-        self.learnedLevel = learnedLevel
-        self.observation = observation
-        self.confidence = confidence
-        self.evidenceCount = evidenceCount
+        self.text = text
         self.origin = origin
+        self.isUserProtected = isUserProtected
         self.status = status
+        self.evidenceSource = evidenceSource
+        self.sourceMessageIDsJSON = sourceMessageIDsJSON
+        self.evidenceCount = evidenceCount
+        self.supersededByID = supersededByID
+        self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
 }

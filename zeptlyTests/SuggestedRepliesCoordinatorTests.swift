@@ -119,7 +119,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                         sourceMessageIDs: [message.id]
                     )
                 ],
-                personaTraitChanges: []
+                personaObservationChanges: []
             )
         }
         let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
@@ -132,14 +132,17 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertEqual(cache.summarizedMessageCount, 7)
         XCTAssertEqual(cache.summarizedPrefixFingerprint, "existing-prefix")
         XCTAssertTrue(try repository.contactMemories(chatID: chatID).isEmpty)
-        XCTAssertTrue(
+        XCTAssertFalse(
             try repository.personaLearningMessages(
                 chatID: chatID,
                 personaID: PersonaDefaults.professionalID,
                 assignedAt: .distantPast
             ).isEmpty
         )
-        XCTAssertTrue(try repository.personaTraits(personaID: PersonaDefaults.professionalID).isEmpty)
+        XCTAssertFalse(
+            try repository.personaObservations(personaID: PersonaDefaults.professionalID).contains {
+                $0.origin == PersonaObservationOrigin.ai.rawValue
+            })
     }
 
     @MainActor
@@ -190,7 +193,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                 chatID: chatID,
                 relationshipSubtitle: "Friend",
                 currentInteractionGoal: "Confirm dinner",
-                preferredPersona: "Warm & Collaborative"
+                personaID: PersonaDefaults.thoughtfulID
             )
         )
         container.mainContext.insert(
@@ -582,8 +585,8 @@ private final class StubReplyService: AIServiceProviding {
     }
 }
 
-private extension AIProviderExecutionContext {
-    static var zaiDefaultReplies: AIProviderExecutionContext {
+extension AIProviderExecutionContext {
+    fileprivate static var zaiDefaultReplies: AIProviderExecutionContext {
         AIProviderExecutionContext(
             platform: .zaiInternational,
             profile: ProviderModelProfile(
@@ -596,7 +599,7 @@ private extension AIProviderExecutionContext {
         )
     }
 
-    static var zhipuDefaultReplies: AIProviderExecutionContext {
+    fileprivate static var zhipuDefaultReplies: AIProviderExecutionContext {
         AIProviderExecutionContext(
             platform: .zhipuChina,
             profile: ProviderModelProfile(

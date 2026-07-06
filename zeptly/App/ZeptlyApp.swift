@@ -17,7 +17,7 @@ struct ZeptlyApp: App {
         modelContainer = ZeptlyDataStore.shared
         do {
             try ChatRepository(container: modelContainer).seedIfNeeded()
-            try PersonaRepository(container: modelContainer).seedBuiltInsIfNeeded()
+            try PersonaRepository(container: modelContainer).seedPersonasIfNeeded()
         } catch {
             assertionFailure("Unable to seed Zeptly data: \(error)")
         }

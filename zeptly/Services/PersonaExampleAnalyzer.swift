@@ -11,8 +11,21 @@ final class PersonaExampleAnalyzer {
     }
 
     func analyze(personaID: UUID, examples: [String]) async throws {
-        let provider = try aiService.activeContext(requiring: .suggestedReplies)
         let persona = try repository.personaPromptContext(personaID: personaID)
+        let analysis = try await analyze(persona: persona, examples: examples)
+        try repository.savePersonaExampleAnalysis(
+            personaID: personaID,
+            changes: analysis.changes,
+            sampleMessageIDs: analysis.messageIDs,
+            sampleCount: examples.count
+        )
+    }
+
+    func analyze(
+        persona: PersonaPromptContext,
+        examples: [String]
+    ) async throws -> (changes: [PersonaObservationChange], messageIDs: Set<UUID>) {
+        let provider = try aiService.activeContext(requiring: .suggestedReplies)
         let messages = examples.map {
             SuggestedReplyPromptMessage(
                 id: UUID(), sender: "user", senderName: nil, text: $0, timeLabel: ""
@@ -33,11 +46,6 @@ final class PersonaExampleAnalyzer {
         )
         let result = try await aiService.generateSuggestedReplies(request, using: provider)
         try Task.checkCancellation()
-        try repository.savePersonaExampleAnalysis(
-            personaID: personaID,
-            changes: result.personaTraitChanges,
-            sampleMessageIDs: Set(messages.map(\.id)),
-            sampleCount: examples.count
-        )
+        return (result.personaObservationChanges, Set(messages.map(\.id)))
     }
 }

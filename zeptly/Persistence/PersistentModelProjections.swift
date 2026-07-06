@@ -78,36 +78,45 @@ extension ContactContextRecord {
 }
 
 extension PersonaRecord {
-    var baselineStyle: [String: Double] {
-        guard let data = baselineStyleJSON.data(using: .utf8) else { return [:] }
-        return (try? JSONDecoder().decode([String: Double].self, from: data)) ?? [:]
-    }
-
     var value: Persona {
         Persona(
             id: id, name: name, summary: summary, symbolName: symbolName,
-            accentKey: accentKey,
-            template: PersonaTemplate(rawValue: templateKey) ?? .professional,
-            isBuiltIn: isBuiltIn, purposeInstructions: purposeInstructions,
-            baselineStyle: baselineStyle, alwaysFollowRules: alwaysFollowRules,
+            accentKey: accentKey, instructions: instructions,
             learningEnabled: learningEnabled,
             sampleCount: sampleCount, lastLearnedAt: lastLearnedAt
         )
     }
 }
 
-extension PersonaLearnedTraitRecord {
-    var value: PersonaLearnedTrait {
-        PersonaLearnedTrait(
+extension PersonaObservationRecord {
+    var value: PersonaObservation {
+        let ids =
+            sourceMessageIDsJSON.data(using: .utf8)
+            .flatMap { try? JSONDecoder().decode([UUID].self, from: $0) } ?? []
+        return PersonaObservation(
             id: id,
-            dimensionKey: dimensionKey,
-            learnedLevel: learnedLevel,
-            observation: observation,
-            confidence: confidence,
+            text: text,
+            origin: PersonaObservationOrigin(rawValue: origin) ?? .ai,
+            isUserProtected: isUserProtected,
+            status: PersonaObservationStatus(rawValue: status) ?? .active,
+            evidenceSource: PersonaObservationEvidenceSource(rawValue: evidenceSource) ?? .messages,
+            sourceMessageIDs: ids,
             evidenceCount: evidenceCount,
-            origin: PersonaTraitOrigin(rawValue: origin) ?? .aiInferred,
-            status: PersonaTraitStatus(rawValue: status) ?? .active,
+            supersededByID: supersededByID,
+            createdAt: createdAt,
             updatedAt: updatedAt
+        )
+    }
+
+    convenience init(personaID: UUID, value: PersonaObservation) {
+        let data = try? JSONEncoder().encode(value.sourceMessageIDs)
+        self.init(
+            id: value.id, personaID: personaID, text: value.text,
+            origin: value.origin.rawValue, isUserProtected: value.isUserProtected,
+            status: value.status.rawValue, evidenceSource: value.evidenceSource.rawValue,
+            sourceMessageIDsJSON: data.flatMap { String(data: $0, encoding: .utf8) } ?? "[]",
+            evidenceCount: value.evidenceCount, supersededByID: value.supersededByID,
+            createdAt: value.createdAt, updatedAt: value.updatedAt
         )
     }
 }
@@ -154,10 +163,11 @@ extension ContactMemoryRecord {
         text = value.text
         origin = value.origin.rawValue
         certainty = value.certainty.rawValue
-        sourceMessageIDsJSON = (try? String(
-            data: JSONEncoder().encode(value.sourceMessageIDs),
-            encoding: .utf8
-        )) ?? "[]"
+        sourceMessageIDsJSON =
+            (try? String(
+                data: JSONEncoder().encode(value.sourceMessageIDs),
+                encoding: .utf8
+            )) ?? "[]"
         status = value.status.rawValue
         createdAt = value.createdAt
         updatedAt = value.updatedAt

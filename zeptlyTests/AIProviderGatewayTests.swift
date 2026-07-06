@@ -65,7 +65,11 @@ final class AIProviderGatewayTests: XCTestCase {
             relationshipSubtitle: "Friend",
             contactMemories: [],
             currentInteractionGoal: "Reply",
-            preferredPersona: "Warm",
+            persona: PersonaPromptContext(
+                id: PersonaDefaults.professionalID, name: "Warm",
+                instructions: "Write warmly.", observations: [], protectedTombstones: []
+            ),
+            personaLearningMessages: [],
             existingHistorySummary: "",
             summaryMode: .unchanged,
             olderMessagesToSummarize: [],

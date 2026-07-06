@@ -212,11 +212,13 @@ final class SuggestedRepliesCoordinator {
             throw error
         }
         try Task.checkCancellation()
-        guard try inputIsCurrent(
-            chatID: chatID,
-            expectedFingerprint: inputFingerprint,
-            providerContext: providerContext
-        ) else {
+        guard
+            try inputIsCurrent(
+                chatID: chatID,
+                expectedFingerprint: inputFingerprint,
+                providerContext: providerContext
+            )
+        else {
             throw CancellationError()
         }
 
@@ -240,8 +242,8 @@ final class SuggestedRepliesCoordinator {
             allowedContactSourceMessageIDs: contactEvidenceMessageIDs
         )
         let learningMessageIDs = Set(learningMessages.map(\.id))
-        let validTraitChanges = generated.personaTraitChanges.filter {
-            !$0.sourceMessageIDs.isEmpty && $0.sourceMessageIDs.allSatisfy(learningMessageIDs.contains)
+        let validObservationChanges = generated.personaObservationChanges.filter {
+            $0.sourceMessageIDs.count >= 2 && $0.sourceMessageIDs.allSatisfy(learningMessageIDs.contains)
         }
 
         // Input-specific output cannot affect summaries, memory, or persona
@@ -263,7 +265,7 @@ final class SuggestedRepliesCoordinator {
             messages: messages,
             contactContext: reconciledContext,
             persona: try repository.projectedPersonaPromptContext(
-                personaID: persona.id, changes: validTraitChanges
+                personaID: persona.id, changes: validObservationChanges
             ),
             learningMessageIDs: [],
             provider: providerContext.platform,
@@ -274,7 +276,7 @@ final class SuggestedRepliesCoordinator {
             chatID: chatID,
             contactMemories: reconciledContext.contactMemories,
             personaID: persona.id,
-            personaTraitChanges: validTraitChanges,
+            personaObservationChanges: validObservationChanges,
             learningMessageIDs: learningMessageIDs,
             historySummary: historySummary,
             summarizedMessageCount: olderMessages.count,
@@ -421,18 +423,13 @@ final class SuggestedRepliesCoordinator {
         [
             "id": persona.id.uuidString,
             "name": persona.name,
-            "purposeInstructions": persona.purposeInstructions,
-            "resolvedStyle": persona.resolvedStyle.map {
-                ["dimensionKey": $0.dimensionKey, "descriptor": $0.descriptor,
-                 "instruction": $0.instruction, "source": $0.source.rawValue] as [String: Any]
-            },
-            "descriptiveObservations": persona.descriptiveObservations.map {
-                ["dimensionKey": $0.dimensionKey, "observation": $0.observation,
-                 "origin": $0.origin.rawValue] as [String: Any]
-            },
-            "alwaysFollowRules": persona.alwaysFollowRules,
-            "registryVersion": persona.registryVersion,
-            "resolverVersion": persona.resolverVersion
+            "instructions": persona.instructions,
+            "observations": persona.observations.map {
+                [
+                    "id": $0.id.uuidString, "text": $0.text,
+                    "origin": $0.origin.rawValue, "protected": $0.isUserProtected
+                ] as [String: Any]
+            }
         ]
     }
 
