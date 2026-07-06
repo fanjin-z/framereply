@@ -35,15 +35,6 @@ nonisolated enum StructuredOutputFailureKind: String, Codable, Equatable, Sendab
     case invalidCandidateID = "invalid_candidate_id"
     case incompleteMessages = "incomplete_messages"
 
-    var isRetryable: Bool {
-        switch self {
-        case .emptyResponse, .truncatedResponse, .invalidJSON, .schemaMismatch:
-            true
-        case .invalidCandidateID, .incompleteMessages:
-            false
-        }
-    }
-
     var shortcutErrorCode: String {
         "provider_\(rawValue)"
     }

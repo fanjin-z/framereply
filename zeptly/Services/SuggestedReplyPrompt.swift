@@ -76,10 +76,7 @@ nonisolated enum SuggestedReplyPrompt {
         "required": ["historySummary", "replies", "memoryChanges", "personaTraitChanges"]
     ]
 
-    static func input(
-        for request: SuggestedReplyGenerationRequest,
-        repairHint: String? = nil
-    ) -> String {
+    static func input(for request: SuggestedReplyGenerationRequest) -> String {
         let payload: [String: Any] = [
             "chatName": request.chatName,
             "relationshipSubtitle": request.relationshipSubtitle,
@@ -98,9 +95,6 @@ nonisolated enum SuggestedReplyPrompt {
         ]
         let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
         let json = data.flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-        if let repairHint {
-            return "\(repairHint)\n\nConversation data:\n\(json)"
-        }
         return "Conversation data:\n\(json)"
     }
 

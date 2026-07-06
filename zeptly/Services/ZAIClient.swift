@@ -99,129 +99,114 @@ struct ZAIClient: AIProviderAdapter {
         }
         let image = try ScreenshotImagePayload(data: analysisRequest.imageData)
         let candidateIDs = Set(analysisRequest.candidates.map(\.id))
-        var repairHint: String?
-        var maxTokens = 4_000
-
-        for attemptIndex in 0..<2 {
-            let attempt = attemptIndex + 1
-            eventReporter.record(
-                .providerAttempt(
-                    traceID: analysisRequest.traceID,
-                    provider: region.providerID,
-                    model: model.rawValue,
-                    attempt: attempt,
-                    maxTokens: maxTokens
-                )
-            )
-
-            let prompt = ChatScreenshotPrompt.input(for: analysisRequest, repairHint: repairHint)
-            var body: [String: Any] = [
-                "model": model.rawValue,
-                "messages": [
-                    ["role": "system", "content": ChatScreenshotPrompt.instructions],
-                    [
-                        "role": "user",
-                        "content": [
-                            ["type": "image_url", "image_url": ["url": image.dataURL]],
-                            ["type": "text", "text": prompt]
-                        ]
-                    ]
-                ],
-                "max_tokens": maxTokens,
-                "thinking": ["type": "disabled"],
-                "do_sample": false,
-                "stream": false
-            ]
-            if supportsJSONResponseFormat(model) {
-                body["response_format"] = ["type": "json_object"]
-            }
-            var request = authorizedRequest(apiKey: apiKey)
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-            let startedAt = Date()
-            let (data, response) = try await perform(request)
-            let duration = Int(Date().timeIntervalSince(startedAt) * 1_000)
-            let httpResponse = response as? HTTPURLResponse
-            do {
-                try validateHTTPResponse(response, data: data)
-            } catch {
-                recordResponse(
-                    request: analysisRequest,
-                    model: model,
-                    attempt: attempt,
-                    duration: duration,
-                    response: httpResponse,
-                    finishReason: nil,
-                    byteCount: data.count
-                )
-                throw error
-            }
-
-            let completion = try? decodeResponse(data)
-            let choice = completion?.choices.first
-            ChatImportDebugLogger.rawResponse(
+        let maxTokens = 4_000
+        eventReporter.record(
+            .providerAttempt(
                 traceID: analysisRequest.traceID,
                 provider: region.providerID,
                 model: model.rawValue,
-                attempt: attempt,
-                finishReason: choice?.finishReason,
-                content: choice?.message.content
+                attempt: 1,
+                maxTokens: maxTokens
             )
+        )
+
+        var body: [String: Any] = [
+            "model": model.rawValue,
+            "messages": [
+                ["role": "system", "content": ChatScreenshotPrompt.instructions],
+                [
+                    "role": "user",
+                    "content": [
+                        ["type": "image_url", "image_url": ["url": image.dataURL]],
+                        ["type": "text", "text": ChatScreenshotPrompt.input(for: analysisRequest)]
+                    ]
+                ]
+            ],
+            "max_tokens": maxTokens,
+            "thinking": ["type": "disabled"],
+            "do_sample": false,
+            "stream": false
+        ]
+        if supportsJSONResponseFormat(model) {
+            body["response_format"] = ["type": "json_object"]
+        }
+        var request = authorizedRequest(apiKey: apiKey)
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let startedAt = Date()
+        let (data, response) = try await perform(request)
+        let duration = Int(Date().timeIntervalSince(startedAt) * 1_000)
+        let httpResponse = response as? HTTPURLResponse
+        do {
+            try validateHTTPResponse(response, data: data)
+        } catch {
             recordResponse(
                 request: analysisRequest,
                 model: model,
-                attempt: attempt,
+                attempt: 1,
                 duration: duration,
                 response: httpResponse,
-                finishReason: choice?.finishReason,
+                finishReason: nil,
                 byteCount: data.count
             )
-
-            do {
-                guard let choice else {
-                    throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "response.choices")
-                }
-                let analysis = try ChatImportAnalysisDecoder.decode(
-                    content: choice.message.content,
-                    finishReason: choice.finishReason,
-                    candidateIDs: candidateIDs
-                )
-                ChatImportDebugLogger.normalized(
-                    analysis,
-                    traceID: analysisRequest.traceID,
-                    provider: region.providerID,
-                    model: model.rawValue,
-                    attempt: attempt
-                )
-                return analysis
-            } catch let failure as StructuredOutputFailure {
-                eventReporter.record(
-                    .structuredOutputFailure(
-                        traceID: analysisRequest.traceID,
-                        provider: region.providerID,
-                        attempt: attempt,
-                        kind: failure.kind,
-                        codingPath: failure.codingPath
-                    )
-                )
-                let error = ProviderConnectionError.structuredOutput(
-                    ProviderStructuredOutputError(
-                        provider: region.providerID,
-                        traceID: analysisRequest.traceID,
-                        failure: failure
-                    )
-                )
-                guard attemptIndex == 0, failure.kind.isRetryable else {
-                    throw error
-                }
-                repairHint = ChatImportAnalysisDecoder.repairHint(for: failure)
-                if failure.kind == .truncatedResponse {
-                    maxTokens = 8_000
-                }
-            }
+            throw error
         }
 
-        throw ProviderConnectionError.invalidResponse("\(region.platform.displayName) returned invalid chat data.")
+        let completion = try? decodeResponse(data)
+        let choice = completion?.choices.first
+        ChatImportDebugLogger.rawResponse(
+            traceID: analysisRequest.traceID,
+            provider: region.providerID,
+            model: model.rawValue,
+            attempt: 1,
+            finishReason: choice?.finishReason,
+            content: choice?.message.content
+        )
+        recordResponse(
+            request: analysisRequest,
+            model: model,
+            attempt: 1,
+            duration: duration,
+            response: httpResponse,
+            finishReason: choice?.finishReason,
+            byteCount: data.count
+        )
+
+        do {
+            guard let choice else {
+                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "response.choices")
+            }
+            let analysis = try ChatImportAnalysisDecoder.decode(
+                content: choice.message.content,
+                finishReason: choice.finishReason,
+                candidateIDs: candidateIDs
+            )
+            ChatImportDebugLogger.normalized(
+                analysis,
+                traceID: analysisRequest.traceID,
+                provider: region.providerID,
+                model: model.rawValue,
+                attempt: 1
+            )
+            return analysis
+        } catch let failure as StructuredOutputFailure {
+            eventReporter.record(
+                .structuredOutputFailure(
+                    traceID: analysisRequest.traceID,
+                    provider: region.providerID,
+                    attempt: 1,
+                    kind: failure.kind,
+                    codingPath: failure.codingPath
+                )
+            )
+            throw ProviderConnectionError.structuredOutput(
+                ProviderStructuredOutputError(
+                    provider: region.providerID,
+                    traceID: analysisRequest.traceID,
+                    failure: failure
+                )
+            )
+        }
     }
 
     func generateSuggestedReplies(
@@ -233,95 +218,83 @@ struct ZAIClient: AIProviderAdapter {
             throw ProviderConnectionError.unsupportedProvider
         }
 
-        var repairHint: String?
-        var maxTokens = 3_200
-        for attemptIndex in 0..<2 {
-            let attempt = attemptIndex + 1
-            eventReporter.record(
-                .providerAttempt(
-                    traceID: generationRequest.traceID,
-                    provider: region.providerID,
-                    model: model.rawValue,
-                    attempt: attempt,
-                    maxTokens: maxTokens
-                )
+        let maxTokens = 3_200
+        eventReporter.record(
+            .providerAttempt(
+                traceID: generationRequest.traceID,
+                provider: region.providerID,
+                model: model.rawValue,
+                attempt: 1,
+                maxTokens: maxTokens
             )
+        )
 
-            var body: [String: Any] = [
-                "model": model.rawValue,
-                "messages": [
-                    ["role": "system", "content": SuggestedReplyPrompt.instructions],
-                    ["role": "user", "content": SuggestedReplyPrompt.input(for: generationRequest, repairHint: repairHint)]
-                ],
-                "max_tokens": maxTokens,
-                "thinking": ["type": "disabled"],
-                "do_sample": false,
-                "stream": false
-            ]
-            if supportsJSONResponseFormat(model) {
-                body["response_format"] = ["type": "json_object"]
-            }
-            var request = authorizedRequest(apiKey: apiKey)
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-            let startedAt = Date()
-            let (data, response) = try await perform(request)
-            let duration = Int(Date().timeIntervalSince(startedAt) * 1_000)
-            let httpResponse = response as? HTTPURLResponse
-            eventReporter.record(
-                .providerResponse(
-                    traceID: generationRequest.traceID,
-                    provider: region.providerID,
-                    model: model.rawValue,
-                    attempt: attempt,
-                    durationMilliseconds: duration,
-                    httpStatus: httpResponse?.statusCode,
-                    requestID: httpResponse?.value(forHTTPHeaderField: "x-request-id")
-                        ?? httpResponse?.value(forHTTPHeaderField: "request-id"),
-                    finishReason: nil,
-                    byteCount: data.count
-                )
-            )
-            try validateHTTPResponse(response, data: data)
-
-            let completion = try? decodeResponse(data)
-            let choice = completion?.choices.first
-            do {
-                guard let choice else {
-                    throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "response.choices")
-                }
-                return try SuggestedReplyResultDecoder.decode(
-                    content: choice.message.content,
-                    finishReason: choice.finishReason,
-                    historySummaryFallback: summaryFallback(for: generationRequest)
-                )
-            } catch let failure as StructuredOutputFailure {
-                eventReporter.record(
-                    .structuredOutputFailure(
-                        traceID: generationRequest.traceID,
-                        provider: region.providerID,
-                        attempt: attempt,
-                        kind: failure.kind,
-                        codingPath: failure.codingPath
-                    )
-                )
-                guard attemptIndex == 0, failure.kind.isRetryable else {
-                    throw ProviderConnectionError.structuredOutput(
-                        ProviderStructuredOutputError(
-                            provider: region.providerID,
-                            traceID: generationRequest.traceID,
-                            failure: failure
-                        )
-                    )
-                }
-                repairHint = SuggestedReplyResultDecoder.repairHint(for: failure)
-                if failure.kind == .truncatedResponse {
-                    maxTokens = 4_096
-                }
-            }
+        var body: [String: Any] = [
+            "model": model.rawValue,
+            "messages": [
+                ["role": "system", "content": SuggestedReplyPrompt.instructions],
+                ["role": "user", "content": SuggestedReplyPrompt.input(for: generationRequest)]
+            ],
+            "max_tokens": maxTokens,
+            "thinking": ["type": "disabled"],
+            "do_sample": false,
+            "stream": false
+        ]
+        if supportsJSONResponseFormat(model) {
+            body["response_format"] = ["type": "json_object"]
         }
+        var request = authorizedRequest(apiKey: apiKey)
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        throw ProviderConnectionError.invalidResponse("\(region.platform.displayName) returned invalid suggested replies.")
+        let startedAt = Date()
+        let (data, response) = try await perform(request)
+        let duration = Int(Date().timeIntervalSince(startedAt) * 1_000)
+        let httpResponse = response as? HTTPURLResponse
+        eventReporter.record(
+            .providerResponse(
+                traceID: generationRequest.traceID,
+                provider: region.providerID,
+                model: model.rawValue,
+                attempt: 1,
+                durationMilliseconds: duration,
+                httpStatus: httpResponse?.statusCode,
+                requestID: httpResponse?.value(forHTTPHeaderField: "x-request-id")
+                    ?? httpResponse?.value(forHTTPHeaderField: "request-id"),
+                finishReason: nil,
+                byteCount: data.count
+            )
+        )
+        try validateHTTPResponse(response, data: data)
+
+        let completion = try? decodeResponse(data)
+        let choice = completion?.choices.first
+        do {
+            guard let choice else {
+                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "response.choices")
+            }
+            return try SuggestedReplyResultDecoder.decode(
+                content: choice.message.content,
+                finishReason: choice.finishReason,
+                historySummaryFallback: summaryFallback(for: generationRequest)
+            )
+        } catch let failure as StructuredOutputFailure {
+            eventReporter.record(
+                .structuredOutputFailure(
+                    traceID: generationRequest.traceID,
+                    provider: region.providerID,
+                    attempt: 1,
+                    kind: failure.kind,
+                    codingPath: failure.codingPath
+                )
+            )
+            throw ProviderConnectionError.structuredOutput(
+                ProviderStructuredOutputError(
+                    provider: region.providerID,
+                    traceID: generationRequest.traceID,
+                    failure: failure
+                )
+            )
+        }
     }
 
     private func summaryFallback(for request: SuggestedReplyGenerationRequest) -> String? {

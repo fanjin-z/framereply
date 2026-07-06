@@ -89,16 +89,15 @@ enum ChatScreenshotPrompt {
         \(canonicalJSONExample)
         """
 
-    static func input(for request: ChatScreenshotAnalysisRequest, repairHint: String? = nil) -> String {
+    static func input(for request: ChatScreenshotAnalysisRequest) -> String {
         let candidatesData = try? JSONEncoder().encode(request.candidates)
         let candidatesJSON = candidatesData.flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
-        let retryInstruction = repairHint.map { "\n\($0)\nCanonical JSON example:\n\(canonicalJSONExample)" } ?? ""
 
         return """
             Existing chat candidates:
             \(candidatesJSON)
 
-            Analyze the attached screenshot. Extract its visible conversation identity, ordered messages, best candidate ID, and match confidence.\(retryInstruction)
+            Analyze the attached screenshot. Extract its visible conversation identity, ordered messages, best candidate ID, and match confidence.
             """
     }
 

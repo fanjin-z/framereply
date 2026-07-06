@@ -148,11 +148,6 @@ nonisolated enum ChatImportAnalysisDecoder {
         return title
     }
 
-    static func repairHint(for failure: StructuredOutputFailure) -> String {
-        let location = failure.codingPath.map { " at coding path \($0)" } ?? ""
-        return "The previous output failed \(failure.kind.rawValue) validation\(location). Return the complete JSON contract below."
-    }
-
     private static func validateVisualContract(_ object: Any) throws {
         guard let root = object as? [String: Any],
             let convention = root["ownershipConvention"] as? [String: Any]

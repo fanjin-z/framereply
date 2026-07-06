@@ -294,23 +294,31 @@ final class ProviderAnalysisTests: XCTestCase {
     }
 
     @MainActor
-    func testZAIRetriesOneMalformedResponseWithRepairPrompt() async throws {
+    func testZAIFailsChatAnalysisAfterOneMalformedResponse() async throws {
+        let reporter = SpyImportEventReporter()
         AnalysisURLProtocolStub.responses = [
             (200, zaiResponse(content: "{}")),
             (200, zaiResponse(content: validAnalysisJSON(matchedChatID: nil)))
         ]
 
-        _ = try await ZAIClient(region: .international, session: makeSession()).analyzeChatScreenshot(
-            makeRequest(), apiKey: "key", model: .glm46VFlash
-        )
+        do {
+            _ = try await ZAIClient(
+                region: .international,
+                session: makeSession(),
+                eventReporter: reporter
+            ).analyzeChatScreenshot(makeRequest(), apiKey: "key", model: .glm46VFlash)
+            XCTFail("Expected malformed chat analysis to fail")
+        } catch let error as ProviderConnectionError {
+            guard case let .structuredOutput(details) = error else {
+                return XCTFail("Expected structured-output failure, got \(error)")
+            }
+            XCTAssertEqual(details.failure.kind, .schemaMismatch)
+        } catch {
+            XCTFail("Expected provider failure, got \(error)")
+        }
 
-        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 2)
-        let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.last))
-        let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
-        let userContent = try XCTUnwrap(messages.last?["content"] as? [[String: Any]])
-        let prompt = try XCTUnwrap(userContent.first { $0["type"] as? String == "text" }?["text"] as? String)
-        XCTAssertTrue(prompt.contains("schema_mismatch"))
-        XCTAssertTrue(prompt.contains("Canonical JSON example"))
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+        XCTAssertEqual(providerAttempts(in: reporter.events), [1])
     }
 
     @MainActor
@@ -357,40 +365,62 @@ final class ProviderAnalysisTests: XCTestCase {
     }
 
     @MainActor
-    func testZAIGeneratesRepliesWithPairedTextModelAndRetriesMalformedJSON() async throws {
+    func testZAIFailsReplyGenerationAfterOneMalformedResponse() async throws {
+        let reporter = SpyImportEventReporter()
         AnalysisURLProtocolStub.responses = [
             (200, zaiResponse(content: "{}")),
             (200, zaiResponse(content: validRepliesJSON()))
         ]
 
-        let result = try await ZAIClient(region: .international, session: makeSession())
-            .generateSuggestedReplies(makeReplyRequest(), apiKey: "key", model: .glm47FlashX)
+        do {
+            _ = try await ZAIClient(
+                region: .international,
+                session: makeSession(),
+                eventReporter: reporter
+            ).generateSuggestedReplies(makeReplyRequest(), apiKey: "key", model: .glm47FlashX)
+            XCTFail("Expected malformed suggested replies to fail")
+        } catch let error as ProviderConnectionError {
+            guard case let .structuredOutput(details) = error else {
+                return XCTFail("Expected structured-output failure, got \(error)")
+            }
+            XCTAssertEqual(details.failure.kind, .schemaMismatch)
+        } catch {
+            XCTFail("Expected provider failure, got \(error)")
+        }
 
-        XCTAssertEqual(result.replies.count, 2)
-        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 2)
-        let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.last))
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+        XCTAssertEqual(providerAttempts(in: reporter.events), [1])
+        let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
         XCTAssertEqual(body["model"] as? String, "glm-4.7-flashx")
         XCTAssertEqual(body["max_tokens"] as? Int, 3_200)
         XCTAssertEqual((body["response_format"] as? [String: Any])?["type"] as? String, "json_object")
         XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
         let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
         XCTAssertTrue(messages.allSatisfy { $0["content"] is String })
-        XCTAssertTrue(try XCTUnwrap(messages.last?["content"] as? String).contains("failed validation"))
     }
 
     @MainActor
-    func testZAIIncreasesReplyBudgetOnlyAfterTruncation() async throws {
+    func testZAIFailsReplyGenerationAfterOneTruncatedResponse() async throws {
         AnalysisURLProtocolStub.responses = [
             (200, zaiResponse(content: "{}", finishReason: "length")),
             (200, zaiResponse(content: validRepliesJSON()))
         ]
 
-        _ = try await ZAIClient(region: .international, session: makeSession())
-            .generateSuggestedReplies(makeReplyRequest(), apiKey: "key", model: .glm47FlashX)
+        do {
+            _ = try await ZAIClient(region: .international, session: makeSession())
+                .generateSuggestedReplies(makeReplyRequest(), apiKey: "key", model: .glm47FlashX)
+            XCTFail("Expected truncated suggested replies to fail")
+        } catch let error as ProviderConnectionError {
+            guard case let .structuredOutput(details) = error else {
+                return XCTFail("Expected structured-output failure, got \(error)")
+            }
+            XCTAssertEqual(details.failure.kind, .truncatedResponse)
+        } catch {
+            XCTFail("Expected provider failure, got \(error)")
+        }
 
-        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 2)
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
         XCTAssertEqual(try jsonBody(AnalysisURLProtocolStub.requests[0])["max_tokens"] as? Int, 3_200)
-        XCTAssertEqual(try jsonBody(AnalysisURLProtocolStub.requests[1])["max_tokens"] as? Int, 4_096)
     }
 
     @MainActor
@@ -507,6 +537,13 @@ final class ProviderAnalysisTests: XCTestCase {
     private func jsonBody(_ request: URLRequest) throws -> [String: Any] {
         let data = try XCTUnwrap(request.httpBody)
         return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+
+    private func providerAttempts(in events: [ImportEvent]) -> [Int] {
+        events.compactMap { event in
+            guard case let .providerAttempt(_, _, _, attempt, _) = event else { return nil }
+            return attempt
+        }
     }
 }
 

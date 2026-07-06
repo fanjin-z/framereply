@@ -239,10 +239,6 @@ nonisolated enum SuggestedReplyResultDecoder {
         )
     }
 
-    static func repairHint(for failure: StructuredOutputFailure) -> String {
-        "Previous output failed validation (\(failure.kind.rawValue) at \(failure.codingPath ?? "root")). Return JSON only, follow summaryMode, and use this top-level shape: \(SuggestedReplyPrompt.canonicalJSONExample)"
-    }
-
     private static func clean(_ content: String?) -> String {
         var value = content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if value.hasPrefix("```"), let firstNewline = value.firstIndex(of: "\n") {
