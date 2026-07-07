@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @ObservedObject var providerStore: ProviderStore
@@ -14,6 +15,7 @@ struct SettingsView: View {
     @State private var apiKey = ""
     @State private var addProviderStatus: AddProviderStatus = .idle
     @State private var isAddProviderPresented = false
+    @State private var isKeyboardPresented = false
 
     var body: some View {
         ZStack {
@@ -41,6 +43,16 @@ struct SettingsView: View {
         .onChange(of: isActive) { _, isActive in
             if isActive == false {
                 dismissAddProviderForTabChange()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            withAnimation(.easeOut(duration: 0.25)) {
+                isKeyboardPresented = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            withAnimation(.easeOut(duration: 0.25)) {
+                isKeyboardPresented = false
             }
         }
     }
@@ -234,7 +246,7 @@ struct SettingsView: View {
     }
 
     private var addProviderPopup: some View {
-        ZStack {
+        ZStack(alignment: isKeyboardPresented ? .top : .center) {
             Color.black.opacity(0.24)
                 .ignoresSafeArea()
                 .onTapGesture {
@@ -251,6 +263,7 @@ struct SettingsView: View {
             )
             .frame(maxWidth: 560)
             .padding(.horizontal, 24)
+            .padding(.top, isKeyboardPresented ? 12 : 0)
             .transition(.scale(scale: 0.96).combined(with: .opacity))
         }
         .zIndex(10)

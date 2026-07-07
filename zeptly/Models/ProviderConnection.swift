@@ -22,7 +22,7 @@ enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
         case .zaiInternational:
             "Z.ai International"
         case .zhipuChina:
-            "智谱AI(中国)"
+            "智谱 (国内)"
         }
     }
 

@@ -49,19 +49,11 @@ struct AddProviderCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 16) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Add Provider")
-                        .font(.system(size: 21, weight: .bold, design: .rounded))
-                        .foregroundStyle(RezplyColor.onSurface)
-
-                    Text("Connect a model provider with your own API key.")
-                        .font(.system(size: 15, weight: .regular, design: .rounded))
-                        .lineSpacing(2)
-                        .foregroundStyle(RezplyColor.onSurfaceVariant)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                Text("Add Provider")
+                    .font(.system(size: 21, weight: .bold, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurface)
 
                 Spacer()
 
@@ -82,11 +74,11 @@ struct AddProviderCard: View {
                 .disabled(status.isTesting)
             }
 
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 12) {
                 providerMenu
                 modelSelector
 
-                VStack(alignment: .leading, spacing: 9) {
+                VStack(alignment: .leading, spacing: 7) {
                     Text("API Key")
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(RezplyColor.onSurface)
@@ -118,7 +110,7 @@ struct AddProviderCard: View {
                         .accessibilityLabel(isAPIKeyVisible ? "Hide API key" : "Show API key")
                     }
                     .padding(.horizontal, 18)
-                    .frame(height: 50)
+                    .frame(height: 46)
                     .background {
                         RoundedRectangle(cornerRadius: 0)
                             .fill(Color.white.opacity(0.56))
@@ -154,7 +146,7 @@ struct AddProviderCard: View {
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 28)
-                    .frame(height: 48)
+                    .frame(height: 44)
                     .background {
                         Capsule(style: .continuous)
                             .fill(RezplyColor.primary)
@@ -164,15 +156,14 @@ struct AddProviderCard: View {
                 .disabled(isConnectDisabled)
                 .opacity(isConnectDisabled ? 0.56 : 1)
                 .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.top, 8)
             }
         }
-        .padding(22)
+        .padding(16)
         .glassPanel(cornerRadius: 26)
     }
 
     private var providerMenu: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 7) {
             Text("Provider")
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(RezplyColor.onSurface)
@@ -204,7 +195,7 @@ struct AddProviderCard: View {
                         .foregroundStyle(RezplyColor.onSurfaceVariant)
                 }
                 .padding(.horizontal, 18)
-                .frame(height: 50)
+                .frame(height: 46)
                 .background {
                     RoundedRectangle(cornerRadius: 0)
                         .fill(Color.white.opacity(0.56))
@@ -217,7 +208,7 @@ struct AddProviderCard: View {
     private var modelSelector: some View {
         let availableModels = selectedPlatform?.supportedModels ?? []
 
-        return VStack(alignment: .leading, spacing: 9) {
+        return VStack(alignment: .leading, spacing: 7) {
             Text("Model")
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(RezplyColor.onSurface)
@@ -256,7 +247,7 @@ struct AddProviderCard: View {
                         .foregroundStyle(RezplyColor.onSurfaceVariant)
                 }
                 .padding(.horizontal, 18)
-                .frame(height: 54)
+                .frame(height: 50)
                 .background {
                     RoundedRectangle(cornerRadius: 0)
                         .fill(Color.white.opacity(selectedPlatform == nil ? 0.34 : 0.56))
