@@ -22,6 +22,7 @@ struct SearchField: View {
                 .foregroundStyle(RezplyColor.onSurface)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .submitLabel(.search)
                 .minimumScaleFactor(0.7)
                 .focused($isFocused)
         }

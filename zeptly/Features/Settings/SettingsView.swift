@@ -257,6 +257,7 @@ struct SettingsView: View {
     }
 
     private func connectProvider() {
+        KeyboardDismissal.dismiss()
         guard let selectedPlatform else {
             addProviderStatus = .failed("Select a provider before saving.")
             return
@@ -313,6 +314,7 @@ struct SettingsView: View {
             return
         }
 
+        KeyboardDismissal.dismiss()
         withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
             isAddProviderPresented = false
         }

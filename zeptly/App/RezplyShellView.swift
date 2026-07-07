@@ -48,6 +48,7 @@ struct RezplyShellView: View {
                     .padding(.horizontal, 22)
                     .padding(.bottom, 12)
             }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             .navigationDestination(for: RezplyRoute.self) { route in
                 switch route {
                 case .contactContext(let chatID):
@@ -70,6 +71,7 @@ struct RezplyShellView: View {
                 }
             }
         }
+        .keyboardDismissable()
         .tint(RezplyColor.primary)
     }
 

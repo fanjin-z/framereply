@@ -60,6 +60,7 @@ struct ChatImportReviewSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
+                        KeyboardDismissal.dismiss()
                         dismiss()
                     }
                 }
@@ -84,6 +85,7 @@ struct ChatImportReviewSheet: View {
     }
 
     private func confirm(chatID: String, name: String) {
+        KeyboardDismissal.dismiss()
         do {
             try ChatRepository().confirmProvisionalChat(chatID: chatID, name: name)
         } catch {
@@ -92,6 +94,7 @@ struct ChatImportReviewSheet: View {
     }
 
     private func merge(provisionalChatID: String, targetChatID: String) {
+        KeyboardDismissal.dismiss()
         do {
             try ChatRepository().mergeProvisionalChat(provisionalChatID, into: targetChatID)
         } catch {
@@ -192,6 +195,8 @@ private struct ImportReviewCard: View {
 
             TextField("Chat name", text: $name)
                 .textFieldStyle(.roundedBorder)
+                .submitLabel(.done)
+                .onSubmit { KeyboardDismissal.dismiss() }
 
             Text(chat.preview)
                 .font(.system(size: 14, design: .rounded))

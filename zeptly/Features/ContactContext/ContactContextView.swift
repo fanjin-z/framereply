@@ -17,6 +17,7 @@ struct ContactContextView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     Button {
+                        KeyboardDismissal.dismiss()
                         dismiss()
                     } label: {
                         Image(systemName: "chevron.left")

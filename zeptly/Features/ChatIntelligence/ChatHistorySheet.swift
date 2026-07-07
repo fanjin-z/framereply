@@ -58,6 +58,7 @@ struct ChatHistorySheet: View {
                     Spacer()
 
                     Button {
+                        KeyboardDismissal.dismiss()
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")

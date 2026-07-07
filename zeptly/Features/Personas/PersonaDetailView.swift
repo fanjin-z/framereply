@@ -54,6 +54,7 @@ struct PersonaDetailView: View {
     private var topBar: some View {
         HStack {
             Button {
+                KeyboardDismissal.dismiss()
                 dismiss()
             } label: {
                 Image(systemName: "chevron.left").font(.system(size: 20, weight: .semibold))
@@ -120,6 +121,7 @@ struct PersonaDetailView: View {
             HStack {
                 TextField("Add an observation", text: $newObservation, axis: .vertical)
                 Button("Add") {
+                    KeyboardDismissal.dismiss()
                     try? PersonaRepository().addUserObservation(newObservation, personaID: personaID)
                     newObservation = ""
                 }.disabled(
@@ -151,6 +153,7 @@ struct PersonaDetailView: View {
                     Spacer()
                     Button("Cancel") { editingID = nil }
                     Button("Save") {
+                        KeyboardDismissal.dismiss()
                         try? PersonaRepository().updateObservation(observation, text: observationDraft)
                         editingID = nil
                     }.disabled(observationDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -226,6 +229,7 @@ struct PersonaDetailView: View {
     }
 
     private func analyzeExamples() {
+        KeyboardDismissal.dismiss()
         isAnalyzing = true
         exampleError = nil
         Task {

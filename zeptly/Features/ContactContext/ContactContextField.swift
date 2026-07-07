@@ -23,6 +23,8 @@ struct ContactContextField: View {
                 .font(.system(size: 16, weight: .regular, design: .rounded))
                 .foregroundStyle(RezplyColor.onSurface)
                 .lineLimit(1)
+                .submitLabel(.done)
+                .onSubmit { KeyboardDismissal.dismiss() }
                 .minimumScaleFactor(0.78)
                 .padding(.horizontal, 16)
         }

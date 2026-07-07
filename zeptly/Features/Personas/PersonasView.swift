@@ -146,15 +146,31 @@ private struct CreatePersonaSheet: View {
             }
             .navigationTitle("New Persona").navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        KeyboardDismissal.dismiss()
+                        dismiss()
+                    }
+                }
                 ToolbarItem(placement: .bottomBar) {
                     HStack {
-                        if step > 0 { Button("Back") { step -= 1 } }
+                        if step > 0 {
+                            Button("Back") {
+                                KeyboardDismissal.dismiss()
+                                step -= 1
+                            }
+                        }
                         Spacer()
                         if step < 3 {
-                            Button("Next") { advance() }.disabled(step == 0 && trimmedName.isEmpty)
+                            Button("Next") {
+                                KeyboardDismissal.dismiss()
+                                advance()
+                            }.disabled(step == 0 && trimmedName.isEmpty)
                         } else {
-                            Button("Create") { create() }.disabled(trimmedName.isEmpty)
+                            Button("Create") {
+                                KeyboardDismissal.dismiss()
+                                create()
+                            }.disabled(trimmedName.isEmpty)
                         }
                     }
                 }
@@ -318,6 +334,7 @@ private struct CreatePersonaSheet: View {
     }
 
     private func analyzeExamples() {
+        KeyboardDismissal.dismiss()
         isAnalyzing = true
         errorMessage = nil
         let context = PersonaPromptContext(

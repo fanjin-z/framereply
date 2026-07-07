@@ -28,6 +28,7 @@ struct AddChatContextSheet: View {
                     Spacer()
 
                     Button {
+                        KeyboardDismissal.dismiss()
                         dismiss()
                     } label: {
                         Text("Done")

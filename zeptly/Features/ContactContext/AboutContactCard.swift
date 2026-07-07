@@ -170,6 +170,7 @@ struct AboutContactCard: View {
 
     private func addMemory() {
         guard !trimmedDraft.isEmpty else { return }
+        KeyboardDismissal.dismiss()
         memories.append(ContactMemory(text: trimmedDraft))
         draft = ""
     }
@@ -177,6 +178,7 @@ struct AboutContactCard: View {
     private func saveMemory(_ id: UUID) {
         let trimmed = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let index = memories.firstIndex(where: { $0.id == id }) else { return }
+        KeyboardDismissal.dismiss()
         memories[index].text = trimmed
         memories[index].origin = .user
         memories[index].certainty = .userConfirmed

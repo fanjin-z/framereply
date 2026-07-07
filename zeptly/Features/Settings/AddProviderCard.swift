@@ -103,6 +103,8 @@ struct AddProviderCard: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .textContentType(.password)
+                        .submitLabel(.done)
+                        .onSubmit { KeyboardDismissal.dismiss() }
 
                         Button {
                             isAPIKeyVisible.toggle()
