@@ -20,7 +20,7 @@ final class ProviderStore: ObservableObject {
     }
 
     private let userDefaults: UserDefaults
-    private let keychain: KeychainStore
+    private let keychain: any KeychainStoring
     private let registry: AIProviderRegistry
     private let providersKey = "zeptly.providerConnections.v1"
     private let activePlatformKey = "zeptly.activeProviderPlatform.v1"
@@ -36,9 +36,21 @@ final class ProviderStore: ObservableObject {
         self.init(userDefaults: userDefaults, registry: .live())
     }
 
-    init(userDefaults: UserDefaults, registry: AIProviderRegistry) {
+    convenience init(userDefaults: UserDefaults, registry: AIProviderRegistry) {
+        self.init(
+            userDefaults: userDefaults,
+            registry: registry,
+            keychain: KeychainStore()
+        )
+    }
+
+    init(
+        userDefaults: UserDefaults,
+        registry: AIProviderRegistry,
+        keychain: any KeychainStoring
+    ) {
         self.userDefaults = userDefaults
-        keychain = KeychainStore()
+        self.keychain = keychain
         self.registry = registry
         let loadedProviders = Self.loadProviders(
             from: userDefaults,
@@ -106,6 +118,23 @@ final class ProviderStore: ObservableObject {
             return
         }
         providers[index].model = model
+    }
+
+    func remove(platform: ProviderPlatform) throws {
+        guard let removedIndex = providers.firstIndex(where: { $0.platform == platform }) else {
+            return
+        }
+
+        try keychain.delete(account: keychainAccount(for: platform))
+
+        if activePlatform == platform {
+            let nextIndex = providers.index(after: removedIndex)
+            activePlatform = nextIndex < providers.endIndex
+                ? providers[nextIndex].platform
+                : providers.first(where: { $0.platform != platform })?.platform
+        }
+
+        providers.remove(at: removedIndex)
     }
 
     private func upsertConnection(platform: ProviderPlatform, model: ProviderModel) {

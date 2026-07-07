@@ -10,10 +10,11 @@ struct ProviderCard: View {
     let isActive: Bool
     let onActivate: () -> Void
     let onModelChange: (ProviderModel) -> Void
+    let onRemove: () -> Void
 
     var body: some View {
         VStack(spacing: 18) {
-            HStack(alignment: isActive ? .top : .center, spacing: 14) {
+            HStack(alignment: .center, spacing: 14) {
                 Circle()
                     .fill(Color.white.opacity(0.78))
                     .frame(width: 42, height: 42)
@@ -24,24 +25,32 @@ struct ProviderCard: View {
                             .foregroundStyle(RezplyColor.primary)
                     }
 
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(provider.name)
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
-                        .foregroundStyle(RezplyColor.onSurface)
-
-                    if isActive {
-                        PillChip(title: provider.modelName, tint: RezplyColor.primary)
-                    }
-                }
+                Text(provider.name)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurface)
 
                 Spacer()
 
-                Toggle("", isOn: activeBinding)
-                    .labelsHidden()
-                    .tint(RezplyColor.primary)
-                    .allowsHitTesting(isActive == false)
-                    .accessibilityLabel("Use \(provider.name)")
-                    .accessibilityHint(isActive ? "Currently active" : "Makes this provider active")
+                HStack(spacing: 8) {
+                    selectionControl
+
+                    Menu {
+                        Button(
+                            "Delete",
+                            systemImage: "trash",
+                            role: .destructive,
+                            action: onRemove
+                        )
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 18, weight: .bold))
+                            .rotationEffect(.degrees(90))
+                            .foregroundStyle(RezplyColor.outline)
+                            .frame(width: 40, height: 40)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Provider actions for \(provider.name)")
+                }
             }
 
             if isActive {
@@ -58,15 +67,32 @@ struct ProviderCard: View {
         }
     }
 
-    private var activeBinding: Binding<Bool> {
-        Binding(
-            get: { isActive },
-            set: { newValue in
-                if newValue, isActive == false {
-                    onActivate()
+    private var selectionControl: some View {
+        Button {
+            if isActive == false {
+                onActivate()
+            }
+        } label: {
+            ZStack {
+                Circle()
+                    .stroke(
+                        isActive ? RezplyColor.connected : RezplyColor.outlineVariant,
+                        lineWidth: 2
+                    )
+                    .frame(width: 24, height: 24)
+
+                if isActive {
+                    Circle()
+                        .fill(RezplyColor.connected)
+                        .frame(width: 14, height: 14)
                 }
             }
-        )
+            .frame(width: 44, height: 44)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Use \(provider.name)")
+        .accessibilityValue(isActive ? "Selected" : "Not selected")
+        .accessibilityHint(isActive ? "Current model provider" : "Makes this provider active")
     }
 
     private var modelMenu: some View {
@@ -75,12 +101,12 @@ struct ProviderCard: View {
                 Button {
                     onModelChange(model)
                 } label: {
-                    Text(model.rawValue)
+                    Text("\(model.displayName) - \(model.rawValue)")
                 }
             }
         } label: {
             HStack(spacing: 6) {
-                Text(provider.model.displayName)
+                Text(provider.model.rawValue)
                     .lineLimit(1)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 11, weight: .bold))

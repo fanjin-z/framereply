@@ -151,6 +151,119 @@ final class ProviderStoreTests: XCTestCase {
         XCTAssertEqual(store.providers.first?.model, .gpt54Mini)
     }
 
+    @MainActor
+    func testRemovingInactiveProviderPreservesActiveSelectionAndDeletesKey() throws {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        try saveProviders(makeProviders(), to: defaults)
+        defaults.set("zaiInternational", forKey: ProviderStoreTestKey.activePlatform)
+        let keychain = TestKeychainStore()
+        try keychain.set("secret", for: ProviderPlatform.openAI.keychainAccount)
+        let store = ProviderStore(
+            userDefaults: defaults,
+            registry: .live(),
+            keychain: keychain
+        )
+
+        try store.remove(platform: .openAI)
+
+        XCTAssertEqual(store.activePlatform, .zaiInternational)
+        XCTAssertFalse(store.providers.contains(where: { $0.platform == .openAI }))
+        XCTAssertNil(try keychain.get(account: ProviderPlatform.openAI.keychainAccount))
+    }
+
+    @MainActor
+    func testRemovingActiveMiddleProviderSelectsFollowingProviderAndPersists() throws {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        try saveProviders(makeProviders(), to: defaults)
+        defaults.set("zhipuChina", forKey: ProviderStoreTestKey.activePlatform)
+        let keychain = TestKeychainStore()
+        let store = ProviderStore(
+            userDefaults: defaults,
+            registry: .live(),
+            keychain: keychain
+        )
+
+        try store.remove(platform: .zhipuChina)
+
+        XCTAssertEqual(store.activePlatform, .openAI)
+        XCTAssertEqual(store.providers.map(\.platform), [.zaiInternational, .openAI])
+
+        let reloadedStore = ProviderStore(
+            userDefaults: defaults,
+            registry: .live(),
+            keychain: keychain
+        )
+        XCTAssertEqual(reloadedStore.activePlatform, .openAI)
+        XCTAssertEqual(reloadedStore.providers.map(\.platform), [.zaiInternational, .openAI])
+    }
+
+    @MainActor
+    func testRemovingActiveFinalProviderWrapsToFirstProvider() throws {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        try saveProviders(makeProviders(), to: defaults)
+        defaults.set("openAI", forKey: ProviderStoreTestKey.activePlatform)
+        let store = ProviderStore(
+            userDefaults: defaults,
+            registry: .live(),
+            keychain: TestKeychainStore()
+        )
+
+        try store.remove(platform: .openAI)
+
+        XCTAssertEqual(store.activePlatform, .zaiInternational)
+        XCTAssertEqual(store.providers.map(\.platform), [.zaiInternational, .zhipuChina])
+    }
+
+    @MainActor
+    func testRemovingOnlyProviderClearsSelectionAndPersistence() throws {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        try saveProviders(
+            [ProviderConnection(platform: .openAI, model: .gpt54Mini)],
+            to: defaults
+        )
+        defaults.set("openAI", forKey: ProviderStoreTestKey.activePlatform)
+        let keychain = TestKeychainStore()
+        let store = ProviderStore(
+            userDefaults: defaults,
+            registry: .live(),
+            keychain: keychain
+        )
+
+        try store.remove(platform: .openAI)
+
+        XCTAssertTrue(store.providers.isEmpty)
+        XCTAssertNil(store.activePlatform)
+        XCTAssertNil(defaults.string(forKey: ProviderStoreTestKey.activePlatform))
+
+        let savedData = try XCTUnwrap(defaults.data(forKey: ProviderStoreTestKey.providers))
+        XCTAssertTrue(try JSONDecoder().decode([ProviderConnection].self, from: savedData).isEmpty)
+    }
+
+    @MainActor
+    func testKeychainDeletionFailureLeavesProviderStateUnchanged() throws {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        try saveProviders(makeProviders(), to: defaults)
+        defaults.set("zhipuChina", forKey: ProviderStoreTestKey.activePlatform)
+        let keychain = TestKeychainStore()
+        keychain.failingDeleteAccounts.insert(ProviderPlatform.zhipuChina.keychainAccount)
+        let store = ProviderStore(
+            userDefaults: defaults,
+            registry: .live(),
+            keychain: keychain
+        )
+
+        XCTAssertThrowsError(try store.remove(platform: .zhipuChina))
+
+        XCTAssertEqual(store.providers.map(\.platform), makeProviders().map(\.platform))
+        XCTAssertEqual(store.activePlatform, .zhipuChina)
+        XCTAssertEqual(defaults.string(forKey: ProviderStoreTestKey.activePlatform), "zhipuChina")
+    }
+
     private func makeDefaults() -> (UserDefaults, String) {
         let suiteName = "ProviderStoreTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -189,4 +302,28 @@ final class ProviderStoreTests: XCTestCase {
 private enum ProviderStoreTestKey {
     static let providers = "zeptly.providerConnections.v1"
     static let activePlatform = "zeptly.activeProviderPlatform.v1"
+}
+
+private final class TestKeychainStore: KeychainStoring {
+    var failingDeleteAccounts: Set<String> = []
+    private var values: [String: String] = [:]
+
+    func set(_ value: String, for account: String) throws {
+        values[account] = value
+    }
+
+    func get(account: String) throws -> String? {
+        values[account]
+    }
+
+    func delete(account: String) throws {
+        if failingDeleteAccounts.contains(account) {
+            throw TestKeychainError.deleteFailed
+        }
+        values.removeValue(forKey: account)
+    }
+}
+
+private enum TestKeychainError: Error {
+    case deleteFailed
 }

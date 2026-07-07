@@ -16,6 +16,8 @@ struct SettingsView: View {
     @State private var addProviderStatus: AddProviderStatus = .idle
     @State private var isAddProviderPresented = false
     @State private var isKeyboardPresented = false
+    @State private var providerToRemove: ProviderConnection?
+    @State private var providerRemovalError: String?
 
     var body: some View {
         ZStack {
@@ -54,6 +56,31 @@ struct SettingsView: View {
             withAnimation(.easeOut(duration: 0.25)) {
                 isKeyboardPresented = false
             }
+        }
+        .confirmationDialog(
+            removeProviderTitle,
+            isPresented: Binding(
+                get: { providerToRemove != nil },
+                set: { if $0 == false { providerToRemove = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                removeSelectedProvider()
+            }
+        } message: {
+            Text(removeProviderMessage)
+        }
+        .alert(
+            "Couldn’t Remove Provider",
+            isPresented: Binding(
+                get: { providerRemovalError != nil },
+                set: { if $0 == false { providerRemovalError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(providerRemovalError ?? "")
         }
     }
 
@@ -156,6 +183,9 @@ struct SettingsView: View {
                         },
                         onModelChange: { model in
                             providerStore.setModel(model, for: provider.platform)
+                        },
+                        onRemove: {
+                            providerToRemove = provider
                         }
                     )
                 }
@@ -349,5 +379,33 @@ struct SettingsView: View {
         selectedModel = nil
         apiKey = ""
         addProviderStatus = .idle
+    }
+
+    private var removeProviderTitle: String {
+        "Remove \(providerToRemove?.name ?? "provider")?"
+    }
+
+    private var removeProviderMessage: String {
+        guard providerToRemove != nil else {
+            return ""
+        }
+
+        return "Zeptly will remove the saved API key from this device."
+    }
+
+    private func removeSelectedProvider() {
+        guard let providerToRemove else {
+            return
+        }
+
+        do {
+            try withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                try providerStore.remove(platform: providerToRemove.platform)
+            }
+        } catch {
+            providerRemovalError = "The saved API key couldn’t be deleted. Nothing was changed."
+        }
+
+        self.providerToRemove = nil
     }
 }

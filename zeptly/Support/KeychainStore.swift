@@ -20,7 +20,13 @@ enum KeychainStoreError: LocalizedError {
     }
 }
 
-struct KeychainStore {
+protocol KeychainStoring {
+    func set(_ value: String, for account: String) throws
+    func get(account: String) throws -> String?
+    func delete(account: String) throws
+}
+
+struct KeychainStore: KeychainStoring {
     private let service: String
 
     init(service: String = Bundle.main.bundleIdentifier ?? "com.gigabeyond.zeptly") {
