@@ -99,19 +99,16 @@ final class ProviderStoreTests: XCTestCase {
         do {
             let (defaults, suiteName) = makeDefaults()
             defer { defaults.removePersistentDomain(forName: suiteName) }
-            let provider = ProviderConnection(
-                platform: .openAI,
-                model: .gpt54Mini,
-                lastValidatedAt: Date(timeIntervalSinceReferenceDate: 300),
-                validationState: .connected
-            )
-            try saveProviders([provider], to: defaults)
+            try saveProviders(makeProviders(), to: defaults)
             defaults.set("retiredProvider", forKey: ProviderStoreTestKey.activePlatform)
 
             let store = ProviderStore(userDefaults: defaults)
 
-            XCTAssertEqual(store.activePlatform, .openAI)
-            XCTAssertEqual(defaults.string(forKey: ProviderStoreTestKey.activePlatform), "openAI")
+            XCTAssertEqual(store.activePlatform, .zaiInternational)
+            XCTAssertEqual(
+                defaults.string(forKey: ProviderStoreTestKey.activePlatform),
+                "zaiInternational"
+            )
         }
 
         do {
@@ -127,6 +124,33 @@ final class ProviderStoreTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testLegacyProviderMetadataIsIgnoredWhenLoading() throws {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let providerID = UUID()
+        let legacyJSON = """
+        [{
+          "id": "\(providerID.uuidString)",
+          "platform": "openAI",
+          "model": "gpt-5.4-mini",
+          "lastValidatedAt": 300,
+          "validationState": "connected"
+        }]
+        """
+        defaults.set(
+            try XCTUnwrap(legacyJSON.data(using: .utf8)),
+            forKey: ProviderStoreTestKey.providers
+        )
+
+        let store = ProviderStore(userDefaults: defaults)
+
+        XCTAssertEqual(store.providers.count, 1)
+        XCTAssertEqual(store.providers.first?.id, providerID)
+        XCTAssertEqual(store.providers.first?.platform, .openAI)
+        XCTAssertEqual(store.providers.first?.model, .gpt54Mini)
+    }
+
     private func makeDefaults() -> (UserDefaults, String) {
         let suiteName = "ProviderStoreTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -138,21 +162,15 @@ final class ProviderStoreTests: XCTestCase {
         [
             ProviderConnection(
                 platform: .zaiInternational,
-                model: .glm46VFlashX,
-                lastValidatedAt: Date(timeIntervalSinceReferenceDate: 100),
-                validationState: .connected
+                model: .glm46VFlashX
             ),
             ProviderConnection(
                 platform: .zhipuChina,
-                model: .glm46VFlashX,
-                lastValidatedAt: Date(timeIntervalSinceReferenceDate: 150),
-                validationState: .connected
+                model: .glm46VFlashX
             ),
             ProviderConnection(
                 platform: .openAI,
-                model: .gpt54Mini,
-                lastValidatedAt: Date(timeIntervalSinceReferenceDate: 200),
-                validationState: .connected
+                model: .gpt54Mini
             )
         ]
     }

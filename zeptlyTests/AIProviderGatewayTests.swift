@@ -83,9 +83,7 @@ final class AIProviderGatewayTests: XCTestCase {
 private final class GatewayProviderConfiguration: ProviderConfigurationProviding {
     let activeProvider: ProviderConnection? = ProviderConnection(
         platform: .zaiInternational,
-        model: .glm46VFlashX,
-        lastValidatedAt: Date(),
-        validationState: .connected
+        model: .glm46VFlashX
     )
 
     func savedAPIKey(for platform: ProviderPlatform) -> String? {

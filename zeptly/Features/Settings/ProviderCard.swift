@@ -45,23 +45,8 @@ struct ProviderCard: View {
             }
 
             if isActive {
-                VStack(spacing: 14) {
-                    SettingStatusRow(title: "Status") {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(provider.validationState.tint)
-                                .frame(width: 8, height: 8)
-                            Text(provider.validationState.title)
-                        }
-                    }
-
-                    SettingStatusRow(title: "Model") {
-                        modelMenu
-                    }
-
-                    SettingStatusRow(title: "Last synced") {
-                        Text(provider.lastSynced)
-                    }
+                SettingStatusRow(title: "Model") {
+                    modelMenu
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }

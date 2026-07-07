@@ -109,19 +109,13 @@ final class ProviderStore: ObservableObject {
     }
 
     private func upsertConnection(platform: ProviderPlatform, model: ProviderModel) {
-        let now = Date()
-
         if let existingIndex = providers.firstIndex(where: { $0.platform == platform }) {
             providers[existingIndex].model = model
-            providers[existingIndex].lastValidatedAt = now
-            providers[existingIndex].validationState = .connected
         } else {
             providers.append(
                 ProviderConnection(
                     platform: platform,
-                    model: model,
-                    lastValidatedAt: now,
-                    validationState: .connected
+                    model: model
                 )
             )
         }
@@ -184,18 +178,7 @@ final class ProviderStore: ObservableObject {
             return savedPlatform
         }
 
-        return providers.max { lhs, rhs in
-            switch (lhs.lastValidatedAt, rhs.lastValidatedAt) {
-            case let (lhsDate?, rhsDate?):
-                lhsDate < rhsDate
-            case (nil, _?):
-                true
-            case (_?, nil):
-                false
-            case (nil, nil):
-                false
-            }
-        }?.platform ?? providers.first?.platform
+        return providers.first?.platform
     }
 
     private func keychainAccount(for platform: ProviderPlatform) -> String {
