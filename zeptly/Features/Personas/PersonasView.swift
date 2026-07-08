@@ -5,34 +5,26 @@ struct PersonasView: View {
     @ObservedObject var providerStore: ProviderStore
     let onPersonaTap: (UUID) -> Void
     @Query(sort: \PersonaRecord.createdAt) private var records: [PersonaRecord]
-    @Query private var observations: [PersonaObservationRecord]
     @State private var isCreating = false
     @State private var personaToDelete: PersonaRecord?
     @State private var defaultPersonaID: UUID?
     @State private var deletionError: String?
+    @State private var defaultPersonaError: String?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                VStack(spacing: 12) {
+                VStack(spacing: 16) {
                     ForEach(records) { record in
                         PersonaCard(
                             persona: record.value,
-                            styleTags: tags(for: record.id),
                             usageCount: (try? PersonaRepository().usageCount(personaID: record.id)) ?? 0,
+                            isDefault: defaultPersonaID == record.id,
                             onTap: { onPersonaTap(record.id) },
+                            onSetDefault: { setDefault(record.id) },
                             onDuplicate: { _ = try? PersonaRepository().duplicate(record) },
                             onDelete: records.count > 1 ? { personaToDelete = record } : nil
                         )
-                        .overlay(alignment: .topLeading) {
-                            if defaultPersonaID == record.id {
-                                Text("Default")
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                                    .padding(.horizontal, 9).padding(.vertical, 5)
-                                    .background(RezplyColor.primary, in: Capsule())
-                                    .foregroundStyle(.white).padding(14)
-                            }
-                        }
                     }
                 }
                 .padding(.top, 14)
@@ -92,15 +84,20 @@ struct PersonasView: View {
         } message: {
             Text(deletionError ?? "")
         }
+        .alert(
+            "Couldn’t Set Default Persona",
+            isPresented: Binding(
+                get: { defaultPersonaError != nil },
+                set: { if !$0 { defaultPersonaError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(defaultPersonaError ?? "")
+        }
     }
 
     private var deleteTitle: String { "Delete \(personaToDelete?.name ?? "persona")?" }
-
-    private func tags(for personaID: UUID) -> [String] {
-        observations.filter {
-            $0.personaID == personaID && $0.status == PersonaObservationStatus.active.rawValue
-        }.prefix(3).map { String($0.text.prefix(28)) }
-    }
 
     private func delete(_ record: PersonaRecord, replacement: UUID?) {
         do {
@@ -110,6 +107,15 @@ struct PersonasView: View {
             deletionError = error.localizedDescription
         }
         personaToDelete = nil
+    }
+
+    private func setDefault(_ personaID: UUID) {
+        do {
+            try PersonaRepository().setDefaultPersona(id: personaID)
+            defaultPersonaID = personaID
+        } catch {
+            defaultPersonaError = error.localizedDescription
+        }
     }
 }
 
