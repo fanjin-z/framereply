@@ -314,7 +314,7 @@ final class PersonaRepository {
 
     private static let seeds: [Seed] = [
         .init(
-            id: PersonaDefaults.professionalID, name: "The Professional",
+            id: PersonaDefaults.professionalID, name: "Professional",
             summary: "Concise, polished replies for work and formal conversations.",
             symbolName: "briefcase", accentKey: "primary",
             instructions:
@@ -327,7 +327,7 @@ final class PersonaRepository {
             ]
         ),
         .init(
-            id: PersonaDefaults.sparkID, name: "The Spark",
+            id: PersonaDefaults.sparkID, name: "Spark",
             summary: "Playful, confident, genuine dating messages that read the room.",
             symbolName: "sparkles", accentKey: "peach",
             instructions:
@@ -340,7 +340,7 @@ final class PersonaRepository {
             ]
         ),
         .init(
-            id: PersonaDefaults.thoughtfulID, name: "The Thoughtful",
+            id: PersonaDefaults.thoughtfulID, name: "Thoughtful",
             summary: "Warm, empathetic replies for friends, family, and delicate moments.",
             symbolName: "heart.text.square", accentKey: "secondary",
             instructions:

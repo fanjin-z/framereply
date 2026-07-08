@@ -14,7 +14,7 @@ final class PersonaPersistenceTests: XCTestCase {
         XCTAssertEqual(
             try repository.personas().map(\.name),
             [
-                "The Professional", "The Spark", "The Thoughtful"
+                "Professional", "Spark", "Thoughtful"
             ])
         XCTAssertEqual(try repository.defaultPersonaID(), PersonaDefaults.professionalID)
         XCTAssertFalse(try repository.observations(personaID: PersonaDefaults.professionalID).isEmpty)
@@ -48,6 +48,7 @@ final class PersonaPersistenceTests: XCTestCase {
         )
         let duplicate = try repository.duplicate(created)
 
+        XCTAssertEqual(duplicate.summary, "Casual")
         XCTAssertEqual(duplicate.instructions, "Sound natural.")
         let copied = try XCTUnwrap(repository.observations(personaID: duplicate.id).first)
         XCTAssertEqual(copied.text, "Uses short sentences.")

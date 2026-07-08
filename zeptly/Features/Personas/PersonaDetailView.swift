@@ -78,9 +78,12 @@ struct PersonaDetailView: View {
                 .overlay(
                     Image(systemName: persona.symbolName).font(.system(size: 24)).foregroundStyle(persona.value.accent))
             VStack(alignment: .leading, spacing: 8) {
-                TextField("Name", text: binding(persona, \.name))
+                TextField("e.g. Work Mode", text: binding(persona, \.name))
                     .font(.system(size: 24, weight: .bold, design: .rounded))
-                TextField("Short summary", text: binding(persona, \.summary), axis: .vertical)
+                TextField(
+                    "e.g. Concise, polished replies for work conversations.",
+                    text: binding(persona, \.summary), axis: .vertical
+                )
                 Label("\(assignments.count) chats", systemImage: "message")
                     .font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(RezplyColor.outline)
             }
@@ -90,9 +93,19 @@ struct PersonaDetailView: View {
     private func instructionsCard(_ persona: PersonaRecord) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(symbolName: "text.badge.checkmark", title: "Instructions")
-            Text("Direct guidance always takes priority over learned observations.")
+            Text("Tell this persona how to respond.")
                 .font(.caption).foregroundStyle(RezplyColor.outline)
-            TextEditor(text: binding(persona, \.instructions)).frame(minHeight: 130)
+            TextEditor(text: binding(persona, \.instructions))
+                .overlay(alignment: .topLeading) {
+                    if persona.instructions.isEmpty {
+                        Text("Example: For networking messages, mention the shared context, make one clear request, and give the other person an easy way to decline.")
+                            .foregroundStyle(RezplyColor.outline.opacity(0.7))
+                            .padding(.top, 8)
+                            .padding(.leading, 5)
+                            .allowsHitTesting(false)
+                    }
+                }
+                .frame(minHeight: 130)
                 .scrollContentBackground(.hidden).padding(10)
                 .background(RezplyColor.secondaryContainer.opacity(0.28), in: RoundedRectangle(cornerRadius: 18))
         }.padding(22).glassPanel(cornerRadius: 28)
@@ -173,7 +186,7 @@ struct PersonaDetailView: View {
     private var exampleCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader(symbolName: "quote.bubble", title: "Teach It Your Voice")
-            Text("Paste 3–10 messages you wrote, one per line. Examples are discarded after analysis.")
+            Text("Paste 3–10 messages you wrote, one per line.")
                 .font(.caption).foregroundStyle(RezplyColor.outline)
             TextEditor(text: $examples).frame(minHeight: 120).scrollContentBackground(.hidden).padding(10)
                 .background(RezplyColor.secondaryContainer.opacity(0.28), in: RoundedRectangle(cornerRadius: 18))

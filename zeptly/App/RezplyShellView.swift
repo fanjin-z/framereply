@@ -33,9 +33,14 @@ struct RezplyShellView: View {
                             }
                         )
                     case .personas:
-                        PersonasView(providerStore: providerStore) { personaID in
-                            navigationPath.append(.persona(personaID))
-                        }
+                        PersonasView(
+                            onPersonaTap: { personaID in
+                                navigationPath.append(.persona(personaID))
+                            },
+                            onCreateTap: {
+                                navigationPath.append(.newPersona)
+                            }
+                        )
                     case .settings:
                         SettingsView(
                             providerStore: providerStore,
@@ -65,6 +70,13 @@ struct RezplyShellView: View {
                                 navigationPath.append(.contactContext(chatID))
                             }
                         )
+                    }
+                case .newPersona:
+                    CreatePersonaView(providerStore: providerStore) { record in
+                        if navigationPath.last == .newPersona {
+                            navigationPath.removeLast()
+                        }
+                        navigationPath.append(.persona(record.id))
                     }
                 case .persona(let personaID):
                     PersonaDetailView(personaID: personaID, providerStore: providerStore)
