@@ -138,9 +138,6 @@ nonisolated enum PersonaQuickSetup {
     }
 }
 
-nonisolated enum PersonaDefaults {
-    static let professionalID = UUID(uuidString: "A0111111-1111-4111-8111-111111111111")!
-    static let sparkID = UUID(uuidString: "A0222222-2222-4222-8222-222222222222")!
-    static let thoughtfulID = UUID(uuidString: "A0333333-3333-4333-8333-333333333333")!
+nonisolated enum PersonaLimits {
     static let maximumActiveObservations = 20
 }

@@ -127,7 +127,7 @@ final class ContactContextRecord {
         chatID: String,
         relationshipSubtitle: String,
         currentInteractionGoal: String,
-        personaID: UUID = PersonaDefaults.professionalID,
+        personaID: UUID,
         personaAssignedAt: Date = Date()
     ) {
         self.id = id

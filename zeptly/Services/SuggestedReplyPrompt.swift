@@ -68,7 +68,7 @@ nonisolated enum SuggestedReplyPrompt {
             ),
             "personaObservationChanges": changeArraySchema(
                 targetKey: "targetObservationID", minEvidence: 2, maxEvidence: 10,
-                maxItems: PersonaDefaults.maximumActiveObservations
+                maxItems: PersonaLimits.maximumActiveObservations
             )
         ],
         "required": ["historySummary", "replies", "memoryChanges", "personaObservationChanges"]
@@ -82,7 +82,7 @@ nonisolated enum SuggestedReplyPrompt {
             "currentInteractionGoal": request.currentInteractionGoal,
             "persona": personaObject(request.persona),
             "personaLearningMessages": request.personaLearningMessages.map(messageObject),
-            "maxActiveObservations": PersonaDefaults.maximumActiveObservations,
+            "maxActiveObservations": PersonaLimits.maximumActiveObservations,
             "existingHistorySummary": request.existingHistorySummary,
             "summaryMode": request.summaryMode.rawValue,
             "olderMessagesToSummarize": request.olderMessagesToSummarize.map(messageObject),

@@ -547,7 +547,7 @@ final class ProviderAnalysisTests: XCTestCase {
             ],
             currentInteractionGoal: "Confirm dinner",
             persona: PersonaPromptContext(
-                id: PersonaDefaults.professionalID, name: "Warm & Collaborative",
+                id: UUID(), name: "Warm & Collaborative",
                 instructions: "Write warmly and collaboratively.", observations: [], protectedTombstones: []
             ),
             personaLearningMessages: [],

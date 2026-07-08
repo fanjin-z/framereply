@@ -88,6 +88,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
     func testOneUseDraftPreservesExistingSummaryAndDoesNotApplyAnalysisOutput() async throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
+        let defaultPersonaID = try PersonaRepository(container: container).defaultPersonaID()
         let chatID = "drafting-input-existing-cache-chat"
         let message = makeMessage(chatID: chatID, index: 0)
         container.mainContext.insert(makeChat(id: chatID))
@@ -135,12 +136,12 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertFalse(
             try repository.personaLearningMessages(
                 chatID: chatID,
-                personaID: PersonaDefaults.professionalID,
+                personaID: defaultPersonaID,
                 assignedAt: .distantPast
             ).isEmpty
         )
         XCTAssertFalse(
-            try repository.personaObservations(personaID: PersonaDefaults.professionalID).contains {
+            try repository.personaObservations(personaID: defaultPersonaID).contains {
                 $0.origin == PersonaObservationOrigin.ai.rawValue
             })
     }
@@ -186,6 +187,8 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
     func testCachesRepliesAndIncrementallySummarizesMessagesBeyondRecentTwenty() async throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
+        let personas = PersonaRepository(container: container)
+        let thoughtfulID = try XCTUnwrap(try personas.personas().first { $0.name == "Thoughtful" }).id
         let chatID = "reply-chat"
         container.mainContext.insert(makeChat(id: chatID))
         container.mainContext.insert(
@@ -193,7 +196,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                 chatID: chatID,
                 relationshipSubtitle: "Friend",
                 currentInteractionGoal: "Confirm dinner",
-                personaID: PersonaDefaults.thoughtfulID
+                personaID: thoughtfulID
             )
         )
         container.mainContext.insert(

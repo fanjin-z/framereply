@@ -160,7 +160,7 @@ nonisolated enum SuggestedReplyResultDecoder {
         let memories = try memoryObjects.enumerated().map { try decodeMemoryChange($0.element, index: $0.offset) }
 
         guard let observationObjects = object["personaObservationChanges"] as? [[String: Any]],
-            observationObjects.count <= PersonaDefaults.maximumActiveObservations
+            observationObjects.count <= PersonaLimits.maximumActiveObservations
         else { throw schema("personaObservationChanges") }
         let observations = try observationObjects.enumerated().map {
             try decodeObservationChange($0.element, index: $0.offset)

@@ -66,7 +66,7 @@ final class AIProviderGatewayTests: XCTestCase {
             contactMemories: [],
             currentInteractionGoal: "Reply",
             persona: PersonaPromptContext(
-                id: PersonaDefaults.professionalID, name: "Warm",
+                id: UUID(), name: "Warm",
                 instructions: "Write warmly.", observations: [], protectedTombstones: []
             ),
             personaLearningMessages: [],

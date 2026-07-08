@@ -139,7 +139,7 @@ struct PersonaDetailView: View {
                     newObservation = ""
                 }.disabled(
                     newObservation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        || activeObservations.count >= PersonaDefaults.maximumActiveObservations)
+                        || activeObservations.count >= PersonaLimits.maximumActiveObservations)
             }.padding(14).background(
                 RezplyColor.secondaryContainer.opacity(0.2), in: RoundedRectangle(cornerRadius: 18))
 

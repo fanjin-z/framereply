@@ -40,7 +40,7 @@ struct ContactContextInfoGrid: View {
                     }
                 } label: {
                     HStack(spacing: 10) {
-                        Text(personas.first(where: { $0.id == personaID })?.name ?? "Professional")
+                        Text(personas.first(where: { $0.id == personaID })?.name ?? "Select Persona")
                             .font(.system(size: 16, weight: .regular, design: .rounded))
                             .foregroundStyle(RezplyColor.onSurface)
                             .lineLimit(1)

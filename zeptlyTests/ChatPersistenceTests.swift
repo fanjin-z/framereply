@@ -503,7 +503,7 @@ final class ChatPersistenceTests: XCTestCase {
                 chatID: chatID,
                 relationshipSubtitle: "Friend",
                 currentInteractionGoal: "Reconnect",
-                personaID: PersonaDefaults.thoughtfulID
+                personaID: UUID()
             )
         )
         container.mainContext.insert(

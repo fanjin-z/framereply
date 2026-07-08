@@ -124,7 +124,7 @@ final class ChatRepository {
                 relationshipSubtitle: "",
                 contactMemories: memories,
                 currentInteractionGoal: "",
-                personaID: try defaultPersona()?.id ?? PersonaDefaults.professionalID,
+                personaID: try defaultPersona().id,
                 personaAssignedAt: Date()
             )
     }
@@ -229,9 +229,7 @@ final class ChatRepository {
     }
 
     func personaPromptContext(personaID: UUID) throws -> PersonaPromptContext {
-        guard let record = try persona(id: personaID) ?? defaultPersona() else {
-            throw PersonaRepositoryError.noPersonas
-        }
+        let record = try persona(id: personaID) ?? defaultPersona()
         return PersonaRepository.promptContext(
             record: record, observations: try personaObservations(personaID: record.id))
     }
@@ -240,9 +238,7 @@ final class ChatRepository {
         personaID: UUID,
         changes: [PersonaObservationChange]
     ) throws -> PersonaPromptContext {
-        guard let record = try persona(id: personaID) ?? defaultPersona() else {
-            throw PersonaRepositoryError.noPersonas
-        }
+        let record = try persona(id: personaID) ?? defaultPersona()
         var values = try personaObservations(personaID: record.id).map(\.value)
         let allowed = Set(changes.flatMap(\.sourceMessageIDs))
         for change in changes {
@@ -423,7 +419,7 @@ final class ChatRepository {
             case .add:
                 guard change.targetObservationID == nil,
                     let text = cleanedObservation(change.text),
-                    activeCount(records) < PersonaDefaults.maximumActiveObservations,
+                    activeCount(records) < PersonaLimits.maximumActiveObservations,
                     !containsEquivalent(text, in: records)
                 else { continue }
                 let value = PersonaRepository.makeObservation(
@@ -492,17 +488,8 @@ final class ChatRepository {
         }
     }
 
-    private func defaultPersona() throws -> PersonaRecord? {
-        let metadata = try context.fetch(
-            FetchDescriptor<StoreMetadataRecord>(
-                predicate: #Predicate {
-                    $0.key == "defaultPersonaID"
-                })
-        ).first
-        if let raw = metadata?.value, let id = UUID(uuidString: raw), let record = try persona(id: id) {
-            return record
-        }
-        return try context.fetch(FetchDescriptor<PersonaRecord>(sortBy: [SortDescriptor(\.createdAt)])).first
+    private func defaultPersona() throws -> PersonaRecord {
+        try PersonaRepository(context: context).defaultPersona()
     }
 
     private func applyProjected(
@@ -519,7 +506,7 @@ final class ChatRepository {
         case .add:
             guard change.targetObservationID == nil,
                 let text = cleanedObservation(change.text),
-                values.filter({ $0.status == .active }).count < PersonaDefaults.maximumActiveObservations,
+                values.filter({ $0.status == .active }).count < PersonaLimits.maximumActiveObservations,
                 !values.contains(where: { normalized($0.text) == normalized(text) })
             else { return }
             values.append(
@@ -992,7 +979,7 @@ final class ChatRepository {
     private func emptyContactContext() throws -> ContactContext {
         ContactContext(
             relationshipSubtitle: "", contactMemories: [], currentInteractionGoal: "",
-            personaID: try defaultPersona()?.id ?? PersonaDefaults.professionalID,
+            personaID: try defaultPersona().id,
             personaAssignedAt: Date()
         )
     }

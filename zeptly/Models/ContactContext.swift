@@ -59,13 +59,15 @@ struct ContactContext: Equatable {
     var personaID: UUID
     var personaAssignedAt: Date
 
-    static let empty = ContactContext(
-        relationshipSubtitle: "",
-        contactMemories: [],
-        currentInteractionGoal: "",
-        personaID: PersonaDefaults.professionalID,
-        personaAssignedAt: Date()
-    )
+    static func empty(personaID: UUID) -> ContactContext {
+        ContactContext(
+            relationshipSubtitle: "",
+            contactMemories: [],
+            currentInteractionGoal: "",
+            personaID: personaID,
+            personaAssignedAt: Date()
+        )
+    }
 }
 
 nonisolated enum ContactMemoryReconciler {

@@ -12,8 +12,9 @@ struct PersistedContactContextView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var records: [ContactContextRecord]
     @Query private var memoryRecords: [ContactMemoryRecord]
-    @State private var context = ContactContext.empty
+    @State private var context: ContactContext?
     @State private var hasLoaded = false
+    @State private var loadError: String?
 
     init(chat: Chat) {
         self.chat = chat
@@ -26,28 +27,47 @@ struct PersistedContactContextView: View {
     }
 
     var body: some View {
-        ContactContextView(chat: chat, context: $context)
-            .onAppear(perform: load)
-            .onChange(of: context) { _, newValue in
-                guard hasLoaded else {
-                    return
-                }
-                save(newValue)
+        Group {
+            if let context {
+                ContactContextView(
+                    chat: chat,
+                    context: Binding(
+                        get: { context },
+                        set: { self.context = $0 }
+                    )
+                )
+            } else if let loadError {
+                ContentUnavailableView(
+                    "Couldn’t Load Contact Context",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(loadError)
+                )
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        }
+        .onAppear(perform: load)
+        .onChange(of: context) { _, newValue in
+            guard hasLoaded, let newValue else {
+                return
+            }
+            save(newValue)
+        }
     }
 
     private func load() {
-        let defaultID = (try? PersonaRepository().defaultPersonaID()) ?? PersonaDefaults.professionalID
-        context =
-            records.first?.value(contactMemories: memoryRecords.map(\.value))
-            ?? ContactContext(
-                relationshipSubtitle: "",
-                contactMemories: memoryRecords.map(\.value),
-                currentInteractionGoal: "",
-                personaID: defaultID,
-                personaAssignedAt: Date()
-            )
-        hasLoaded = true
+        do {
+            if let existing = records.first {
+                context = existing.value(contactMemories: memoryRecords.map(\.value))
+            } else {
+                context = .empty(personaID: try PersonaRepository().defaultPersonaID())
+                context?.contactMemories = memoryRecords.map(\.value)
+            }
+            hasLoaded = true
+        } catch {
+            loadError = error.localizedDescription
+        }
     }
 
     private func save(_ value: ContactContext) {
@@ -59,15 +79,19 @@ struct PersistedContactContextView: View {
                 chatID: chat.id,
                 relationshipSubtitle: "",
                 currentInteractionGoal: "",
-                personaID: (try? PersonaRepository().defaultPersonaID()) ?? PersonaDefaults.professionalID,
-                personaAssignedAt: Date()
+                personaID: value.personaID,
+                personaAssignedAt: value.personaAssignedAt
             )
             modelContext.insert(record)
         }
 
         record.update(from: value)
         syncMemories(value.contactMemories)
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            loadError = error.localizedDescription
+        }
     }
 
     private func syncMemories(_ memories: [ContactMemory]) {

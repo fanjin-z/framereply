@@ -17,14 +17,18 @@ final class PersonaRepository {
 
     convenience init() { self.init(container: ZeptlyDataStore.shared) }
     init(container: ModelContainer) { context = container.mainContext }
+    init(context: ModelContext) { self.context = context }
 
     nonisolated deinit {}
 
     func seedPersonasIfNeeded() throws {
         guard try metadata(Self.seededKey) == nil else { return }
+        var initialDefaultID: UUID?
         for seed in Self.seeds {
+            let personaID = UUID()
+            initialDefaultID = initialDefaultID ?? personaID
             let record = PersonaRecord(
-                id: seed.id, name: seed.name, summary: seed.summary,
+                id: personaID, name: seed.name, summary: seed.summary,
                 symbolName: seed.symbolName, accentKey: seed.accentKey,
                 instructions: seed.instructions
             )
@@ -32,15 +36,16 @@ final class PersonaRepository {
             for text in seed.observations {
                 context.insert(
                     observationRecord(
-                        personaID: seed.id, text: text, origin: .seed,
+                        personaID: personaID, text: text, origin: .seed,
                         isUserProtected: false, evidenceSource: .seed
                     ))
             }
         }
+        guard let initialDefaultID else { throw PersonaRepositoryError.noPersonas }
         context.insert(StoreMetadataRecord(key: Self.seededKey, value: "1"))
         context.insert(
             StoreMetadataRecord(
-                key: Self.defaultPersonaKey, value: PersonaDefaults.professionalID.uuidString.lowercased()
+                key: Self.defaultPersonaKey, value: initialDefaultID.uuidString.lowercased()
             ))
         try context.save()
     }
@@ -65,29 +70,35 @@ final class PersonaRepository {
     }
 
     func defaultPersonaID() throws -> UUID {
-        if let value = try metadata(Self.defaultPersonaKey)?.value,
-            let id = UUID(uuidString: value), try persona(id: id) != nil
-        {
-            return id
+        try defaultPersona().id
+    }
+
+    func defaultPersona() throws -> PersonaRecord {
+        guard try !personas().isEmpty else { throw PersonaRepositoryError.noPersonas }
+        guard let value = try metadata(Self.defaultPersonaKey)?.value,
+            let id = UUID(uuidString: value), let record = try persona(id: id)
+        else {
+            throw PersonaRepositoryError.invalidDefaultPersona
         }
-        guard let first = try personas().first else { throw PersonaRepositoryError.noPersonas }
-        try setDefaultPersona(id: first.id)
-        return first.id
+        return record
     }
 
     func setDefaultPersona(id: UUID) throws {
+        try updateDefaultPersona(id: id)
+        try context.save()
+    }
+
+    private func updateDefaultPersona(id: UUID) throws {
         guard try persona(id: id) != nil else { throw PersonaRepositoryError.invalidDefaultPersona }
         if let record = try metadata(Self.defaultPersonaKey) {
             record.value = id.uuidString.lowercased()
         } else {
             context.insert(StoreMetadataRecord(key: Self.defaultPersonaKey, value: id.uuidString.lowercased()))
         }
-        try context.save()
     }
 
     func promptContext(personaID: UUID) throws -> PersonaPromptContext {
-        let record = try persona(id: personaID) ?? persona(id: defaultPersonaID())
-        guard let record else { throw PersonaRepositoryError.noPersonas }
+        let record = try persona(id: personaID) ?? defaultPersona()
         return Self.promptContext(
             record: record,
             observations: try observations(personaID: record.id, includeInactive: true)
@@ -107,7 +118,7 @@ final class PersonaRepository {
             accentKey: accentKey, instructions: cleaned(instructions)
         )
         context.insert(record)
-        for observation in uniqueActive(observations).prefix(PersonaDefaults.maximumActiveObservations) {
+        for observation in uniqueActive(observations).prefix(PersonaLimits.maximumActiveObservations) {
             context.insert(PersonaObservationRecord(personaID: record.id, value: observation))
         }
         try context.save()
@@ -129,7 +140,7 @@ final class PersonaRepository {
     }
 
     func addUserObservation(_ text: String, personaID: UUID) throws {
-        guard try observations(personaID: personaID).count < PersonaDefaults.maximumActiveObservations else {
+        guard try observations(personaID: personaID).count < PersonaLimits.maximumActiveObservations else {
             throw PersonaRepositoryError.observationLimitReached
         }
         let value = cleaned(text)
@@ -207,26 +218,33 @@ final class PersonaRepository {
                 throw PersonaRepositoryError.invalidDefaultPersona
             }
             fallbackID = replacementDefaultID
-            try setDefaultPersona(id: fallbackID)
+            try updateDefaultPersona(id: fallbackID)
         } else {
             fallbackID = currentDefault
         }
 
-        let deletedID = record.id
-        for contact in try context.fetch(
-            FetchDescriptor<ContactContextRecord>(predicate: #Predicate { $0.personaID == deletedID }))
-        {
-            contact.personaID = fallbackID
-            contact.personaAssignedAt = Date()
+        do {
+            let deletedID = record.id
+            for contact in try context.fetch(
+                FetchDescriptor<ContactContextRecord>(predicate: #Predicate { $0.personaID == deletedID }))
+            {
+                contact.personaID = fallbackID
+                contact.personaAssignedAt = Date()
+            }
+            for observation in try observations(personaID: deletedID, includeInactive: true) {
+                context.delete(observation)
+            }
+            for receipt in try context.fetch(
+                FetchDescriptor<PersonaLearningReceiptRecord>(predicate: #Predicate { $0.personaID == deletedID }))
+            {
+                context.delete(receipt)
+            }
+            context.delete(record)
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
         }
-        for observation in try observations(personaID: deletedID, includeInactive: true) { context.delete(observation) }
-        for receipt in try context.fetch(
-            FetchDescriptor<PersonaLearningReceiptRecord>(predicate: #Predicate { $0.personaID == deletedID }))
-        {
-            context.delete(receipt)
-        }
-        context.delete(record)
-        try context.save()
     }
 
     static func promptContext(record: PersonaRecord, observations: [PersonaObservationRecord]) -> PersonaPromptContext {
@@ -303,7 +321,6 @@ final class PersonaRepository {
     }
 
     private struct Seed {
-        let id: UUID
         let name: String
         let summary: String
         let symbolName: String
@@ -314,7 +331,7 @@ final class PersonaRepository {
 
     private static let seeds: [Seed] = [
         .init(
-            id: PersonaDefaults.professionalID, name: "Professional",
+            name: "Professional",
             summary: "Concise, polished replies for work and formal conversations.",
             symbolName: "briefcase", accentKey: "primary",
             instructions:
@@ -327,7 +344,7 @@ final class PersonaRepository {
             ]
         ),
         .init(
-            id: PersonaDefaults.sparkID, name: "Spark",
+            name: "Spark",
             summary: "Playful, confident, genuine dating messages that read the room.",
             symbolName: "sparkles", accentKey: "peach",
             instructions:
@@ -340,7 +357,7 @@ final class PersonaRepository {
             ]
         ),
         .init(
-            id: PersonaDefaults.thoughtfulID, name: "Thoughtful",
+            name: "Thoughtful",
             summary: "Warm, empathetic replies for friends, family, and delicate moments.",
             symbolName: "heart.text.square", accentKey: "secondary",
             instructions:

@@ -281,7 +281,7 @@ struct CreatePersonaView: View {
             draftObservations.map { ($0.text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), $0) },
             uniquingKeysWith: { current, _ in current }
         )
-        return texts.prefix(PersonaDefaults.maximumActiveObservations).map { text in
+        return texts.prefix(PersonaLimits.maximumActiveObservations).map { text in
             existing[text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()]
                 ?? PersonaRepository.makeObservation(
                     text: text, origin: .seed, isUserProtected: false, evidenceSource: .seed
@@ -308,7 +308,7 @@ struct CreatePersonaView: View {
             switch change.action {
             case .add:
                 guard let text = change.text,
-                    draftObservations.count < PersonaDefaults.maximumActiveObservations,
+                    draftObservations.count < PersonaLimits.maximumActiveObservations,
                     !draftObservations.contains(where: { $0.text.caseInsensitiveCompare(text) == .orderedSame })
                 else { continue }
                 draftObservations.append(
