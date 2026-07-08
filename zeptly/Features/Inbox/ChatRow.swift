@@ -30,7 +30,9 @@ struct ChatRow: View {
 
                         Text(chat.timeLabel)
                             .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundStyle(chat.isUnread ? RezplyColor.primary : RezplyColor.outline)
+                            .foregroundStyle(
+                                chat.isUnread ? RezplyColor.primary : RezplyColor.outline
+                            )
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
                     }
@@ -43,8 +45,14 @@ struct ChatRow: View {
                     .fixedSize(horizontal: true, vertical: true)
 
                     Text(chat.preview)
-                        .font(.system(size: 15, weight: chat.isUnread ? .medium : .regular, design: .rounded))
-                        .foregroundStyle(chat.isUnread ? RezplyColor.onSurfaceVariant : RezplyColor.outline)
+                        .font(
+                            .system(
+                                size: 15, weight: chat.isUnread ? .medium : .regular,
+                                design: .rounded)
+                        )
+                        .foregroundStyle(
+                            chat.isUnread ? RezplyColor.onSurfaceVariant : RezplyColor.outline
+                        )
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

@@ -62,7 +62,8 @@ struct OpenAIClient: AIProviderAdapter {
             completion.status == "completed",
             completion.hasTextOutput
         else {
-            throw ProviderConnectionError.invalidResponse("OpenAI did not return a completed text response.")
+            throw ProviderConnectionError.invalidResponse(
+                "OpenAI did not return a completed text response.")
         }
     }
 
@@ -252,13 +253,17 @@ struct OpenAIClient: AIProviderAdapter {
         request.httpBody = try JSONSerialization.data(withJSONObject: [
             "model": model.rawValue,
             "instructions": SuggestedReplyPrompt.instructions,
-            "input": [[
-                "role": "user",
-                "content": [[
-                    "type": "input_text",
-                    "text": SuggestedReplyPrompt.input(for: generationRequest)
-                ]]
-            ]],
+            "input": [
+                [
+                    "role": "user",
+                    "content": [
+                        [
+                            "type": "input_text",
+                            "text": SuggestedReplyPrompt.input(for: generationRequest)
+                        ]
+                    ]
+                ]
+            ],
             "max_output_tokens": maxTokens,
             "reasoning": ["effort": "none"],
             "store": false,
@@ -296,7 +301,8 @@ struct OpenAIClient: AIProviderAdapter {
         do {
             completion = try JSONDecoder().decode(OpenAIResponse.self, from: data)
         } catch {
-            throw ProviderConnectionError.invalidResponse("OpenAI returned an unexpected reply response.")
+            throw ProviderConnectionError.invalidResponse(
+                "OpenAI returned an unexpected reply response.")
         }
 
         do {
@@ -340,13 +346,15 @@ struct OpenAIClient: AIProviderAdapter {
         } catch let error as URLError {
             throw ProviderConnectionError.networkFailure(error.localizedDescription)
         } catch {
-            throw ProviderConnectionError.networkFailure("Could not reach OpenAI. Check your network and try again.")
+            throw ProviderConnectionError.networkFailure(
+                "Could not reach OpenAI. Check your network and try again.")
         }
     }
 
     private func validateHTTPResponse(_ response: URLResponse, data: Data) throws {
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw ProviderConnectionError.invalidResponse("OpenAI returned an invalid HTTP response.")
+            throw ProviderConnectionError.invalidResponse(
+                "OpenAI returned an invalid HTTP response.")
         }
 
         switch httpResponse.statusCode {
@@ -412,8 +420,8 @@ struct OpenAIClient: AIProviderAdapter {
     }
 }
 
-private extension ProviderModel {
-    var openAIImageDetail: String {
+extension ProviderModel {
+    fileprivate var openAIImageDetail: String {
         switch self {
         case .gpt54Mini:
             "high"
@@ -453,7 +461,8 @@ private struct OpenAIResponse: Decodable {
             item.type == "message"
                 && item.content.contains { content in
                     content.type == "output_text"
-                        && content.text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                        && content.text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            == false
                 }
         }
     }

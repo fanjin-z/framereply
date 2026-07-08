@@ -43,7 +43,8 @@ struct AvatarMark: View {
                         Text(initials)
                             .font(.system(size: size * 0.28, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
-                            .shadow(color: RezplyColor.deepNavy.opacity(0.32), radius: 2, x: 0, y: 1)
+                            .shadow(
+                                color: RezplyColor.deepNavy.opacity(0.32), radius: 2, x: 0, y: 1)
                     }
                 }
                 .frame(width: size, height: size)

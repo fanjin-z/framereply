@@ -129,8 +129,11 @@ nonisolated enum PersonaQuickSetup {
         dimensions.compactMap { $0.observation(for: selections[$0.id] ?? 0) }
     }
 
-    static func replacingQuickSetupObservations(in existing: [String], selections: [String: Int]) -> [String] {
-        existing.filter { !generatedTexts.contains(normalized($0)) } + compile(selections: selections)
+    static func replacingQuickSetupObservations(in existing: [String], selections: [String: Int])
+        -> [String]
+    {
+        existing.filter { !generatedTexts.contains(normalized($0)) }
+            + compile(selections: selections)
     }
 
     private static func normalized(_ text: String) -> String {

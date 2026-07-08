@@ -24,16 +24,20 @@ final class ChatMessageMergerTests: XCTestCase {
     }
 
     func testTimestampAndFuzzyIdentityRules() {
-        let original = message("This is a sufficiently long message for one OCR mistake.", time: "10:42 AM")
-        let typo = message("This is a sufficiently long message for one OCR mistale.", time: "10:42 AM")
-        let differentTime = message("This is a sufficiently long message for one OCR mistale.", time: "10:43 AM")
+        let original = message(
+            "This is a sufficiently long message for one OCR mistake.", time: "10:42 AM")
+        let typo = message(
+            "This is a sufficiently long message for one OCR mistale.", time: "10:42 AM")
+        let differentTime = message(
+            "This is a sufficiently long message for one OCR mistale.", time: "10:43 AM")
 
         XCTAssertEqual(
             ChatMessageMerger.merge(existing: [original], imported: [typo]).insertedMessageCount,
             0
         )
         XCTAssertEqual(
-            ChatMessageMerger.merge(existing: [original], imported: [differentTime]).insertedMessageCount,
+            ChatMessageMerger.merge(existing: [original], imported: [differentTime])
+                .insertedMessageCount,
             1
         )
 

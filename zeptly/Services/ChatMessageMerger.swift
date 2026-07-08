@@ -45,7 +45,8 @@ struct ChatMessageMergeResult: Equatable {
 }
 
 enum ChatMessageMerger {
-    static func merge(existing: [MergeMessage], imported: [MergeMessage]) -> ChatMessageMergeResult {
+    static func merge(existing: [MergeMessage], imported: [MergeMessage]) -> ChatMessageMergeResult
+    {
         guard !existing.isEmpty else {
             return ChatMessageMergeResult(messages: imported, insertedMessageCount: imported.count)
         }
@@ -70,13 +71,15 @@ enum ChatMessageMerger {
         var existingPositions = Dictionary(uniqueKeysWithValues: existing.indices.map { ($0, $0) })
         var insertedCount = 0
 
-        for importedIndex in imported.indices where !matchedImportedIndices.contains(importedIndex) {
+        for importedIndex in imported.indices where !matchedImportedIndices.contains(importedIndex)
+        {
             let nextMatch = matches.first(where: { $0.importedIndex > importedIndex })
             if let nextMatch,
                 let insertionIndex = existingPositions[nextMatch.existingIndex]
             {
                 merged.insert(imported[importedIndex], at: insertionIndex)
-                for key in Array(existingPositions.keys) where existingPositions[key, default: 0] >= insertionIndex {
+                for key in Array(existingPositions.keys)
+                where existingPositions[key, default: 0] >= insertionIndex {
                     existingPositions[key, default: 0] += 1
                 }
             } else {
@@ -93,8 +96,8 @@ enum ChatMessageMerger {
     }
 }
 
-private extension MergeMessage {
-    var transcriptMessage: TranscriptMessage {
+extension MergeMessage {
+    fileprivate var transcriptMessage: TranscriptMessage {
         TranscriptMessage(
             sender: senderKind,
             normalizedText: normalizedText,

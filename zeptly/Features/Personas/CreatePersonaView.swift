@@ -106,7 +106,8 @@ struct CreatePersonaView: View {
                     .foregroundStyle(RezplyColor.outline)
             }
 
-            ForEach(Array(PersonaQuickSetup.dimensions.enumerated()), id: \.element.id) { index, dimension in
+            ForEach(Array(PersonaQuickSetup.dimensions.enumerated()), id: \.element.id) {
+                index, dimension in
                 styleControl(dimension)
                 if index < PersonaQuickSetup.dimensions.count - 1 {
                     Divider().opacity(0.45)
@@ -214,14 +215,18 @@ struct CreatePersonaView: View {
     }
 
     private var instructionPlaceholder: some View {
-        Text("Example: For networking messages, mention the shared context, make one clear request, and give the other person an easy way to decline.")
-            .foregroundStyle(RezplyColor.outline.opacity(0.7))
-            .padding(.top, 8)
-            .padding(.leading, 5)
-            .allowsHitTesting(false)
+        Text(
+            "Example: For networking messages, mention the shared context, make one clear request, and give the other person an easy way to decline."
+        )
+        .foregroundStyle(RezplyColor.outline.opacity(0.7))
+        .padding(.top, 8)
+        .padding(.leading, 5)
+        .allowsHitTesting(false)
     }
 
-    private func labeledField(_ label: String, placeholder: String, text: Binding<String>) -> some View {
+    private func labeledField(_ label: String, placeholder: String, text: Binding<String>)
+        -> some View
+    {
         VStack(alignment: .leading, spacing: 8) {
             Text(label).font(.subheadline.bold())
             TextField(placeholder, text: text, axis: .vertical)
@@ -278,7 +283,9 @@ struct CreatePersonaView: View {
             in: draftObservations.map(\.text), selections: selections
         )
         let existing = Dictionary(
-            draftObservations.map { ($0.text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), $0) },
+            draftObservations.map {
+                ($0.text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), $0)
+            },
             uniquingKeysWith: { current, _ in current }
         )
         return texts.prefix(PersonaLimits.maximumActiveObservations).map { text in
@@ -309,7 +316,9 @@ struct CreatePersonaView: View {
             case .add:
                 guard let text = change.text,
                     draftObservations.count < PersonaLimits.maximumActiveObservations,
-                    !draftObservations.contains(where: { $0.text.caseInsensitiveCompare(text) == .orderedSame })
+                    !draftObservations.contains(where: {
+                        $0.text.caseInsensitiveCompare(text) == .orderedSame
+                    })
                 else { continue }
                 draftObservations.append(
                     PersonaRepository.makeObservation(
@@ -319,7 +328,9 @@ struct CreatePersonaView: View {
                 )
             case .update:
                 guard let id = change.targetObservationID, let text = change.text,
-                    let index = draftObservations.firstIndex(where: { $0.id == id && !$0.isUserProtected })
+                    let index = draftObservations.firstIndex(where: {
+                        $0.id == id && !$0.isUserProtected
+                    })
                 else { continue }
                 draftObservations[index] = PersonaRepository.makeObservation(
                     text: text, origin: .ai, isUserProtected: false, evidenceSource: .examples,
@@ -363,8 +374,8 @@ struct CreatePersonaView: View {
     }
 }
 
-private extension View {
-    func personaEditorPanel() -> some View {
+extension View {
+    fileprivate func personaEditorPanel() -> some View {
         scrollContentBackground(.hidden)
             .padding(10)
             .background(

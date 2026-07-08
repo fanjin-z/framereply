@@ -47,12 +47,16 @@ struct SettingsView: View {
                 dismissAddProviderForTabChange()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+        .onReceive(
+            NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
+        ) { _ in
             withAnimation(.easeOut(duration: 0.25)) {
                 isKeyboardPresented = true
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+        .onReceive(
+            NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
+        ) { _ in
             withAnimation(.easeOut(duration: 0.25)) {
                 isKeyboardPresented = false
             }
@@ -90,10 +94,12 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     providerHeader
                     providerContent
-                    Text("Screenshot images are uploaded transiently to your selected model provider for analysis. Zeptly does not save the image.")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(RezplyColor.outline)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Text(
+                        "Screenshot images are uploaded transiently to your selected model provider for analysis. Zeptly does not save the image."
+                    )
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(RezplyColor.outline)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
 
                 shortcutSection
@@ -208,7 +214,10 @@ struct SettingsView: View {
                     Circle()
                         .fill(Color.white.opacity(0.78))
                         .frame(width: 42, height: 42)
-                        .shadow(color: RezplyColor.primaryContainer.opacity(0.18), radius: 12, x: 0, y: 8)
+                        .shadow(
+                            color: RezplyColor.primaryContainer.opacity(0.18), radius: 12, x: 0,
+                            y: 8
+                        )
                         .overlay {
                             Image(systemName: "photo.badge.arrow.down")
                                 .font(.system(size: 18, weight: .medium))
@@ -220,10 +229,12 @@ struct SettingsView: View {
                             .font(.system(size: 17, weight: .bold, design: .rounded))
                             .foregroundStyle(RezplyColor.onSurface)
 
-                        Text("Takes a screenshot, imports the visible chat, and shows two suggested replies.")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundStyle(RezplyColor.onSurfaceVariant)
-                            .fixedSize(horizontal: false, vertical: true)
+                        Text(
+                            "Takes a screenshot, imports the visible chat, and shows two suggested replies."
+                        )
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(RezplyColor.onSurfaceVariant)
+                        .fixedSize(horizontal: false, vertical: true)
                     }
                 }
 
@@ -338,7 +349,8 @@ struct SettingsView: View {
             } catch {
                 await MainActor.run {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
-                        addProviderStatus = .failed("Could not test the provider. Check your network and try again.")
+                        addProviderStatus = .failed(
+                            "Could not test the provider. Check your network and try again.")
                     }
                 }
             }

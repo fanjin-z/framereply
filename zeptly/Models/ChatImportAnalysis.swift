@@ -83,9 +83,11 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
         messages = try container.decode([AnalyzedChatMessage].self, forKey: .messages)
         matchedChatID = try? container.decode(String.self, forKey: .matchedChatID)
         matchConfidence = (try? container.decode(Double.self, forKey: .matchConfidence)) ?? 0
-        conversationKind = (try? container.decode(ChatConversationKind.self, forKey: .conversationKind))
+        conversationKind =
+            (try? container.decode(ChatConversationKind.self, forKey: .conversationKind))
             ?? .unknown
-        titleSource = (try? container.decode(ChatTitleSource.self, forKey: .titleSource))
+        titleSource =
+            (try? container.decode(ChatTitleSource.self, forKey: .titleSource))
             ?? .unavailable
         avatarBounds = try? container.decode(NormalizedAvatarBounds.self, forKey: .avatarBounds)
         ownershipConvention = try container.decode(
@@ -96,17 +98,21 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
 
     func validated(candidateIDs: Set<String>) throws -> ChatImportAnalysis {
         guard !messages.isEmpty,
-            messages.allSatisfy({ !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
+            messages.allSatisfy({ !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            ),
             (0...1).contains(matchConfidence)
         else {
-            throw ProviderConnectionError.invalidResponse("The provider returned incomplete chat data.")
+            throw ProviderConnectionError.invalidResponse(
+                "The provider returned incomplete chat data.")
         }
 
         if let matchedChatID, !candidateIDs.contains(matchedChatID) {
-            throw ProviderConnectionError.invalidResponse("The provider returned an unknown chat match.")
+            throw ProviderConnectionError.invalidResponse(
+                "The provider returned an unknown chat match.")
         }
         if matchedChatID == nil, matchConfidence != 0 {
-            throw ProviderConnectionError.invalidResponse("The provider returned confidence without a chat match.")
+            throw ProviderConnectionError.invalidResponse(
+                "The provider returned confidence without a chat match.")
         }
 
         return self

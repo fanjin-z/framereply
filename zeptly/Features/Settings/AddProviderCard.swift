@@ -24,7 +24,7 @@ enum AddProviderStatus {
             nil
         case .connected:
             ("checkmark.circle.fill", "Provider connected and saved.", RezplyColor.connected)
-        case let .failed(message):
+        case .failed(let message):
             ("exclamationmark.triangle.fill", message, RezplyColor.peach)
         }
     }
@@ -174,7 +174,9 @@ struct AddProviderCard: View {
                         selectedPlatform = platform
                         selectedModel = platform.supportedModels.first
                     } label: {
-                        Text(platform.isConnectable ? platform.displayName : "\(platform.displayName) - Coming soon")
+                        Text(
+                            platform.isConnectable
+                                ? platform.displayName : "\(platform.displayName) - Coming soon")
                     }
                     .disabled(platform.isConnectable == false)
                 }
@@ -186,7 +188,8 @@ struct AddProviderCard: View {
 
                     Text(selectedPlatform?.displayName ?? "Select provider")
                         .font(.system(size: 16, weight: .regular, design: .rounded))
-                        .foregroundStyle(selectedPlatform == nil ? RezplyColor.outline : RezplyColor.onSurface)
+                        .foregroundStyle(
+                            selectedPlatform == nil ? RezplyColor.outline : RezplyColor.onSurface)
 
                     Spacer()
 
@@ -230,7 +233,8 @@ struct AddProviderCard: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(selectedModel?.displayName ?? "Select model")
                             .font(.system(size: 16, weight: .regular, design: .rounded))
-                            .foregroundStyle(selectedModel == nil ? RezplyColor.outline : RezplyColor.onSurface)
+                            .foregroundStyle(
+                                selectedModel == nil ? RezplyColor.outline : RezplyColor.onSurface)
 
                         if let selectedModel {
                             Text(selectedModel.rawValue)

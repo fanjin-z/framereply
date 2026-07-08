@@ -23,9 +23,12 @@ struct FloatingBottomNavigation: View {
                     }
                 } label: {
                     VStack(spacing: 6) {
-                        Image(systemName: selectedTab == tab ? "\(tab.symbolName).fill" : tab.symbolName)
-                            .font(.system(size: 23, weight: .medium))
-                            .frame(height: 24)
+                        Image(
+                            systemName: selectedTab == tab
+                                ? "\(tab.symbolName).fill" : tab.symbolName
+                        )
+                        .font(.system(size: 23, weight: .medium))
+                        .frame(height: 24)
 
                         Text(tab.rawValue)
                             .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -33,7 +36,9 @@ struct FloatingBottomNavigation: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
                     }
-                    .foregroundStyle(selectedTab == tab ? RezplyColor.primary : Color.black.opacity(0.78))
+                    .foregroundStyle(
+                        selectedTab == tab ? RezplyColor.primary : Color.black.opacity(0.78)
+                    )
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: 44)
                     .frame(height: 50)
@@ -41,7 +46,9 @@ struct FloatingBottomNavigation: View {
                         if selectedTab == tab {
                             Capsule(style: .continuous)
                                 .fill(RezplyColor.primaryContainer.opacity(0.8))
-                                .shadow(color: RezplyColor.primaryContainer.opacity(0.4), radius: 15, x: 0, y: 8)
+                                .shadow(
+                                    color: RezplyColor.primaryContainer.opacity(0.4), radius: 15,
+                                    x: 0, y: 8)
                         }
                     }
                 }

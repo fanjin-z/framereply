@@ -58,7 +58,8 @@ nonisolated enum ChatImportAnalysisDecoder {
             analysis.messages.allSatisfy({
                 !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     && (0...1).contains($0.senderConfidence)
-                    && ($0.quotedReply?.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != true)
+                    && ($0.quotedReply?.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        != true)
             })
         else {
             throw StructuredOutputFailure(kind: .incompleteMessages, codingPath: "messages")
@@ -96,10 +97,13 @@ nonisolated enum ChatImportAnalysisDecoder {
             titleSource = analysis.titleSource
         }
         let messages = analysis.messages.enumerated().map { index, message in
-            let resolved = resolvedSender(for: message, convention: analysis.ownershipConvention, kind: analysis.conversationKind)
+            let resolved = resolvedSender(
+                for: message, convention: analysis.ownershipConvention,
+                kind: analysis.conversationKind)
             guard resolved != message.sender else { return message }
 
-            notes.append("messages[\(index)].sender \(message.sender.rawValue) -> \(resolved.rawValue)")
+            notes.append(
+                "messages[\(index)].sender \(message.sender.rawValue) -> \(resolved.rawValue)")
             return AnalyzedChatMessage(
                 sender: resolved,
                 senderName: resolved == .user ? nil : message.senderName,
@@ -156,7 +160,8 @@ nonisolated enum ChatImportAnalysisDecoder {
         }
         for key in ["mode", "screenshotOwnerAlignment", "screenshotOwnerAuthorLabel"]
         where convention.keys.contains(key) == false {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "ownershipConvention.\(key)")
+            throw StructuredOutputFailure(
+                kind: .schemaMismatch, codingPath: "ownershipConvention.\(key)")
         }
         guard let messages = root["messages"] as? [[String: Any]] else {
             throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "messages")
@@ -167,7 +172,8 @@ nonisolated enum ChatImportAnalysisDecoder {
         ]
         for (index, message) in messages.enumerated() {
             for key in required where message.keys.contains(key) == false {
-                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "messages[\(index)].\(key)")
+                throw StructuredOutputFailure(
+                    kind: .schemaMismatch, codingPath: "messages[\(index)].\(key)")
             }
         }
     }
@@ -206,7 +212,9 @@ nonisolated enum ChatImportAnalysisDecoder {
             return .user
         }
         if visibleDecisions.allSatisfy({ !$0 }), !visibleDecisions.isEmpty {
-            return incomingSender(reported: message.sender, name: message.senderName ?? message.outerAuthorLabel, kind: kind)
+            return incomingSender(
+                reported: message.sender, name: message.senderName ?? message.outerAuthorLabel,
+                kind: kind)
         }
 
         guard convention.mode != .unobservable,
@@ -268,10 +276,11 @@ nonisolated enum ChatImportAnalysisDecoder {
         let path: [any CodingKey]
         let appendedKey: (any CodingKey)?
         switch error {
-        case let .keyNotFound(key, context):
+        case .keyNotFound(let key, let context):
             path = context.codingPath
             appendedKey = key
-        case let .typeMismatch(_, context), let .valueNotFound(_, context), let .dataCorrupted(context):
+        case .typeMismatch(_, let context), .valueNotFound(_, let context),
+            .dataCorrupted(let context):
             path = context.codingPath
             appendedKey = nil
         @unknown default:

@@ -19,7 +19,8 @@ final class ChatPersistenceTests: XCTestCase {
         let now = Date()
 
         XCTAssertEqual(
-            try repository.consumeDraftingInputIfReady(importID: current.id, operationID: operationID, now: now),
+            try repository.consumeDraftingInputIfReady(
+                importID: current.id, operationID: operationID, now: now),
             .pending
         )
         XCTAssertEqual(
@@ -29,11 +30,13 @@ final class ChatPersistenceTests: XCTestCase {
             .submitted
         )
         XCTAssertEqual(
-            try repository.consumeDraftingInputIfReady(importID: current.id, operationID: operationID, now: now),
+            try repository.consumeDraftingInputIfReady(
+                importID: current.id, operationID: operationID, now: now),
             .submitted("Make this warmer")
         )
         XCTAssertEqual(
-            try repository.consumeDraftingInputIfReady(importID: current.id, operationID: operationID, now: now),
+            try repository.consumeDraftingInputIfReady(
+                importID: current.id, operationID: operationID, now: now),
             .alreadyConsumed
         )
 
@@ -41,11 +44,13 @@ final class ChatPersistenceTests: XCTestCase {
         container.mainContext.insert(skipped)
         try container.mainContext.save()
         XCTAssertEqual(
-            try repository.resolveDraftingInput(" \n ", importID: skipped.id, operationID: operationID),
+            try repository.resolveDraftingInput(
+                " \n ", importID: skipped.id, operationID: operationID),
             .skipped
         )
         XCTAssertEqual(
-            try repository.consumeDraftingInputIfReady(importID: skipped.id, operationID: operationID),
+            try repository.consumeDraftingInputIfReady(
+                importID: skipped.id, operationID: operationID),
             .skipped
         )
 
@@ -53,19 +58,23 @@ final class ChatPersistenceTests: XCTestCase {
         container.mainContext.insert(expired)
         try container.mainContext.save()
         try repository.resolveDraftingInput(
-            "Old draft", importID: expired.id, operationID: operationID, now: now.addingTimeInterval(-901)
+            "Old draft", importID: expired.id, operationID: operationID,
+            now: now.addingTimeInterval(-901)
         )
         XCTAssertEqual(
-            try repository.consumeDraftingInputIfReady(importID: expired.id, operationID: operationID, now: now),
+            try repository.consumeDraftingInputIfReady(
+                importID: expired.id, operationID: operationID, now: now),
             .expired
         )
         XCTAssertEqual(
-            try repository.consumeDraftingInputIfReady(importID: expired.id, operationID: UUID(), now: now),
+            try repository.consumeDraftingInputIfReady(
+                importID: expired.id, operationID: UUID(), now: now),
             .operationMismatch
         )
 
         try repository.resolveDraftingInput(
-            "Another old draft", importID: expired.id, operationID: operationID, now: now.addingTimeInterval(-901)
+            "Another old draft", importID: expired.id, operationID: operationID,
+            now: now.addingTimeInterval(-901)
         )
         try repository.purgeExpiredDraftingInputs(now: now)
         XCTAssertNil(expired.draftingInput)
@@ -79,14 +88,16 @@ final class ChatPersistenceTests: XCTestCase {
         try container.mainContext.save()
 
         let staleRepository = ChatRepository(context: ModelContext(container))
-        XCTAssertEqual(try staleRepository.importRecord(id: record.id)?.draftingInputStateRaw, "pending")
+        XCTAssertEqual(
+            try staleRepository.importRecord(id: record.id)?.draftingInputStateRaw, "pending")
 
         let writer = ChatRepository(context: ModelContext(container))
         try writer.resolveDraftingInput("Use Friday", importID: record.id, operationID: operationID)
 
         let freshReader = ChatRepository(context: ModelContext(container))
         XCTAssertEqual(
-            try freshReader.consumeDraftingInputIfReady(importID: record.id, operationID: operationID),
+            try freshReader.consumeDraftingInputIfReady(
+                importID: record.id, operationID: operationID),
             .submitted("Use Friday")
         )
     }
@@ -266,7 +277,8 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertNil(try repository.suggestedReplyCache(chatID: outcome.chatID))
         XCTAssertEqual(try repository.messages(chatID: "target-chat").count, originalCount + 1)
         XCTAssertTrue(try repository.contactMemories(chatID: outcome.chatID).isEmpty)
-        XCTAssertEqual(try repository.contactMemories(chatID: "target-chat").map(\.text), ["Met on the trail"])
+        XCTAssertEqual(
+            try repository.contactMemories(chatID: "target-chat").map(\.text), ["Met on the trail"])
     }
 
     func testAtomicContactMemoriesPreserveMultilineTextAndMetadata() throws {
@@ -439,7 +451,10 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertTrue(outcome.reviewRequired)
         XCTAssertEqual(stored.senderKind, "unknown")
         XCTAssertEqual(stored.text, "I remember")
-        XCTAssertFalse(try repository.messages(chatID: "known-chat").contains { $0.text == "I live in Guangzhou" })
+        XCTAssertFalse(
+            try repository.messages(chatID: "known-chat").contains {
+                $0.text == "I live in Guangzhou"
+            })
         XCTAssertTrue(importBefore.requiresReview)
 
         try repository.resolveUnknownSender(messageID: stored.id, as: .contact)

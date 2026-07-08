@@ -27,7 +27,9 @@ struct ContactContextView: View {
                             .background {
                                 Circle()
                                     .fill(Color.white.opacity(0.68))
-                                    .shadow(color: RezplyColor.primaryContainer.opacity(0.12), radius: 18, x: 0, y: 10)
+                                    .shadow(
+                                        color: RezplyColor.primaryContainer.opacity(0.12),
+                                        radius: 18, x: 0, y: 10)
                             }
                     }
                     .buttonStyle(SoftPressButtonStyle())

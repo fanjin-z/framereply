@@ -1,12 +1,15 @@
 import UIKit
 import XCTest
+
 @testable import zeptly
 
 @MainActor
 final class AvatarIdentityServiceTests: XCTestCase {
     func testExtractsBoundedAvatarAndFindsUniqueNearDuplicate() throws {
-        let first = try XCTUnwrap(AvatarIdentityService.extract(from: screenshot(variant: 0), bounds: bounds))
-        let second = try XCTUnwrap(AvatarIdentityService.extract(from: screenshot(variant: 1), bounds: bounds))
+        let first = try XCTUnwrap(
+            AvatarIdentityService.extract(from: screenshot(variant: 0), bounds: bounds))
+        let second = try XCTUnwrap(
+            AvatarIdentityService.extract(from: screenshot(variant: 1), bounds: bounds))
 
         XCTAssertLessThanOrEqual(first.imageData.count, 40_000)
         let storedImage = try XCTUnwrap(UIImage(data: first.imageData))
@@ -15,7 +18,8 @@ final class AvatarIdentityServiceTests: XCTestCase {
             stored(id: "same", artifact: first),
             stored(id: "different", artifact: second)
         ]
-        let similarities = AvatarIdentityService.similarities(artifact: first, candidates: candidates)
+        let similarities = AvatarIdentityService.similarities(
+            artifact: first, candidates: candidates)
 
         XCTAssertEqual(AvatarIdentityService.uniqueStrongMatch(in: similarities), "same")
     }

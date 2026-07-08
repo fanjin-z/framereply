@@ -1,5 +1,6 @@
 import SwiftData
 import XCTest
+
 @testable import zeptly
 
 final class ScreenshotImportCoordinatorTests: XCTestCase {
@@ -88,13 +89,17 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         XCTAssertEqual(aiService.receivedImageData, imageData)
         XCTAssertEqual(aiService.receivedContext?.effectiveModel, .gpt54Mini)
         let messages = try repository.messages(chatID: "sarah-jenkins")
-        XCTAssertTrue(messages.contains { $0.text == "A newly imported reply" && $0.senderKind == "user" })
+        XCTAssertTrue(
+            messages.contains { $0.text == "A newly imported reply" && $0.senderKind == "user" })
         XCTAssertTrue(messages.contains { $0.text == "你好，很高兴认识你" && $0.senderKind == "contact" })
         XCTAssertTrue(messages.contains { $0.senderKind == "other" && $0.senderName == "Inna" })
-        XCTAssertTrue(reporter.events.contains { event in
-            guard case let .importCompleted(eventTraceID, _, _, _, inserted) = event else { return false }
-            return eventTraceID == traceID && inserted == 3
-        })
+        XCTAssertTrue(
+            reporter.events.contains { event in
+                guard case .importCompleted(let eventTraceID, _, _, _, let inserted) = event else {
+                    return false
+                }
+                return eventTraceID == traceID && inserted == 3
+            })
     }
 }
 

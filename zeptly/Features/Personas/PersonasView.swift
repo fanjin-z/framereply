@@ -17,7 +17,8 @@ struct PersonasView: View {
                     ForEach(records) { record in
                         PersonaCard(
                             persona: record.value,
-                            usageCount: (try? PersonaRepository().usageCount(personaID: record.id)) ?? 0,
+                            usageCount: (try? PersonaRepository().usageCount(personaID: record.id))
+                                ?? 0,
                             isDefault: defaultPersonaID == record.id,
                             onTap: { onPersonaTap(record.id) },
                             onSetDefault: { setDefault(record.id) },

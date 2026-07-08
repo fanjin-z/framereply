@@ -35,11 +35,12 @@ struct ChatMessageBubble: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
-                .frame(maxWidth: 360, alignment: frameAlignment)
+            .frame(maxWidth: 360, alignment: frameAlignment)
             .background {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(bubbleColor)
-                    .shadow(color: RezplyColor.primaryContainer.opacity(0.08), radius: 14, x: 0, y: 8)
+                    .shadow(
+                        color: RezplyColor.primaryContainer.opacity(0.08), radius: 14, x: 0, y: 8)
             }
 
             if !message.isFromUser || message.isSenderUnknown {
@@ -60,6 +61,7 @@ struct ChatMessageBubble: View {
         if message.isSenderUnknown {
             return RezplyColor.surfaceVariant.opacity(0.9)
         }
-        return message.isFromUser ? RezplyColor.primaryFixed.opacity(0.72) : Color.white.opacity(0.82)
+        return message.isFromUser
+            ? RezplyColor.primaryFixed.opacity(0.72) : Color.white.opacity(0.82)
     }
 }

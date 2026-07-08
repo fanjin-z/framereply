@@ -24,7 +24,8 @@ nonisolated enum ScreenshotShortcutConfiguration {
         }
 
         let components = url.pathComponents.filter { $0 != "/" }
-        guard components.count == 2, components[0] == "shortcuts", components[1].isEmpty == false else {
+        guard components.count == 2, components[0] == "shortcuts", components[1].isEmpty == false
+        else {
             return nil
         }
 

@@ -12,7 +12,7 @@ enum KeychainStoreError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case let .unexpectedStatus(status):
+        case .unexpectedStatus(let status):
             "Keychain returned OSStatus \(status)."
         case .invalidData:
             "Keychain returned unreadable data."

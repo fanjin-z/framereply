@@ -101,18 +101,35 @@ nonisolated struct OSLogImportEventReporter: ImportEventReporting {
 
     func record(_ event: ImportEvent) {
         switch event {
-        case let .stageStarted(traceID, stage):
-            logger.info("trace=\(traceID.diagnosticID, privacy: .public) stage=\(stage.rawValue, privacy: .public) event=started")
-        case let .providerAttempt(traceID, provider, model, attempt, maxTokens):
-            logger.info("trace=\(traceID.diagnosticID, privacy: .public) stage=provider event=attempt provider=\(provider, privacy: .public) model=\(model, privacy: .public) attempt=\(attempt) max_tokens=\(maxTokens)")
-        case let .providerResponse(traceID, provider, model, attempt, duration, status, requestID, finishReason, byteCount):
-            logger.info("trace=\(traceID.diagnosticID, privacy: .public) stage=provider event=response provider=\(provider, privacy: .public) model=\(model, privacy: .public) attempt=\(attempt) duration_ms=\(duration) status=\(status ?? 0) request_id=\(requestID ?? "none", privacy: .public) finish_reason=\(finishReason ?? "none", privacy: .public) bytes=\(byteCount)")
-        case let .structuredOutputFailure(traceID, provider, attempt, kind, codingPath):
-            logger.error("trace=\(traceID.diagnosticID, privacy: .public) stage=provider event=decode_failed provider=\(provider, privacy: .public) attempt=\(attempt) kind=\(kind.rawValue, privacy: .public) path=\(codingPath ?? "none", privacy: .public)")
-        case let .importCompleted(traceID, matchedExisting, reviewRequired, duplicate, insertedMessageCount):
-            logger.info("trace=\(traceID.diagnosticID, privacy: .public) stage=persistence event=completed matched=\(matchedExisting) review=\(reviewRequired) duplicate=\(duplicate) inserted=\(insertedMessageCount)")
-        case let .importFailed(traceID, stage, errorCode):
-            logger.error("trace=\(traceID.diagnosticID, privacy: .public) stage=\(stage.rawValue, privacy: .public) event=failed code=\(errorCode, privacy: .public)")
+        case .stageStarted(let traceID, let stage):
+            logger.info(
+                "trace=\(traceID.diagnosticID, privacy: .public) stage=\(stage.rawValue, privacy: .public) event=started"
+            )
+        case .providerAttempt(let traceID, let provider, let model, let attempt, let maxTokens):
+            logger.info(
+                "trace=\(traceID.diagnosticID, privacy: .public) stage=provider event=attempt provider=\(provider, privacy: .public) model=\(model, privacy: .public) attempt=\(attempt) max_tokens=\(maxTokens)"
+            )
+        case .providerResponse(
+            let traceID, let provider, let model, let attempt, let duration, let status,
+            let requestID, let finishReason, let byteCount):
+            logger.info(
+                "trace=\(traceID.diagnosticID, privacy: .public) stage=provider event=response provider=\(provider, privacy: .public) model=\(model, privacy: .public) attempt=\(attempt) duration_ms=\(duration) status=\(status ?? 0) request_id=\(requestID ?? "none", privacy: .public) finish_reason=\(finishReason ?? "none", privacy: .public) bytes=\(byteCount)"
+            )
+        case .structuredOutputFailure(
+            let traceID, let provider, let attempt, let kind, let codingPath):
+            logger.error(
+                "trace=\(traceID.diagnosticID, privacy: .public) stage=provider event=decode_failed provider=\(provider, privacy: .public) attempt=\(attempt) kind=\(kind.rawValue, privacy: .public) path=\(codingPath ?? "none", privacy: .public)"
+            )
+        case .importCompleted(
+            let traceID, let matchedExisting, let reviewRequired, let duplicate,
+            let insertedMessageCount):
+            logger.info(
+                "trace=\(traceID.diagnosticID, privacy: .public) stage=persistence event=completed matched=\(matchedExisting) review=\(reviewRequired) duplicate=\(duplicate) inserted=\(insertedMessageCount)"
+            )
+        case .importFailed(let traceID, let stage, let errorCode):
+            logger.error(
+                "trace=\(traceID.diagnosticID, privacy: .public) stage=\(stage.rawValue, privacy: .public) event=failed code=\(errorCode, privacy: .public)"
+            )
         }
     }
 }
@@ -151,7 +168,9 @@ nonisolated struct ShortcutLifecycleReporter: Sendable {
         let operation = operationID.uuidString.uppercased()
         let stateValue = state?.rawValue ?? "none"
         let inputValue = hasInput ?? false
-        logger.info("operation=\(operation, privacy: .public) event=\(stage.rawValue, privacy: .public) elapsed_ms=\(elapsed) state=\(stateValue, privacy: .public) has_input=\(inputValue)")
+        logger.info(
+            "operation=\(operation, privacy: .public) event=\(stage.rawValue, privacy: .public) elapsed_ms=\(elapsed) state=\(stateValue, privacy: .public) has_input=\(inputValue)"
+        )
     }
 }
 
@@ -165,10 +184,11 @@ nonisolated enum ChatImportDebugLogger {
         content: String?
     ) {
         #if DEBUG
-        let finish = finishReason ?? "none"
-        let header = "[ChatScreenshotAI][raw] trace=\(traceID.diagnosticID) provider=\(provider) model=\(model) attempt=\(attempt) finish=\(finish)"
-        Swift.print(header)
-        Swift.print(content ?? "<empty>")
+            let finish = finishReason ?? "none"
+            let header =
+                "[ChatScreenshotAI][raw] trace=\(traceID.diagnosticID) provider=\(provider) model=\(model) attempt=\(attempt) finish=\(finish)"
+            Swift.print(header)
+            Swift.print(content ?? "<empty>")
         #endif
     }
 
@@ -180,21 +200,24 @@ nonisolated enum ChatImportDebugLogger {
         attempt: Int
     ) {
         #if DEBUG
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        let content = (try? encoder.encode(analysis))
-            .flatMap { String(data: $0, encoding: .utf8) }
-            ?? "<encoding failed>"
-        Swift.print("[ChatScreenshotAI][normalized] trace=\(traceID.diagnosticID) provider=\(provider) model=\(model) attempt=\(attempt)")
-        Swift.print(content)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+            let content =
+                (try? encoder.encode(analysis))
+                .flatMap { String(data: $0, encoding: .utf8) }
+                ?? "<encoding failed>"
+            Swift.print(
+                "[ChatScreenshotAI][normalized] trace=\(traceID.diagnosticID) provider=\(provider) model=\(model) attempt=\(attempt)"
+            )
+            Swift.print(content)
         #endif
     }
 
     static func normalization(notes: [String]) {
         #if DEBUG
-        for note in notes {
-            Swift.print("[ChatScreenshotAI][sender-correction] \(note)")
-        }
+            for note in notes {
+                Swift.print("[ChatScreenshotAI][sender-correction] \(note)")
+            }
         #endif
     }
 }

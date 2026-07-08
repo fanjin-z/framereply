@@ -48,7 +48,8 @@ struct PersonaDetailView: View {
             }
         }
         .task { defaultPersonaID = try? PersonaRepository().defaultPersonaID() }
-        .interactiveSwipeBackEnabled().navigationBarBackButtonHidden(true).toolbar(.hidden, for: .navigationBar)
+        .interactiveSwipeBackEnabled().navigationBarBackButtonHidden(true).toolbar(
+            .hidden, for: .navigationBar)
     }
 
     private var topBar: some View {
@@ -58,7 +59,8 @@ struct PersonaDetailView: View {
                 dismiss()
             } label: {
                 Image(systemName: "chevron.left").font(.system(size: 20, weight: .semibold))
-                    .frame(width: 46, height: 46).background(Color.white.opacity(0.68), in: Circle())
+                    .frame(width: 46, height: 46).background(
+                        Color.white.opacity(0.68), in: Circle())
             }.buttonStyle(SoftPressButtonStyle())
             Spacer()
             if defaultPersonaID == personaID {
@@ -76,7 +78,8 @@ struct PersonaDetailView: View {
         HStack(alignment: .top, spacing: 16) {
             Circle().fill(persona.value.accent.opacity(0.14)).frame(width: 58, height: 58)
                 .overlay(
-                    Image(systemName: persona.symbolName).font(.system(size: 24)).foregroundStyle(persona.value.accent))
+                    Image(systemName: persona.symbolName).font(.system(size: 24)).foregroundStyle(
+                        persona.value.accent))
             VStack(alignment: .leading, spacing: 8) {
                 TextField("e.g. Work Mode", text: binding(persona, \.name))
                     .font(.system(size: 24, weight: .bold, design: .rounded))
@@ -85,7 +88,8 @@ struct PersonaDetailView: View {
                     text: binding(persona, \.summary), axis: .vertical
                 )
                 Label("\(assignments.count) chats", systemImage: "message")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(RezplyColor.outline)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(
+                        RezplyColor.outline)
             }
         }.padding(22).frame(maxWidth: .infinity, alignment: .leading).glassPanel(cornerRadius: 28)
     }
@@ -98,16 +102,20 @@ struct PersonaDetailView: View {
             TextEditor(text: binding(persona, \.instructions))
                 .overlay(alignment: .topLeading) {
                     if persona.instructions.isEmpty {
-                        Text("Example: For networking messages, mention the shared context, make one clear request, and give the other person an easy way to decline.")
-                            .foregroundStyle(RezplyColor.outline.opacity(0.7))
-                            .padding(.top, 8)
-                            .padding(.leading, 5)
-                            .allowsHitTesting(false)
+                        Text(
+                            "Example: For networking messages, mention the shared context, make one clear request, and give the other person an easy way to decline."
+                        )
+                        .foregroundStyle(RezplyColor.outline.opacity(0.7))
+                        .padding(.top, 8)
+                        .padding(.leading, 5)
+                        .allowsHitTesting(false)
                     }
                 }
                 .frame(minHeight: 130)
                 .scrollContentBackground(.hidden).padding(10)
-                .background(RezplyColor.secondaryContainer.opacity(0.28), in: RoundedRectangle(cornerRadius: 18))
+                .background(
+                    RezplyColor.secondaryContainer.opacity(0.28),
+                    in: RoundedRectangle(cornerRadius: 18))
         }.padding(22).glassPanel(cornerRadius: 28)
     }
 
@@ -135,7 +143,8 @@ struct PersonaDetailView: View {
                 TextField("Add an observation", text: $newObservation, axis: .vertical)
                 Button("Add") {
                     KeyboardDismissal.dismiss()
-                    try? PersonaRepository().addUserObservation(newObservation, personaID: personaID)
+                    try? PersonaRepository().addUserObservation(
+                        newObservation, personaID: personaID)
                     newObservation = ""
                 }.disabled(
                     newObservation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -143,7 +152,9 @@ struct PersonaDetailView: View {
             }.padding(14).background(
                 RezplyColor.secondaryContainer.opacity(0.2), in: RoundedRectangle(cornerRadius: 18))
 
-            if activeObservations.contains(where: { $0.origin == PersonaObservationOrigin.ai.rawValue }) {
+            if activeObservations.contains(where: {
+                $0.origin == PersonaObservationOrigin.ai.rawValue
+            }) {
                 Button("Clear Learned Observations", role: .destructive) {
                     try? PersonaRepository().clearLearnedObservations(personaID: personaID)
                 }.font(.caption.bold())
@@ -154,10 +165,14 @@ struct PersonaDetailView: View {
     private func observationRow(_ observation: PersonaObservationRecord) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Label(sourceLabel(observation), systemImage: observation.isUserProtected ? "lock.fill" : "sparkles")
-                    .font(.caption.bold()).foregroundStyle(RezplyColor.outline)
+                Label(
+                    sourceLabel(observation),
+                    systemImage: observation.isUserProtected ? "lock.fill" : "sparkles"
+                )
+                .font(.caption.bold()).foregroundStyle(RezplyColor.outline)
                 Spacer()
-                Text(observation.updatedAt, style: .date).font(.caption2).foregroundStyle(RezplyColor.outline)
+                Text(observation.updatedAt, style: .date).font(.caption2).foregroundStyle(
+                    RezplyColor.outline)
             }
             if editingID == observation.id {
                 TextField("Observation", text: $observationDraft, axis: .vertical)
@@ -167,9 +182,11 @@ struct PersonaDetailView: View {
                     Button("Cancel") { editingID = nil }
                     Button("Save") {
                         KeyboardDismissal.dismiss()
-                        try? PersonaRepository().updateObservation(observation, text: observationDraft)
+                        try? PersonaRepository().updateObservation(
+                            observation, text: observationDraft)
                         editingID = nil
-                    }.disabled(observationDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }.disabled(
+                        observationDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }.font(.caption.bold())
             } else {
                 Button {
@@ -180,7 +197,8 @@ struct PersonaDetailView: View {
                 }
                 .buttonStyle(.plain)
             }
-        }.padding(14).background(RezplyColor.secondaryContainer.opacity(0.28), in: RoundedRectangle(cornerRadius: 18))
+        }.padding(14).background(
+            RezplyColor.secondaryContainer.opacity(0.28), in: RoundedRectangle(cornerRadius: 18))
     }
 
     private var exampleCard: some View {
@@ -188,8 +206,11 @@ struct PersonaDetailView: View {
             SectionHeader(symbolName: "quote.bubble", title: "Teach It Your Voice")
             Text("Paste 3–10 messages you wrote, one per line.")
                 .font(.caption).foregroundStyle(RezplyColor.outline)
-            TextEditor(text: $examples).frame(minHeight: 120).scrollContentBackground(.hidden).padding(10)
-                .background(RezplyColor.secondaryContainer.opacity(0.28), in: RoundedRectangle(cornerRadius: 18))
+            TextEditor(text: $examples).frame(minHeight: 120).scrollContentBackground(.hidden)
+                .padding(10)
+                .background(
+                    RezplyColor.secondaryContainer.opacity(0.28),
+                    in: RoundedRectangle(cornerRadius: 18))
             if let exampleError { Text(exampleError).font(.caption).foregroundStyle(.red) }
             Button(isAnalyzing ? "Analyzing…" : "Analyze Examples") { analyzeExamples() }
                 .buttonStyle(SoftPressButtonStyle())
@@ -200,12 +221,15 @@ struct PersonaDetailView: View {
     private var historyCard: some View {
         DisclosureGroup(isExpanded: $showsHistory) {
             if inactiveObservations.isEmpty {
-                Text("No archived observations.").font(.caption).foregroundStyle(RezplyColor.outline).padding(.top, 8)
+                Text("No archived observations.").font(.caption).foregroundStyle(
+                    RezplyColor.outline
+                ).padding(.top, 8)
             } else {
                 ForEach(inactiveObservations) { observation in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(observation.text)
-                        Text(observation.status.capitalized).font(.caption2).foregroundStyle(RezplyColor.outline)
+                        Text(observation.status.capitalized).font(.caption2).foregroundStyle(
+                            RezplyColor.outline)
                     }.padding(.top, 10)
                 }
             }

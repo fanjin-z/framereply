@@ -16,7 +16,8 @@ final class ProviderStoreTests: XCTestCase {
             .gpt55
         )
         XCTAssertEqual(
-            registry.profile(for: .zaiInternational, selectedModel: .glm46VFlashX)?.suggestedReplyModel,
+            registry.profile(for: .zaiInternational, selectedModel: .glm46VFlashX)?
+                .suggestedReplyModel,
             .glm47FlashX
         )
         XCTAssertEqual(

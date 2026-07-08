@@ -243,7 +243,8 @@ final class SuggestedRepliesCoordinator {
         )
         let learningMessageIDs = Set(learningMessages.map(\.id))
         let validObservationChanges = generated.personaObservationChanges.filter {
-            $0.sourceMessageIDs.count >= 2 && $0.sourceMessageIDs.allSatisfy(learningMessageIDs.contains)
+            $0.sourceMessageIDs.count >= 2
+                && $0.sourceMessageIDs.allSatisfy(learningMessageIDs.contains)
         }
 
         // Input-specific output cannot affect summaries, memory, or persona
@@ -305,7 +306,9 @@ final class SuggestedRepliesCoordinator {
         cache: SuggestedReplyCacheRecord?
     ) -> SummaryPlan {
         guard !olderMessages.isEmpty else {
-            if let cache, cache.summarizedMessageCount == 0, cache.promptVersion == SuggestedReplyPrompt.version {
+            if let cache, cache.summarizedMessageCount == 0,
+                cache.promptVersion == SuggestedReplyPrompt.version
+            {
                 return SummaryPlan(mode: .unchanged, existingSummary: "", messages: [])
             }
             return SummaryPlan(mode: .rebuild, existingSummary: "", messages: [])
@@ -325,9 +328,11 @@ final class SuggestedRepliesCoordinator {
 
         let newMessages = Array(olderMessages.dropFirst(cache.summarizedMessageCount))
         if newMessages.isEmpty {
-            return SummaryPlan(mode: .unchanged, existingSummary: cache.historySummary, messages: [])
+            return SummaryPlan(
+                mode: .unchanged, existingSummary: cache.historySummary, messages: [])
         }
-        return SummaryPlan(mode: .incremental, existingSummary: cache.historySummary, messages: newMessages)
+        return SummaryPlan(
+            mode: .incremental, existingSummary: cache.historySummary, messages: newMessages)
     }
 
     private func promptMessage(_ message: ChatMessageRecord) -> SuggestedReplyPromptMessage {
@@ -434,7 +439,8 @@ final class SuggestedRepliesCoordinator {
     }
 
     private func digest(_ value: Any) -> String {
-        let data = (try? JSONSerialization.data(withJSONObject: value, options: [.sortedKeys])) ?? Data()
+        let data =
+            (try? JSONSerialization.data(withJSONObject: value, options: [.sortedKeys])) ?? Data()
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 

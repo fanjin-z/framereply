@@ -22,8 +22,10 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
 
         XCTAssertEqual(result.source, .generated)
         XCTAssertEqual(service.requests.count, 1)
-        XCTAssertEqual(service.requests[0].draftingInput, "Tell her Friday works, but make it warmer.")
-        XCTAssertTrue(SuggestedReplyPrompt.input(for: service.requests[0]).contains("Tell her Friday works"))
+        XCTAssertEqual(
+            service.requests[0].draftingInput, "Tell her Friday works, but make it warmer.")
+        XCTAssertTrue(
+            SuggestedReplyPrompt.input(for: service.requests[0]).contains("Tell her Friday works"))
 
         let cache = try XCTUnwrap(repository.suggestedReplyCache(chatID: chatID))
         XCTAssertEqual(cache.replies, result.replies)
@@ -169,7 +171,8 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let personas = PersonaRepository(container: container)
-        let thoughtfulID = try XCTUnwrap(try personas.personas().first { $0.name == "Thoughtful" }).id
+        let thoughtfulID = try XCTUnwrap(try personas.personas().first { $0.name == "Thoughtful" })
+            .id
         let chatID = "reply-chat"
         container.mainContext.insert(makeChat(id: chatID))
         container.mainContext.insert(
@@ -209,7 +212,8 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertEqual(client.requests[0].summaryMode, .rebuild)
         XCTAssertEqual(client.requests[0].olderMessagesToSummarize.count, 2)
         XCTAssertEqual(client.requests[0].recentMessages.count, 20)
-        XCTAssertEqual(client.requests[0].contactMemories.map(\.text), ["Met at university", "Vegetarian"])
+        XCTAssertEqual(
+            client.requests[0].contactMemories.map(\.text), ["Met at university", "Vegetarian"])
         XCTAssertEqual(client.models, [.glm47FlashX])
 
         let cached = try await coordinator.generate(chatID: chatID)

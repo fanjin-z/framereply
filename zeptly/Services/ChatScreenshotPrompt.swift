@@ -111,7 +111,9 @@ enum ChatScreenshotPrompt {
         "properties": [
             "conversationTitle": ["type": ["string", "null"]],
             "conversationKind": ["type": "string", "enum": ["direct", "group", "unknown"]],
-            "titleSource": ["type": "string", "enum": ["header", "participant_label", "unavailable"]],
+            "titleSource": [
+                "type": "string", "enum": ["header", "participant_label", "unavailable"]
+            ],
             "avatarBounds": [
                 "anyOf": [
                     ["type": "null"],
@@ -155,7 +157,9 @@ enum ChatScreenshotPrompt {
                         "outerAuthorLabel", "senderConfidence", "senderEvidence", "quotedReply"
                     ],
                     "properties": [
-                        "sender": ["type": "string", "enum": ["user", "contact", "other", "unknown"]],
+                        "sender": [
+                            "type": "string", "enum": ["user", "contact", "other", "unknown"]
+                        ],
                         "senderName": ["type": ["string", "null"]],
                         "text": ["type": "string"],
                         "timestampLabel": ["type": ["string", "null"]],

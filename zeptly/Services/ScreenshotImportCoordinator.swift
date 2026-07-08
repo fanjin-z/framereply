@@ -143,7 +143,8 @@ final class ScreenshotImportCoordinator {
             )
             throw error
         } catch {
-            eventReporter.record(.importFailed(traceID: traceID, stage: .provider, errorCode: "provider_error"))
+            eventReporter.record(
+                .importFailed(traceID: traceID, stage: .provider, errorCode: "provider_error"))
             throw error
         }
 
@@ -181,7 +182,8 @@ final class ScreenshotImportCoordinator {
             )
             return outcome
         } catch {
-            eventReporter.record(.importFailed(traceID: traceID, stage: .persistence, errorCode: "import_failed"))
+            eventReporter.record(
+                .importFailed(traceID: traceID, stage: .persistence, errorCode: "import_failed"))
             throw error
         }
     }

@@ -3,8 +3,8 @@
 //  zeptly
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct RezplyShellView_Previews: PreviewProvider {
     static var previews: some View {

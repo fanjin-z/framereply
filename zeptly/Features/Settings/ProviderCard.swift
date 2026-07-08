@@ -18,7 +18,9 @@ struct ProviderCard: View {
                 Circle()
                     .fill(Color.white.opacity(0.78))
                     .frame(width: 42, height: 42)
-                    .shadow(color: RezplyColor.primaryContainer.opacity(0.18), radius: 12, x: 0, y: 8)
+                    .shadow(
+                        color: RezplyColor.primaryContainer.opacity(0.18), radius: 12, x: 0, y: 8
+                    )
                     .overlay {
                         Image(systemName: provider.symbolName)
                             .font(.system(size: 18, weight: .medium))

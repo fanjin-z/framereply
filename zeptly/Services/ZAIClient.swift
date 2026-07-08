@@ -67,10 +67,12 @@ struct ZAIClient: AIProviderAdapter {
         var request = authorizedRequest(apiKey: apiKey)
         request.httpBody = try JSONSerialization.data(withJSONObject: [
             "model": model.rawValue,
-            "messages": [[
-                "role": "user",
-                "content": [["type": "text", "text": "Reply exactly: OK."]]
-            ]],
+            "messages": [
+                [
+                    "role": "user",
+                    "content": [["type": "text", "text": "Reply exactly: OK."]]
+                ]
+            ],
             "max_tokens": 64,
             "thinking": ["type": "disabled"],
             "do_sample": false,
@@ -85,7 +87,8 @@ struct ZAIClient: AIProviderAdapter {
             choice.finishReason == "stop",
             choice.message.content?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
         else {
-            throw ProviderConnectionError.invalidResponse("\(region.platform.displayName) did not return a completed text response.")
+            throw ProviderConnectionError.invalidResponse(
+                "\(region.platform.displayName) did not return a completed text response.")
         }
     }
 
@@ -330,13 +333,15 @@ struct ZAIClient: AIProviderAdapter {
         } catch let error as URLError {
             throw ProviderConnectionError.networkFailure(error.localizedDescription)
         } catch {
-            throw ProviderConnectionError.networkFailure("Could not reach \(region.platform.displayName). Check your network and try again.")
+            throw ProviderConnectionError.networkFailure(
+                "Could not reach \(region.platform.displayName). Check your network and try again.")
         }
     }
 
     private func validateHTTPResponse(_ response: URLResponse, data: Data) throws {
         guard let response = response as? HTTPURLResponse else {
-            throw ProviderConnectionError.invalidResponse("\(region.platform.displayName) returned an invalid HTTP response.")
+            throw ProviderConnectionError.invalidResponse(
+                "\(region.platform.displayName) returned an invalid HTTP response.")
         }
         switch response.statusCode {
         case 200..<300: return
@@ -356,7 +361,8 @@ struct ZAIClient: AIProviderAdapter {
                 )
             )
         default:
-            let message = (try? JSONDecoder().decode(ZAIErrorResponse.self, from: data))?.error.message
+            let message = (try? JSONDecoder().decode(ZAIErrorResponse.self, from: data))?.error
+                .message
             throw ProviderConnectionError.invalidResponse(
                 message ?? "\(region.platform.displayName) returned HTTP \(response.statusCode)."
             )
@@ -367,7 +373,8 @@ struct ZAIClient: AIProviderAdapter {
         do {
             return try JSONDecoder().decode(ZAIChatResponse.self, from: data)
         } catch {
-            throw ProviderConnectionError.invalidResponse("\(region.platform.displayName) returned an unexpected response.")
+            throw ProviderConnectionError.invalidResponse(
+                "\(region.platform.displayName) returned an unexpected response.")
         }
     }
 

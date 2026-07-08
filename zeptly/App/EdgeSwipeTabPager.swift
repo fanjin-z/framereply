@@ -125,11 +125,13 @@ enum TabSwipeNavigation {
         pageWidth: CGFloat,
         translation: CGSize
     ) -> CGFloat {
-        guard let direction = direction(
-            startX: startX,
-            pageWidth: pageWidth,
-            translation: translation
-        ) else {
+        guard
+            let direction = direction(
+                startX: startX,
+                pageWidth: pageWidth,
+                translation: translation
+            )
+        else {
             return 0
         }
 
@@ -152,11 +154,13 @@ enum TabSwipeNavigation {
         translation: CGSize,
         predictedEndTranslation: CGSize
     ) -> AppTab {
-        guard let direction = direction(
-            startX: startX,
-            pageWidth: pageWidth,
-            translation: translation
-        ), let adjacentTab = adjacentTab(from: tab, direction: direction) else {
+        guard
+            let direction = direction(
+                startX: startX,
+                pageWidth: pageWidth,
+                translation: translation
+            ), let adjacentTab = adjacentTab(from: tab, direction: direction)
+        else {
             return tab
         }
 

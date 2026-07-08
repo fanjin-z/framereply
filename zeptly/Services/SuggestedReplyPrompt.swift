@@ -78,7 +78,8 @@ nonisolated enum SuggestedReplyPrompt {
         let payload: [String: Any] = [
             "chatName": request.chatName,
             "relationshipSubtitle": request.relationshipSubtitle,
-            "contactMemories": request.contactMemories.filter { $0.status == .active }.map(memoryObject),
+            "contactMemories": request.contactMemories.filter { $0.status == .active }.map(
+                memoryObject),
             "currentInteractionGoal": request.currentInteractionGoal,
             "persona": personaObject(request.persona),
             "personaLearningMessages": request.personaLearningMessages.map(messageObject),
@@ -102,7 +103,9 @@ nonisolated enum SuggestedReplyPrompt {
             "items": [
                 "type": "object", "additionalProperties": false,
                 "properties": [
-                    "action": ["type": "string", "enum": ContactMemoryChangeAction.allCases.map(\.rawValue)],
+                    "action": [
+                        "type": "string", "enum": ContactMemoryChangeAction.allCases.map(\.rawValue)
+                    ],
                     targetKey: ["type": ["string", "null"]],
                     "text": ["type": ["string", "null"], "maxLength": 240],
                     "evidenceMessageIDs": [

@@ -64,14 +64,16 @@ struct AboutContactCard: View {
                     .accessibilityLabel("New memory about \(contactName)")
 
                 if draft.isEmpty {
-                    Text("e.g. We met at university, she’s vegetarian, and her daughter is named Mia…")
-                        .font(.system(size: 15, weight: .regular, design: .rounded))
-                        .foregroundStyle(RezplyColor.onSurface.opacity(0.62))
-                        .lineSpacing(4)
-                        .padding(.horizontal, 15)
-                        .padding(.vertical, 16)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
+                    Text(
+                        "e.g. We met at university, she’s vegetarian, and her daughter is named Mia…"
+                    )
+                    .font(.system(size: 15, weight: .regular, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurface.opacity(0.62))
+                    .lineSpacing(4)
+                    .padding(.horizontal, 15)
+                    .padding(.vertical, 16)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
                 }
             }
             .background {
@@ -88,7 +90,9 @@ struct AboutContactCard: View {
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .padding(.horizontal, 17)
                     .frame(height: 38)
-                    .foregroundStyle(trimmedDraft.isEmpty ? RezplyColor.outline : RezplyColor.primary)
+                    .foregroundStyle(
+                        trimmedDraft.isEmpty ? RezplyColor.outline : RezplyColor.primary
+                    )
                     .background {
                         Capsule(style: .continuous)
                             .fill(Color.white.opacity(0.48))
@@ -177,7 +181,9 @@ struct AboutContactCard: View {
 
     private func saveMemory(_ id: UUID) {
         let trimmed = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let index = memories.firstIndex(where: { $0.id == id }) else { return }
+        guard !trimmed.isEmpty, let index = memories.firstIndex(where: { $0.id == id }) else {
+            return
+        }
         KeyboardDismissal.dismiss()
         memories[index].text = trimmed
         memories[index].origin = .user
@@ -196,8 +202,8 @@ struct AboutContactCard: View {
     }
 }
 
-private extension View {
-    func memoryRowBackground() -> some View {
+extension View {
+    fileprivate func memoryRowBackground() -> some View {
         background {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(RezplyColor.secondaryContainer.opacity(0.32))

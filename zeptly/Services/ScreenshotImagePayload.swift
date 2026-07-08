@@ -21,7 +21,8 @@ nonisolated struct ScreenshotImagePayload: Equatable, Sendable {
         {
             mimeType = "image/webp"
         } else {
-            throw ProviderConnectionError.invalidResponse("The screenshot image format is not supported.")
+            throw ProviderConnectionError.invalidResponse(
+                "The screenshot image format is not supported.")
         }
 
         dataURL = "data:\(mimeType);base64,\(data.base64EncodedString())"

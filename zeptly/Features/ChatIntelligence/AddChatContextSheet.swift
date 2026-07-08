@@ -54,12 +54,14 @@ struct AddChatContextSheet: View {
                         .frame(minHeight: 180)
 
                     if note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text("Add what happened offline, what you want to accomplish, or anything the screenshot might miss...")
-                            .font(.system(size: 16, weight: .regular, design: .rounded))
-                            .foregroundStyle(RezplyColor.outline)
-                            .lineSpacing(4)
-                            .padding(20)
-                            .allowsHitTesting(false)
+                        Text(
+                            "Add what happened offline, what you want to accomplish, or anything the screenshot might miss..."
+                        )
+                        .font(.system(size: 16, weight: .regular, design: .rounded))
+                        .foregroundStyle(RezplyColor.outline)
+                        .lineSpacing(4)
+                        .padding(20)
+                        .allowsHitTesting(false)
                     }
                 }
                 .glassPanel(cornerRadius: 24)

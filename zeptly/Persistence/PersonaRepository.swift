@@ -57,16 +57,20 @@ final class PersonaRepository {
     }
 
     func persona(id: UUID) throws -> PersonaRecord? {
-        try context.fetch(FetchDescriptor<PersonaRecord>(predicate: #Predicate { $0.id == id })).first
+        try context.fetch(FetchDescriptor<PersonaRecord>(predicate: #Predicate { $0.id == id }))
+            .first
     }
 
-    func observations(personaID: UUID, includeInactive: Bool = false) throws -> [PersonaObservationRecord] {
+    func observations(personaID: UUID, includeInactive: Bool = false) throws
+        -> [PersonaObservationRecord]
+    {
         var descriptor = FetchDescriptor<PersonaObservationRecord>(
             predicate: #Predicate { $0.personaID == personaID }
         )
         descriptor.sortBy = [SortDescriptor(\.createdAt), SortDescriptor(\.id)]
         let records = try context.fetch(descriptor)
-        return includeInactive ? records : records.filter { $0.status == PersonaObservationStatus.active.rawValue }
+        return includeInactive
+            ? records : records.filter { $0.status == PersonaObservationStatus.active.rawValue }
     }
 
     func defaultPersonaID() throws -> UUID {
@@ -93,7 +97,8 @@ final class PersonaRepository {
         if let record = try metadata(Self.defaultPersonaKey) {
             record.value = id.uuidString.lowercased()
         } else {
-            context.insert(StoreMetadataRecord(key: Self.defaultPersonaKey, value: id.uuidString.lowercased()))
+            context.insert(
+                StoreMetadataRecord(key: Self.defaultPersonaKey, value: id.uuidString.lowercased()))
         }
     }
 
@@ -118,7 +123,9 @@ final class PersonaRepository {
             accentKey: accentKey, instructions: cleaned(instructions)
         )
         context.insert(record)
-        for observation in uniqueActive(observations).prefix(PersonaLimits.maximumActiveObservations) {
+        for observation in uniqueActive(observations).prefix(
+            PersonaLimits.maximumActiveObservations)
+        {
             context.insert(PersonaObservationRecord(personaID: record.id, value: observation))
         }
         try context.save()
@@ -140,7 +147,8 @@ final class PersonaRepository {
     }
 
     func addUserObservation(_ text: String, personaID: UUID) throws {
-        guard try observations(personaID: personaID).count < PersonaLimits.maximumActiveObservations else {
+        guard try observations(personaID: personaID).count < PersonaLimits.maximumActiveObservations
+        else {
             throw PersonaRepositoryError.observationLimitReached
         }
         let value = cleaned(text)
@@ -191,17 +199,24 @@ final class PersonaRepository {
 
     func usageCount(personaID: UUID) throws -> Int {
         try context.fetchCount(
-            FetchDescriptor<ContactContextRecord>(predicate: #Predicate { $0.personaID == personaID }))
+            FetchDescriptor<ContactContextRecord>(
+                predicate: #Predicate { $0.personaID == personaID }))
     }
 
-    func assign(personaID: UUID, to contextRecord: ContactContextRecord, at date: Date = Date()) throws {
-        guard try persona(id: personaID) != nil, contextRecord.personaID != personaID else { return }
+    func assign(personaID: UUID, to contextRecord: ContactContextRecord, at date: Date = Date())
+        throws
+    {
+        guard try persona(id: personaID) != nil, contextRecord.personaID != personaID else {
+            return
+        }
         contextRecord.personaID = personaID
         contextRecord.personaAssignedAt = date
         try context.save()
     }
 
-    func setLearningEnabled(_ enabled: Bool, for record: PersonaRecord, at date: Date = Date()) throws {
+    func setLearningEnabled(_ enabled: Bool, for record: PersonaRecord, at date: Date = Date())
+        throws
+    {
         record.learningEnabled = enabled
         if enabled { record.learningEnabledAt = date }
         record.updatedAt = date
@@ -213,8 +228,11 @@ final class PersonaRepository {
         let currentDefault = try defaultPersonaID()
         let fallbackID: UUID
         if record.id == currentDefault {
-            guard let replacementDefaultID else { throw PersonaRepositoryError.replacementDefaultRequired }
-            guard replacementDefaultID != record.id, try persona(id: replacementDefaultID) != nil else {
+            guard let replacementDefaultID else {
+                throw PersonaRepositoryError.replacementDefaultRequired
+            }
+            guard replacementDefaultID != record.id, try persona(id: replacementDefaultID) != nil
+            else {
                 throw PersonaRepositoryError.invalidDefaultPersona
             }
             fallbackID = replacementDefaultID
@@ -226,7 +244,8 @@ final class PersonaRepository {
         do {
             let deletedID = record.id
             for contact in try context.fetch(
-                FetchDescriptor<ContactContextRecord>(predicate: #Predicate { $0.personaID == deletedID }))
+                FetchDescriptor<ContactContextRecord>(
+                    predicate: #Predicate { $0.personaID == deletedID }))
             {
                 contact.personaID = fallbackID
                 contact.personaAssignedAt = Date()
@@ -235,7 +254,8 @@ final class PersonaRepository {
                 context.delete(observation)
             }
             for receipt in try context.fetch(
-                FetchDescriptor<PersonaLearningReceiptRecord>(predicate: #Predicate { $0.personaID == deletedID }))
+                FetchDescriptor<PersonaLearningReceiptRecord>(
+                    predicate: #Predicate { $0.personaID == deletedID }))
             {
                 context.delete(receipt)
             }
@@ -247,7 +267,9 @@ final class PersonaRepository {
         }
     }
 
-    static func promptContext(record: PersonaRecord, observations: [PersonaObservationRecord]) -> PersonaPromptContext {
+    static func promptContext(record: PersonaRecord, observations: [PersonaObservationRecord])
+        -> PersonaPromptContext
+    {
         let values = observations.map(\.value)
         let active =
             values
@@ -296,12 +318,16 @@ final class PersonaRepository {
     }
 
     private func metadata(_ key: String) throws -> StoreMetadataRecord? {
-        try context.fetch(FetchDescriptor<StoreMetadataRecord>(predicate: #Predicate { $0.key == key })).first
+        try context.fetch(
+            FetchDescriptor<StoreMetadataRecord>(predicate: #Predicate { $0.key == key })
+        ).first
     }
 
     private func containsActive(text: String, personaID: UUID) throws -> Bool {
         let normalized = cleaned(text).lowercased()
-        return try observations(personaID: personaID).contains { cleaned($0.text).lowercased() == normalized }
+        return try observations(personaID: personaID).contains {
+            cleaned($0.text).lowercased() == normalized
+        }
     }
 
     private func uniqueActive(_ values: [PersonaObservation]) -> [PersonaObservation] {

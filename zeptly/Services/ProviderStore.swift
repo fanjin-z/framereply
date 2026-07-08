@@ -68,7 +68,8 @@ final class ProviderStore: ObservableObject {
     }
 
     func connect(platform: ProviderPlatform, model: ProviderModel, apiKey: String) async throws {
-        guard platform.isConnectable, registry.profile(for: platform, selectedModel: model) != nil else {
+        guard platform.isConnectable, registry.profile(for: platform, selectedModel: model) != nil
+        else {
             throw ProviderConnectionError.unsupportedProvider
         }
 
@@ -129,7 +130,8 @@ final class ProviderStore: ObservableObject {
 
         if activePlatform == platform {
             let nextIndex = providers.index(after: removedIndex)
-            activePlatform = nextIndex < providers.endIndex
+            activePlatform =
+                nextIndex < providers.endIndex
                 ? providers[nextIndex].platform
                 : providers.first(where: { $0.platform != platform })?.platform
         }
@@ -199,8 +201,7 @@ final class ProviderStore: ObservableObject {
             return nil
         }
 
-        if
-            let rawValue = userDefaults.string(forKey: key),
+        if let rawValue = userDefaults.string(forKey: key),
             let savedPlatform = ProviderPlatform(rawValue: rawValue),
             providers.contains(where: { $0.platform == savedPlatform })
         {

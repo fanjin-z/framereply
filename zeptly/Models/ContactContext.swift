@@ -110,7 +110,9 @@ nonisolated enum ContactMemoryReconciler {
 
             case .update:
                 guard let targetID = change.targetMemoryID,
-                    let targetIndex = result.firstIndex(where: { $0.id == targetID && $0.status == .active }),
+                    let targetIndex = result.firstIndex(where: {
+                        $0.id == targetID && $0.status == .active
+                    }),
                     let text = cleaned(change.text)
                 else {
                     continue
@@ -162,7 +164,9 @@ nonisolated enum ContactMemoryReconciler {
 
             case .archive:
                 guard let targetID = change.targetMemoryID,
-                    let targetIndex = result.firstIndex(where: { $0.id == targetID && $0.status == .active })
+                    let targetIndex = result.firstIndex(where: {
+                        $0.id == targetID && $0.status == .active
+                    })
                 else {
                     continue
                 }

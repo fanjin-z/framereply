@@ -35,7 +35,8 @@ final class PersonaExampleAnalyzer {
             chatName: "Writing samples",
             relationshipSubtitle: "",
             contactMemories: [],
-            currentInteractionGoal: "Analyze the supplied writing examples. Replies are incidental.",
+            currentInteractionGoal:
+                "Analyze the supplied writing examples. Replies are incidental.",
             persona: persona,
             personaLearningMessages: messages,
             existingHistorySummary: "",

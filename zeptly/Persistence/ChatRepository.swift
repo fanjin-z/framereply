@@ -131,7 +131,8 @@ final class ChatRepository {
 
     func suggestedReplyCache(chatID: String) throws -> SuggestedReplyCacheRecord? {
         try context.fetch(
-            FetchDescriptor<SuggestedReplyCacheRecord>(predicate: #Predicate { $0.chatID == chatID })
+            FetchDescriptor<SuggestedReplyCacheRecord>(
+                predicate: #Predicate { $0.chatID == chatID })
         ).first
     }
 
@@ -219,12 +220,14 @@ final class ChatRepository {
     }
 
     func persona(id: UUID) throws -> PersonaRecord? {
-        try context.fetch(FetchDescriptor<PersonaRecord>(predicate: #Predicate { $0.id == id })).first
+        try context.fetch(FetchDescriptor<PersonaRecord>(predicate: #Predicate { $0.id == id }))
+            .first
     }
 
     func personaObservations(personaID: UUID) throws -> [PersonaObservationRecord] {
         try context.fetch(
-            FetchDescriptor<PersonaObservationRecord>(predicate: #Predicate { $0.personaID == personaID })
+            FetchDescriptor<PersonaObservationRecord>(
+                predicate: #Predicate { $0.personaID == personaID })
         )
     }
 
@@ -267,7 +270,9 @@ final class ChatRepository {
                     })
             ).map(\.messageID))
         return try messages(chatID: chatID)
-            .filter { $0.senderKind == "user" && $0.createdAt >= cutoff && !receiptIDs.contains($0.id) }
+            .filter {
+                $0.senderKind == "user" && $0.createdAt >= cutoff && !receiptIDs.contains($0.id)
+            }
             .prefix(limit)
             .map { $0 }
     }
@@ -306,15 +311,18 @@ final class ChatRepository {
             )
             let now = Date()
             for messageID in learningMessageIDs {
-                let key = "\(personaID.uuidString.lowercased())|\(messageID.uuidString.lowercased())"
+                let key =
+                    "\(personaID.uuidString.lowercased())|\(messageID.uuidString.lowercased())"
                 let exists =
                     try context.fetch(
-                        FetchDescriptor<PersonaLearningReceiptRecord>(predicate: #Predicate { $0.key == key })
+                        FetchDescriptor<PersonaLearningReceiptRecord>(
+                            predicate: #Predicate { $0.key == key })
                     ).first != nil
                 if !exists {
                     context.insert(
                         PersonaLearningReceiptRecord(
-                            personaID: personaID, chatID: chatID, messageID: messageID, analyzedAt: now))
+                            personaID: personaID, chatID: chatID, messageID: messageID,
+                            analyzedAt: now))
                 }
             }
             if !learningMessageIDs.isEmpty, let persona = try persona(id: personaID) {
@@ -506,7 +514,8 @@ final class ChatRepository {
         case .add:
             guard change.targetObservationID == nil,
                 let text = cleanedObservation(change.text),
-                values.filter({ $0.status == .active }).count < PersonaLimits.maximumActiveObservations,
+                values.filter({ $0.status == .active }).count
+                    < PersonaLimits.maximumActiveObservations,
                 !values.contains(where: { normalized($0.text) == normalized(text) })
             else { return }
             values.append(
@@ -517,10 +526,14 @@ final class ChatRepository {
                 ))
         case .update:
             guard let target = change.targetObservationID,
-                let index = values.firstIndex(where: { $0.id == target && $0.status == .active && !$0.isUserProtected }
+                let index = values.firstIndex(where: {
+                    $0.id == target && $0.status == .active && !$0.isUserProtected
+                }
                 ),
                 let text = cleanedObservation(change.text),
-                !values.contains(where: { $0.id != target && normalized($0.text) == normalized(text) })
+                !values.contains(where: {
+                    $0.id != target && normalized($0.text) == normalized(text)
+                })
             else { return }
             let replacement = PersonaRepository.makeObservation(
                 text: text, origin: .ai, isUserProtected: false,
@@ -533,7 +546,9 @@ final class ChatRepository {
             values.append(replacement)
         case .archive:
             guard let target = change.targetObservationID,
-                let index = values.firstIndex(where: { $0.id == target && $0.status == .active && !$0.isUserProtected })
+                let index = values.firstIndex(where: {
+                    $0.id == target && $0.status == .active && !$0.isUserProtected
+                })
             else { return }
             values[index].status = .archived
             values[index].updatedAt = now
@@ -588,7 +603,8 @@ final class ChatRepository {
         let importRecords = try imports(chatID: chatID)
         let replyCache = try suggestedReplyCache(chatID: chatID)
         let learningReceipts = try context.fetch(
-            FetchDescriptor<PersonaLearningReceiptRecord>(predicate: #Predicate { $0.chatID == chatID })
+            FetchDescriptor<PersonaLearningReceiptRecord>(
+                predicate: #Predicate { $0.chatID == chatID })
         )
 
         for message in messageRecords {
@@ -621,7 +637,8 @@ final class ChatRepository {
 
     func matchCandidates(recentMessageLimit: Int = 12) throws -> [ChatMatchCandidate] {
         try chats().map { chat in
-            let recentMessages = try messages(chatID: chat.id).suffix(recentMessageLimit).map { message in
+            let recentMessages = try messages(chatID: chat.id).suffix(recentMessageLimit).map {
+                message in
                 let sender: String
                 if message.senderKind == "other" {
                     sender = ChatImportMatcher.senderKey(.other, name: message.senderName)
@@ -718,7 +735,8 @@ final class ChatRepository {
 
         if let latestMessage = mergeResult.messages.last {
             targetChat.preview = latestMessage.text
-            targetChat.lastActivityLabel = latestMessage.timeLabel.isEmpty ? "Just now" : latestMessage.timeLabel
+            targetChat.lastActivityLabel =
+                latestMessage.timeLabel.isEmpty ? "Just now" : latestMessage.timeLabel
         }
         targetChat.updatedAt = Date()
 
@@ -748,7 +766,9 @@ final class ChatRepository {
             isDuplicate: isDuplicate,
             requiresReview: requiresReview,
             matchDisposition: matchDecision?.disposition.rawValue
-                ?? (matchedExisting ? ChatMatchDisposition.confirmed.rawValue : ChatMatchDisposition.review.rawValue),
+                ?? (matchedExisting
+                    ? ChatMatchDisposition.confirmed.rawValue
+                    : ChatMatchDisposition.review.rawValue),
             suggestedChatID: matchDecision?.suggestedChatID,
             matchReason: matchDecision?.reason.rawValue,
             avatarEvidence: matchDecision?.avatarEvidence.rawValue,
@@ -823,7 +843,8 @@ final class ChatRepository {
         case .other:
             let trimmedName = participantName?.trimmingCharacters(in: .whitespacesAndNewlines)
             message.senderKind = "other"
-            message.senderName = trimmedName?.isEmpty == false ? trimmedName : (message.senderName ?? "Participant")
+            message.senderName =
+                trimmedName?.isEmpty == false ? trimmedName : (message.senderName ?? "Participant")
         case .unknown:
             return
         }
@@ -897,7 +918,9 @@ final class ChatRepository {
         for importRecord in provisionalImports {
             importRecord.chatID = targetChatID
             importRecord.transcriptFingerprint = nil
-            importRecord.requiresReview = mergeResult.messages.contains { $0.senderKind == "unknown" }
+            importRecord.requiresReview = mergeResult.messages.contains {
+                $0.senderKind == "unknown"
+            }
             importRecord.matchDisposition = ChatMatchDisposition.confirmed.rawValue
             importRecord.matchReason = "manual_review_merge"
         }
@@ -910,7 +933,8 @@ final class ChatRepository {
             quality >= 0.08,
             revision == AvatarArtifact.algorithmRevision,
             targetChat.avatarData == nil
-                || (provisionalChat.avatarUpdatedAt ?? .distantPast) >= (targetChat.avatarUpdatedAt ?? .distantPast)
+                || (provisionalChat.avatarUpdatedAt ?? .distantPast)
+                    >= (targetChat.avatarUpdatedAt ?? .distantPast)
         {
             targetChat.avatarData = data
             targetChat.avatarPerceptualHash = hash
@@ -923,7 +947,8 @@ final class ChatRepository {
 
         if let latestMessage = mergeResult.messages.last {
             targetChat.preview = latestMessage.text
-            targetChat.lastActivityLabel = latestMessage.timeLabel.isEmpty ? "Just now" : latestMessage.timeLabel
+            targetChat.lastActivityLabel =
+                latestMessage.timeLabel.isEmpty ? "Just now" : latestMessage.timeLabel
         }
         targetChat.updatedAt = Date()
         try refreshImportReviewState(chatID: targetChatID)
@@ -936,7 +961,9 @@ final class ChatRepository {
         }
     }
 
-    private func makeMessageRecord(_ message: ChatMessage, chatID: String, sortIndex: Int) -> ChatMessageRecord {
+    private func makeMessageRecord(_ message: ChatMessage, chatID: String, sortIndex: Int)
+        -> ChatMessageRecord
+    {
         let senderKind: String
         let senderName: String?
         switch message.sender {
@@ -966,7 +993,9 @@ final class ChatRepository {
         )
     }
 
-    private func makeContactRecord(_ contact: ContactContext, chatID: String) -> ContactContextRecord {
+    private func makeContactRecord(_ contact: ContactContext, chatID: String)
+        -> ContactContextRecord
+    {
         return ContactContextRecord(
             chatID: chatID,
             relationshipSubtitle: contact.relationshipSubtitle,

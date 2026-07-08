@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+
 @testable import zeptly
 
 final class ProviderValidatorTests: XCTestCase {
@@ -41,7 +42,8 @@ final class ProviderValidatorTests: XCTestCase {
     func testOpenAIUsesOneSelectedModelProbe() async throws {
         URLProtocolStub.stub(
             statusCode: 200,
-            body: #"{"id":"resp_1","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
+            body:
+                #"{"id":"resp_1","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
         )
 
         try await OpenAIClient(session: makeSession()).validate(
@@ -71,18 +73,25 @@ final class ProviderValidatorTests: XCTestCase {
         await assertInvalidResponse(
             from: OpenAIClient(session: makeSession()),
             model: .gpt54Mini,
-            body: #"{"id":"resp_1","status":"incomplete","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
+            body:
+                #"{"id":"resp_1","status":"incomplete","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
         )
     }
 
     @MainActor
     func testProvidersMapHTTPFailures() async {
         let validator = ZAIClient(region: .international, session: makeSession())
-        await assertHTTPError(.invalidKey, statusCode: 401, validator: validator, model: .glm46VFlashX)
-        await assertHTTPError(.insufficientBalance, statusCode: 402, validator: validator, model: .glm46VFlashX)
-        await assertHTTPError(.rateLimited, statusCode: 429, validator: validator, model: .glm46VFlashX)
-        await assertHTTPError(.providerUnavailable, statusCode: 503, validator: validator, model: .glm46VFlashX)
-        await assertHTTPError(.invalidKey, statusCode: 401, validator: OpenAIClient(session: makeSession()), model: .gpt54Mini)
+        await assertHTTPError(
+            .invalidKey, statusCode: 401, validator: validator, model: .glm46VFlashX)
+        await assertHTTPError(
+            .insufficientBalance, statusCode: 402, validator: validator, model: .glm46VFlashX)
+        await assertHTTPError(
+            .rateLimited, statusCode: 429, validator: validator, model: .glm46VFlashX)
+        await assertHTTPError(
+            .providerUnavailable, statusCode: 503, validator: validator, model: .glm46VFlashX)
+        await assertHTTPError(
+            .invalidKey, statusCode: 401, validator: OpenAIClient(session: makeSession()),
+            model: .gpt54Mini)
         await assertHTTPError(
             .insufficientBalance,
             statusCode: 429,
@@ -97,14 +106,17 @@ final class ProviderValidatorTests: XCTestCase {
             validator: OpenAIClient(session: makeSession()),
             model: .gpt54Mini
         )
-        await assertHTTPError(.providerUnavailable, statusCode: 500, validator: OpenAIClient(session: makeSession()), model: .gpt54Mini)
+        await assertHTTPError(
+            .providerUnavailable, statusCode: 500, validator: OpenAIClient(session: makeSession()),
+            model: .gpt54Mini)
     }
 
     @MainActor
     func testZAIRetainsInvalidRequestMetadataAndMapsShortcutCode() async {
         URLProtocolStub.stub(
             statusCode: 400,
-            body: #"{"error":{"code":1214,"message":"Invalid API parameter, please check the documentation."}}"#
+            body:
+                #"{"error":{"code":1214,"message":"Invalid API parameter, please check the documentation."}}"#
         )
 
         do {
@@ -114,14 +126,16 @@ final class ProviderValidatorTests: XCTestCase {
             )
             XCTFail("Expected invalid request")
         } catch let error as ProviderConnectionError {
-            guard case let .invalidRequest(details) = error else {
+            guard case .invalidRequest(let details) = error else {
                 return XCTFail("Expected invalidRequest, got \(error)")
             }
             XCTAssertEqual(details.provider, ProviderPlatform.zhipuChina.rawValue)
             XCTAssertEqual(details.httpStatus, 400)
             XCTAssertEqual(details.providerCode, "1214")
             XCTAssertEqual(error.shortcutErrorCode, "provider_invalid_request")
-            XCTAssertEqual(error.localizedDescription, "Invalid API parameter, please check the documentation.")
+            XCTAssertEqual(
+                error.localizedDescription, "Invalid API parameter, please check the documentation."
+            )
             XCTAssertFalse(String(describing: details).contains("key"))
         } catch {
             XCTFail("Unexpected error: \(error)")

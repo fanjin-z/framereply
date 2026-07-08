@@ -33,7 +33,8 @@ struct GlassPanel: ViewModifier {
                                 lineWidth: 1
                             )
                     }
-                    .shadow(color: RezplyColor.primaryContainer.opacity(0.16), radius: 24, x: 0, y: 16)
+                    .shadow(
+                        color: RezplyColor.primaryContainer.opacity(0.16), radius: 24, x: 0, y: 16)
             }
     }
 }

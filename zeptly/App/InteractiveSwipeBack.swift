@@ -110,7 +110,8 @@ final class InteractivePopGestureDelegate: NSObject, UIGestureRecognizerDelegate
 
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard let navigationController,
-              gestureRecognizer === navigationController.interactivePopGestureRecognizer else {
+            gestureRecognizer === navigationController.interactivePopGestureRecognizer
+        else {
             return false
         }
 

@@ -49,11 +49,11 @@ nonisolated enum ProviderConnectionError: LocalizedError, Sendable {
             "This provider is rate limiting the key. Wait a moment and try again."
         case .providerUnavailable:
             "This provider is temporarily unavailable. Try again shortly."
-        case let .invalidRequest(error):
+        case .invalidRequest(let error):
             error.message
-        case let .invalidResponse(message):
+        case .invalidResponse(let message):
             message
-        case let .structuredOutput(error):
+        case .structuredOutput(let error):
             switch error.failure.kind {
             case .emptyResponse:
                 "The provider returned an empty response."
@@ -68,9 +68,9 @@ nonisolated enum ProviderConnectionError: LocalizedError, Sendable {
             case .incompleteMessages:
                 "The provider returned incomplete chat messages."
             }
-        case let .networkFailure(message):
+        case .networkFailure(let message):
             message
-        case let .keychainFailure(message):
+        case .keychainFailure(let message):
             "The API key was valid, but Zeptly could not save it securely. \(message)"
         case .unsupportedProvider:
             "This provider is not available yet."
@@ -81,7 +81,7 @@ nonisolated enum ProviderConnectionError: LocalizedError, Sendable {
         switch self {
         case .invalidRequest:
             "provider_invalid_request"
-        case let .structuredOutput(error):
+        case .structuredOutput(let error):
             error.failure.kind.shortcutErrorCode
         default:
             "provider_error"

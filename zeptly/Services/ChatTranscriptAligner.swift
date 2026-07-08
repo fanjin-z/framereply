@@ -37,13 +37,15 @@ enum ChatTranscriptAligner {
         var edges: [AlignmentEdge] = []
         for existingIndex in existing.indices {
             for importedIndex in imported.indices {
-                guard let edge = edge(
-                    existing: existing[existingIndex],
-                    imported: imported[importedIndex],
-                    existingIndex: existingIndex,
-                    importedIndex: importedIndex,
-                    documentFrequency: documentFrequency
-                ) else {
+                guard
+                    let edge = edge(
+                        existing: existing[existingIndex],
+                        imported: imported[importedIndex],
+                        existingIndex: existingIndex,
+                        importedIndex: importedIndex,
+                        documentFrequency: documentFrequency
+                    )
+                else {
                     continue
                 }
                 edges.append(edge)
@@ -62,10 +64,11 @@ enum ChatTranscriptAligner {
 
         var bestScores = edges.map(\.score)
         var matchCounts = Array(repeating: 1, count: edges.count)
-        var previous = Array<Int?>(repeating: nil, count: edges.count)
+        var previous = [Int?](repeating: nil, count: edges.count)
 
         for index in edges.indices {
-            for prior in 0..<index where edges[prior].existingIndex < edges[index].existingIndex
+            for prior in 0..<index
+            where edges[prior].existingIndex < edges[index].existingIndex
                 && edges[prior].importedIndex < edges[index].importedIndex
             {
                 let candidateScore = bestScores[prior] + edges[index].score
@@ -110,7 +113,8 @@ enum ChatTranscriptAligner {
         allCandidates: [[TranscriptMessage]]
     ) -> TranscriptEvidenceLevel {
         let frequencies = documentFrequencies(allCandidates)
-        let alignment = align(existing: candidate, imported: imported, documentFrequency: frequencies)
+        let alignment = align(
+            existing: candidate, imported: imported, documentFrequency: frequencies)
         guard !alignment.matches.isEmpty else { return .none }
 
         let uniqueMatches = alignment.matches.filter { match in
@@ -184,7 +188,9 @@ enum ChatTranscriptAligner {
         let senderIsWildcard = existing.sender == "unknown" || imported.sender == "unknown"
         guard existing.sender == imported.sender || senderIsWildcard else { return nil }
         let bothHaveTime = !existing.normalizedTime.isEmpty && !imported.normalizedTime.isEmpty
-        guard !bothHaveTime || existing.normalizedTime == imported.normalizedTime else { return nil }
+        guard !bothHaveTime || existing.normalizedTime == imported.normalizedTime else {
+            return nil
+        }
 
         let exact = existing.normalizedText == imported.normalizedText
         if !exact {

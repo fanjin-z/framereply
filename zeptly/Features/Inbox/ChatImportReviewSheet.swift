@@ -8,7 +8,8 @@ import SwiftUI
 
 struct ChatImportReviewSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Query(filter: #Predicate<ChatRecord> { $0.isProvisional }) private var provisionalChats: [ChatRecord]
+    @Query(filter: #Predicate<ChatRecord> { $0.isProvisional }) private var provisionalChats:
+        [ChatRecord]
     @Query private var allChats: [ChatRecord]
     @Query(
         filter: #Predicate<ChatMessageRecord> { $0.senderKind == "unknown" },
@@ -49,7 +50,9 @@ struct ChatImportReviewSheet: View {
                             ContentUnavailableView(
                                 "Imports Reviewed",
                                 systemImage: "checkmark.bubble",
-                                description: Text("There are no imported chats or sender assignments waiting for review.")
+                                description: Text(
+                                    "There are no imported chats or sender assignments waiting for review."
+                                )
                             )
                         }
                     }
@@ -102,7 +105,9 @@ struct ChatImportReviewSheet: View {
         }
     }
 
-    private func resolveSender(messageID: UUID, sender: AnalyzedMessageSender, participantName: String?) {
+    private func resolveSender(
+        messageID: UUID, sender: AnalyzedMessageSender, participantName: String?
+    ) {
         do {
             try ChatRepository().resolveUnknownSender(
                 messageID: messageID,

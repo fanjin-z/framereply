@@ -57,7 +57,8 @@ struct PersonaCard: View {
                         Button("Default Persona", systemImage: "checkmark.circle.fill") {}
                             .disabled(true)
                     } else {
-                        Button("Set as Default", systemImage: "checkmark.circle", action: onSetDefault)
+                        Button(
+                            "Set as Default", systemImage: "checkmark.circle", action: onSetDefault)
                     }
                     Button("Duplicate", systemImage: "plus.square.on.square", action: onDuplicate)
                     if let onDelete {

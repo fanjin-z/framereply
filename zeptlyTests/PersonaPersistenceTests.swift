@@ -141,9 +141,12 @@ final class PersonaPersistenceTests: XCTestCase {
         try personas.seedPersonasIfNeeded()
         let personaID = try personas.defaultPersonaID()
         let assignedAt = Date()
-        let old = message(chatID: "chat", sender: "user", createdAt: assignedAt.addingTimeInterval(-1))
-        let contact = message(chatID: "chat", sender: "contact", createdAt: assignedAt.addingTimeInterval(1))
-        let future = message(chatID: "chat", sender: "user", createdAt: assignedAt.addingTimeInterval(2))
+        let old = message(
+            chatID: "chat", sender: "user", createdAt: assignedAt.addingTimeInterval(-1))
+        let contact = message(
+            chatID: "chat", sender: "contact", createdAt: assignedAt.addingTimeInterval(1))
+        let future = message(
+            chatID: "chat", sender: "user", createdAt: assignedAt.addingTimeInterval(2))
         container.mainContext.insert(old)
         container.mainContext.insert(contact)
         container.mainContext.insert(future)
@@ -246,7 +249,8 @@ final class PersonaPersistenceTests: XCTestCase {
         XCTAssertEqual(result.personaObservationChanges.first?.text, "Uses short sentences.")
 
         let invalid = valid.replacingOccurrences(of: "\"\(second)\"", with: "\"\(first)\"")
-        XCTAssertThrowsError(try SuggestedReplyResultDecoder.decode(content: invalid, finishReason: "stop"))
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(content: invalid, finishReason: "stop"))
     }
 
     private func message(chatID: String, sender: String, createdAt: Date) -> ChatMessageRecord {

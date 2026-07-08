@@ -34,8 +34,12 @@ enum AvatarIdentityService {
     private static let outputSize = CGSize(width: 128, height: 128)
     private static let maximumStoredBytes = 40_000
 
-    static func extract(from screenshotData: Data, bounds: NormalizedAvatarBounds?) -> AvatarArtifact? {
-        guard let bounds, let screenshot = UIImage(data: screenshotData), validates(bounds, imageSize: screenshot.size) else {
+    static func extract(from screenshotData: Data, bounds: NormalizedAvatarBounds?)
+        -> AvatarArtifact?
+    {
+        guard let bounds, let screenshot = UIImage(data: screenshotData),
+            validates(bounds, imageSize: screenshot.size)
+        else {
             return nil
         }
 
@@ -164,21 +168,21 @@ enum AvatarIdentityService {
     private static func featurePrint(for image: CGImage) -> VNFeaturePrintObservation? {
         let request = VNGenerateImageFeaturePrintRequest()
         request.imageCropAndScaleOption = .scaleFill
-#if targetEnvironment(simulator)
-        if let devicesByStage = try? request.supportedComputeStageDevices {
-            for (stage, devices) in devicesByStage {
-                let cpu = devices.first { device in
-                    if case .cpu = device {
-                        return true
+        #if targetEnvironment(simulator)
+            if let devicesByStage = try? request.supportedComputeStageDevices {
+                for (stage, devices) in devicesByStage {
+                    let cpu = devices.first { device in
+                        if case .cpu = device {
+                            return true
+                        }
+                        return false
                     }
-                    return false
-                }
-                if let cpu {
-                    request.setComputeDevice(cpu, for: stage)
+                    if let cpu {
+                        request.setComputeDevice(cpu, for: stage)
+                    }
                 }
             }
-        }
-#endif
+        #endif
         let handler = VNImageRequestHandler(cgImage: image)
         guard (try? handler.perform([request])) != nil else { return nil }
         return request.results?.first as? VNFeaturePrintObservation
@@ -191,15 +195,17 @@ enum AvatarIdentityService {
     private static func grayscalePixels(_ image: CGImage, size: Int) -> [Double]? {
         var bytes = [UInt8](repeating: 0, count: size * size)
         let rendered = bytes.withUnsafeMutableBytes { buffer -> Bool in
-            guard let context = CGContext(
-                data: buffer.baseAddress,
-                width: size,
-                height: size,
-                bitsPerComponent: 8,
-                bytesPerRow: size,
-                space: CGColorSpaceCreateDeviceGray(),
-                bitmapInfo: CGImageAlphaInfo.none.rawValue
-            ) else {
+            guard
+                let context = CGContext(
+                    data: buffer.baseAddress,
+                    width: size,
+                    height: size,
+                    bitsPerComponent: 8,
+                    bytesPerRow: size,
+                    space: CGColorSpaceCreateDeviceGray(),
+                    bitmapInfo: CGImageAlphaInfo.none.rawValue
+                )
+            else {
                 return false
             }
             context.interpolationQuality = .high

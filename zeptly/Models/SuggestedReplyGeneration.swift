@@ -21,7 +21,8 @@ nonisolated struct ContactMemoryChange: Codable, Equatable, Sendable {
     let sourceMessageIDs: [UUID]
 }
 
-nonisolated enum PersonaObservationChangeAction: String, Codable, CaseIterable, Equatable, Sendable {
+nonisolated enum PersonaObservationChangeAction: String, Codable, CaseIterable, Equatable, Sendable
+{
     case add
     case update
     case archive
@@ -131,7 +132,9 @@ nonisolated enum SuggestedReplyResultDecoder {
         }
         guard !object.isEmpty else { throw schema("root") }
 
-        let summaryValue = ["historySummary", "history_summary", "summary"].lazy.compactMap { object[$0] }.first
+        let summaryValue = ["historySummary", "history_summary", "summary"].lazy.compactMap {
+            object[$0]
+        }.first
         let summary: String
         if summaryValue is NSNull {
             guard let historySummaryFallback else { throw schema("historySummary") }
@@ -143,9 +146,12 @@ nonisolated enum SuggestedReplyResultDecoder {
         }
         guard summary.count <= 2_000 else { throw schema("historySummary") }
 
-        let repliesValue = object["replies"] ?? object["suggestedReplies"] ?? object["suggested_replies"]
+        let repliesValue =
+            object["replies"] ?? object["suggestedReplies"] ?? object["suggested_replies"]
         var replies = replyTexts(from: repliesValue)
-        if replies.isEmpty, let first = object["reply1"] as? String, let second = object["reply2"] as? String {
+        if replies.isEmpty, let first = object["reply1"] as? String,
+            let second = object["reply2"] as? String
+        {
             replies = [first, second]
         }
         replies = replies.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -154,10 +160,14 @@ nonisolated enum SuggestedReplyResultDecoder {
             Set(replies.map { $0.lowercased() }).count == 2
         else { throw schema("replies") }
 
-        guard let memoryObjects = object["memoryChanges"] as? [[String: Any]], memoryObjects.count <= 8 else {
+        guard let memoryObjects = object["memoryChanges"] as? [[String: Any]],
+            memoryObjects.count <= 8
+        else {
             throw schema("memoryChanges")
         }
-        let memories = try memoryObjects.enumerated().map { try decodeMemoryChange($0.element, index: $0.offset) }
+        let memories = try memoryObjects.enumerated().map {
+            try decodeMemoryChange($0.element, index: $0.offset)
+        }
 
         guard let observationObjects = object["personaObservationChanges"] as? [[String: Any]],
             observationObjects.count <= PersonaLimits.maximumActiveObservations
@@ -172,7 +182,9 @@ nonisolated enum SuggestedReplyResultDecoder {
         )
     }
 
-    private static func decodeMemoryChange(_ object: [String: Any], index: Int) throws -> ContactMemoryChange {
+    private static func decodeMemoryChange(_ object: [String: Any], index: Int) throws
+        -> ContactMemoryChange
+    {
         let path = "memoryChanges[\(index)]"
         guard Set(object.keys) == ["action", "targetMemoryID", "text", "evidenceMessageIDs"],
             let rawAction = object["action"] as? String,
@@ -184,10 +196,12 @@ nonisolated enum SuggestedReplyResultDecoder {
         let target = uuid(from: object["targetMemoryID"])
         let text = nullableString(from: object["text"])
         try validate(action: action.rawValue, target: target, text: text, path: path)
-        return ContactMemoryChange(action: action, targetMemoryID: target, text: text, sourceMessageIDs: ids)
+        return ContactMemoryChange(
+            action: action, targetMemoryID: target, text: text, sourceMessageIDs: ids)
     }
 
-    private static func decodeObservationChange(_ object: [String: Any], index: Int) throws -> PersonaObservationChange
+    private static func decodeObservationChange(_ object: [String: Any], index: Int) throws
+        -> PersonaObservationChange
     {
         let path = "personaObservationChanges[\(index)]"
         guard Set(object.keys) == ["action", "targetObservationID", "text", "evidenceMessageIDs"],
@@ -200,14 +214,22 @@ nonisolated enum SuggestedReplyResultDecoder {
         let target = uuid(from: object["targetObservationID"])
         let text = nullableString(from: object["text"])
         try validate(action: action.rawValue, target: target, text: text, path: path)
-        return PersonaObservationChange(action: action, targetObservationID: target, text: text, sourceMessageIDs: ids)
+        return PersonaObservationChange(
+            action: action, targetObservationID: target, text: text, sourceMessageIDs: ids)
     }
 
-    private static func validate(action: String, target: UUID?, text: String?, path: String) throws {
+    private static func validate(action: String, target: UUID?, text: String?, path: String) throws
+    {
         let value = text?.trimmingCharacters(in: .whitespacesAndNewlines)
         switch action {
-        case "add": guard target == nil, let value, !value.isEmpty, value.count <= 240 else { throw schema(path) }
-        case "update": guard target != nil, let value, !value.isEmpty, value.count <= 240 else { throw schema(path) }
+        case "add":
+            guard target == nil, let value, !value.isEmpty, value.count <= 240 else {
+                throw schema(path)
+            }
+        case "update":
+            guard target != nil, let value, !value.isEmpty, value.count <= 240 else {
+                throw schema(path)
+            }
         case "archive": guard target != nil, text == nil else { throw schema(path) }
         default: throw schema(path)
         }
@@ -223,9 +245,12 @@ nonisolated enum SuggestedReplyResultDecoder {
         var value = content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if value.hasPrefix("```"), let newline = value.firstIndex(of: "\n") {
             value = String(value[value.index(after: newline)...])
-            if let fence = value.range(of: "```", options: .backwards) { value = String(value[..<fence.lowerBound]) }
+            if let fence = value.range(of: "```", options: .backwards) {
+                value = String(value[..<fence.lowerBound])
+            }
         }
-        if let first = value.firstIndex(of: "{"), let last = value.lastIndex(of: "}"), first <= last {
+        if let first = value.firstIndex(of: "{"), let last = value.lastIndex(of: "}"), first <= last
+        {
             value = String(value[first...last])
         }
         return value.trimmingCharacters(in: .whitespacesAndNewlines)

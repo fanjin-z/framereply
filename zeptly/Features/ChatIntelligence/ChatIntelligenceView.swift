@@ -82,7 +82,8 @@ struct ChatIntelligenceView: View {
             hasher.combine(context.personaID)
             hasher.combine(context.personaAssignedAt)
         }
-        for memory in contactMemoryRecords where memory.status == ContactMemoryStatus.active.rawValue {
+        for memory in contactMemoryRecords
+        where memory.status == ContactMemoryStatus.active.rawValue {
             hasher.combine(memory.id)
             hasher.combine(memory.text)
             hasher.combine(memory.origin)
@@ -126,7 +127,8 @@ struct ChatIntelligenceView: View {
 
                     ChatCaptureControls(
                         isScreenshotAttached: isScreenshotAttached,
-                        hasContextNote: !contextNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                        hasContextNote: !contextNote.trimmingCharacters(in: .whitespacesAndNewlines)
+                            .isEmpty,
                         onAttachTap: {
                             withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
                                 isScreenshotAttached.toggle()

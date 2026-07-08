@@ -7,7 +7,8 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
     func testDecodesExactAndFencedJSON() throws {
         let exact = validJSON()
         XCTAssertEqual(try decode(exact).messages.first?.text, "Hello")
-        XCTAssertEqual(try decode("\u{FEFF}  ```json\n\(exact)\n```  ").messages.first?.text, "Hello")
+        XCTAssertEqual(
+            try decode("\u{FEFF}  ```json\n\(exact)\n```  ").messages.first?.text, "Hello")
     }
 
     func testClassifiesInvalidResponses() {
@@ -54,7 +55,9 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
 
     func testUnknownIdentityMetadataStillDegradesConservatively() throws {
         let unknownMetadataJSON = validJSON()
-            .replacingOccurrences(of: #""conversationKind":"direct""#, with: #""conversationKind":"one_to_one""#)
+            .replacingOccurrences(
+                of: #""conversationKind":"direct""#, with: #""conversationKind":"one_to_one""#
+            )
             .replacingOccurrences(of: #""titleSource":"header""#, with: #""titleSource":"guessed""#)
         let unknownMetadata = try decode(unknownMetadataJSON)
 
@@ -100,8 +103,12 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(try decode(json).messages.first?.sender, .unknown)
 
         let unobservable = validJSON()
-            .replacingOccurrences(of: #""mode":"opposed_alignment""#, with: #""mode":"unobservable""#)
-            .replacingOccurrences(of: #""screenshotOwnerAlignment":"right""#, with: #""screenshotOwnerAlignment":"unknown""#)
+            .replacingOccurrences(
+                of: #""mode":"opposed_alignment""#, with: #""mode":"unobservable""#
+            )
+            .replacingOccurrences(
+                of: #""screenshotOwnerAlignment":"right""#,
+                with: #""screenshotOwnerAlignment":"unknown""#)
         XCTAssertEqual(try decode(unobservable).messages.first?.sender, .unknown)
     }
 
@@ -127,10 +134,19 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
 
     func testAuthorIdentityLayoutUsesLiteralOwnerLabel() throws {
         let json = validJSON(sender: "user", outerAlignment: "full_width")
-            .replacingOccurrences(of: #""mode":"opposed_alignment""#, with: #""mode":"author_identity""#)
-            .replacingOccurrences(of: #""screenshotOwnerAlignment":"right""#, with: #""screenshotOwnerAlignment":"unknown""#)
-            .replacingOccurrences(of: #""screenshotOwnerAuthorLabel":null"#, with: #""screenshotOwnerAuthorLabel":"Me""#)
-            .replacingOccurrences(of: #""outerAuthorLabel":null"#, with: #""outerAuthorLabel":"Me""#)
+            .replacingOccurrences(
+                of: #""mode":"opposed_alignment""#, with: #""mode":"author_identity""#
+            )
+            .replacingOccurrences(
+                of: #""screenshotOwnerAlignment":"right""#,
+                with: #""screenshotOwnerAlignment":"unknown""#
+            )
+            .replacingOccurrences(
+                of: #""screenshotOwnerAuthorLabel":null"#,
+                with: #""screenshotOwnerAuthorLabel":"Me""#
+            )
+            .replacingOccurrences(
+                of: #""outerAuthorLabel":null"#, with: #""outerAuthorLabel":"Me""#)
 
         XCTAssertEqual(try decode(json).messages.first?.sender, .user)
     }
@@ -153,8 +169,8 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
 
     func testTandemRegressionKeepsEightOuterMessagesAndOneNestedReply() throws {
         let json = """
-        {"conversationTitle":"Inna","conversationKind":"direct","titleSource":"header","avatarBounds":null,"ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"user","senderName":null,"text":"你好，很高兴认识你","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"你的中文看起来不错! 你学中文多久了?","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"Я сейчас учу русский. Хочу найти человека для практики","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"已经3年，在中国住了1.5年","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":{"sender":"user","senderName":null,"text":"你的中文看起来不错! 你学中文多久了?"}},{"sender":"user","senderName":null,"text":"你现在是在莫斯科吗？还是偶尔也会去中国？","timestampLabel":"Seen 1 hour ago","outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.98,"senderEvidence":"message_status_indicator","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"我刚刚回来了","timestampLabel":"3:53 PM","outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"现在在莫斯科","timestampLabel":"3:53 PM","outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"你在中国上学吗？还是来旅游？","timestampLabel":"Delivered","outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.98,"senderEvidence":"message_status_indicator","quotedReply":null}],"matchedChatID":null,"matchConfidence":0.0}
-        """
+            {"conversationTitle":"Inna","conversationKind":"direct","titleSource":"header","avatarBounds":null,"ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"user","senderName":null,"text":"你好，很高兴认识你","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"你的中文看起来不错! 你学中文多久了?","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"Я сейчас учу русский. Хочу найти человека для практики","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"已经3年，在中国住了1.5年","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":{"sender":"user","senderName":null,"text":"你的中文看起来不错! 你学中文多久了?"}},{"sender":"user","senderName":null,"text":"你现在是在莫斯科吗？还是偶尔也会去中国？","timestampLabel":"Seen 1 hour ago","outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.98,"senderEvidence":"message_status_indicator","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"我刚刚回来了","timestampLabel":"3:53 PM","outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"现在在莫斯科","timestampLabel":"3:53 PM","outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"你在中国上学吗？还是来旅游？","timestampLabel":"Delivered","outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.98,"senderEvidence":"message_status_indicator","quotedReply":null}],"matchedChatID":null,"matchConfidence":0.0}
+            """
 
         let result = try decode(json)
 
@@ -173,7 +189,9 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         )
     }
 
-    private func decode(_ content: String, finishReason: String? = "stop") throws -> ChatImportAnalysis {
+    private func decode(_ content: String, finishReason: String? = "stop") throws
+        -> ChatImportAnalysis
+    {
         try ChatImportAnalysisDecoder.decode(
             content: content,
             finishReason: finishReason,

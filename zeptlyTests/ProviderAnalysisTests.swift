@@ -13,7 +13,8 @@ final class ProviderAnalysisTests: XCTestCase {
         let schemaData = try JSONSerialization.data(withJSONObject: ChatScreenshotPrompt.jsonSchema)
         let schema = try XCTUnwrap(String(data: schemaData, encoding: .utf8))
         let canonical = ChatScreenshotPrompt.canonicalJSONExample
-        for removedKey in ["participants", "sourceApp", "matchBasis", "hasOutboundStatusIndicator"] {
+        for removedKey in ["participants", "sourceApp", "matchBasis", "hasOutboundStatusIndicator"]
+        {
             XCTAssertFalse(schema.contains(#""\#(removedKey)""#))
             XCTAssertFalse(canonical.contains(#""\#(removedKey)""#))
         }
@@ -60,12 +61,16 @@ final class ProviderAnalysisTests: XCTestCase {
         let prompt = SuggestedReplyPrompt.input(for: makeReplyRequest())
         XCTAssertFalse(prompt.contains(SuggestedReplyPrompt.canonicalJSONExample))
         XCTAssertEqual(
-            SuggestedReplyPrompt.instructions.components(separatedBy: SuggestedReplyPrompt.canonicalJSONExample).count
+            SuggestedReplyPrompt.instructions.components(
+                separatedBy: SuggestedReplyPrompt.canonicalJSONExample
+            ).count
                 - 1,
             1
         )
-        let exampleData = try XCTUnwrap(SuggestedReplyPrompt.canonicalJSONExample.data(using: .utf8))
-        let example = try XCTUnwrap(JSONSerialization.jsonObject(with: exampleData) as? [String: Any])
+        let exampleData = try XCTUnwrap(
+            SuggestedReplyPrompt.canonicalJSONExample.data(using: .utf8))
+        let example = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: exampleData) as? [String: Any])
         XCTAssertFalse(try XCTUnwrap(example["historySummary"] as? String).isEmpty)
         XCTAssertEqual(try XCTUnwrap(example["replies"] as? [String]).count, 2)
         let exampleChanges = try XCTUnwrap(example["memoryChanges"] as? [[String: Any]])
@@ -73,8 +78,11 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(exampleChanges.first?["targetMemoryID"] is NSNull)
         XCTAssertNil(exampleChanges.first?["kind"])
         XCTAssertNotNil(
-            UUID(uuidString: try XCTUnwrap((exampleChanges.first?["evidenceMessageIDs"] as? [String])?.first)))
-        let exampleObservations = try XCTUnwrap(example["personaObservationChanges"] as? [[String: Any]])
+            UUID(
+                uuidString: try XCTUnwrap(
+                    (exampleChanges.first?["evidenceMessageIDs"] as? [String])?.first)))
+        let exampleObservations = try XCTUnwrap(
+            example["personaObservationChanges"] as? [[String: Any]])
         XCTAssertEqual(exampleObservations.first?["action"] as? String, "add")
         XCTAssertTrue(exampleObservations.first?["targetObservationID"] is NSNull)
 
@@ -95,7 +103,8 @@ final class ProviderAnalysisTests: XCTestCase {
             Set(try XCTUnwrap(memoryItemSchema["required"] as? [String])),
             ["action", "targetMemoryID", "text", "evidenceMessageIDs"]
         )
-        let observationSchema = try XCTUnwrap(rootProperties["personaObservationChanges"] as? [String: Any])
+        let observationSchema = try XCTUnwrap(
+            rootProperties["personaObservationChanges"] as? [String: Any])
         let observationItem = try XCTUnwrap(observationSchema["items"] as? [String: Any])
         XCTAssertEqual(
             Set(try XCTUnwrap(observationItem["required"] as? [String])),
@@ -126,13 +135,15 @@ final class ProviderAnalysisTests: XCTestCase {
 
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
-                content: "{\"historySummary\":\"\",\"replies\":[\"Same\",\"Same\"],\"memoryChanges\":[]}",
+                content:
+                    "{\"historySummary\":\"\",\"replies\":[\"Same\",\"Same\"],\"memoryChanges\":[]}",
                 finishReason: "stop"
             )
         )
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
-                content: "{\"historySummary\":\"\",\"replies\":[\"Only one\"],\"memoryChanges\":[]}",
+                content:
+                    "{\"historySummary\":\"\",\"replies\":[\"Only one\"],\"memoryChanges\":[]}",
                 finishReason: "stop"
             )
         )
@@ -154,7 +165,8 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(fallback.historySummary, "Saved summary")
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
-                content: "{\"historySummary\":null,\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[]}",
+                content:
+                    "{\"historySummary\":null,\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[]}",
                 finishReason: "stop"
             )
         )
@@ -196,16 +208,20 @@ final class ProviderAnalysisTests: XCTestCase {
         let body = try jsonBody(request)
         XCTAssertEqual(body["store"] as? Bool, false)
         XCTAssertEqual(
-            ((body["text"] as? [String: Any])?["format"] as? [String: Any])?["type"] as? String, "json_schema")
+            ((body["text"] as? [String: Any])?["format"] as? [String: Any])?["type"] as? String,
+            "json_schema")
 
         let input = try XCTUnwrap(body["input"] as? [[String: Any]])
         let content = try XCTUnwrap(input.first?["content"] as? [[String: Any]])
         let image = try XCTUnwrap(content.first { $0["type"] as? String == "input_image" })
         XCTAssertEqual(image["detail"] as? String, "high")
-        XCTAssertTrue(try XCTUnwrap(image["image_url"] as? String).hasPrefix("data:image/png;base64,"))
-        let prompt = try XCTUnwrap(content.first { $0["type"] as? String == "input_text" }?["text"] as? String)
+        XCTAssertTrue(
+            try XCTUnwrap(image["image_url"] as? String).hasPrefix("data:image/png;base64,"))
+        let prompt = try XCTUnwrap(
+            content.first { $0["type"] as? String == "input_text" }?["text"] as? String)
         XCTAssertFalse(prompt.contains("OCR observations"))
-        XCTAssertTrue(try XCTUnwrap(body["instructions"] as? String).contains("Literal visual observations"))
+        XCTAssertTrue(
+            try XCTUnwrap(body["instructions"] as? String).contains("Literal visual observations"))
     }
 
     @MainActor
@@ -218,10 +234,13 @@ final class ProviderAnalysisTests: XCTestCase {
 
         for (region, host) in cases {
             for model in models {
-                AnalysisURLProtocolStub.responses = [(200, zaiResponse(content: validAnalysisJSON(matchedChatID: nil)))]
-                _ = try await ZAIClient(region: region, session: makeSession()).analyzeChatScreenshot(
-                    makeRequest(), apiKey: "regional-key", model: model
-                )
+                AnalysisURLProtocolStub.responses = [
+                    (200, zaiResponse(content: validAnalysisJSON(matchedChatID: nil)))
+                ]
+                _ = try await ZAIClient(region: region, session: makeSession())
+                    .analyzeChatScreenshot(
+                        makeRequest(), apiKey: "regional-key", model: model
+                    )
 
                 let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.last)
                 XCTAssertEqual(request.url?.host, host)
@@ -233,10 +252,13 @@ final class ProviderAnalysisTests: XCTestCase {
                 XCTAssertEqual(body["do_sample"] as? Bool, false)
                 let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
                 XCTAssertTrue(
-                    try XCTUnwrap(messages.first?["content"] as? String).contains("Literal visual observations"))
+                    try XCTUnwrap(messages.first?["content"] as? String).contains(
+                        "Literal visual observations"))
                 let userContent = try XCTUnwrap(messages.last?["content"] as? [[String: Any]])
-                let image = try XCTUnwrap(userContent.first { $0["type"] as? String == "image_url" })
-                let imageURL = try XCTUnwrap((image["image_url"] as? [String: Any])?["url"] as? String)
+                let image = try XCTUnwrap(
+                    userContent.first { $0["type"] as? String == "image_url" })
+                let imageURL = try XCTUnwrap(
+                    (image["image_url"] as? [String: Any])?["url"] as? String)
                 XCTAssertTrue(imageURL.hasPrefix("data:image/png;base64,"))
             }
         }
@@ -245,7 +267,9 @@ final class ProviderAnalysisTests: XCTestCase {
     @MainActor
     func testDiagnosticsDoNotContainImageKeyOrChatContent() async throws {
         let reporter = SpyImportEventReporter()
-        AnalysisURLProtocolStub.responses = [(200, zaiResponse(content: validAnalysisJSON(matchedChatID: nil)))]
+        AnalysisURLProtocolStub.responses = [
+            (200, zaiResponse(content: validAnalysisJSON(matchedChatID: nil)))
+        ]
 
         _ = try await ZAIClient(
             region: .international,
@@ -271,7 +295,8 @@ final class ProviderAnalysisTests: XCTestCase {
             makeReplyRequest(), apiKey: "key", model: .gpt54Mini
         )
 
-        XCTAssertEqual(result.replies, ["Sounds good to me.", "That works — looking forward to it!"])
+        XCTAssertEqual(
+            result.replies, ["Sounds good to me.", "That works — looking forward to it!"])
         let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
         XCTAssertEqual(body["model"] as? String, "gpt-5.4-mini")
         XCTAssertEqual(body["store"] as? Bool, false)
@@ -312,7 +337,8 @@ final class ProviderAnalysisTests: XCTestCase {
 
         XCTAssertEqual(openAIResult, zaiResult)
         XCTAssertEqual(openAIResult.memoryChanges.first?.sourceMessageIDs, [memoryEvidenceID])
-        XCTAssertEqual(openAIResult.personaObservationChanges.map(\.text), ["Often omits final punctuation."])
+        XCTAssertEqual(
+            openAIResult.personaObservationChanges.map(\.text), ["Often omits final punctuation."])
     }
 
     @MainActor
@@ -344,7 +370,8 @@ final class ProviderAnalysisTests: XCTestCase {
         let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
         XCTAssertEqual(body["model"] as? String, "glm-4.7-flashx")
         XCTAssertEqual(body["max_tokens"] as? Int, 3_200)
-        XCTAssertEqual((body["response_format"] as? [String: Any])?["type"] as? String, "json_object")
+        XCTAssertEqual(
+            (body["response_format"] as? [String: Any])?["type"] as? String, "json_object")
         XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
         let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
         XCTAssertTrue(messages.allSatisfy { $0["content"] is String })
@@ -366,7 +393,8 @@ final class ProviderAnalysisTests: XCTestCase {
             currentInteractionGoal: "Confirm dinner",
             persona: PersonaPromptContext(
                 id: UUID(), name: "Warm & Collaborative",
-                instructions: "Write warmly and collaboratively.", observations: [], protectedTombstones: []
+                instructions: "Write warmly and collaboratively.", observations: [],
+                protectedTombstones: []
             ),
             personaLearningMessages: [],
             existingHistorySummary: "",
@@ -375,7 +403,8 @@ final class ProviderAnalysisTests: XCTestCase {
             recentMessages: [
                 SuggestedReplyPromptMessage(
                     id: UUID(),
-                    sender: "contact", senderName: "Sarah", text: "Dinner at 7?", timeLabel: "6:00 PM"
+                    sender: "contact", senderName: "Sarah", text: "Dinner at 7?",
+                    timeLabel: "6:00 PM"
                 )
             ],
             traceID: ImportTraceID()

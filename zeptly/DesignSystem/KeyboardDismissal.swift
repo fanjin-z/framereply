@@ -88,7 +88,9 @@ private struct KeyboardDismissTapInstaller: UIViewRepresentable {
             true
         }
 
-        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch
+        ) -> Bool {
             guard let touchedView = touch.view else { return true }
             return !touchedView.isInsideTextInput
         }
@@ -99,8 +101,8 @@ private struct KeyboardDismissTapInstaller: UIViewRepresentable {
     }
 }
 
-private extension UIView {
-    var isInsideTextInput: Bool {
+extension UIView {
+    fileprivate var isInsideTextInput: Bool {
         var candidate: UIView? = self
         while let view = candidate {
             if view is UITextField || view is UITextView {

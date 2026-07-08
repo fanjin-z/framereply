@@ -21,7 +21,8 @@ struct ContactContextInfoGrid: View {
             VStack(alignment: .leading, spacing: 14) {
                 SectionHeader(symbolName: "target", title: "Current Interaction Goal")
 
-                ContactContextField(text: $currentInteractionGoal, placeholder: "e.g., Close Q3 proposal...")
+                ContactContextField(
+                    text: $currentInteractionGoal, placeholder: "e.g., Close Q3 proposal...")
             }
             .padding(22)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -40,11 +41,13 @@ struct ContactContextInfoGrid: View {
                     }
                 } label: {
                     HStack(spacing: 10) {
-                        Text(personas.first(where: { $0.id == personaID })?.name ?? "Select Persona")
-                            .font(.system(size: 16, weight: .regular, design: .rounded))
-                            .foregroundStyle(RezplyColor.onSurface)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.78)
+                        Text(
+                            personas.first(where: { $0.id == personaID })?.name ?? "Select Persona"
+                        )
+                        .font(.system(size: 16, weight: .regular, design: .rounded))
+                        .foregroundStyle(RezplyColor.onSurface)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
 
                         Spacer(minLength: 8)
 

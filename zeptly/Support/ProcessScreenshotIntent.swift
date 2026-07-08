@@ -104,12 +104,13 @@ nonisolated enum ShortcutResponseBuilder {
         }
 
         let replies = repliesOutcome?.replies
-        let replyStatus = repliesOutcome.map {
-            switch $0.source {
-            case .generated: ShortcutReplyStatus.generated
-            case .cached: ShortcutReplyStatus.cached
-            }
-        } ?? .failed
+        let replyStatus =
+            repliesOutcome.map {
+                switch $0.source {
+                case .generated: ShortcutReplyStatus.generated
+                case .cached: ShortcutReplyStatus.cached
+                }
+            } ?? .failed
         let dialog: String
         if let replies, replies.count == 2 {
             dialog = "\(message)\n\nSuggested replies:\n1. \(replies[0])\n2. \(replies[1])"
@@ -132,7 +133,8 @@ nonisolated enum ShortcutResponseBuilder {
                 errorCode: nil,
                 suggestedReplies: replies,
                 replyStatus: replyStatus,
-                replyErrorCode: repliesOutcome == nil ? (replyErrorCode ?? "reply_generation_failed") : nil
+                replyErrorCode: repliesOutcome == nil
+                    ? (replyErrorCode ?? "reply_generation_failed") : nil
             ),
             dialog: dialog
         )
@@ -234,13 +236,16 @@ nonisolated struct ScreenshotImportEntityQuery: EntityQuery {
                 else {
                     return nil
                 }
-                return ScreenshotImportEntity(record: record, chatName: chat.name, operationID: operationID)
+                return ScreenshotImportEntity(
+                    record: record, chatName: chat.name, operationID: operationID)
             }
         }
     }
 }
 
-nonisolated struct ShortcutExecutionError: LocalizedError, CustomLocalizedStringResourceConvertible, Sendable {
+nonisolated struct ShortcutExecutionError: LocalizedError, CustomLocalizedStringResourceConvertible,
+    Sendable
+{
     let message: String
     let diagnosticID: String
 
@@ -253,7 +258,8 @@ nonisolated struct ShortcutExecutionError: LocalizedError, CustomLocalizedString
 struct AnalyzeChatScreenshotIntent: AppIntent {
     static let title: LocalizedStringResource = "Analyze Chat Screenshot"
     static let description = IntentDescription(
-        "Imports visible messages while you optionally add context or draft a reply. The screenshot isn't saved.")
+        "Imports visible messages while you optionally add context or draft a reply. The screenshot isn't saved."
+    )
     static let openAppWhenRun = false
 
     @Parameter(
@@ -283,7 +289,8 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
         let eventReporter = OSLogImportEventReporter()
         let lifecycleReporter = ShortcutLifecycleReporter()
         guard let screenshot else {
-            eventReporter.record(.importFailed(traceID: traceID, stage: .shortcut, errorCode: "no_image"))
+            eventReporter.record(
+                .importFailed(traceID: traceID, stage: .shortcut, errorCode: "no_image"))
             throw ShortcutExecutionError(
                 message: "No image input was provided.", diagnosticID: traceID.diagnosticID
             )
@@ -291,21 +298,26 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
 
         eventReporter.record(.stageStarted(traceID: traceID, stage: .screenshotDecoding))
         guard isImageFile(screenshot) else {
-            eventReporter.record(.importFailed(traceID: traceID, stage: .screenshotDecoding, errorCode: "invalid_image"))
+            eventReporter.record(
+                .importFailed(
+                    traceID: traceID, stage: .screenshotDecoding, errorCode: "invalid_image"))
             throw ShortcutExecutionError(
-                message: "The provided file is not a readable image.", diagnosticID: traceID.diagnosticID
+                message: "The provided file is not a readable image.",
+                diagnosticID: traceID.diagnosticID
             )
         }
 
         let coordinator = await MainActor.run { ScreenshotImportCoordinator() }
         do {
-            lifecycleReporter.record(.analysisStarted, operationID: traceID.value, startedAt: startedAt)
+            lifecycleReporter.record(
+                .analysisStarted, operationID: traceID.value, startedAt: startedAt)
             async let pendingOutcome: ScreenshotImportOutcome = {
                 let outcome = try await coordinator.process(
                     imageData: screenshot.data,
                     traceID: traceID
                 )
-                lifecycleReporter.record(.analysisCompleted, operationID: traceID.value, startedAt: startedAt)
+                lifecycleReporter.record(
+                    .analysisCompleted, operationID: traceID.value, startedAt: startedAt)
                 return outcome
             }()
 
@@ -313,23 +325,27 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
             if let draftingInput {
                 input = draftingInput
             } else if #available(iOS 26.0, *) {
-                lifecycleReporter.record(.inputChoiceDisplayed, operationID: traceID.value, startedAt: startedAt)
+                lifecycleReporter.record(
+                    .inputChoiceDisplayed, operationID: traceID.value, startedAt: startedAt)
                 let add = IntentChoiceOption(title: "Add Context or Draft")
                 let skip = IntentChoiceOption(title: "Skip")
                 let choice = try await requestChoice(
                     between: [add, skip],
-                    dialog: "Add optional context or a rough draft while Zeptly analyzes the screenshot?"
+                    dialog:
+                        "Add optional context or a rough draft while Zeptly analyzes the screenshot?"
                 )
                 if choice == skip {
                     input = nil
                 } else {
-                    lifecycleReporter.record(.inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
+                    lifecycleReporter.record(
+                        .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                     input = try await $draftingInput.requestValue(
                         "Analyzing screenshot… Add context or draft what you want to say. Tap Done when finished. Cancel stops the shortcut."
                     )
                 }
             } else {
-                lifecycleReporter.record(.inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
+                lifecycleReporter.record(
+                    .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                 input = try await $draftingInput.requestValue(
                     "Analyzing screenshot… Add optional context or a draft. Tap Done empty to skip; Cancel stops the shortcut."
                 )
@@ -360,15 +376,21 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
                 state: state,
                 hasInput: hasInput
             )
-            lifecycleReporter.record(.analyzeReturned, operationID: traceID.value, startedAt: startedAt)
-            return .result(value: ScreenshotImportEntity(outcome: outcome, operationID: traceID.value))
+            lifecycleReporter.record(
+                .analyzeReturned, operationID: traceID.value, startedAt: startedAt)
+            return .result(
+                value: ScreenshotImportEntity(outcome: outcome, operationID: traceID.value))
         } catch is CancellationError {
-            lifecycleReporter.record(.inputCancelled, operationID: traceID.value, startedAt: startedAt)
-            eventReporter.record(.importFailed(traceID: traceID, stage: .shortcut, errorCode: "cancelled"))
+            lifecycleReporter.record(
+                .inputCancelled, operationID: traceID.value, startedAt: startedAt)
+            eventReporter.record(
+                .importFailed(traceID: traceID, stage: .shortcut, errorCode: "cancelled"))
             throw CancellationError()
         } catch let error as AppIntentError {
-            lifecycleReporter.record(.inputCancelled, operationID: traceID.value, startedAt: startedAt)
-            eventReporter.record(.importFailed(traceID: traceID, stage: .shortcut, errorCode: "cancelled"))
+            lifecycleReporter.record(
+                .inputCancelled, operationID: traceID.value, startedAt: startedAt)
+            eventReporter.record(
+                .importFailed(traceID: traceID, stage: .shortcut, errorCode: "cancelled"))
             throw error
         } catch let error as ScreenshotImportError {
             throw ShortcutExecutionError(
@@ -380,16 +402,20 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
             )
         } catch is DraftingInputSynchronizationError {
             eventReporter.record(
-                .importFailed(traceID: traceID, stage: .persistence, errorCode: "input_synchronization_failed")
+                .importFailed(
+                    traceID: traceID, stage: .persistence, errorCode: "input_synchronization_failed"
+                )
             )
             throw ShortcutExecutionError(
-                message: "The optional input could not be synchronized with this screenshot import.",
+                message:
+                    "The optional input could not be synchronized with this screenshot import.",
                 diagnosticID: traceID.diagnosticID
             )
         } catch let error as ShortcutExecutionError {
             throw error
         } catch {
-            eventReporter.record(.importFailed(traceID: traceID, stage: .persistence, errorCode: "import_failed"))
+            eventReporter.record(
+                .importFailed(traceID: traceID, stage: .persistence, errorCode: "import_failed"))
             throw ShortcutExecutionError(
                 message: "The chat history could not be saved.", diagnosticID: traceID.diagnosticID
             )
@@ -460,7 +486,8 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
         let traceID = ImportTraceID(value: preparedChat.operationID)
         let startedAt = Date()
         let lifecycleReporter = ShortcutLifecycleReporter()
-        lifecycleReporter.record(.generateStarted, operationID: preparedChat.operationID, startedAt: startedAt)
+        lifecycleReporter.record(
+            .generateStarted, operationID: preparedChat.operationID, startedAt: startedAt)
         eventReporter.record(.stageStarted(traceID: traceID, stage: .replyGeneration))
         do {
             let consumption = try await DraftingInputBarrier.waitUntilReady {
@@ -476,12 +503,13 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                         operationID: preparedChat.operationID
                     )
                 }
-                let state: DraftingInputState? = switch result {
-                case .pending: .pending
-                case .submitted: .submitted
-                case .skipped: .skipped
-                default: nil
-                }
+                let state: DraftingInputState? =
+                    switch result {
+                    case .pending: .pending
+                    case .submitted: .submitted
+                    case .skipped: .skipped
+                    default: nil
+                    }
                 let hasInput: Bool
                 if case .submitted = result {
                     hasInput = true
@@ -500,7 +528,7 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
 
             let input: String?
             switch consumption {
-            case let .submitted(value):
+            case .submitted(let value):
                 input = value
                 lifecycleReporter.record(
                     .contextConsumed,
@@ -527,7 +555,8 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                 return .result(value: response.dialog)
             case .expired, .alreadyConsumed:
                 let response = ShortcutResponseBuilder.failure(
-                    message: "The optional context for this analyzed chat is no longer available. Run Analyze Chat Screenshot again.",
+                    message:
+                        "The optional context for this analyzed chat is no longer available. Run Analyze Chat Screenshot again.",
                     errorCode: "input_handoff_unavailable",
                     traceID: traceID
                 )
@@ -541,22 +570,30 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                 draftingInput: input,
                 traceID: traceID
             )
-            let response = ShortcutResponseBuilder.success(preparedChat.outcome, repliesOutcome: replies)
+            let response = ShortcutResponseBuilder.success(
+                preparedChat.outcome, repliesOutcome: replies)
             return .result(value: response.dialog)
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as SuggestedRepliesError {
-            eventReporter.record(.importFailed(traceID: traceID, stage: .replyGeneration, errorCode: error.code))
-            let response = ShortcutResponseBuilder.success(preparedChat.outcome, replyErrorCode: error.code)
+            eventReporter.record(
+                .importFailed(traceID: traceID, stage: .replyGeneration, errorCode: error.code))
+            let response = ShortcutResponseBuilder.success(
+                preparedChat.outcome, replyErrorCode: error.code)
             return .result(value: response.dialog)
         } catch let error as ProviderConnectionError {
-            eventReporter.record(.importFailed(traceID: traceID, stage: .replyGeneration, errorCode: error.shortcutErrorCode))
+            eventReporter.record(
+                .importFailed(
+                    traceID: traceID, stage: .replyGeneration, errorCode: error.shortcutErrorCode))
             let response = ShortcutResponseBuilder.success(
                 preparedChat.outcome, replyErrorCode: error.shortcutErrorCode
             )
             return .result(value: response.dialog)
         } catch {
-            eventReporter.record(.importFailed(traceID: traceID, stage: .replyGeneration, errorCode: "reply_generation_failed"))
+            eventReporter.record(
+                .importFailed(
+                    traceID: traceID, stage: .replyGeneration, errorCode: "reply_generation_failed")
+            )
             let response = ShortcutResponseBuilder.success(
                 preparedChat.outcome, replyErrorCode: "reply_generation_failed"
             )
