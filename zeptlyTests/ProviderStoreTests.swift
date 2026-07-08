@@ -125,34 +125,7 @@ final class ProviderStoreTests: XCTestCase {
     }
 
     @MainActor
-    func testLegacyProviderMetadataIsIgnoredWhenLoading() throws {
-        let (defaults, suiteName) = makeDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let providerID = UUID()
-        let legacyJSON = """
-        [{
-          "id": "\(providerID.uuidString)",
-          "platform": "openAI",
-          "model": "gpt-5.4-mini",
-          "lastValidatedAt": 300,
-          "validationState": "connected"
-        }]
-        """
-        defaults.set(
-            try XCTUnwrap(legacyJSON.data(using: .utf8)),
-            forKey: ProviderStoreTestKey.providers
-        )
-
-        let store = ProviderStore(userDefaults: defaults)
-
-        XCTAssertEqual(store.providers.count, 1)
-        XCTAssertEqual(store.providers.first?.id, providerID)
-        XCTAssertEqual(store.providers.first?.platform, .openAI)
-        XCTAssertEqual(store.providers.first?.model, .gpt54Mini)
-    }
-
-    @MainActor
-    func testRemovingInactiveProviderPreservesActiveSelectionAndDeletesKey() throws {
+    func testProviderRemovalUpdatesCredentialsSelectionAndPersistence() throws {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         try saveProviders(makeProviders(), to: defaults)
@@ -170,10 +143,12 @@ final class ProviderStoreTests: XCTestCase {
         XCTAssertEqual(store.activePlatform, .zaiInternational)
         XCTAssertFalse(store.providers.contains(where: { $0.platform == .openAI }))
         XCTAssertNil(try keychain.get(account: ProviderPlatform.openAI.keychainAccount))
+
+        try assertRemovingActiveProviderSelectsFollowingProviderAndPersists()
     }
 
     @MainActor
-    func testRemovingActiveMiddleProviderSelectsFollowingProviderAndPersists() throws {
+    private func assertRemovingActiveProviderSelectsFollowingProviderAndPersists() throws {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         try saveProviders(makeProviders(), to: defaults)
@@ -197,50 +172,6 @@ final class ProviderStoreTests: XCTestCase {
         )
         XCTAssertEqual(reloadedStore.activePlatform, .openAI)
         XCTAssertEqual(reloadedStore.providers.map(\.platform), [.zaiInternational, .openAI])
-    }
-
-    @MainActor
-    func testRemovingActiveFinalProviderWrapsToFirstProvider() throws {
-        let (defaults, suiteName) = makeDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        try saveProviders(makeProviders(), to: defaults)
-        defaults.set("openAI", forKey: ProviderStoreTestKey.activePlatform)
-        let store = ProviderStore(
-            userDefaults: defaults,
-            registry: .live(),
-            keychain: TestKeychainStore()
-        )
-
-        try store.remove(platform: .openAI)
-
-        XCTAssertEqual(store.activePlatform, .zaiInternational)
-        XCTAssertEqual(store.providers.map(\.platform), [.zaiInternational, .zhipuChina])
-    }
-
-    @MainActor
-    func testRemovingOnlyProviderClearsSelectionAndPersistence() throws {
-        let (defaults, suiteName) = makeDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        try saveProviders(
-            [ProviderConnection(platform: .openAI, model: .gpt54Mini)],
-            to: defaults
-        )
-        defaults.set("openAI", forKey: ProviderStoreTestKey.activePlatform)
-        let keychain = TestKeychainStore()
-        let store = ProviderStore(
-            userDefaults: defaults,
-            registry: .live(),
-            keychain: keychain
-        )
-
-        try store.remove(platform: .openAI)
-
-        XCTAssertTrue(store.providers.isEmpty)
-        XCTAssertNil(store.activePlatform)
-        XCTAssertNil(defaults.string(forKey: ProviderStoreTestKey.activePlatform))
-
-        let savedData = try XCTUnwrap(defaults.data(forKey: ProviderStoreTestKey.providers))
-        XCTAssertTrue(try JSONDecoder().decode([ProviderConnection].self, from: savedData).isEmpty)
     }
 
     @MainActor

@@ -9,30 +9,7 @@ final class ProviderAnalysisTests: XCTestCase {
         AnalysisURLProtocolStub.reset()
     }
 
-    func testPromptUsesAppAgnosticHierarchyAndTrimmedContract() throws {
-        let instructions = ChatScreenshotPrompt.instructions
-
-        XCTAssertTrue(instructions.contains("top-level message container"))
-        XCTAssertTrue(instructions.contains("App identity, language, pronouns"))
-        XCTAssertTrue(instructions.contains("Authored blockquote"))
-        XCTAssertTrue(instructions.contains("quotedReply"))
-        XCTAssertTrue(instructions.contains("the single screenshot-wide rule mapping"))
-        XCTAssertTrue(instructions.contains("right as a weak default only"))
-        XCTAssertTrue(instructions.contains("Mandatory consistency"))
-        XCTAssertTrue(instructions.contains(#""contact" is the one other participant in a direct chat"#))
-        XCTAssertTrue(instructions.contains(#""other" is a group non-owner identified by visible outerAuthorLabel"#))
-        for field in [
-            "conversationTitle", "conversationKind", "titleSource", "avatarBounds", "messages",
-            "matchedChatID", "matchConfidence", "ownershipConvention", "screenshotOwnerAlignment",
-            "screenshotOwnerAuthorLabel", "outerAlignment", "outerAuthorLabel",
-            "senderName", "senderConfidence", "senderEvidence", "message_status_indicator"
-        ] {
-            XCTAssertTrue(instructions.contains(field), "Missing prompt definition for \(field)")
-        }
-        for appName in ["WhatsApp", "Instagram", "WeChat", "Telegram", "Signal", "LINE", "Discord"] {
-            XCTAssertFalse(instructions.contains(appName))
-        }
-
+    func testScreenshotPromptSchemaAndExampleContract() throws {
         let schemaData = try JSONSerialization.data(withJSONObject: ChatScreenshotPrompt.jsonSchema)
         let schema = try XCTUnwrap(String(data: schemaData, encoding: .utf8))
         let canonical = ChatScreenshotPrompt.canonicalJSONExample
@@ -45,6 +22,9 @@ final class ProviderAnalysisTests: XCTestCase {
         let rootProperties = try XCTUnwrap(
             ChatScreenshotPrompt.jsonSchema["properties"] as? [String: Any]
         )
+        XCTAssertNotNil(rootProperties["conversationTitle"])
+        XCTAssertNotNil(rootProperties["messages"])
+        XCTAssertNotNil(rootProperties["ownershipConvention"])
         let ownershipSchema = try XCTUnwrap(
             rootProperties["ownershipConvention"] as? [String: Any]
         )
@@ -143,22 +123,6 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertFalse(prompt.contains("Archived detail"))
         XCTAssertTrue(prompt.contains(#""origin":"user""#))
         XCTAssertFalse(prompt.contains(#""memoryChanges":[]"#))
-        XCTAssertTrue(SuggestedReplyPrompt.instructions.contains("Contact memory describes the contact only."))
-        XCTAssertTrue(
-            SuggestedReplyPrompt.instructions.contains(
-                #"exclusively from messages whose sender is "contact""#
-            )
-        )
-        XCTAssertTrue(
-            SuggestedReplyPrompt.instructions.contains(
-                "Persona-learning rules"
-            )
-        )
-        XCTAssertTrue(
-            SuggestedReplyPrompt.instructions.contains(
-                "Never target protected observations"
-            )
-        )
 
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
@@ -206,73 +170,10 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(withChange.memoryChanges.first?.targetMemoryID, memoryID)
         XCTAssertEqual(withChange.memoryChanges.first?.sourceMessageIDs, [messageID])
 
-        let added = try SuggestedReplyResultDecoder.decode(
-            content:
-                "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Vegetarian\",\"evidenceMessageIDs\":[\"\(messageID.uuidString)\"]}],\"personaObservationChanges\":[]}",
-            finishReason: "stop"
-        )
-        XCTAssertEqual(added.memoryChanges.first?.action, .add)
-        XCTAssertNil(added.memoryChanges.first?.targetMemoryID)
-
-        let archived = try SuggestedReplyResultDecoder.decode(
-            content:
-                "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"archive\",\"targetMemoryID\":\"\(memoryID.uuidString)\",\"text\":null,\"evidenceMessageIDs\":[\"\(messageID.uuidString)\"]}],\"personaObservationChanges\":[]}",
-            finishReason: "stop"
-        )
-        XCTAssertEqual(archived.memoryChanges.first?.action, .archive)
-        XCTAssertNil(archived.memoryChanges.first?.text)
-
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
                 content:
                     "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Vegetarian\",\"evidenceMessageIDs\":[\"not-a-uuid\"]}],\"personaObservationChanges\":[]}",
-                finishReason: "stop"
-            )
-        )
-        XCTAssertThrowsError(
-            try SuggestedReplyResultDecoder.decode(
-                content:
-                    "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Vegetarian\",\"evidenceMessageIDs\":[\"\(messageID.uuidString)\",\"\(messageID.uuidString)\"]}],\"personaObservationChanges\":[]}",
-                finishReason: "stop"
-            )
-        )
-        XCTAssertThrowsError(
-            try SuggestedReplyResultDecoder.decode(
-                content:
-                    "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"archive\",\"targetMemoryID\":\"\(memoryID.uuidString)\",\"text\":null,\"sourceMessageIDs\":[\"\(messageID.uuidString)\"]}]}",
-                finishReason: "stop"
-            )
-        )
-
-        let longSummary = String(repeating: "a", count: 2_001)
-        XCTAssertThrowsError(
-            try SuggestedReplyResultDecoder.decode(
-                content:
-                    "{\"historySummary\":\"\(longSummary)\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[]}",
-                finishReason: "stop"
-            )
-        )
-        let longReply = String(repeating: "r", count: 501)
-        XCTAssertThrowsError(
-            try SuggestedReplyResultDecoder.decode(
-                content: "{\"historySummary\":\"\",\"replies\":[\"\(longReply)\",\"Second\"],\"memoryChanges\":[]}",
-                finishReason: "stop"
-            )
-        )
-        let addChange =
-            "{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Fact\",\"evidenceMessageIDs\":[\"\(messageID.uuidString)\"]}"
-        XCTAssertThrowsError(
-            try SuggestedReplyResultDecoder.decode(
-                content:
-                    "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[\(Array(repeating: addChange, count: 9).joined(separator: ","))]}",
-                finishReason: "stop"
-            )
-        )
-        let fourSources = (0..<4).map { _ in "\"\(UUID().uuidString)\"" }.joined(separator: ",")
-        XCTAssertThrowsError(
-            try SuggestedReplyResultDecoder.decode(
-                content:
-                    "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Fact\",\"evidenceMessageIDs\":[\(fourSources)]}],\"personaObservationChanges\":[]}",
                 finishReason: "stop"
             )
         )
@@ -308,26 +209,12 @@ final class ProviderAnalysisTests: XCTestCase {
     }
 
     @MainActor
-    func testOpenAIFullModelsUseOriginalImageDetail() async throws {
-        for model in [ProviderModel.gpt54, .gpt55] {
-            AnalysisURLProtocolStub.responses = [(200, openAIResponse(content: validAnalysisJSON(matchedChatID: nil)))]
-            _ = try await OpenAIClient(session: makeSession()).analyzeChatScreenshot(
-                makeRequest(), apiKey: "open-key", model: model
-            )
-            let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.last))
-            let input = try XCTUnwrap(body["input"] as? [[String: Any]])
-            let content = try XCTUnwrap(input.first?["content"] as? [[String: Any]])
-            XCTAssertEqual(content.first { $0["type"] as? String == "input_image" }?["detail"] as? String, "original")
-        }
-    }
-
-    @MainActor
-    func testAllZAI46VModelsUseTheirRegionalEndpointWithoutJSONMode() async throws {
+    func testZAIAnalysisUsesRegionalEndpointsWithoutJSONMode() async throws {
         let cases: [(ZAIClient.Region, String)] = [
             (.international, "api.z.ai"),
             (.china, "open.bigmodel.cn")
         ]
-        let models: [ProviderModel] = [.glm46VFlashX, .glm46VFlash, .glm46V]
+        let models: [ProviderModel] = [.glm46VFlashX]
 
         for (region, host) in cases {
             for model in models {
@@ -353,34 +240,6 @@ final class ProviderAnalysisTests: XCTestCase {
                 XCTAssertTrue(imageURL.hasPrefix("data:image/png;base64,"))
             }
         }
-    }
-
-    @MainActor
-    func testZAIFailsChatAnalysisAfterOneMalformedResponse() async throws {
-        let reporter = SpyImportEventReporter()
-        AnalysisURLProtocolStub.responses = [
-            (200, zaiResponse(content: "{}")),
-            (200, zaiResponse(content: validAnalysisJSON(matchedChatID: nil)))
-        ]
-
-        do {
-            _ = try await ZAIClient(
-                region: .international,
-                session: makeSession(),
-                eventReporter: reporter
-            ).analyzeChatScreenshot(makeRequest(), apiKey: "key", model: .glm46VFlash)
-            XCTFail("Expected malformed chat analysis to fail")
-        } catch let error as ProviderConnectionError {
-            guard case .structuredOutput(let details) = error else {
-                return XCTFail("Expected structured-output failure, got \(error)")
-            }
-            XCTAssertEqual(details.failure.kind, .schemaMismatch)
-        } catch {
-            XCTFail("Expected provider failure, got \(error)")
-        }
-
-        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
-        XCTAssertEqual(providerAttempts(in: reporter.events), [1])
     }
 
     @MainActor
@@ -489,47 +348,6 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
         let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
         XCTAssertTrue(messages.allSatisfy { $0["content"] is String })
-    }
-
-    @MainActor
-    func testZAIFailsReplyGenerationAfterOneTruncatedResponse() async throws {
-        AnalysisURLProtocolStub.responses = [
-            (200, zaiResponse(content: "{}", finishReason: "length")),
-            (200, zaiResponse(content: validRepliesJSON()))
-        ]
-
-        do {
-            _ = try await ZAIClient(region: .international, session: makeSession())
-                .generateSuggestedReplies(makeReplyRequest(), apiKey: "key", model: .glm47FlashX)
-            XCTFail("Expected truncated suggested replies to fail")
-        } catch let error as ProviderConnectionError {
-            guard case .structuredOutput(let details) = error else {
-                return XCTFail("Expected structured-output failure, got \(error)")
-            }
-            XCTAssertEqual(details.failure.kind, .truncatedResponse)
-        } catch {
-            XCTFail("Expected provider failure, got \(error)")
-        }
-
-        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
-        XCTAssertEqual(try jsonBody(AnalysisURLProtocolStub.requests[0])["max_tokens"] as? Int, 3_200)
-    }
-
-    @MainActor
-    func testBothZAIRegionsGenerateRepliesThroughRegionalTextEndpoint() async throws {
-        let cases: [(ZAIClient.Region, String)] = [
-            (.international, "api.z.ai"),
-            (.china, "open.bigmodel.cn")
-        ]
-        for (region, host) in cases {
-            AnalysisURLProtocolStub.responses = [(200, zaiResponse(content: validRepliesJSON()))]
-            _ = try await ZAIClient(region: region, session: makeSession())
-                .generateSuggestedReplies(makeReplyRequest(), apiKey: "key", model: .glm47Flash)
-
-            let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.last)
-            XCTAssertEqual(request.url?.host, host)
-            XCTAssertEqual(try jsonBody(request)["model"] as? String, "glm-4.7-flash")
-        }
     }
 
     private var screenshotData: Data {

@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class ChatPersistenceTests: XCTestCase {
-    func testDraftingInputTransitionsFromPendingToSubmittedAndIsOneUse() throws {
+    func testDraftingInputLifecycle() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let operationID = UUID()
@@ -36,35 +36,22 @@ final class ChatPersistenceTests: XCTestCase {
             try repository.consumeDraftingInputIfReady(importID: current.id, operationID: operationID, now: now),
             .alreadyConsumed
         )
-    }
 
-    func testBlankDraftingInputBecomesSkipped() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let operationID = UUID()
-        let record = makePendingImport(operationID: operationID)
-        container.mainContext.insert(record)
+        let skipped = makePendingImport(operationID: operationID)
+        container.mainContext.insert(skipped)
         try container.mainContext.save()
-
         XCTAssertEqual(
-            try repository.resolveDraftingInput(" \n ", importID: record.id, operationID: operationID),
+            try repository.resolveDraftingInput(" \n ", importID: skipped.id, operationID: operationID),
             .skipped
         )
         XCTAssertEqual(
-            try repository.consumeDraftingInputIfReady(importID: record.id, operationID: operationID),
+            try repository.consumeDraftingInputIfReady(importID: skipped.id, operationID: operationID),
             .skipped
         )
-    }
 
-    func testDraftingInputExpiryAndOperationMismatch() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let operationID = UUID()
         let expired = makePendingImport(operationID: operationID)
         container.mainContext.insert(expired)
         try container.mainContext.save()
-        let now = Date()
-
         try repository.resolveDraftingInput(
             "Old draft", importID: expired.id, operationID: operationID, now: now.addingTimeInterval(-901)
         )

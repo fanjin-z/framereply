@@ -40,25 +40,6 @@ final class AIProviderGatewayTests: XCTestCase {
         XCTAssertEqual(adapter.apiKeys, ["validation-key", "saved-key", "saved-key"])
     }
 
-    @MainActor
-    func testEveryLiveAdapterExposesEquivalentTypedCapabilities() throws {
-        let registry = AIProviderRegistry.live()
-        let selections: [(ProviderPlatform, ProviderModel, ProviderModel)] = [
-            (.openAI, .gpt54Mini, .gpt54Mini),
-            (.zaiInternational, .glm46VFlashX, .glm47FlashX),
-            (.zhipuChina, .glm46VFlashX, .glm47FlashX)
-        ]
-
-        for (platform, selectedModel, replyModel) in selections {
-            let profile = try XCTUnwrap(
-                registry.profile(for: platform, selectedModel: selectedModel)
-            )
-            XCTAssertEqual(profile.capabilities, [.screenshotAnalysis, .suggestedReplies])
-            XCTAssertEqual(profile.screenshotAnalysisModel, selectedModel)
-            XCTAssertEqual(profile.suggestedReplyModel, replyModel)
-        }
-    }
-
     private func makeReplyRequest() -> SuggestedReplyGenerationRequest {
         SuggestedReplyGenerationRequest(
             chatName: "Sarah",

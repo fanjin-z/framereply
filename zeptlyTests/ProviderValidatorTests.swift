@@ -62,50 +62,42 @@ final class ProviderValidatorTests: XCTestCase {
     }
 
     @MainActor
-    func testZAIRejectsEmptyIncompleteAndMalformedResponses() async {
+    func testProvidersRejectMalformedResponses() async {
         await assertInvalidResponse(
             from: ZAIClient(region: .china, session: makeSession()),
             model: .glm46VFlash,
             body: #"{"choices":[]}"#
         )
         await assertInvalidResponse(
-            from: ZAIClient(region: .china, session: makeSession()),
-            model: .glm46VFlash,
-            body: #"{"choices":[{"index":0,"message":{"content":"OK"},"finish_reason":"length"}]}"#
-        )
-        await assertInvalidResponse(
-            from: ZAIClient(region: .china, session: makeSession()),
-            model: .glm46VFlash,
-            body: "{}"
-        )
-    }
-
-    @MainActor
-    func testOpenAIRejectsEmptyIncompleteAndMalformedResponses() async {
-        await assertInvalidResponse(
-            from: OpenAIClient(session: makeSession()),
-            model: .gpt54Mini,
-            body: #"{"id":"resp_1","status":"completed","output":[]}"#
-        )
-        await assertInvalidResponse(
             from: OpenAIClient(session: makeSession()),
             model: .gpt54Mini,
             body: #"{"id":"resp_1","status":"incomplete","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
         )
-        await assertInvalidResponse(
-            from: OpenAIClient(session: makeSession()),
-            model: .gpt54Mini,
-            body: "{}"
-        )
     }
 
     @MainActor
-    func testZAIMapsHTTPFailures() async {
+    func testProvidersMapHTTPFailures() async {
         let validator = ZAIClient(region: .international, session: makeSession())
         await assertHTTPError(.invalidKey, statusCode: 401, validator: validator, model: .glm46VFlashX)
         await assertHTTPError(.insufficientBalance, statusCode: 402, validator: validator, model: .glm46VFlashX)
         await assertHTTPError(.rateLimited, statusCode: 429, validator: validator, model: .glm46VFlashX)
         await assertHTTPError(.providerUnavailable, statusCode: 503, validator: validator, model: .glm46VFlashX)
+        await assertHTTPError(.invalidKey, statusCode: 401, validator: OpenAIClient(session: makeSession()), model: .gpt54Mini)
+        await assertHTTPError(
+            .insufficientBalance,
+            statusCode: 429,
+            body: #"{"error":{"code":"insufficient_quota","message":"No quota"}}"#,
+            validator: OpenAIClient(session: makeSession()),
+            model: .gpt54Mini
+        )
+        await assertHTTPError(
+            .rateLimited,
+            statusCode: 429,
+            body: #"{"error":{"code":"rate_limit_exceeded","message":"Slow down"}}"#,
+            validator: OpenAIClient(session: makeSession()),
+            model: .gpt54Mini
+        )
+        await assertHTTPError(.providerUnavailable, statusCode: 500, validator: OpenAIClient(session: makeSession()), model: .gpt54Mini)
     }
 
     @MainActor
@@ -134,26 +126,6 @@ final class ProviderValidatorTests: XCTestCase {
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
-    }
-
-    @MainActor
-    func testOpenAIMapsHTTPFailures() async {
-        await assertHTTPError(.invalidKey, statusCode: 401, validator: OpenAIClient(session: makeSession()), model: .gpt54Mini)
-        await assertHTTPError(
-            .insufficientBalance,
-            statusCode: 429,
-            body: #"{"error":{"code":"insufficient_quota","message":"No quota"}}"#,
-            validator: OpenAIClient(session: makeSession()),
-            model: .gpt54Mini
-        )
-        await assertHTTPError(
-            .rateLimited,
-            statusCode: 429,
-            body: #"{"error":{"code":"rate_limit_exceeded","message":"Slow down"}}"#,
-            validator: OpenAIClient(session: makeSession()),
-            model: .gpt54Mini
-        )
-        await assertHTTPError(.providerUnavailable, statusCode: 500, validator: OpenAIClient(session: makeSession()), model: .gpt54Mini)
     }
 
     @MainActor

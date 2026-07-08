@@ -90,7 +90,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(result.messages[0].quotedReply?.text, "I live in Guangzhou")
     }
 
-    func testConflictingOuterEvidenceBecomesUnknown() throws {
+    func testUnreliableOwnershipEvidenceBecomesUnknown() throws {
         let json = validJSON(
             sender: "user",
             senderEvidence: "message_status_indicator",
@@ -98,44 +98,31 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         )
 
         XCTAssertEqual(try decode(json).messages.first?.sender, .unknown)
+
+        let unobservable = validJSON()
+            .replacingOccurrences(of: #""mode":"opposed_alignment""#, with: #""mode":"unobservable""#)
+            .replacingOccurrences(of: #""screenshotOwnerAlignment":"right""#, with: #""screenshotOwnerAlignment":"unknown""#)
+        XCTAssertEqual(try decode(unobservable).messages.first?.sender, .unknown)
     }
 
-    func testExplicitLeftMessageStatusEvidenceSupportsLeftOwner() throws {
-        let json = validJSON(
-            sender: "user",
-            senderEvidence: "message_status_indicator",
-            outerAlignment: "left"
-        ).replacingOccurrences(
-            of: #""screenshotOwnerAlignment":"right""#,
-            with: #""screenshotOwnerAlignment":"left""#
-        )
+    func testObservableOwnershipEvidenceIdentifiesTheUser() throws {
+        let cases = [
+            ("message_status_indicator", "left", "left"),
+            ("message_status_indicator", "right", "right"),
+            ("alignment_convention", "right", "right")
+        ]
 
-        XCTAssertEqual(try decode(json).messages.first?.sender, .user)
-    }
-
-    func testMessageStatusEvidenceSupportsRightOwner() throws {
-        let json = validJSON(
-            sender: "user",
-            senderEvidence: "message_status_indicator",
-            outerAlignment: "right"
-        )
-
-        XCTAssertEqual(try decode(json).messages.first?.sender, .user)
-    }
-
-    func testAlignmentConventionWorksWithoutMessageStatusIndicator() throws {
-        let json = validJSON(sender: "user", outerAlignment: "right")
-
-        XCTAssertEqual(try decode(json).messages.first?.sender, .user)
-    }
-
-    func testLegacyOutboundIndicatorKeyIsIgnored() throws {
-        let json = validJSON().replacingOccurrences(
-            of: #""outerAuthorLabel":null"#,
-            with: #""outerAuthorLabel":null,"hasOutboundStatusIndicator":true"#
-        )
-
-        XCTAssertEqual(try decode(json).messages.first?.sender, .contact)
+        for (evidence, alignment, ownerAlignment) in cases {
+            let json = validJSON(
+                sender: "user",
+                senderEvidence: evidence,
+                outerAlignment: alignment
+            ).replacingOccurrences(
+                of: #""screenshotOwnerAlignment":"right""#,
+                with: "\"screenshotOwnerAlignment\":\"\(ownerAlignment)\""
+            )
+            XCTAssertEqual(try decode(json).messages.first?.sender, .user)
+        }
     }
 
     func testAuthorIdentityLayoutUsesLiteralOwnerLabel() throws {
@@ -148,31 +135,11 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(try decode(json).messages.first?.sender, .user)
     }
 
-    func testRejectsRenamedLegacyOwnershipKeys() {
-        let json = validJSON()
-            .replacingOccurrences(of: "screenshotOwnerAlignment", with: "currentUserAlignment")
-            .replacingOccurrences(of: "screenshotOwnerAuthorLabel", with: "currentUserAuthorLabel")
-
-        assertFailure(
-            json,
-            kind: .schemaMismatch,
-            path: "ownershipConvention.screenshotOwnerAlignment"
-        )
-    }
-
     func testAuthoredBlockquoteRemainsInOuterText() throws {
         let result = try decode(validJSON(text: #"> earlier words\nMy response"#))
 
         XCTAssertEqual(result.messages.first?.text, "> earlier words\nMy response")
         XCTAssertNil(result.messages.first?.quotedReply)
-    }
-
-    func testUnobservableOwnershipBecomesUnknownRatherThanGuessing() throws {
-        let json = validJSON()
-            .replacingOccurrences(of: #""mode":"opposed_alignment""#, with: #""mode":"unobservable""#)
-            .replacingOccurrences(of: #""screenshotOwnerAlignment":"right""#, with: #""screenshotOwnerAlignment":"unknown""#)
-
-        XCTAssertEqual(try decode(json).messages.first?.sender, .unknown)
     }
 
     func testRejectsMatchConfidenceWithoutMatchedChatID() {

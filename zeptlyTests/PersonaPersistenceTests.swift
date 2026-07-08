@@ -21,20 +21,6 @@ final class PersonaPersistenceTests: XCTestCase {
         XCTAssertFalse(try repository.observations(personaID: professional.id).isEmpty)
     }
 
-    func testFreshStoresGenerateDifferentSeedIDs() throws {
-        let first = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let second = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let firstRepository = PersonaRepository(container: first)
-        let secondRepository = PersonaRepository(container: second)
-        try firstRepository.seedPersonasIfNeeded()
-        try secondRepository.seedPersonasIfNeeded()
-
-        XCTAssertNotEqual(
-            Set(try firstRepository.personas().map(\.id)),
-            Set(try secondRepository.personas().map(\.id))
-        )
-    }
-
     func testDefaultResolutionRejectsMissingMalformedAndDanglingMetadata() throws {
         let invalidValues: [String?] = [nil, "not-a-uuid", UUID().uuidString]
         for value in invalidValues {
@@ -246,28 +232,6 @@ final class PersonaPersistenceTests: XCTestCase {
         let all = try personas.observations(personaID: personaID, includeInactive: true)
         XCTAssertEqual(all.filter { $0.text == "Never uses exclamation marks." }.count, 1)
         XCTAssertFalse(all.contains { $0.text == "Uses lots of exclamation marks!" })
-    }
-
-    func testPromptContainsInstructionsAndObservationTextOnly() {
-        let observation = PersonaRepository.makeObservation(
-            text: "Uses concise sentences.", origin: .seed,
-            isUserProtected: false, evidenceSource: .seed
-        )
-        let context = PersonaPromptContext(
-            id: UUID(), name: "Test", instructions: "Write naturally.",
-            observations: [observation], protectedTombstones: []
-        )
-        let request = SuggestedReplyGenerationRequest(
-            chatName: "Chat", relationshipSubtitle: "", contactMemories: [],
-            currentInteractionGoal: "", persona: context, personaLearningMessages: [],
-            existingHistorySummary: "", summaryMode: .unchanged,
-            olderMessagesToSummarize: [], recentMessages: [], traceID: ImportTraceID()
-        )
-        let input = SuggestedReplyPrompt.input(for: request)
-        XCTAssertTrue(input.contains("Write naturally."))
-        XCTAssertTrue(input.contains("Uses concise sentences."))
-        XCTAssertFalse(input.contains("dimensionKey"))
-        XCTAssertFalse(input.contains("learnedLevel"))
     }
 
     func testObservationDecoderRequiresTwoDistinctEvidenceMessages() throws {

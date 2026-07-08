@@ -3,33 +3,21 @@ import XCTest
 @testable import zeptly
 
 final class ScreenshotShortcutConfigurationTests: XCTestCase {
-    func testAcceptsCanonicalICloudShortcutURL() {
-        let url = ScreenshotShortcutConfiguration.validatedInstallationURL(
-            from: "https://www.icloud.com/shortcuts/0123456789abcdef"
-        )
+    func testInstallationURLValidation() {
+        let cases: [(String, Bool)] = [
+            ("https://www.icloud.com/shortcuts/0123456789abcdef", true),
+            ("", false),
+            ("https://example.com/shortcuts/0123456789abcdef", false),
+            ("https://www.icloud.com/drive/0123456789abcdef", false),
+            ("https://www.icloud.com/shortcuts/", false)
+        ]
 
-        XCTAssertEqual(url?.absoluteString, "https://www.icloud.com/shortcuts/0123456789abcdef")
-    }
-
-    func testRejectsEmptyOrNonICloudURLs() {
-        XCTAssertNil(ScreenshotShortcutConfiguration.validatedInstallationURL(from: ""))
-        XCTAssertNil(
-            ScreenshotShortcutConfiguration.validatedInstallationURL(
-                from: "https://example.com/shortcuts/0123456789abcdef"
+        for (value, isValid) in cases {
+            XCTAssertEqual(
+                ScreenshotShortcutConfiguration.validatedInstallationURL(from: value) != nil,
+                isValid,
+                value
             )
-        )
-    }
-
-    func testRejectsUnexpectedICloudPaths() {
-        XCTAssertNil(
-            ScreenshotShortcutConfiguration.validatedInstallationURL(
-                from: "https://www.icloud.com/drive/0123456789abcdef"
-            )
-        )
-        XCTAssertNil(
-            ScreenshotShortcutConfiguration.validatedInstallationURL(
-                from: "https://www.icloud.com/shortcuts/"
-            )
-        )
+        }
     }
 }
