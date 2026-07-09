@@ -204,7 +204,7 @@ struct SettingsView: View {
             HStack(spacing: 10) {
                 Image(systemName: "camera.viewfinder")
                     .font(.system(size: 20, weight: .medium))
-                Text("Screenshot Shortcut")
+                Text("Shortcut")
                     .font(.system(size: 21, weight: .bold, design: .rounded))
             }
             .foregroundStyle(RezplyColor.primary)
@@ -225,7 +225,7 @@ struct SettingsView: View {
                         }
 
                     VStack(alignment: .leading, spacing: 7) {
-                        Text("Capture with Zeptly")
+                        Text("Zeptly")
                             .font(.system(size: 17, weight: .bold, design: .rounded))
                             .foregroundStyle(RezplyColor.onSurface)
 
@@ -239,6 +239,7 @@ struct SettingsView: View {
                 }
 
                 shortcutInstallControl
+                shortcutShareSheetSetup
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -249,6 +250,62 @@ struct SettingsView: View {
         }
     }
 
+    private var shortcutShareSheetSetup: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Run from other apps")
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurface)
+
+            VStack(alignment: .leading, spacing: 10) {
+                shortcutShareSheetStep(
+                    number: 1,
+                    text: Text(
+                        "Shortcuts -> Zeptly \(Image(systemName: "ellipsis.circle")) -> \(Image(systemName: "info.circle")) Details -> Show in Share Sheet"
+                    ),
+                    accessibilityText:
+                        "Shortcuts to Zeptly to the info button, Details, then Show in Share Sheet"
+                )
+                shortcutShareSheetStep(
+                    number: 2,
+                    text: Text("In Photos app: \(Image(systemName: "square.and.arrow.up")) Share -> Edit Actions"),
+                    accessibilityText: "In Photos app: Share, then Edit Actions"
+                )
+                shortcutShareSheetStep(
+                    number: 3,
+                    text: Text("Add Zeptly to Favorites"),
+                    accessibilityText: "Add Zeptly to Favorites"
+                )
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Run from other apps setup")
+    }
+
+    private func shortcutShareSheetStep(
+        number: Int,
+        text: Text,
+        accessibilityText: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(RezplyColor.primaryContainer.opacity(0.52))
+                    .frame(width: 24, height: 24)
+
+                Text("\(number)")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(RezplyColor.primary)
+            }
+
+            text
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurfaceVariant)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Step \(number): \(accessibilityText)")
+    }
+
     @ViewBuilder
     private var shortcutInstallControl: some View {
         if let installationURL = ScreenshotShortcutConfiguration.installationURL {
@@ -256,7 +313,7 @@ struct SettingsView: View {
                 shortcutInstallLabel(title: "Add Shortcut", symbol: "arrow.up.forward.app")
             }
             .buttonStyle(SoftPressButtonStyle())
-            .accessibilityHint("Opens the Capture with Zeptly shortcut preview")
+            .accessibilityHint("Opens the Zeptly shortcut preview")
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 Button(action: {}) {
