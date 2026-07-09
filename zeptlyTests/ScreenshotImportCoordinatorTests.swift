@@ -87,6 +87,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         XCTAssertEqual(outcome.insertedMessageCount, 3)
         XCTAssertFalse(outcome.reviewRequired)
         XCTAssertEqual(aiService.receivedImageData, imageData)
+        XCTAssertEqual(aiService.receivedImageDataList, [imageData])
         XCTAssertEqual(aiService.receivedContext?.effectiveModel, .gpt54Mini)
         let messages = try repository.messages(chatID: "sarah-jenkins")
         XCTAssertTrue(
@@ -100,6 +101,52 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
                 }
                 return eventTraceID == traceID && inserted == 3
             })
+    }
+
+    @MainActor
+    func testCoordinatorProcessesMultipleImagesInOneAnalysisRequest() async throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        try repository.seedIfNeeded()
+        let analysis = ChatImportAnalysis(
+            conversationTitle: "Sarah Jenkins",
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .contact,
+                    senderName: "Sarah Jenkins",
+                    text: "Can we meet tomorrow?",
+                    timestampLabel: "10:42 AM",
+                    outerAlignment: .left,
+                    senderConfidence: 0.95,
+                    senderEvidence: .alignmentConvention
+                )
+            ],
+            matchedChatID: nil,
+            matchConfidence: 0,
+            ownershipConvention: MessageOwnershipConvention(
+                mode: .opposedAlignment,
+                screenshotOwnerAlignment: .right,
+                screenshotOwnerAuthorLabel: nil
+            )
+        )
+        let aiService = StubAnalysisService(analysis: analysis)
+        let coordinator = ScreenshotImportCoordinator(
+            aiService: aiService,
+            repository: repository
+        )
+        let images = [
+            Data([0x89, 0x50, 0x4E, 0x47, 0x01]),
+            Data([0xFF, 0xD8, 0xFF, 0xE0, 0x02])
+        ]
+
+        let outcome = try await coordinator.process(imageDataList: images)
+
+        XCTAssertEqual(aiService.receivedImageDataList, images)
+        XCTAssertEqual(outcome.insertedMessageCount, 1)
+        XCTAssertTrue(outcome.reviewRequired)
+        XCTAssertEqual(try repository.messages(chatID: outcome.chatID).map(\.text), [
+            "Can we meet tomorrow?"
+        ])
     }
 }
 
@@ -124,6 +171,7 @@ private final class CoordinatorEventReporter: ImportEventReporting, @unchecked S
 private final class StubAnalysisService: AIServiceProviding {
     let analysis: ChatImportAnalysis
     private(set) var receivedImageData: Data?
+    private(set) var receivedImageDataList: [Data] = []
     private(set) var receivedContext: AIProviderExecutionContext?
 
     private let context = AIProviderExecutionContext(
@@ -155,6 +203,7 @@ private final class StubAnalysisService: AIServiceProviding {
         using context: AIProviderExecutionContext
     ) async throws -> ChatImportAnalysis {
         receivedImageData = request.imageData
+        receivedImageDataList = request.imageDataList
         receivedContext = context
         return analysis
     }

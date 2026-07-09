@@ -97,7 +97,7 @@ enum ChatScreenshotPrompt {
             Existing chat candidates:
             \(candidatesJSON)
 
-            Analyze the attached screenshot. Extract its visible conversation identity, ordered messages, best candidate ID, and match confidence.
+            Analyze the attached chat screenshot\(request.imageDataList.count == 1 ? "" : "s"). All attached screenshots are from the same chat. They may be unordered and may overlap. Reconcile them into one deduplicated transcript in conversation order, then extract the visible conversation identity, ordered messages, best candidate ID, and match confidence.
             """
     }
 

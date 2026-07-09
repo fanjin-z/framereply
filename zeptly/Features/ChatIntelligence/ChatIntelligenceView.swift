@@ -4,6 +4,7 @@
 //
 
 import SwiftData
+import PhotosUI
 import SwiftUI
 
 struct ChatIntelligenceView: View {
@@ -15,7 +16,8 @@ struct ChatIntelligenceView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isHistoryPresented = false
     @State private var isContextPresented = false
-    @State private var isScreenshotAttached = false
+    @State private var selectedScreenshotItems: [PhotosPickerItem] = []
+    @State private var photoLoadErrorMessage: String?
     @State private var contextNote = ""
     @State private var copiedReplyID: UUID?
     @State private var isDeleteConfirmationPresented = false
@@ -25,6 +27,7 @@ struct ChatIntelligenceView: View {
     @Query private var contactMemoryRecords: [ContactMemoryRecord]
     @Query private var suggestedReplyCacheRecords: [SuggestedReplyCacheRecord]
     @StateObject private var suggestedRepliesModel: SuggestedRepliesViewModel
+    @StateObject private var importModel: InAppScreenshotImportViewModel
 
     init(
         chat: Chat,
@@ -56,6 +59,9 @@ struct ChatIntelligenceView: View {
                 chatID: chatID,
                 coordinator: SuggestedRepliesCoordinator(providerStore: providerStore)
             )
+        )
+        _importModel = StateObject(
+            wrappedValue: InAppScreenshotImportViewModel(providerStore: providerStore)
         )
     }
 
@@ -126,18 +132,28 @@ struct ChatIntelligenceView: View {
                     )
 
                     ChatCaptureControls(
-                        isScreenshotAttached: isScreenshotAttached,
+                        screenshotSelection: $selectedScreenshotItems,
+                        isImporting: importModel.isLoading,
                         hasContextNote: !contextNote.trimmingCharacters(in: .whitespacesAndNewlines)
                             .isEmpty,
-                        onAttachTap: {
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                                isScreenshotAttached.toggle()
-                            }
-                        },
                         onContextTap: {
                             isContextPresented = true
                         }
                     )
+
+                    if importModel.isLoading {
+                        ScreenshotImportStatusCard(
+                            symbolName: "sparkles",
+                            message: "Analyzing selected screenshots…",
+                            isLoading: true
+                        )
+                    } else if let importStatusMessage {
+                        ScreenshotImportStatusCard(
+                            symbolName: importStatusSymbolName,
+                            message: importStatusMessage,
+                            isLoading: false
+                        )
+                    }
 
                     SuggestedRepliesSection(
                         replies: suggestedRepliesModel.replies,
@@ -192,6 +208,11 @@ struct ChatIntelligenceView: View {
         .task(id: replyCacheKey) {
             suggestedRepliesModel.loadCached()
         }
+        .onChange(of: selectedScreenshotItems) { _, items in
+            Task {
+                await importSelectedScreenshots(items)
+            }
+        }
     }
 
     private var deleteErrorBinding: Binding<Bool> {
@@ -203,6 +224,53 @@ struct ChatIntelligenceView: View {
                 }
             }
         )
+    }
+
+    private var importStatusMessage: String? {
+        if let photoLoadErrorMessage {
+            return photoLoadErrorMessage
+        }
+        if let errorMessage = importModel.errorMessage {
+            return errorMessage
+        }
+        if let result = importModel.result {
+            if let replyErrorMessage = result.replyErrorMessage {
+                return "\(result.message) Suggested replies could not be generated: \(replyErrorMessage)"
+            }
+            return result.message
+        }
+        return nil
+    }
+
+    private var importStatusSymbolName: String {
+        if photoLoadErrorMessage != nil || importModel.errorMessage != nil {
+            return "exclamationmark.triangle.fill"
+        }
+        if importModel.result?.replyErrorMessage != nil
+            || importModel.result?.outcome.reviewRequired == true
+        {
+            return "exclamationmark.bubble.fill"
+        }
+        return "checkmark.circle.fill"
+    }
+
+    private func importSelectedScreenshots(_ items: [PhotosPickerItem]) async {
+        guard !items.isEmpty else { return }
+        defer { selectedScreenshotItems = [] }
+        photoLoadErrorMessage = nil
+
+        do {
+            let imageDataList = try await ChatScreenshotPhotoLoader.loadData(from: items)
+            let draftingInput = contextNote.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let result = await importModel.importScreenshots(
+                imageDataList,
+                draftingInput: draftingInput.isEmpty ? nil : draftingInput
+            ), result.chatID == chat.id {
+                suggestedRepliesModel.loadCached()
+            }
+        } catch {
+            photoLoadErrorMessage = error.localizedDescription
+        }
     }
 
     private func copyReply(_ reply: SuggestedReply) {
@@ -226,5 +294,31 @@ struct ChatIntelligenceView: View {
         } catch {
             deleteErrorMessage = error.localizedDescription
         }
+    }
+}
+
+private struct ScreenshotImportStatusCard: View {
+    let symbolName: String
+    let message: String
+    let isLoading: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if isLoading {
+                ProgressView()
+            } else {
+                Image(systemName: symbolName)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(RezplyColor.primary)
+            }
+            Text(message)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurfaceVariant)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .glassPanel(cornerRadius: 18)
     }
 }

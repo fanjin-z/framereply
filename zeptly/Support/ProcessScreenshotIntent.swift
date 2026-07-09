@@ -7,7 +7,6 @@
 
 import AppIntents
 import Foundation
-import ImageIO
 import SwiftData
 import UniformTypeIdentifiers
 
@@ -423,34 +422,11 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
     }
 
     private func isImageFile(_ file: IntentFile) -> Bool {
-        if let type = file.type {
-            return type.conforms(to: .image)
-        }
-
-        let fileExtension = URL(fileURLWithPath: file.filename).pathExtension.lowercased()
-        if !fileExtension.isEmpty,
-            let inferredType = UTType(filenameExtension: fileExtension),
-            inferredType.conforms(to: .image)
-        {
-            return true
-        }
-
-        guard let source = CGImageSourceCreateWithData(file.data as CFData, nil) else {
-            return false
-        }
-
-        if let typeIdentifier = CGImageSourceGetType(source) as String?,
-            let sourceType = UTType(typeIdentifier),
-            sourceType.conforms(to: .image)
-        {
-            return true
-        }
-
-        if CGImageSourceGetCount(source) > 0 {
-            return true
-        }
-
-        return !file.data.isEmpty
+        ChatScreenshotImageInput.isSupportedImage(
+            data: file.data,
+            filename: file.filename,
+            type: file.type
+        )
     }
 }
 

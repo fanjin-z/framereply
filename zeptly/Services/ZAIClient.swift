@@ -100,7 +100,7 @@ struct ZAIClient: AIProviderAdapter {
         guard Self.visionModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
-        let image = try ScreenshotImagePayload(data: analysisRequest.imageData)
+        let images = try analysisRequest.imageDataList.map(ScreenshotImagePayload.init(data:))
         let candidateIDs = Set(analysisRequest.candidates.map(\.id))
         let maxTokens = 4_000
         eventReporter.record(
@@ -113,16 +113,19 @@ struct ZAIClient: AIProviderAdapter {
             )
         )
 
+        let userContent: [[String: Any]] =
+            images.map { image in
+                ["type": "image_url", "image_url": ["url": image.dataURL]]
+            } + [
+                ["type": "text", "text": ChatScreenshotPrompt.input(for: analysisRequest)]
+            ]
         var body: [String: Any] = [
             "model": model.rawValue,
             "messages": [
                 ["role": "system", "content": ChatScreenshotPrompt.instructions],
                 [
                     "role": "user",
-                    "content": [
-                        ["type": "image_url", "image_url": ["url": image.dataURL]],
-                        ["type": "text", "text": ChatScreenshotPrompt.input(for: analysisRequest)]
-                    ]
+                    "content": userContent
                 ]
             ],
             "max_tokens": maxTokens,

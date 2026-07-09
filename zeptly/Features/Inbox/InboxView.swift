@@ -5,19 +5,40 @@
 
 import SwiftData
 import SwiftUI
+import PhotosUI
 
 struct InboxView: View {
     let isActive: Bool
     let onChatTap: (Chat) -> Void
     let onAvatarTap: (Chat) -> Void
+    let onImportCompleted: (String) -> Void
     @State private var searchText = ""
     @State private var isReviewPresented = false
     @State private var chatPendingDeletion: Chat?
     @State private var isDeleteConfirmationPresented = false
     @State private var deleteErrorMessage: String?
+    @State private var selectedScreenshotItems: [PhotosPickerItem] = []
+    @State private var photoLoadErrorMessage: String?
+    @StateObject private var importModel: InAppScreenshotImportViewModel
     @Query(sort: \ChatRecord.updatedAt, order: .reverse) private var chatRecords: [ChatRecord]
     @Query(filter: #Predicate<ChatMessageRecord> { $0.senderKind == "unknown" })
     private var unknownSenderMessages: [ChatMessageRecord]
+
+    init(
+        isActive: Bool,
+        providerStore: ProviderStore,
+        onChatTap: @escaping (Chat) -> Void,
+        onAvatarTap: @escaping (Chat) -> Void,
+        onImportCompleted: @escaping (String) -> Void
+    ) {
+        self.isActive = isActive
+        self.onChatTap = onChatTap
+        self.onAvatarTap = onAvatarTap
+        self.onImportCompleted = onImportCompleted
+        _importModel = StateObject(
+            wrappedValue: InAppScreenshotImportViewModel(providerStore: providerStore)
+        )
+    }
 
     private var chats: [Chat] {
         let allChats = chatRecords.map { Chat(record: $0) }
@@ -54,8 +75,17 @@ struct InboxView: View {
                     .padding(.top, 14)
                 }
 
-                SearchField(text: $searchText, isActive: isActive)
+                InboxSearchImportRow(
+                    searchText: $searchText,
+                    screenshotSelection: $selectedScreenshotItems,
+                    isSearchActive: isActive,
+                    isImporting: importModel.isLoading
+                )
                     .padding(.top, reviewCount > 0 ? 4 : 14)
+
+                if let importErrorMessage {
+                    InboxImportErrorMessage(message: importErrorMessage)
+                }
 
                 VStack(spacing: 16) {
                     ForEach(chats) { chat in
@@ -75,7 +105,16 @@ struct InboxView: View {
                     }
 
                     if chats.isEmpty {
-                        EmptySearchState()
+                        if chatRecords.isEmpty && searchText.trimmingCharacters(
+                            in: .whitespacesAndNewlines
+                        ).isEmpty {
+                            EmptyImportScreenshotsPicker(
+                                selection: $selectedScreenshotItems,
+                                isLoading: importModel.isLoading
+                            )
+                        } else {
+                            EmptySearchState()
+                        }
                     }
                 }
                 .padding(.top, 4)
@@ -108,6 +147,11 @@ struct InboxView: View {
         } message: {
             Text(deleteErrorMessage ?? "Try again.")
         }
+        .onChange(of: selectedScreenshotItems) { _, items in
+            Task {
+                await importSelectedScreenshots(items)
+            }
+        }
     }
 
     private var reviewCount: Int {
@@ -127,6 +171,25 @@ struct InboxView: View {
         )
     }
 
+    private var importErrorMessage: String? {
+        photoLoadErrorMessage ?? importModel.errorMessage
+    }
+
+    private func importSelectedScreenshots(_ items: [PhotosPickerItem]) async {
+        guard !items.isEmpty else { return }
+        defer { selectedScreenshotItems = [] }
+        photoLoadErrorMessage = nil
+
+        do {
+            let imageDataList = try await ChatScreenshotPhotoLoader.loadData(from: items)
+            if let result = await importModel.importScreenshots(imageDataList) {
+                onImportCompleted(result.chatID)
+            }
+        } catch {
+            photoLoadErrorMessage = error.localizedDescription
+        }
+    }
+
     private func deletePendingChat() {
         guard let chat = chatPendingDeletion else {
             return
@@ -138,5 +201,134 @@ struct InboxView: View {
         } catch {
             deleteErrorMessage = error.localizedDescription
         }
+    }
+}
+
+private struct InboxSearchImportRow: View {
+    @Binding var searchText: String
+    @Binding var screenshotSelection: [PhotosPickerItem]
+    let isSearchActive: Bool
+    let isImporting: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            SearchField(text: $searchText, isActive: isSearchActive)
+                .frame(maxWidth: .infinity)
+
+            PhotosPicker(
+                selection: $screenshotSelection,
+                maxSelectionCount: 8,
+                matching: .images
+            ) {
+                ZStack {
+                    Circle()
+                        .fill(RezplyColor.primary)
+                        .shadow(
+                            color: RezplyColor.primaryContainer.opacity(0.24),
+                            radius: 14,
+                            x: 0,
+                            y: 8
+                        )
+
+                    if isImporting {
+                        ProgressView()
+                            .tint(.white)
+                    } else {
+                        Image(systemName: "photo.badge.plus")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .frame(width: 46, height: 46)
+            }
+            .buttonStyle(.plain)
+            .disabled(isImporting)
+            .accessibilityLabel("Import screenshots")
+        }
+    }
+}
+
+private struct EmptyImportScreenshotsPicker: View {
+    @Binding var selection: [PhotosPickerItem]
+    let isLoading: Bool
+
+    var body: some View {
+        PhotosPicker(
+            selection: $selection,
+            maxSelectionCount: 8,
+            matching: .images
+        ) {
+            EmptyImportPrompt(isLoading: isLoading)
+        }
+        .buttonStyle(.plain)
+        .disabled(isLoading)
+    }
+}
+
+private struct EmptyImportPrompt: View {
+    let isLoading: Bool
+
+    var body: some View {
+        VStack(spacing: 18) {
+            Image(systemName: "photo.on.rectangle.angled")
+                .font(.system(size: 34, weight: .light))
+                .foregroundStyle(RezplyColor.outline)
+
+            Text("Import your first chat")
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurface)
+
+            HStack(spacing: 9) {
+                if isLoading {
+                    ProgressView()
+                        .tint(.white)
+                } else {
+                    Image(systemName: "photo.badge.plus")
+                        .font(.system(size: 15, weight: .bold))
+                }
+
+                Text(isLoading ? "Importing Screenshots" : "Import Screenshots")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.76)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 18)
+            .frame(height: 46)
+            .background {
+                Capsule(style: .continuous)
+                    .fill(RezplyColor.primary)
+                    .shadow(
+                        color: RezplyColor.primaryContainer.opacity(0.28),
+                        radius: 16,
+                        x: 0,
+                        y: 9
+                    )
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 34)
+        .glassPanel(cornerRadius: 26)
+        .accessibilityLabel("Import screenshots")
+    }
+}
+
+private struct InboxImportErrorMessage: View {
+    let message: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(RezplyColor.peach)
+            Text(message)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurfaceVariant)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .glassPanel(cornerRadius: 18)
     }
 }

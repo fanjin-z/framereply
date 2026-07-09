@@ -6,12 +6,15 @@
 import Foundation
 
 enum ScreenshotImportError: LocalizedError {
+    case noImage
     case noActiveProvider
     case missingAPIKey
     case unsupportedProvider
 
     var errorDescription: String? {
         switch self {
+        case .noImage:
+            "Select at least one screenshot to import."
         case .noActiveProvider:
             "Connect and select a model provider before importing a screenshot."
         case .missingAPIKey:
@@ -23,6 +26,8 @@ enum ScreenshotImportError: LocalizedError {
 
     var code: String {
         switch self {
+        case .noImage:
+            "no_image"
         case .noActiveProvider:
             "no_provider"
         case .missingAPIKey:
@@ -77,7 +82,20 @@ final class ScreenshotImportCoordinator {
         imageData: Data,
         traceID: ImportTraceID = ImportTraceID()
     ) async throws -> ScreenshotImportOutcome {
+        try await process(imageDataList: [imageData], traceID: traceID)
+    }
+
+    func process(
+        imageDataList: [Data],
+        traceID: ImportTraceID = ImportTraceID()
+    ) async throws -> ScreenshotImportOutcome {
         eventReporter.record(.stageStarted(traceID: traceID, stage: .shortcut))
+        guard !imageDataList.isEmpty else {
+            eventReporter.record(
+                .importFailed(traceID: traceID, stage: .shortcut, errorCode: "no_image")
+            )
+            throw ScreenshotImportError.noImage
+        }
         let providerContext: AIProviderExecutionContext
         do {
             providerContext = try aiService.activeContext(requiring: .screenshotAnalysis)
@@ -92,7 +110,7 @@ final class ScreenshotImportCoordinator {
         try repository.seedIfNeeded()
         let candidates = try repository.matchCandidates()
         let request = ChatScreenshotAnalysisRequest(
-            imageData: imageData,
+            imageDataList: imageDataList,
             candidates: candidates,
             traceID: traceID
         )
@@ -150,7 +168,7 @@ final class ScreenshotImportCoordinator {
 
         eventReporter.record(.stageStarted(traceID: traceID, stage: .matching))
         let avatarArtifact = AvatarIdentityService.extract(
-            from: imageData,
+            from: request.imageData,
             bounds: analysis.avatarBounds
         )
         let matchDecision = ChatImportMatcher.decision(

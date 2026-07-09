@@ -18,16 +18,28 @@ nonisolated struct ChatCandidateMessage: Codable, Equatable, Sendable {
 }
 
 nonisolated struct ChatScreenshotAnalysisRequest: Equatable, Sendable {
-    let imageData: Data
+    let imageDataList: [Data]
     let candidates: [ChatMatchCandidate]
     let traceID: ImportTraceID
+
+    var imageData: Data {
+        imageDataList.first ?? Data()
+    }
 
     init(
         imageData: Data,
         candidates: [ChatMatchCandidate],
         traceID: ImportTraceID = ImportTraceID()
     ) {
-        self.imageData = imageData
+        self.init(imageDataList: [imageData], candidates: candidates, traceID: traceID)
+    }
+
+    init(
+        imageDataList: [Data],
+        candidates: [ChatMatchCandidate],
+        traceID: ImportTraceID = ImportTraceID()
+    ) {
+        self.imageDataList = imageDataList
         self.candidates = candidates
         self.traceID = traceID
     }

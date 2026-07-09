@@ -75,7 +75,7 @@ struct OpenAIClient: AIProviderAdapter {
         guard Self.supportedModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
-        let image = try ScreenshotImagePayload(data: analysisRequest.imageData)
+        let images = try analysisRequest.imageDataList.map(ScreenshotImagePayload.init(data:))
         let provider = "openai"
         eventReporter.record(
             .providerAttempt(
@@ -90,6 +90,19 @@ struct OpenAIClient: AIProviderAdapter {
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let content: [[String: Any]] =
+            images.map { image in
+                [
+                    "type": "input_image",
+                    "image_url": image.dataURL,
+                    "detail": model.openAIImageDetail
+                ]
+            } + [
+                [
+                    "type": "input_text",
+                    "text": ChatScreenshotPrompt.input(for: analysisRequest)
+                ]
+            ]
         request.httpBody = try JSONSerialization.data(
             withJSONObject: [
                 "model": model.rawValue,
@@ -97,17 +110,7 @@ struct OpenAIClient: AIProviderAdapter {
                 "input": [
                     [
                         "role": "user",
-                        "content": [
-                            [
-                                "type": "input_text",
-                                "text": ChatScreenshotPrompt.input(for: analysisRequest)
-                            ],
-                            [
-                                "type": "input_image",
-                                "image_url": image.dataURL,
-                                "detail": model.openAIImageDetail
-                            ]
-                        ]
+                        "content": content
                     ]
                 ],
                 "max_output_tokens": 4_000,

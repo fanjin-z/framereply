@@ -25,11 +25,15 @@ struct RezplyShellView: View {
                     case .inbox:
                         InboxView(
                             isActive: isActive,
+                            providerStore: providerStore,
                             onChatTap: { chat in
                                 navigationPath.append(.chatIntelligence(chat.id))
                             },
                             onAvatarTap: { chat in
                                 navigationPath.append(.contactContext(chat.id))
+                            },
+                            onImportCompleted: { chatID in
+                                navigationPath.append(.chatIntelligence(chatID))
                             }
                         )
                     case .personas:

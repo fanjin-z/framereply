@@ -55,6 +55,17 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(messages[1]["sender"] as? String, "contact")
         XCTAssertEqual(messages[1]["outerAlignment"] as? String, "left")
         XCTAssertNotNil(messages[1]["quotedReply"] as? [String: Any])
+
+        let multiImagePrompt = ChatScreenshotPrompt.input(
+            for: ChatScreenshotAnalysisRequest(
+                imageDataList: [screenshotData, secondScreenshotData],
+                candidates: []
+            )
+        )
+        XCTAssertTrue(multiImagePrompt.contains("same chat"))
+        XCTAssertTrue(multiImagePrompt.contains("unordered"))
+        XCTAssertTrue(multiImagePrompt.contains("overlap"))
+        XCTAssertTrue(multiImagePrompt.contains("deduplicated transcript"))
     }
 
     func testSuggestedReplyPromptIncludesAllGroundingAndRequiresTwoDistinctReplies() throws {
@@ -198,7 +209,7 @@ final class ProviderAnalysisTests: XCTestCase {
         ]
 
         _ = try await OpenAIClient(session: makeSession()).analyzeChatScreenshot(
-            makeRequest(),
+            makeMultiImageRequest(),
             apiKey: "open-key",
             model: .gpt54Mini
         )
@@ -213,10 +224,15 @@ final class ProviderAnalysisTests: XCTestCase {
 
         let input = try XCTUnwrap(body["input"] as? [[String: Any]])
         let content = try XCTUnwrap(input.first?["content"] as? [[String: Any]])
-        let image = try XCTUnwrap(content.first { $0["type"] as? String == "input_image" })
+        let images = content.filter { $0["type"] as? String == "input_image" }
+        XCTAssertEqual(images.count, 2)
+        let image = try XCTUnwrap(images.first)
         XCTAssertEqual(image["detail"] as? String, "high")
         XCTAssertTrue(
             try XCTUnwrap(image["image_url"] as? String).hasPrefix("data:image/png;base64,"))
+        XCTAssertTrue(
+            try XCTUnwrap(images.last?["image_url"] as? String).hasPrefix(
+                "data:image/jpeg;base64,"))
         let prompt = try XCTUnwrap(
             content.first { $0["type"] as? String == "input_text" }?["text"] as? String)
         XCTAssertFalse(prompt.contains("OCR observations"))
@@ -239,7 +255,7 @@ final class ProviderAnalysisTests: XCTestCase {
                 ]
                 _ = try await ZAIClient(region: region, session: makeSession())
                     .analyzeChatScreenshot(
-                        makeRequest(), apiKey: "regional-key", model: model
+                        makeMultiImageRequest(), apiKey: "regional-key", model: model
                     )
 
                 let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.last)
@@ -255,11 +271,15 @@ final class ProviderAnalysisTests: XCTestCase {
                     try XCTUnwrap(messages.first?["content"] as? String).contains(
                         "Literal visual observations"))
                 let userContent = try XCTUnwrap(messages.last?["content"] as? [[String: Any]])
-                let image = try XCTUnwrap(
-                    userContent.first { $0["type"] as? String == "image_url" })
+                let images = userContent.filter { $0["type"] as? String == "image_url" }
+                XCTAssertEqual(images.count, 2)
+                let image = try XCTUnwrap(images.first)
                 let imageURL = try XCTUnwrap(
                     (image["image_url"] as? [String: Any])?["url"] as? String)
                 XCTAssertTrue(imageURL.hasPrefix("data:image/png;base64,"))
+                let secondImageURL = try XCTUnwrap(
+                    (images.last?["image_url"] as? [String: Any])?["url"] as? String)
+                XCTAssertTrue(secondImageURL.hasPrefix("data:image/jpeg;base64,"))
             }
         }
     }
@@ -381,6 +401,10 @@ final class ProviderAnalysisTests: XCTestCase {
         Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x01, 0x02])
     }
 
+    private var secondScreenshotData: Data {
+        Data([0xFF, 0xD8, 0xFF, 0xE0, 0x01, 0x02, 0x03])
+    }
+
     private func makeReplyRequest() -> SuggestedReplyGenerationRequest {
         SuggestedReplyGenerationRequest(
             chatName: "Sarah",
@@ -418,6 +442,15 @@ final class ProviderAnalysisTests: XCTestCase {
     private func makeRequest() -> ChatScreenshotAnalysisRequest {
         ChatScreenshotAnalysisRequest(
             imageData: screenshotData,
+            candidates: [
+                ChatMatchCandidate(id: "sarah-jenkins", name: "Sarah Jenkins", recentMessages: [])
+            ]
+        )
+    }
+
+    private func makeMultiImageRequest() -> ChatScreenshotAnalysisRequest {
+        ChatScreenshotAnalysisRequest(
+            imageDataList: [screenshotData, secondScreenshotData],
             candidates: [
                 ChatMatchCandidate(id: "sarah-jenkins", name: "Sarah Jenkins", recentMessages: [])
             ]

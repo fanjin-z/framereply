@@ -3,26 +3,30 @@
 //  zeptly
 //
 
+import PhotosUI
 import SwiftUI
 
 struct ChatCaptureControls: View {
-    let isScreenshotAttached: Bool
+    @Binding var screenshotSelection: [PhotosPickerItem]
+    let isImporting: Bool
     let hasContextNote: Bool
-    let onAttachTap: () -> Void
     let onContextTap: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
-            Button {
-                onAttachTap()
-            } label: {
+            PhotosPicker(
+                selection: $screenshotSelection,
+                maxSelectionCount: 8,
+                matching: .images
+            ) {
                 HStack(spacing: 9) {
-                    Image(
-                        systemName: isScreenshotAttached
-                            ? "checkmark.circle" : "camera.badge.ellipsis"
-                    )
-                    .font(.system(size: 16, weight: .semibold))
-                    Text(isScreenshotAttached ? "Screenshot Added" : "Attach Screenshot")
+                    if isImporting {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    Text(isImporting ? "Importing…" : "Import Screenshots")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .lineLimit(2)
                         .minimumScaleFactor(0.72)
@@ -36,6 +40,7 @@ struct ChatCaptureControls: View {
                 }
             }
             .buttonStyle(SoftPressButtonStyle())
+            .disabled(isImporting)
 
             Button {
                 onContextTap()
