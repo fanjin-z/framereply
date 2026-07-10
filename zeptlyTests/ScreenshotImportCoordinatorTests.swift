@@ -13,7 +13,6 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             ChatRecord(
                 id: "sarah-jenkins",
                 name: "Sarah Jenkins",
-                lastActivityLabel: "Recent",
                 preview: "Existing conversation",
                 chipTitle: "General",
                 chipSymbol: "number",

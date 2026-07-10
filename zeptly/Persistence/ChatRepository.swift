@@ -757,8 +757,6 @@ final class ChatRepository {
 
         if let latestMessage = mergeResult.messages.last {
             targetChat.preview = latestMessage.text
-            targetChat.lastActivityLabel =
-                latestMessage.timeLabel.isEmpty ? "Just now" : latestMessage.timeLabel
         }
         targetChat.updatedAt = Date()
 
@@ -969,8 +967,6 @@ final class ChatRepository {
 
         if let latestMessage = mergeResult.messages.last {
             targetChat.preview = latestMessage.text
-            targetChat.lastActivityLabel =
-                latestMessage.timeLabel.isEmpty ? "Just now" : latestMessage.timeLabel
         }
         targetChat.updatedAt = Date()
         try refreshImportReviewState(chatID: targetChatID)
@@ -1056,7 +1052,6 @@ final class ChatRepository {
         return ChatRecord(
             id: UUID().uuidString.lowercased(),
             name: name,
-            lastActivityLabel: "Just now",
             preview: analysis.messages.last?.text ?? "Imported conversation",
             chipTitle: "Review Import",
             chipSymbol: "exclamationmark.bubble",

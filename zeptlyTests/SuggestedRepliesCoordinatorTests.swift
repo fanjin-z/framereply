@@ -371,7 +371,6 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         ChatRecord(
             id: id,
             name: "Sarah",
-            lastActivityLabel: "Now",
             preview: "Preview",
             chipTitle: "General",
             chipSymbol: "number",

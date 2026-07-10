@@ -10,7 +10,6 @@ import SwiftData
 final class ChatRecord {
     var id: String
     var name: String
-    var lastActivityLabel: String
     var preview: String
     var chipTitle: String
     var chipSymbol: String
@@ -32,7 +31,6 @@ final class ChatRecord {
     init(
         id: String,
         name: String,
-        lastActivityLabel: String,
         preview: String,
         chipTitle: String,
         chipSymbol: String,
@@ -52,7 +50,6 @@ final class ChatRecord {
     ) {
         self.id = id
         self.name = name
-        self.lastActivityLabel = lastActivityLabel
         self.preview = preview
         self.chipTitle = chipTitle
         self.chipSymbol = chipSymbol

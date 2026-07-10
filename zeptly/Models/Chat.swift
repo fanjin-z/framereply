@@ -8,7 +8,6 @@ import SwiftUI
 struct Chat: Identifiable {
     let id: String
     let name: String
-    let timeLabel: String
     let preview: String
     let chipTitle: String
     let chipSymbol: String

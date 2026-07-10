@@ -25,16 +25,6 @@ struct ChatRow: View {
                             .foregroundStyle(RezplyColor.onSurface)
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
-
-                        Spacer(minLength: 12)
-
-                        Text(chat.timeLabel)
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundStyle(
-                                chat.isUnread ? RezplyColor.primary : RezplyColor.outline
-                            )
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
                     }
 
                     PillChip(

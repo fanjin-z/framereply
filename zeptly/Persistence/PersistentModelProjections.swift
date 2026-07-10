@@ -11,7 +11,6 @@ extension Chat {
         self.init(
             id: record.id,
             name: record.name,
-            timeLabel: record.lastActivityLabel,
             preview: record.preview,
             chipTitle: record.chipTitle,
             chipSymbol: record.chipSymbol,

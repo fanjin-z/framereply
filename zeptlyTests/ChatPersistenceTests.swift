@@ -496,7 +496,6 @@ final class ChatPersistenceTests: XCTestCase {
             ChatRecord(
                 id: id,
                 name: name,
-                lastActivityLabel: "Recent",
                 preview: message ?? "Imported conversation",
                 chipTitle: "General",
                 chipSymbol: "number",
