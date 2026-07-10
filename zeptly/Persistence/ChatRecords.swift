@@ -335,6 +335,8 @@ final class SuggestedReplyCacheRecord {
     var summarizedMessageCount: Int
     var summarizedPrefixFingerprint: String
     var repliesJSON: String
+    var conversationStrategy: String
+    var strategyRationale: String
     var inputFingerprint: String
     var provider: String
     var model: String
@@ -347,6 +349,8 @@ final class SuggestedReplyCacheRecord {
         summarizedMessageCount: Int,
         summarizedPrefixFingerprint: String,
         repliesJSON: String,
+        conversationStrategy: String = "",
+        strategyRationale: String = "",
         inputFingerprint: String,
         provider: String,
         model: String,
@@ -358,6 +362,8 @@ final class SuggestedReplyCacheRecord {
         self.summarizedMessageCount = summarizedMessageCount
         self.summarizedPrefixFingerprint = summarizedPrefixFingerprint
         self.repliesJSON = repliesJSON
+        self.conversationStrategy = conversationStrategy
+        self.strategyRationale = strategyRationale
         self.inputFingerprint = inputFingerprint
         self.provider = provider
         self.model = model

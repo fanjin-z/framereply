@@ -78,12 +78,30 @@ final class ProviderAnalysisTests: XCTestCase {
                 - 1,
             1
         )
+        XCTAssertTrue(
+            SuggestedReplyPrompt.instructions.contains(
+                "Ground reply substance and direction using this priority")
+        )
+        XCTAssertTrue(
+            SuggestedReplyPrompt.instructions.contains(
+                "recentMessages and existingHistorySummary/olderMessagesToSummarize")
+        )
+        XCTAssertTrue(
+            SuggestedReplyPrompt.instructions.contains(
+                "Ground wording and style using this priority")
+        )
+        XCTAssertTrue(
+            SuggestedReplyPrompt.instructions.contains(
+                "persona instructions; protected active persona observations; mutable active persona observations")
+        )
         let exampleData = try XCTUnwrap(
             SuggestedReplyPrompt.canonicalJSONExample.data(using: .utf8))
         let example = try XCTUnwrap(
             JSONSerialization.jsonObject(with: exampleData) as? [String: Any])
         XCTAssertFalse(try XCTUnwrap(example["historySummary"] as? String).isEmpty)
         XCTAssertEqual(try XCTUnwrap(example["replies"] as? [String]).count, 2)
+        XCTAssertFalse(try XCTUnwrap(example["conversationStrategy"] as? String).isEmpty)
+        XCTAssertFalse(try XCTUnwrap(example["strategyRationale"] as? String).isEmpty)
         let exampleChanges = try XCTUnwrap(example["memoryChanges"] as? [[String: Any]])
         XCTAssertEqual(exampleChanges.first?["action"] as? String, "add")
         XCTAssertTrue(exampleChanges.first?["targetMemoryID"] is NSNull)
@@ -105,7 +123,10 @@ final class ProviderAnalysisTests: XCTestCase {
         )
         XCTAssertEqual(
             Set(rootProperties.keys),
-            ["historySummary", "replies", "memoryChanges", "personaObservationChanges"]
+            [
+                "historySummary", "replies", "conversationStrategy", "strategyRationale",
+                "memoryChanges", "personaObservationChanges"
+            ]
         )
         let memoryChangesSchema = try XCTUnwrap(rootProperties["memoryChanges"] as? [String: Any])
         let memoryItemSchema = try XCTUnwrap(memoryChangesSchema["items"] as? [String: Any])
@@ -128,21 +149,33 @@ final class ProviderAnalysisTests: XCTestCase {
         )
         XCTAssertEqual(decodedExample.memoryChanges.count, 1)
         XCTAssertEqual(decodedExample.personaObservationChanges.count, 1)
+        XCTAssertFalse(decodedExample.conversationStrategy.isEmpty)
+        XCTAssertFalse(decodedExample.strategyRationale.isEmpty)
         for value in [
-            "Sarah", "Friend", "Met at university", "Vegetarian", "Confirm dinner",
+            "Sarah", "Met at university", "Vegetarian", "Confirm dinner",
             "Warm & Collaborative", "Dinner at 7?"
         ] {
             XCTAssertTrue(prompt.contains(value), "Missing reply grounding: \(value)")
         }
+        XCTAssertFalse(prompt.contains("Friend"))
+        XCTAssertFalse(prompt.contains("relationshipSubtitle"))
         XCTAssertFalse(prompt.contains(#""kind":"relationship""#))
         XCTAssertTrue(prompt.contains(#""certainty":"userConfirmed""#))
         XCTAssertTrue(prompt.contains("activeObservations"))
         XCTAssertTrue(prompt.contains("maxActiveObservations"))
+        XCTAssertTrue(prompt.contains("previousConversationStrategy"))
         XCTAssertTrue(prompt.hasPrefix("<conversation_data>"))
         XCTAssertTrue(prompt.hasSuffix("</conversation_data>"))
         XCTAssertFalse(prompt.contains("Archived detail"))
         XCTAssertTrue(prompt.contains(#""origin":"user""#))
         XCTAssertFalse(prompt.contains(#""memoryChanges":[]"#))
+
+        let continuityPrompt = SuggestedReplyPrompt.input(
+            for: makeReplyRequest(previousConversationStrategy: "Move toward confirming dinner.")
+        )
+        XCTAssertTrue(
+            continuityPrompt.contains(#""previousConversationStrategy":"Move toward confirming dinner.""#)
+        )
 
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
@@ -161,7 +194,7 @@ final class ProviderAnalysisTests: XCTestCase {
 
         let normalized = try SuggestedReplyResultDecoder.decode(
             content:
-                "Here is the requested JSON:\n{\"history_summary\":\"Earlier context\",\"suggestedReplies\":[{\"text\":\"First\"},{\"reply\":\"Second\"}],\"memoryChanges\":[],\"personaObservationChanges\":[]}",
+                "Here is the requested JSON:\n{\"history_summary\":\"Earlier context\",\"suggestedReplies\":[{\"text\":\"First\"},{\"reply\":\"Second\"}],\"conversationStrategy\":\"Keep the exchange moving.\",\"strategyRationale\":\"The latest message is actionable.\",\"memoryChanges\":[],\"personaObservationChanges\":[]}",
             finishReason: "stop"
         )
         XCTAssertEqual(normalized.historySummary, "Earlier context")
@@ -169,7 +202,7 @@ final class ProviderAnalysisTests: XCTestCase {
 
         let fallback = try SuggestedReplyResultDecoder.decode(
             content:
-                "{\"historySummary\":null,\"reply1\":\"First\",\"reply2\":\"Second\",\"memoryChanges\":[],\"personaObservationChanges\":[]}",
+                "{\"historySummary\":null,\"reply1\":\"First\",\"reply2\":\"Second\",\"conversationStrategy\":\"Keep the exchange moving.\",\"strategyRationale\":\"The latest message is actionable.\",\"memoryChanges\":[],\"personaObservationChanges\":[]}",
             finishReason: "stop",
             historySummaryFallback: "Saved summary"
         )
@@ -186,7 +219,7 @@ final class ProviderAnalysisTests: XCTestCase {
         let memoryID = UUID()
         let withChange = try SuggestedReplyResultDecoder.decode(
             content: """
-                {"historySummary":"","replies":["First","Second"],"memoryChanges":[{"action":"update","targetMemoryID":"\(memoryID.uuidString)","text":"Now lives in Berlin","evidenceMessageIDs":["\(messageID.uuidString)"]}],"personaObservationChanges":[]}
+                {"historySummary":"","replies":["First","Second"],"conversationStrategy":"Keep the exchange moving.","strategyRationale":"The latest message is actionable.","memoryChanges":[{"action":"update","targetMemoryID":"\(memoryID.uuidString)","text":"Now lives in Berlin","evidenceMessageIDs":["\(messageID.uuidString)"]}],"personaObservationChanges":[]}
                 """,
             finishReason: "stop"
         )
@@ -197,6 +230,13 @@ final class ProviderAnalysisTests: XCTestCase {
             try SuggestedReplyResultDecoder.decode(
                 content:
                     "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"memoryChanges\":[{\"action\":\"add\",\"targetMemoryID\":null,\"text\":\"Vegetarian\",\"evidenceMessageIDs\":[\"not-a-uuid\"]}],\"personaObservationChanges\":[]}",
+                finishReason: "stop"
+            )
+        )
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content:
+                    "{\"historySummary\":\"\",\"replies\":[\"First\",\"Second\"],\"conversationStrategy\":\"\",\"strategyRationale\":\"The latest message is actionable.\",\"memoryChanges\":[],\"personaObservationChanges\":[]}",
                 finishReason: "stop"
             )
         )
@@ -346,6 +386,8 @@ final class ProviderAnalysisTests: XCTestCase {
         let secondPersonaEvidenceID = UUID()
         let content = """
             {"historySummary":null,"replies":["First reply","Second reply"],
+             "conversationStrategy":"Answer directly and keep the next step open.",
+             "strategyRationale":"The supplied messages are enough for a concise reply and style learning.",
              "memoryChanges":[
               {"action":"add","targetMemoryID":null,"text":"Prefers vegetarian restaurants","evidenceMessageIDs":["\(memoryEvidenceID.uuidString)"]}
              ],
@@ -414,10 +456,11 @@ final class ProviderAnalysisTests: XCTestCase {
         Data([0xFF, 0xD8, 0xFF, 0xE0, 0x01, 0x02, 0x03])
     }
 
-    private func makeReplyRequest() -> SuggestedReplyGenerationRequest {
+    private func makeReplyRequest(
+        previousConversationStrategy: String? = nil
+    ) -> SuggestedReplyGenerationRequest {
         SuggestedReplyGenerationRequest(
             chatName: "Sarah",
-            relationshipSubtitle: "Friend",
             contactMemories: [
                 ContactMemory(text: "Met at university"),
                 ContactMemory(text: "Vegetarian"),
@@ -440,12 +483,13 @@ final class ProviderAnalysisTests: XCTestCase {
                     timeLabel: "6:00 PM"
                 )
             ],
+            previousConversationStrategy: previousConversationStrategy,
             traceID: ImportTraceID()
         )
     }
 
     private func validRepliesJSON() -> String {
-        "{\"historySummary\":null,\"replies\":[\"Sounds good to me.\",\"That works — looking forward to it!\"],\"memoryChanges\":[],\"personaObservationChanges\":[]}"
+        "{\"historySummary\":null,\"replies\":[\"Sounds good to me.\",\"That works — looking forward to it!\"],\"conversationStrategy\":\"Confirm the plan now, then move toward logistics if they stay positive.\",\"strategyRationale\":\"The latest message asks for confirmation, so a concise yes keeps momentum without adding unsupported details.\",\"memoryChanges\":[],\"personaObservationChanges\":[]}"
     }
 
     private func makeRequest() -> ChatScreenshotAnalysisRequest {

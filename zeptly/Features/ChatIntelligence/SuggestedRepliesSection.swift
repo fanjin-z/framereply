@@ -17,16 +17,15 @@ struct SuggestedRepliesSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader(symbolName: "rectangle.on.rectangle.angled", title: "Suggested Replies") {
-                Button(action: onGenerate) {
-                    Label(
-                        replies.isEmpty ? "Generate Replies" : "Regenerate",
-                        systemImage: replies.isEmpty ? "sparkles" : "arrow.clockwise"
-                    )
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundStyle(RezplyColor.primary)
+                if replies.isEmpty {
+                    Button(action: onGenerate) {
+                        Label("Generate Replies", systemImage: "sparkles")
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .foregroundStyle(RezplyColor.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isLoading)
                 }
-                .buttonStyle(.plain)
-                .disabled(isLoading)
             }
 
             if isLoading && replies.isEmpty {

@@ -29,6 +29,8 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
 
         let cache = try XCTUnwrap(repository.suggestedReplyCache(chatID: chatID))
         XCTAssertEqual(cache.replies, result.replies)
+        XCTAssertEqual(cache.conversationStrategy, result.conversationStrategy)
+        XCTAssertEqual(cache.strategyRationale, result.strategyRationale)
         XCTAssertEqual(cache.historySummary, "")
         XCTAssertEqual(cache.summarizedMessageCount, 0)
         XCTAssertEqual(cache.summarizedPrefixFingerprint, "")
@@ -36,6 +38,8 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let appLoad = try XCTUnwrap(coordinator.cachedReplies(chatID: chatID))
         XCTAssertEqual(appLoad.source, .cached)
         XCTAssertEqual(appLoad.replies, result.replies)
+        XCTAssertEqual(appLoad.conversationStrategy, result.conversationStrategy)
+        XCTAssertEqual(appLoad.strategyRationale, result.strategyRationale)
         XCTAssertEqual(service.requests.count, 1)
     }
 
@@ -58,6 +62,8 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         _ = try await coordinator.generate(chatID: chatID, draftingInput: "Use this")
         viewModel.loadCached()
         XCTAssertEqual(viewModel.replies.map(\.text), ["Reply 1A", "Reply 1B"])
+        XCTAssertEqual(viewModel.conversationStrategy, "Strategy 1")
+        XCTAssertEqual(viewModel.strategyRationale, "Rationale 1")
         XCTAssertEqual(service.requests.count, 1)
 
         container.mainContext.insert(makeMessage(chatID: chatID, index: 1))
@@ -83,6 +89,8 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                 summarizedMessageCount: 7,
                 summarizedPrefixFingerprint: "existing-prefix",
                 repliesJSON: "[\"Old A\",\"Old B\"]",
+                conversationStrategy: "Previous strategy",
+                strategyRationale: "Previous rationale",
                 inputFingerprint: "old-fingerprint",
                 provider: ProviderPlatform.zaiInternational.rawValue,
                 model: ProviderModel.glm47FlashX.rawValue,
@@ -95,6 +103,8 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
             SuggestedReplyGenerationResult(
                 historySummary: "Draft-generated summary must be ignored",
                 replies: ["Draft A", "Draft B"],
+                conversationStrategy: "Draft strategy",
+                strategyRationale: "Draft rationale",
                 memoryChanges: [
                     ContactMemoryChange(
                         action: .add,
@@ -110,8 +120,12 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
 
         _ = try await coordinator.generate(chatID: chatID, draftingInput: "Use this once")
 
+        XCTAssertEqual(service.requests.first?.draftingInput, "Use this once")
+        XCTAssertEqual(service.requests.first?.previousConversationStrategy, "Previous strategy")
         let cache = try XCTUnwrap(repository.suggestedReplyCache(chatID: chatID))
         XCTAssertEqual(cache.replies, ["Draft A", "Draft B"])
+        XCTAssertEqual(cache.conversationStrategy, "Draft strategy")
+        XCTAssertEqual(cache.strategyRationale, "Draft rationale")
         XCTAssertEqual(cache.historySummary, "Existing summary")
         XCTAssertEqual(cache.summarizedMessageCount, 7)
         XCTAssertEqual(cache.summarizedPrefixFingerprint, "existing-prefix")
@@ -228,11 +242,14 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertEqual(client.requests[1].summaryMode, .incremental)
         XCTAssertEqual(client.requests[1].olderMessagesToSummarize.map(\.text), ["Message 2"])
         XCTAssertEqual(client.requests[1].existingHistorySummary, "Summary through Message 1")
+        XCTAssertEqual(client.requests[1].previousConversationStrategy, "Strategy 1")
 
         let cache = try XCTUnwrap(repository.suggestedReplyCache(chatID: chatID))
         XCTAssertEqual(cache.summarizedMessageCount, 3)
         XCTAssertEqual(cache.historySummary, "Summary through Message 2")
         XCTAssertEqual(cache.replies.count, 2)
+        XCTAssertEqual(cache.conversationStrategy, "Strategy 2")
+        XCTAssertEqual(cache.strategyRationale, "Rationale 2")
     }
 
     @MainActor
@@ -249,7 +266,9 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
             try! container.mainContext.save()
             return SuggestedReplyGenerationResult(
                 historySummary: request.existingHistorySummary,
-                replies: ["First", "Second"]
+                replies: ["First", "Second"],
+                conversationStrategy: "Stay aligned with the newest message.",
+                strategyRationale: "The transcript changed during generation in this test."
             )
         }
         let coordinator = SuggestedRepliesCoordinator(
@@ -294,6 +313,8 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
             return SuggestedReplyGenerationResult(
                 historySummary: request.existingHistorySummary,
                 replies: ["First", "Second"],
+                conversationStrategy: "Answer the partner-hotel question without adding unsupported details.",
+                strategyRationale: "Only contact-authored messages can support durable contact memory.",
                 memoryChanges: [
                     ContactMemoryChange(
                         action: .add,
@@ -445,7 +466,9 @@ private final class StubReplyService: AIServiceProviding {
         }
         return SuggestedReplyGenerationResult(
             historySummary: summary,
-            replies: ["Reply \(requests.count)A", "Reply \(requests.count)B"]
+            replies: ["Reply \(requests.count)A", "Reply \(requests.count)B"],
+            conversationStrategy: "Strategy \(requests.count)",
+            strategyRationale: "Rationale \(requests.count)"
         )
     }
 }

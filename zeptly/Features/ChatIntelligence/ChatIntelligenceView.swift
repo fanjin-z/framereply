@@ -9,7 +9,6 @@ import SwiftUI
 
 struct ChatIntelligenceView: View {
     let chat: Chat
-    let intelligence: ChatIntelligence
     @ObservedObject var providerStore: ProviderStore
     let onContactTap: () -> Void
     let onMergedIntoChat: (String) -> Void
@@ -40,13 +39,11 @@ struct ChatIntelligenceView: View {
 
     init(
         chat: Chat,
-        intelligence: ChatIntelligence,
         providerStore: ProviderStore,
         onContactTap: @escaping () -> Void,
         onMergedIntoChat: @escaping (String) -> Void
     ) {
         self.chat = chat
-        self.intelligence = intelligence
         self.providerStore = providerStore
         self.onContactTap = onContactTap
         self.onMergedIntoChat = onMergedIntoChat
@@ -89,6 +86,14 @@ struct ChatIntelligenceView: View {
 
     private var latestMessages: [ChatMessage] {
         Array(messages.suffix(3))
+    }
+
+    private var conversationStrategy: String {
+        suggestedRepliesModel.conversationStrategy.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var strategyRationale: String {
+        suggestedRepliesModel.strategyRationale.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var currentChatRecord: ChatRecord? {
@@ -218,13 +223,17 @@ struct ChatIntelligenceView: View {
                         isLoading: suggestedRepliesModel.isLoading,
                         errorMessage: suggestedRepliesModel.errorMessage,
                         onCopy: copyReply,
-                        onRetry: regenerateReplies,
-                        onGenerate: regenerateReplies
+                        onRetry: generateReplies,
+                        onGenerate: generateReplies
                     )
 
-                    SuggestedActionCard(action: intelligence.suggestedAction)
+                    if !conversationStrategy.isEmpty {
+                        SuggestedActionCard(conversationStrategy: conversationStrategy)
+                    }
 
-                    ChatReasoningCard(reasoning: intelligence.reasoning)
+                    if !strategyRationale.isEmpty {
+                        ChatReasoningCard(strategyRationale: strategyRationale)
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 12)
@@ -294,7 +303,7 @@ struct ChatIntelligenceView: View {
             Text(actionErrorMessage ?? "Try again.")
         }
         .task(id: replyCacheKey) {
-            suggestedRepliesModel.loadCached()
+            await loadCachedRepliesAndRefreshIfStale()
         }
         .task(id: shouldShowImportReviewCard) {
             recordReviewExposureIfNeeded()
@@ -306,7 +315,7 @@ struct ChatIntelligenceView: View {
         }
         .onChange(of: isContextPresented) { wasPresented, isPresented in
             if wasPresented && !isPresented {
-                recordContextNoteActionIfNeeded()
+                handleContextNoteDismissal()
             }
         }
     }
@@ -390,11 +399,22 @@ struct ChatIntelligenceView: View {
         recordMeaningfulReviewAction()
     }
 
-    private func regenerateReplies() {
+    private func generateReplies() {
         Task {
-            if await suggestedRepliesModel.regenerate() {
+            if await suggestedRepliesModel.generate() {
                 recordMeaningfulReviewAction()
             }
+        }
+    }
+
+    private func loadCachedRepliesAndRefreshIfStale() async {
+        let hadCache = suggestedReplyCacheRecords.first != nil
+        suggestedRepliesModel.loadCached()
+        guard hadCache, suggestedRepliesModel.replies.isEmpty, !messageRecords.isEmpty else {
+            return
+        }
+        if await suggestedRepliesModel.generate(force: false) {
+            recordMeaningfulReviewAction()
         }
     }
 
@@ -458,13 +478,19 @@ struct ChatIntelligenceView: View {
         }
     }
 
-    private func recordContextNoteActionIfNeeded() {
+    private func handleContextNoteDismissal() {
         let trimmedNote = contextNote.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedNote.isEmpty, trimmedNote != lastRecordedContextNote else {
             return
         }
         lastRecordedContextNote = trimmedNote
         recordMeaningfulReviewAction()
+        guard !messageRecords.isEmpty else { return }
+        Task {
+            if await suggestedRepliesModel.generate(draftingInput: trimmedNote) {
+                recordMeaningfulReviewAction()
+            }
+        }
     }
 }
 

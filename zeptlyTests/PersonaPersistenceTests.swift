@@ -241,7 +241,10 @@ final class PersonaPersistenceTests: XCTestCase {
         let first = UUID().uuidString
         let second = UUID().uuidString
         let valid = """
-            {"historySummary":"","replies":["One","Two"],"memoryChanges":[],
+            {"historySummary":"","replies":["One","Two"],
+             "conversationStrategy":"Reply briefly while preserving the style sample.",
+             "strategyRationale":"This fixture validates persona evidence decoding.",
+             "memoryChanges":[],
              "personaObservationChanges":[{"action":"add","targetObservationID":null,
              "text":"Uses short sentences.","evidenceMessageIDs":["\(first)","\(second)"]}]}
             """

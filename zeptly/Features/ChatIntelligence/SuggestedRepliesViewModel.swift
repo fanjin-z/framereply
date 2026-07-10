@@ -4,6 +4,8 @@ import Foundation
 @MainActor
 final class SuggestedRepliesViewModel: ObservableObject {
     @Published private(set) var replies: [SuggestedReply] = []
+    @Published private(set) var conversationStrategy = ""
+    @Published private(set) var strategyRationale = ""
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
 
@@ -20,11 +22,15 @@ final class SuggestedRepliesViewModel: ObservableObject {
         do {
             let outcome = try coordinator.cachedReplies(chatID: chatID)
             replies = outcome?.replies.map(SuggestedReply.init(text:)) ?? []
+            conversationStrategy = outcome?.conversationStrategy ?? ""
+            strategyRationale = outcome?.strategyRationale ?? ""
             if !isLoading {
                 errorMessage = nil
             }
         } catch {
             replies = []
+            conversationStrategy = ""
+            strategyRationale = ""
             if !isLoading {
                 errorMessage = error.localizedDescription
             }
@@ -32,11 +38,17 @@ final class SuggestedRepliesViewModel: ObservableObject {
     }
 
     @discardableResult
-    func regenerate(discardExisting: Bool = false) async -> Bool {
+    func generate(
+        draftingInput: String? = nil,
+        force: Bool = true,
+        discardExisting: Bool = false
+    ) async -> Bool {
         loadID += 1
         let currentLoadID = loadID
         if discardExisting {
             replies = []
+            conversationStrategy = ""
+            strategyRationale = ""
         }
         errorMessage = nil
         isLoading = true
@@ -47,10 +59,16 @@ final class SuggestedRepliesViewModel: ObservableObject {
         }
 
         do {
-            let outcome = try await coordinator.generate(chatID: chatID, force: true)
+            let outcome = try await coordinator.generate(
+                chatID: chatID,
+                draftingInput: draftingInput,
+                force: force
+            )
             try Task.checkCancellation()
             guard loadID == currentLoadID else { return false }
             replies = outcome.replies.map(SuggestedReply.init(text:))
+            conversationStrategy = outcome.conversationStrategy
+            strategyRationale = outcome.strategyRationale
             return true
         } catch is CancellationError {
             return false
@@ -58,6 +76,8 @@ final class SuggestedRepliesViewModel: ObservableObject {
             guard loadID == currentLoadID else { return false }
             if discardExisting {
                 replies = []
+                conversationStrategy = ""
+                strategyRationale = ""
             }
             errorMessage = error.localizedDescription
             return false

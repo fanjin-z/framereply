@@ -33,7 +33,6 @@ final class PersonaExampleAnalyzer {
         }
         let request = SuggestedReplyGenerationRequest(
             chatName: "Writing samples",
-            relationshipSubtitle: "",
             contactMemories: [],
             currentInteractionGoal:
                 "Analyze the supplied writing examples. Replies are incidental.",

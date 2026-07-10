@@ -8,7 +8,21 @@ nonisolated enum SuggestedReplyGenerationSource: String, Codable, Equatable, Sen
 
 nonisolated struct SuggestedRepliesOutcome: Equatable, Sendable {
     let replies: [String]
+    let conversationStrategy: String
+    let strategyRationale: String
     let source: SuggestedReplyGenerationSource
+
+    init(
+        replies: [String],
+        conversationStrategy: String = "",
+        strategyRationale: String = "",
+        source: SuggestedReplyGenerationSource
+    ) {
+        self.replies = replies
+        self.conversationStrategy = conversationStrategy
+        self.strategyRationale = strategyRationale
+        self.source = source
+    }
 }
 
 nonisolated enum SuggestedRepliesError: LocalizedError, Sendable {
@@ -119,7 +133,12 @@ final class SuggestedRepliesCoordinator {
         else {
             return nil
         }
-        return SuggestedRepliesOutcome(replies: cache.replies, source: .cached)
+        return SuggestedRepliesOutcome(
+            replies: cache.replies,
+            conversationStrategy: cache.conversationStrategy,
+            strategyRationale: cache.strategyRationale,
+            source: .cached
+        )
     }
 
     func generate(
@@ -174,6 +193,8 @@ final class SuggestedRepliesCoordinator {
         {
             return SuggestedRepliesOutcome(
                 replies: cache.replies,
+                conversationStrategy: cache.conversationStrategy,
+                strategyRationale: cache.strategyRationale,
                 source: .cached
             )
         }
@@ -182,9 +203,11 @@ final class SuggestedRepliesCoordinator {
         let olderMessages = Array(messages.prefix(olderCount))
         let recentMessages = Array(messages.suffix(Self.recentMessageLimit))
         let summaryPlan = makeSummaryPlan(olderMessages: olderMessages, cache: cache)
+        let previousConversationStrategy = cache?.conversationStrategy
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let strategyContext = previousConversationStrategy.flatMap { $0.isEmpty ? nil : $0 }
         let request = SuggestedReplyGenerationRequest(
             chatName: chat.name,
-            relationshipSubtitle: contactContext.relationshipSubtitle,
             contactMemories: contactContext.contactMemories.filter { $0.status == .active },
             currentInteractionGoal: contactContext.currentInteractionGoal,
             persona: persona,
@@ -194,6 +217,7 @@ final class SuggestedRepliesCoordinator {
             olderMessagesToSummarize: summaryPlan.messages.map(promptMessage),
             recentMessages: recentMessages.map(promptMessage),
             draftingInput: oneUseInput,
+            previousConversationStrategy: strategyContext,
             traceID: traceID
         )
 
@@ -253,12 +277,19 @@ final class SuggestedRepliesCoordinator {
             try repository.saveSuggestedRepliesOnly(
                 chatID: chatID,
                 replies: generated.replies,
+                conversationStrategy: generated.conversationStrategy,
+                strategyRationale: generated.strategyRationale,
                 inputFingerprint: inputFingerprint,
                 provider: providerContext.platform,
                 model: replyModel,
                 promptVersion: SuggestedReplyPrompt.version
             )
-            return SuggestedRepliesOutcome(replies: generated.replies, source: .generated)
+            return SuggestedRepliesOutcome(
+                replies: generated.replies,
+                conversationStrategy: generated.conversationStrategy,
+                strategyRationale: generated.strategyRationale,
+                source: .generated
+            )
         }
 
         let persistedFingerprint = fingerprint(
@@ -283,6 +314,8 @@ final class SuggestedRepliesCoordinator {
             summarizedMessageCount: olderMessages.count,
             summarizedPrefixFingerprint: messageFingerprint(olderMessages),
             replies: generated.replies,
+            conversationStrategy: generated.conversationStrategy,
+            strategyRationale: generated.strategyRationale,
             inputFingerprint: persistedFingerprint,
             provider: providerContext.platform,
             model: replyModel,
@@ -291,6 +324,8 @@ final class SuggestedRepliesCoordinator {
 
         return SuggestedRepliesOutcome(
             replies: generated.replies,
+            conversationStrategy: generated.conversationStrategy,
+            strategyRationale: generated.strategyRationale,
             source: .generated
         )
     }
@@ -357,7 +392,6 @@ final class SuggestedRepliesCoordinator {
         let payload: [String: Any] = [
             "chatName": chatName,
             "messages": messages.map(messageObject),
-            "relationshipSubtitle": contactContext.relationshipSubtitle,
             "contactMemories": contactContext.contactMemories
                 .filter { $0.status == .active }
                 .sorted { $0.id.uuidString < $1.id.uuidString }

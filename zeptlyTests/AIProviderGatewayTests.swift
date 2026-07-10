@@ -43,7 +43,6 @@ final class AIProviderGatewayTests: XCTestCase {
     private func makeReplyRequest() -> SuggestedReplyGenerationRequest {
         SuggestedReplyGenerationRequest(
             chatName: "Sarah",
-            relationshipSubtitle: "Friend",
             contactMemories: [],
             currentInteractionGoal: "Reply",
             persona: PersonaPromptContext(
@@ -118,7 +117,9 @@ private final class RecordingProviderAdapter: AIProviderAdapter {
         apiKeys.append(apiKey)
         return SuggestedReplyGenerationResult(
             historySummary: "",
-            replies: ["First", "Second"]
+            replies: ["First", "Second"],
+            conversationStrategy: "Reply directly.",
+            strategyRationale: "The gateway test only verifies routing."
         )
     }
 }

@@ -6,11 +6,11 @@
 import SwiftUI
 
 struct ChatReasoningCard: View {
-    let reasoning: String
+    let strategyRationale: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("AI Strategy Reasoning")
+            Text("Why This Direction")
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .tracking(1.1)
                 .foregroundStyle(RezplyColor.outline)
@@ -22,7 +22,7 @@ struct ChatReasoningCard: View {
                     .foregroundStyle(RezplyColor.primary)
                     .frame(width: 24)
 
-                Text(reasoning)
+                Text(strategyRationale)
                     .font(.system(size: 16, weight: .regular, design: .rounded))
                     .foregroundStyle(RezplyColor.onSurfaceVariant)
                     .lineSpacing(4)

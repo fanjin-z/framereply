@@ -6,13 +6,13 @@
 import SwiftUI
 
 struct SuggestedActionCard: View {
-    let action: String
+    let conversationStrategy: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionHeader(symbolName: "wand.and.stars", title: "Suggested Next Step")
+            SectionHeader(symbolName: "wand.and.stars", title: "Conversation Strategy")
 
-            Text(action)
+            Text(conversationStrategy)
                 .font(.system(size: 16, weight: .regular, design: .rounded))
                 .foregroundStyle(RezplyColor.onSurfaceVariant)
                 .lineSpacing(4)

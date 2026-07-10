@@ -43,7 +43,6 @@ nonisolated enum SuggestedReplySummaryMode: String, Codable, Equatable, Sendable
 
 nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
     let chatName: String
-    let relationshipSubtitle: String
     let contactMemories: [ContactMemory]
     let currentInteractionGoal: String
     let persona: PersonaPromptContext
@@ -53,11 +52,11 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
     let olderMessagesToSummarize: [SuggestedReplyPromptMessage]
     let recentMessages: [SuggestedReplyPromptMessage]
     let draftingInput: String?
+    let previousConversationStrategy: String?
     let traceID: ImportTraceID
 
     init(
         chatName: String,
-        relationshipSubtitle: String,
         contactMemories: [ContactMemory],
         currentInteractionGoal: String,
         persona: PersonaPromptContext,
@@ -67,10 +66,10 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
         olderMessagesToSummarize: [SuggestedReplyPromptMessage],
         recentMessages: [SuggestedReplyPromptMessage],
         draftingInput: String? = nil,
+        previousConversationStrategy: String? = nil,
         traceID: ImportTraceID
     ) {
         self.chatName = chatName
-        self.relationshipSubtitle = relationshipSubtitle
         self.contactMemories = contactMemories
         self.currentInteractionGoal = currentInteractionGoal
         self.persona = persona
@@ -80,6 +79,7 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
         self.olderMessagesToSummarize = olderMessagesToSummarize
         self.recentMessages = recentMessages
         self.draftingInput = draftingInput
+        self.previousConversationStrategy = previousConversationStrategy
         self.traceID = traceID
     }
 }
@@ -87,17 +87,23 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
 nonisolated struct SuggestedReplyGenerationResult: Codable, Equatable, Sendable {
     let historySummary: String
     let replies: [String]
+    let conversationStrategy: String
+    let strategyRationale: String
     let memoryChanges: [ContactMemoryChange]
     let personaObservationChanges: [PersonaObservationChange]
 
     init(
         historySummary: String,
         replies: [String],
+        conversationStrategy: String,
+        strategyRationale: String,
         memoryChanges: [ContactMemoryChange] = [],
         personaObservationChanges: [PersonaObservationChange] = []
     ) {
         self.historySummary = historySummary
         self.replies = replies
+        self.conversationStrategy = conversationStrategy
+        self.strategyRationale = strategyRationale
         self.memoryChanges = memoryChanges
         self.personaObservationChanges = personaObservationChanges
     }
@@ -160,6 +166,17 @@ nonisolated enum SuggestedReplyResultDecoder {
             Set(replies.map { $0.lowercased() }).count == 2
         else { throw schema("replies") }
 
+        let conversationStrategy = try requiredString(
+            from: object["conversationStrategy"],
+            path: "conversationStrategy",
+            maxLength: 500
+        )
+        let strategyRationale = try requiredString(
+            from: object["strategyRationale"],
+            path: "strategyRationale",
+            maxLength: 700
+        )
+
         guard let memoryObjects = object["memoryChanges"] as? [[String: Any]],
             memoryObjects.count <= 8
         else {
@@ -178,6 +195,8 @@ nonisolated enum SuggestedReplyResultDecoder {
 
         return SuggestedReplyGenerationResult(
             historySummary: summary, replies: replies,
+            conversationStrategy: conversationStrategy,
+            strategyRationale: strategyRationale,
             memoryChanges: memories, personaObservationChanges: observations
         )
     }
@@ -271,6 +290,15 @@ nonisolated enum SuggestedReplyResultDecoder {
     private static func nullableString(from value: Any?) -> String? {
         guard let value = value as? String else { return nil }
         return value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func requiredString(from value: Any?, path: String, maxLength: Int) throws
+        -> String
+    {
+        guard let string = value as? String else { throw schema(path) }
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.count <= maxLength else { throw schema(path) }
+        return trimmed
     }
 
     private static func schema(_ path: String) -> StructuredOutputFailure {

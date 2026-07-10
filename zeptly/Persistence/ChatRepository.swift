@@ -345,6 +345,8 @@ final class ChatRepository {
         summarizedMessageCount: Int,
         summarizedPrefixFingerprint: String,
         replies: [String],
+        conversationStrategy: String,
+        strategyRationale: String,
         inputFingerprint: String,
         provider: ProviderPlatform,
         model: ProviderModel,
@@ -412,6 +414,8 @@ final class ChatRepository {
             cache.summarizedMessageCount = summarizedMessageCount
             cache.summarizedPrefixFingerprint = summarizedPrefixFingerprint
             cache.repliesJSON = repliesJSON
+            cache.conversationStrategy = conversationStrategy
+            cache.strategyRationale = strategyRationale
             cache.inputFingerprint = inputFingerprint
             cache.provider = provider.rawValue
             cache.model = model.rawValue
@@ -429,6 +433,8 @@ final class ChatRepository {
     func saveSuggestedRepliesOnly(
         chatID: String,
         replies: [String],
+        conversationStrategy: String,
+        strategyRationale: String,
         inputFingerprint: String,
         provider: ProviderPlatform,
         model: ProviderModel,
@@ -456,6 +462,8 @@ final class ChatRepository {
             }
 
             cache.repliesJSON = repliesJSON
+            cache.conversationStrategy = conversationStrategy
+            cache.strategyRationale = strategyRationale
             cache.inputFingerprint = inputFingerprint
             cache.provider = provider.rawValue
             cache.model = model.rawValue
