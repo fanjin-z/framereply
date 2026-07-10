@@ -35,7 +35,7 @@ struct ContactContextView: View {
                     .buttonStyle(SoftPressButtonStyle())
                     .accessibilityLabel("Back to inbox")
 
-                    ContactProfileCard(chat: chat, subtitle: context.relationshipSubtitle)
+                    ContactProfileCard(chat: chat)
 
                     AboutContactCard(
                         contactName: chat.name,

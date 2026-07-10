@@ -157,9 +157,6 @@ final class ProviderAnalysisTests: XCTestCase {
         ] {
             XCTAssertTrue(prompt.contains(value), "Missing reply grounding: \(value)")
         }
-        XCTAssertFalse(prompt.contains("Friend"))
-        XCTAssertFalse(prompt.contains("relationshipSubtitle"))
-        XCTAssertFalse(prompt.contains(#""kind":"relationship""#))
         XCTAssertTrue(prompt.contains(#""certainty":"userConfirmed""#))
         XCTAssertTrue(prompt.contains("activeObservations"))
         XCTAssertTrue(prompt.contains("maxActiveObservations"))

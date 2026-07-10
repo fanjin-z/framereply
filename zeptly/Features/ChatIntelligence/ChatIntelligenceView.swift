@@ -126,7 +126,6 @@ struct ChatIntelligenceView: View {
             hasher.combine(message.sortIndex)
         }
         if let context = contactContextRecords.first {
-            hasher.combine(context.relationshipSubtitle)
             hasher.combine(context.currentInteractionGoal)
             hasher.combine(context.personaID)
             hasher.combine(context.personaAssignedAt)

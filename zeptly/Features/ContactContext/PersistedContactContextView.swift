@@ -77,7 +77,6 @@ struct PersistedContactContextView: View {
         } else {
             record = ContactContextRecord(
                 chatID: chat.id,
-                relationshipSubtitle: "",
                 currentInteractionGoal: "",
                 personaID: value.personaID,
                 personaAssignedAt: value.personaAssignedAt

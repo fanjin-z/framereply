@@ -59,7 +59,6 @@ extension ChatMessage {
 extension ContactContextRecord {
     func value(contactMemories: [ContactMemory] = []) -> ContactContext {
         return ContactContext(
-            relationshipSubtitle: relationshipSubtitle,
             contactMemories: contactMemories,
             currentInteractionGoal: currentInteractionGoal,
             personaID: personaID,
@@ -68,7 +67,6 @@ extension ContactContextRecord {
     }
 
     func update(from value: ContactContext) {
-        relationshipSubtitle = value.relationshipSubtitle
         currentInteractionGoal = value.currentInteractionGoal
         personaID = value.personaID
         personaAssignedAt = value.personaAssignedAt

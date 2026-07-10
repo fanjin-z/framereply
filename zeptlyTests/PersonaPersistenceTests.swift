@@ -97,7 +97,7 @@ final class PersonaPersistenceTests: XCTestCase {
         let professional = try XCTUnwrap(records.first { $0.name == "Professional" })
         let spark = try XCTUnwrap(records.first { $0.name == "Spark" })
         let assignment = ContactContextRecord(
-            chatID: "chat", relationshipSubtitle: "", currentInteractionGoal: "",
+            chatID: "chat", currentInteractionGoal: "",
             personaID: professional.id
         )
         container.mainContext.insert(assignment)
@@ -120,7 +120,7 @@ final class PersonaPersistenceTests: XCTestCase {
         let thoughtful = try XCTUnwrap(records.first { $0.name == "Thoughtful" })
         try repository.setDefaultPersona(id: thoughtful.id)
         let assignment = ContactContextRecord(
-            chatID: "chat", relationshipSubtitle: "", currentInteractionGoal: "",
+            chatID: "chat", currentInteractionGoal: "",
             personaID: spark.id
         )
         container.mainContext.insert(assignment)

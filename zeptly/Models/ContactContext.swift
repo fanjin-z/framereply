@@ -53,7 +53,6 @@ nonisolated struct ContactMemory: Identifiable, Codable, Equatable, Sendable {
 }
 
 struct ContactContext: Equatable {
-    var relationshipSubtitle: String
     var contactMemories: [ContactMemory]
     var currentInteractionGoal: String
     var personaID: UUID
@@ -61,7 +60,6 @@ struct ContactContext: Equatable {
 
     static func empty(personaID: UUID) -> ContactContext {
         ContactContext(
-            relationshipSubtitle: "",
             contactMemories: [],
             currentInteractionGoal: "",
             personaID: personaID,

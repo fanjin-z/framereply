@@ -192,7 +192,6 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         container.mainContext.insert(
             ContactContextRecord(
                 chatID: chatID,
-                relationshipSubtitle: "Friend",
                 currentInteractionGoal: "Confirm dinner",
                 personaID: thoughtfulID
             )

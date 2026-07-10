@@ -179,7 +179,6 @@ final class ChatRepository {
         let memories = try contactMemories(chatID: chatID).map(\.value)
         return try contactContext(chatID: chatID)?.value(contactMemories: memories)
             ?? ContactContext(
-                relationshipSubtitle: "",
                 contactMemories: memories,
                 currentInteractionGoal: "",
                 personaID: try defaultPersona().id,
@@ -1089,7 +1088,6 @@ final class ChatRepository {
     {
         return ContactContextRecord(
             chatID: chatID,
-            relationshipSubtitle: contact.relationshipSubtitle,
             currentInteractionGoal: contact.currentInteractionGoal,
             personaID: contact.personaID,
             personaAssignedAt: contact.personaAssignedAt
@@ -1098,7 +1096,7 @@ final class ChatRepository {
 
     private func emptyContactContext() throws -> ContactContext {
         ContactContext(
-            relationshipSubtitle: "", contactMemories: [], currentInteractionGoal: "",
+            contactMemories: [], currentInteractionGoal: "",
             personaID: try defaultPersona().id,
             personaAssignedAt: Date()
         )

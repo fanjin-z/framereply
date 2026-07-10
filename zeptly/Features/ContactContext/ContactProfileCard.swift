@@ -7,11 +7,6 @@ import SwiftUI
 
 struct ContactProfileCard: View {
     let chat: Chat
-    let subtitle: String
-
-    private var trimmedSubtitle: String {
-        subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -31,16 +26,6 @@ struct ContactProfileCard: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                     .frame(maxWidth: .infinity, alignment: .leading)
-
-                if !trimmedSubtitle.isEmpty {
-                    Text(trimmedSubtitle)
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
-                        .foregroundStyle(RezplyColor.onSurfaceVariant)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.82)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
             }
         }
         .frame(maxWidth: .infinity)

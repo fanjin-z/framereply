@@ -178,7 +178,6 @@ final class ChatMessageRecord {
 final class ContactContextRecord {
     var id: UUID
     var chatID: String
-    var relationshipSubtitle: String
     var currentInteractionGoal: String
     var personaID: UUID
     var personaAssignedAt: Date
@@ -186,14 +185,12 @@ final class ContactContextRecord {
     init(
         id: UUID = UUID(),
         chatID: String,
-        relationshipSubtitle: String,
         currentInteractionGoal: String,
         personaID: UUID,
         personaAssignedAt: Date = Date()
     ) {
         self.id = id
         self.chatID = chatID
-        self.relationshipSubtitle = relationshipSubtitle
         self.currentInteractionGoal = currentInteractionGoal
         self.personaID = personaID
         self.personaAssignedAt = personaAssignedAt

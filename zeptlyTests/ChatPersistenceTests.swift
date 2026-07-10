@@ -654,7 +654,6 @@ final class ChatPersistenceTests: XCTestCase {
         container.mainContext.insert(
             ContactContextRecord(
                 chatID: chatID,
-                relationshipSubtitle: "Friend",
                 currentInteractionGoal: "Reconnect",
                 personaID: UUID()
             )
