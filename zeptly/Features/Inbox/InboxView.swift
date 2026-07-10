@@ -57,21 +57,15 @@ struct InboxView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 if reviewCount > 0 {
-                    Button {
-                        isReviewPresented = true
-                    } label: {
-                        Label(
-                            "Review \(reviewCount) imported chat\(reviewCount == 1 ? "" : "s")",
-                            systemImage: "exclamationmark.bubble.fill"
-                        )
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(RezplyColor.primary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .glassPanel(cornerRadius: 18)
-                    }
-                    .buttonStyle(.plain)
+                    InboxImportReviewNudge(
+                        text: reviewNudgeText,
+                        iconName: reviewNudgeIconName,
+                        count: reviewCount,
+                        isAccented: hasUnknownSenderReview,
+                        onTap: {
+                            isReviewPresented = true
+                        }
+                    )
                     .padding(.top, 14)
                 }
 
@@ -160,6 +154,22 @@ struct InboxView: View {
         return provisionalIDs.union(unknownIDs).count
     }
 
+    private var hasProvisionalImportReview: Bool {
+        chatRecords.contains { $0.isProvisional }
+    }
+
+    private var hasUnknownSenderReview: Bool {
+        !unknownSenderMessages.isEmpty
+    }
+
+    private var reviewNudgeText: String {
+        hasUnknownSenderReview && !hasProvisionalImportReview ? "Review senders" : "Review imports"
+    }
+
+    private var reviewNudgeIconName: String {
+        hasUnknownSenderReview ? "person.crop.circle.badge.questionmark" : "tray.and.arrow.down"
+    }
+
     private var deleteErrorBinding: Binding<Bool> {
         Binding(
             get: { deleteErrorMessage != nil },
@@ -201,6 +211,77 @@ struct InboxView: View {
         } catch {
             deleteErrorMessage = error.localizedDescription
         }
+    }
+}
+
+private struct InboxImportReviewNudge: View {
+    let text: String
+    let iconName: String
+    let count: Int
+    let isAccented: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                Image(systemName: iconName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(RezplyColor.primary.opacity(0.88))
+
+                Text(text)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurface)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+
+                Text("\(count)")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(RezplyColor.primary)
+                    .frame(minWidth: 22, minHeight: 22)
+                    .background {
+                        Capsule(style: .continuous)
+                            .fill(RezplyColor.secondaryContainer.opacity(0.54))
+                    }
+
+                Spacer(minLength: 6)
+
+                Text("Review")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+                    .padding(.horizontal, 14)
+                    .frame(height: 34)
+                    .background {
+                        Capsule(style: .continuous)
+                            .fill(RezplyColor.primary)
+                    }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(RezplyColor.surfaceContainerLow.opacity(0.42))
+                    }
+                    .overlay(alignment: .leading) {
+                        if isAccented {
+                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                .fill(RezplyColor.primary.opacity(0.56))
+                                .frame(width: 3)
+                                .padding(.vertical, 12)
+                        }
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(RezplyColor.outlineVariant.opacity(0.46), lineWidth: 1)
+                    }
+            }
+        }
+        .buttonStyle(SoftPressButtonStyle())
     }
 }
 

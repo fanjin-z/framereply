@@ -168,7 +168,6 @@ struct ChatIntelligenceView: View {
 
                     if shouldShowImportReviewCard {
                         ChatImportReviewCard(
-                            chatName: currentChatRecord?.name ?? chat.name,
                             isProvisional: isCurrentChatProvisional,
                             unknownSenderCount: unknownSenderCount,
                             canMerge: !mergeCandidates.isEmpty,
@@ -470,7 +469,6 @@ struct ChatIntelligenceView: View {
 }
 
 private struct ChatImportReviewCard: View {
-    let chatName: String
     let isProvisional: Bool
     let unknownSenderCount: Int
     let canMerge: Bool
@@ -479,58 +477,102 @@ private struct ChatImportReviewCard: View {
     let onReviewSenders: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("Review import", systemImage: "exclamationmark.bubble.fill")
+        HStack(spacing: 10) {
+            Image(systemName: iconName)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(RezplyColor.primary.opacity(0.88))
+
+            Text(nudgeText)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurface)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+
+            Spacer(minLength: 6)
+
+            Button(primaryActionTitle, action: primaryAction)
                 .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(RezplyColor.primary)
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+                .padding(.horizontal, 14)
+                .frame(height: 34)
+                .background {
+                    Capsule(style: .continuous)
+                        .fill(RezplyColor.primary)
+                }
+                .buttonStyle(SoftPressButtonStyle())
 
-            Text(reviewMessage)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(RezplyColor.onSurfaceVariant)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 10) {
-                if isProvisional {
-                    Button("Keep as New") {
-                        onKeepAsNew()
+            if hasSecondaryActions {
+                Menu {
+                    if isProvisional && unknownSenderCount > 0 {
+                        Button("Keep as new", action: onKeepAsNew)
                     }
-                    .buttonStyle(.borderedProminent)
-
                     if canMerge {
-                        Button("Merge Into...") {
-                            onMergeTap()
-                        }
-                        .buttonStyle(.bordered)
+                        Button("Merge into...", action: onMergeTap)
                     }
-                }
-
-                if unknownSenderCount > 0 {
-                    if isProvisional {
-                        Button("Review Senders") {
-                            onReviewSenders()
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(RezplyColor.primary)
+                        .frame(width: 34, height: 34)
+                        .background {
+                            Circle()
+                                .fill(RezplyColor.secondaryContainer.opacity(0.42))
                         }
-                        .buttonStyle(.bordered)
-                    } else {
-                        Button("Review Senders") {
-                            onReviewSenders()
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
                 }
+                .buttonStyle(SoftPressButtonStyle())
             }
         }
-        .padding(18)
-        .glassPanel(cornerRadius: 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(RezplyColor.surfaceContainerLow.opacity(0.42))
+                }
+                .overlay(alignment: .leading) {
+                    if unknownSenderCount > 0 {
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(RezplyColor.primary.opacity(0.56))
+                            .frame(width: 3)
+                            .padding(.vertical, 12)
+                    }
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(RezplyColor.outlineVariant.opacity(0.46), lineWidth: 1)
+                }
+        }
     }
 
-    private var reviewMessage: String {
+    private var nudgeText: String {
         if isProvisional && unknownSenderCount > 0 {
-            return "\(chatName) is an imported chat, and \(unknownSenderCount) sender assignment\(unknownSenderCount == 1 ? "" : "s") need review."
+            return "Review imported chat"
         }
-        if isProvisional {
-            return "\(chatName) is an imported chat. Keep it as a new chat or merge it into an existing one."
+        if unknownSenderCount > 0 {
+            return "Review senders"
         }
-        return "\(unknownSenderCount) sender assignment\(unknownSenderCount == 1 ? "" : "s") need review."
+        return "Imported chat"
+    }
+
+    private var iconName: String {
+        unknownSenderCount > 0 ? "person.crop.circle.badge.questionmark" : "tray.and.arrow.down"
+    }
+
+    private var primaryActionTitle: String {
+        unknownSenderCount > 0 ? "Review" : "Keep"
+    }
+
+    private var primaryAction: () -> Void {
+        unknownSenderCount > 0 ? onReviewSenders : onKeepAsNew
+    }
+
+    private var hasSecondaryActions: Bool {
+        (isProvisional && unknownSenderCount > 0) || canMerge
     }
 }
 

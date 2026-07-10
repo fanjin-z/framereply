@@ -45,38 +45,58 @@ struct ChatImportReviewSheet: View {
         allChats.filter { !$0.requiresImportIdentityReview }
     }
 
+    private var showsSectionHeaders: Bool {
+        !provisionalChats.isEmpty && !unknownSenderMessages.isEmpty
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
                 EtherealBackground()
 
                 ScrollView {
-                    VStack(spacing: 16) {
-                        ForEach(provisionalChats) { chat in
-                            ImportReviewCard(
-                                chat: chat,
-                                mergeCandidates: confirmedChats,
-                                onConfirm: confirm,
-                                onMerge: merge
-                            )
+                    VStack(alignment: .leading, spacing: 14) {
+                        if !provisionalChats.isEmpty {
+                            if showsSectionHeaders {
+                                ImportReviewSectionHeader(title: "Imported chats")
+                            }
+
+                            VStack(spacing: 10) {
+                                ForEach(provisionalChats) { chat in
+                                    ImportReviewCard(
+                                        chat: chat,
+                                        mergeCandidates: confirmedChats,
+                                        onConfirm: confirm,
+                                        onMerge: merge
+                                    )
+                                }
+                            }
                         }
 
-                        ForEach(unknownSenderMessages) { message in
-                            UnknownSenderReviewCard(
-                                message: message,
-                                chatName: allChats.first(where: { $0.id == message.chatID })?.name
-                                    ?? "Imported chat",
-                                onResolve: resolveSender
-                            )
+                        if !unknownSenderMessages.isEmpty {
+                            if showsSectionHeaders {
+                                ImportReviewSectionHeader(title: "Sender labels")
+                                    .padding(.top, 4)
+                            }
+
+                            VStack(spacing: 10) {
+                                ForEach(unknownSenderMessages) { message in
+                                    UnknownSenderReviewCard(
+                                        message: message,
+                                        chatName: allChats.first(where: { $0.id == message.chatID })?
+                                            .name
+                                            ?? "Imported chat",
+                                        onResolve: resolveSender
+                                    )
+                                }
+                            }
                         }
 
                         if provisionalChats.isEmpty && unknownSenderMessages.isEmpty {
                             ContentUnavailableView(
                                 "Imports Reviewed",
                                 systemImage: "checkmark.bubble",
-                                description: Text(
-                                    "There are no imported chats or sender assignments waiting for review."
-                                )
+                                description: Text("All imports are reviewed.")
                             )
                         }
                     }
@@ -148,45 +168,59 @@ struct ChatImportReviewSheet: View {
     }
 }
 
+private struct ImportReviewSectionHeader: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 13, weight: .bold, design: .rounded))
+            .foregroundStyle(RezplyColor.onSurfaceVariant)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 private struct UnknownSenderReviewCard: View {
     let message: ChatMessageRecord
     let chatName: String
     let onResolve: (UUID, AnalyzedMessageSender, String?) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("Sender needs review", systemImage: "person.crop.circle.badge.questionmark")
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(RezplyColor.primary)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Who sent this?")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurface)
 
-            Text(chatName)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(RezplyColor.onSurfaceVariant)
+                Spacer(minLength: 8)
+
+                Text(chatName)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurfaceVariant)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            }
 
             Text(message.text)
                 .font(.system(size: 14, design: .rounded))
                 .foregroundStyle(RezplyColor.onSurface)
-                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(2)
 
-            HStack {
-                Button("Me") {
+            HStack(spacing: 8) {
+                SenderChoiceChip("Me") {
                     onResolve(message.id, .user, nil)
                 }
-                .buttonStyle(.borderedProminent)
 
-                Button("Contact") {
+                SenderChoiceChip("Contact") {
                     onResolve(message.id, .contact, nil)
                 }
-                .buttonStyle(.bordered)
 
-                Button(message.senderName ?? "Participant") {
+                SenderChoiceChip(message.senderName ?? "Participant") {
                     onResolve(message.id, .other, message.senderName)
                 }
-                .buttonStyle(.bordered)
             }
         }
-        .padding(18)
-        .glassPanel(cornerRadius: 22)
+        .padding(14)
+        .quietReviewPanel(accented: true)
     }
 }
 
@@ -212,49 +246,125 @@ private struct ImportReviewCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
                 AvatarMark(
                     initials: chat.initials,
                     symbolName: chat.avatarSymbol,
                     colors: [RezplyColor.peach, RezplyColor.primaryContainer],
                     imageData: chat.avatarData,
-                    size: 38
+                    size: 34
                 )
-                Label("Needs review", systemImage: "exclamationmark.bubble.fill")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundStyle(RezplyColor.primary)
-            }
 
-            TextField("Chat name", text: $name)
-                .textFieldStyle(.roundedBorder)
-                .submitLabel(.done)
-                .onSubmit { KeyboardDismissal.dismiss() }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Imported chat")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(RezplyColor.onSurfaceVariant)
+
+                    TextField("Chat name", text: $name)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(RezplyColor.onSurface)
+                        .submitLabel(.done)
+                        .onSubmit { KeyboardDismissal.dismiss() }
+                }
+            }
 
             Text(chat.preview)
                 .font(.system(size: 14, design: .rounded))
                 .foregroundStyle(RezplyColor.onSurfaceVariant)
-                .lineLimit(3)
+                .lineLimit(1)
 
-            HStack {
-                Button("Keep as New") {
+            HStack(spacing: 10) {
+                Button {
                     onConfirm(chat.id, name)
+                } label: {
+                    Text("Keep")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .background {
+                            Capsule(style: .continuous)
+                                .fill(RezplyColor.primary)
+                        }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(SoftPressButtonStyle())
 
                 if !mergeCandidates.isEmpty {
-                    Menu("Merge Into…") {
+                    Menu {
                         ForEach(mergeCandidates) { candidate in
                             Button(candidate.name) {
                                 onMerge(chat.id, candidate.id)
                             }
                         }
+                    } label: {
+                        Text("Merge into...")
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .foregroundStyle(RezplyColor.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 36)
+                            .background {
+                                Capsule(style: .continuous)
+                                    .fill(RezplyColor.secondaryContainer.opacity(0.46))
+                            }
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(SoftPressButtonStyle())
                 }
             }
         }
-        .padding(18)
-        .glassPanel(cornerRadius: 22)
+        .padding(14)
+        .quietReviewPanel()
+    }
+}
+
+private struct SenderChoiceChip: View {
+    let title: String
+    let action: () -> Void
+
+    init(_ title: String, action: @escaping () -> Void) {
+        self.title = title
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(RezplyColor.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+                .frame(maxWidth: .infinity)
+                .frame(height: 36)
+                .background {
+                    Capsule(style: .continuous)
+                        .fill(RezplyColor.secondaryContainer.opacity(0.46))
+                }
+        }
+        .buttonStyle(SoftPressButtonStyle())
+    }
+}
+
+private extension View {
+    func quietReviewPanel(accented: Bool = false) -> some View {
+        background {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(RezplyColor.surfaceContainerLow.opacity(0.42))
+                }
+                .overlay(alignment: .leading) {
+                    if accented {
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(RezplyColor.primary.opacity(0.56))
+                            .frame(width: 3)
+                            .padding(.vertical, 12)
+                    }
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(RezplyColor.outlineVariant.opacity(0.46), lineWidth: 1)
+                }
+        }
     }
 }
