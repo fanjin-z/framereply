@@ -20,8 +20,7 @@ struct ContactProfileCard: View {
                 symbolName: chat.avatarSymbol,
                 colors: chat.gradient,
                 imageData: chat.avatarData,
-                size: 56,
-                showsOnline: chat.isOnline
+                size: 56
             )
             .fixedSize()
 

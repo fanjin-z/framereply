@@ -20,8 +20,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
                 avatarSymbol: nil,
                 initials: "SJ",
                 appearanceStyle: 0,
-                isUnread: false,
-                isOnline: false
+                isUnread: false
             )
         )
         let analysis = ChatImportAnalysis(

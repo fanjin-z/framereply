@@ -25,7 +25,6 @@ final class ChatRecord {
     var initials: String
     var appearanceStyle: Int
     var isUnread: Bool
-    var isOnline: Bool
     var isProvisional: Bool
     var createdAt: Date
     var updatedAt: Date
@@ -41,7 +40,6 @@ final class ChatRecord {
         initials: String,
         appearanceStyle: Int,
         isUnread: Bool,
-        isOnline: Bool,
         isProvisional: Bool = false,
         avatarData: Data? = nil,
         avatarPerceptualHash: Int64? = nil,
@@ -68,7 +66,6 @@ final class ChatRecord {
         self.initials = initials
         self.appearanceStyle = appearanceStyle
         self.isUnread = isUnread
-        self.isOnline = isOnline
         self.isProvisional = isProvisional
         self.createdAt = createdAt
         self.updatedAt = updatedAt

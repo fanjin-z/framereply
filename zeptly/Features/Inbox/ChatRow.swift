@@ -96,8 +96,7 @@ struct ChatRow: View {
             symbolName: chat.avatarSymbol,
             colors: chat.gradient,
             imageData: chat.avatarData,
-            size: 50,
-            showsOnline: chat.isOnline
+            size: 50
         )
 
         Button {

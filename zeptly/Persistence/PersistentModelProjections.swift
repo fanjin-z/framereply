@@ -20,7 +20,6 @@ extension Chat {
             initials: record.initials,
             gradient: Self.gradient(for: record.appearanceStyle),
             isUnread: record.isUnread,
-            isOnline: record.isOnline,
             contactContext: nil,
             isProvisional: record.isProvisional
         )

@@ -36,8 +36,7 @@ struct ChatIntelligenceTopBar: View {
                         symbolName: chat.avatarSymbol,
                         colors: chat.gradient,
                         imageData: chat.avatarData,
-                        size: 42,
-                        showsOnline: chat.isOnline
+                        size: 42
                     )
 
                     VStack(alignment: .leading, spacing: 2) {

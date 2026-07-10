@@ -1064,7 +1064,6 @@ final class ChatRepository {
             initials: chatInitials.isEmpty ? "IC" : chatInitials,
             appearanceStyle: (try? chats().count) ?? 0,
             isUnread: false,
-            isOnline: false,
             isProvisional: true
         )
     }

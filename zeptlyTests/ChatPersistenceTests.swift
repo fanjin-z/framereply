@@ -503,8 +503,7 @@ final class ChatPersistenceTests: XCTestCase {
                 avatarSymbol: nil,
                 initials: "TC",
                 appearanceStyle: 0,
-                isUnread: false,
-                isOnline: false
+                isUnread: false
             )
         )
         if let message {

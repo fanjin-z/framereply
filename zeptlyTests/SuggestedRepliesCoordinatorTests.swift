@@ -378,8 +378,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
             avatarSymbol: nil,
             initials: "S",
             appearanceStyle: 0,
-            isUnread: false,
-            isOnline: false
+            isUnread: false
         )
     }
 

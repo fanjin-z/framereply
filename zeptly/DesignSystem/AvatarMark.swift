@@ -12,7 +12,6 @@ struct AvatarMark: View {
     let colors: [Color]
     var imageData: Data? = nil
     var size: CGFloat = 64
-    var showsOnline: Bool = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -48,14 +47,6 @@ struct AvatarMark: View {
                     }
                 }
                 .frame(width: size, height: size)
-
-            if showsOnline {
-                Circle()
-                    .fill(RezplyColor.connected)
-                    .frame(width: size * 0.2, height: size * 0.2)
-                    .overlay(Circle().stroke(Color.white, lineWidth: 2))
-                    .offset(x: -2, y: -2)
-            }
         }
         .frame(width: size, height: size)
     }
