@@ -53,6 +53,16 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         )
     }
 
+    func testMissingQuotedReplyDecodesAsNil() throws {
+        let json = validJSON()
+            .replacingOccurrences(of: #","quotedReply":null"#, with: "")
+
+        let result = try decode(json)
+
+        XCTAssertNil(result.messages.first?.quotedReply)
+        XCTAssertEqual(result.messages.first?.text, "Hello")
+    }
+
     func testUnknownIdentityMetadataStillDegradesConservatively() throws {
         let unknownMetadataJSON = validJSON()
             .replacingOccurrences(

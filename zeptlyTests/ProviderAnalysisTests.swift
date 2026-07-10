@@ -251,12 +251,21 @@ final class ProviderAnalysisTests: XCTestCase {
         for (region, host) in cases {
             for model in models {
                 AnalysisURLProtocolStub.responses = [
-                    (200, zaiResponse(content: validAnalysisJSON(matchedChatID: nil)))
+                    (
+                        200,
+                        zaiResponse(
+                            content: validAnalysisJSON(
+                                matchedChatID: nil,
+                                includeQuotedReply: false
+                            )
+                        )
+                    )
                 ]
-                _ = try await ZAIClient(region: region, session: makeSession())
+                let result = try await ZAIClient(region: region, session: makeSession())
                     .analyzeChatScreenshot(
                         makeMultiImageRequest(), apiKey: "regional-key", model: model
                     )
+                XCTAssertNil(result.messages.first?.quotedReply)
 
                 let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.last)
                 XCTAssertEqual(request.url?.host, host)
@@ -457,7 +466,23 @@ final class ProviderAnalysisTests: XCTestCase {
         )
     }
 
-    private func validAnalysisJSON(matchedChatID: String?) -> String {
+    private func validAnalysisJSON(
+        matchedChatID: String?,
+        includeQuotedReply: Bool = true
+    ) -> String {
+        var message: [String: Any] = [
+            "sender": "contact",
+            "senderName": "Sarah Jenkins",
+            "text": "Can we meet tomorrow?",
+            "timestampLabel": "10:42 AM",
+            "outerAlignment": "left",
+            "outerAuthorLabel": NSNull(),
+            "senderConfidence": 0.95,
+            "senderEvidence": "alignment_convention"
+        ]
+        if includeQuotedReply {
+            message["quotedReply"] = NSNull()
+        }
         let object: [String: Any] = [
             "conversationTitle": "Sarah Jenkins",
             "conversationKind": "direct",
@@ -469,17 +494,7 @@ final class ProviderAnalysisTests: XCTestCase {
                 "screenshotOwnerAuthorLabel": NSNull()
             ],
             "messages": [
-                [
-                    "sender": "contact",
-                    "senderName": "Sarah Jenkins",
-                    "text": "Can we meet tomorrow?",
-                    "timestampLabel": "10:42 AM",
-                    "outerAlignment": "left",
-                    "outerAuthorLabel": NSNull(),
-                    "senderConfidence": 0.95,
-                    "senderEvidence": "alignment_convention",
-                    "quotedReply": NSNull()
-                ]
+                message
             ],
             "matchedChatID": matchedChatID.map { $0 as Any } ?? NSNull(),
             "matchConfidence": matchedChatID == nil ? 0.0 : 0.96

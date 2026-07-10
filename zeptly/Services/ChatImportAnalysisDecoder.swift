@@ -167,8 +167,7 @@ nonisolated enum ChatImportAnalysisDecoder {
             throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "messages")
         }
         let required = [
-            "outerAlignment", "outerAuthorLabel", "senderConfidence", "senderEvidence",
-            "quotedReply"
+            "outerAlignment", "outerAuthorLabel", "senderConfidence", "senderEvidence"
         ]
         for (index, message) in messages.enumerated() {
             for key in required where message.keys.contains(key) == false {
