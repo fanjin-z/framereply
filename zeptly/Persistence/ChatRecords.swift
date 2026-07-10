@@ -6,6 +6,47 @@
 import Foundation
 import SwiftData
 
+nonisolated enum ImportIdentityReviewStatus: String, Codable, Equatable {
+    case needsReview
+    case confirmed
+    case dismissed
+}
+
+nonisolated struct ChatImportReviewState: Codable, Equatable {
+    var identityStatus: ImportIdentityReviewStatus
+    var viewCount: Int
+    var lastViewedAt: Date?
+    var meaningfulActionCount: Int
+
+    init(
+        identityStatus: ImportIdentityReviewStatus,
+        viewCount: Int = 0,
+        lastViewedAt: Date? = nil,
+        meaningfulActionCount: Int = 0
+    ) {
+        self.identityStatus = identityStatus
+        self.viewCount = viewCount
+        self.lastViewedAt = lastViewedAt
+        self.meaningfulActionCount = meaningfulActionCount
+    }
+
+    init?(json: String?) {
+        guard let data = json?.data(using: .utf8),
+            let value = try? JSONDecoder().decode(Self.self, from: data)
+        else {
+            return nil
+        }
+        self = value
+    }
+
+    var jsonString: String? {
+        guard let data = try? JSONEncoder().encode(self) else {
+            return nil
+        }
+        return String(data: data, encoding: .utf8)
+    }
+}
+
 @Model
 final class ChatRecord {
     var id: String
@@ -24,9 +65,26 @@ final class ChatRecord {
     var initials: String
     var appearanceStyle: Int
     var isUnread: Bool
-    var isProvisional: Bool
+    var importReviewStateJSON: String?
     var createdAt: Date
     var updatedAt: Date
+
+    var importReviewState: ChatImportReviewState? {
+        get {
+            ChatImportReviewState(json: importReviewStateJSON)
+        }
+        set {
+            importReviewStateJSON = newValue?.jsonString
+        }
+    }
+
+    var requiresImportIdentityReview: Bool {
+        importReviewState?.identityStatus == .needsReview
+    }
+
+    var isProvisional: Bool {
+        requiresImportIdentityReview
+    }
 
     init(
         id: String,
@@ -39,6 +97,7 @@ final class ChatRecord {
         appearanceStyle: Int,
         isUnread: Bool,
         isProvisional: Bool = false,
+        importReviewStateJSON: String? = nil,
         avatarData: Data? = nil,
         avatarPerceptualHash: Int64? = nil,
         avatarFeaturePrintData: Data? = nil,
@@ -63,7 +122,15 @@ final class ChatRecord {
         self.initials = initials
         self.appearanceStyle = appearanceStyle
         self.isUnread = isUnread
-        self.isProvisional = isProvisional
+        if let importReviewStateJSON {
+            self.importReviewStateJSON = importReviewStateJSON
+        } else if isProvisional {
+            self.importReviewStateJSON = ChatImportReviewState(
+                identityStatus: .needsReview
+            ).jsonString
+        } else {
+            self.importReviewStateJSON = nil
+        }
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }

@@ -103,6 +103,64 @@ final class ChatRepository {
         return try context.fetch(descriptor)
     }
 
+    @discardableResult
+    func recordImportReviewExposure(
+        chatID: String,
+        now: Date = Date(),
+        debounceInterval: TimeInterval = 30 * 60
+    ) throws -> Bool {
+        guard let chat = try chat(id: chatID) else {
+            return false
+        }
+        let hasUnknownSenders = try hasUnknownSenderMessages(chatID: chatID)
+        guard var state = chat.importReviewState,
+            chat.requiresImportIdentityReview || hasUnknownSenders
+        else {
+            return false
+        }
+
+        let shouldCountView =
+            state.lastViewedAt.map { now.timeIntervalSince($0) >= debounceInterval }
+            ?? true
+        if shouldCountView {
+            state.viewCount += 1
+            state.lastViewedAt = now
+            chat.importReviewState = state
+        }
+
+        let dismissed = try dismissImportReviewIfEligible(
+            chat,
+            now: now
+        )
+        try context.save()
+        return dismissed
+    }
+
+    @discardableResult
+    func recordImportReviewMeaningfulAction(
+        chatID: String,
+        now: Date = Date()
+    ) throws -> Bool {
+        guard let chat = try chat(id: chatID) else {
+            return false
+        }
+        let hasUnknownSenders = try hasUnknownSenderMessages(chatID: chatID)
+        guard var state = chat.importReviewState,
+            chat.requiresImportIdentityReview || hasUnknownSenders
+        else {
+            return false
+        }
+
+        state.meaningfulActionCount += 1
+        chat.importReviewState = state
+        let dismissed = try dismissImportReviewIfEligible(
+            chat,
+            now: now
+        )
+        try context.save()
+        return dismissed
+    }
+
     func contactContext(chatID: String) throws -> ContactContextRecord? {
         try context.fetch(
             FetchDescriptor<ContactContextRecord>(predicate: #Predicate { $0.chatID == chatID })
@@ -775,7 +833,7 @@ final class ChatRepository {
         ).first
         let isDuplicate = mergeResult.insertedMessageCount == 0 || previousImport != nil
         let hasUnknownSenders = mergeResult.messages.contains { $0.senderKind == "unknown" }
-        let requiresReview = targetChat.isProvisional || hasUnknownSenders
+        let requiresReview = targetChat.requiresImportIdentityReview || hasUnknownSenders
         let importRecord = ChatImportRecord(
             chatID: targetChat.id,
             transcriptFingerprint: fingerprint,
@@ -821,7 +879,7 @@ final class ChatRepository {
     }
 
     func confirmProvisionalChat(chatID: String, name: String) throws {
-        guard let chat = try chat(id: chatID), chat.isProvisional else {
+        guard let chat = try chat(id: chatID), chat.requiresImportIdentityReview else {
             return
         }
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -829,7 +887,9 @@ final class ChatRepository {
             chat.name = trimmedName
             chat.initials = initials(for: trimmedName)
         }
-        chat.isProvisional = false
+        var state = chat.importReviewState ?? ChatImportReviewState(identityStatus: .needsReview)
+        state.identityStatus = .confirmed
+        chat.importReviewState = state
         chat.chipTitle = "General"
         chat.chipSymbol = "number"
         chat.updatedAt = Date()
@@ -871,6 +931,11 @@ final class ChatRepository {
 
         if let chat = try chat(id: message.chatID) {
             chat.updatedAt = Date()
+            if var state = chat.importReviewState {
+                state.meaningfulActionCount += 1
+                chat.importReviewState = state
+                _ = try dismissImportReviewIfEligible(chat, now: chat.updatedAt)
+            }
         }
         try refreshImportReviewState(chatID: message.chatID)
         try context.save()
@@ -879,7 +944,7 @@ final class ChatRepository {
     func mergeProvisionalChat(_ provisionalChatID: String, into targetChatID: String) throws {
         guard provisionalChatID != targetChatID,
             let provisionalChat = try chat(id: provisionalChatID),
-            provisionalChat.isProvisional,
+            provisionalChat.requiresImportIdentityReview,
             let targetChat = try chat(id: targetChatID)
         else {
             return
@@ -1138,11 +1203,42 @@ final class ChatRepository {
         )
     }
 
+    private func hasUnknownSenderMessages(chatID: String) throws -> Bool {
+        try messages(chatID: chatID).contains { $0.senderKind == "unknown" }
+    }
+
+    private func dismissImportReviewIfEligible(
+        _ chat: ChatRecord,
+        now: Date
+    ) throws -> Bool {
+        guard var state = chat.importReviewState,
+            state.identityStatus == .needsReview
+        else {
+            return false
+        }
+        guard try !hasUnknownSenderMessages(chatID: chat.id) else {
+            return false
+        }
+        guard state.viewCount >= 1,
+            state.meaningfulActionCount >= 2
+        else {
+            return false
+        }
+
+        state.identityStatus = .dismissed
+        chat.importReviewState = state
+        chat.chipTitle = "General"
+        chat.chipSymbol = "number"
+        chat.updatedAt = now
+        try refreshImportReviewState(chatID: chat.id)
+        return true
+    }
+
     private func refreshImportReviewState(chatID: String) throws {
         let messageRecords = try messages(chatID: chatID)
         let stillHasUnknownSender = messageRecords.contains { $0.senderKind == "unknown" }
-        let isProvisional = try chat(id: chatID)?.isProvisional == true
-        let requiresReview = stillHasUnknownSender || isProvisional
+        let requiresImportIdentityReview = try chat(id: chatID)?.requiresImportIdentityReview == true
+        let requiresReview = stillHasUnknownSender || requiresImportIdentityReview
         let fingerprint = TranscriptFingerprinter.fingerprint(
             chatID: chatID,
             messages: messageRecords.map(MergeMessage.init(record:))

@@ -8,17 +8,41 @@ import SwiftUI
 
 struct ChatImportReviewSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Query(filter: #Predicate<ChatRecord> { $0.isProvisional }) private var provisionalChats:
-        [ChatRecord]
     @Query private var allChats: [ChatRecord]
-    @Query(
-        filter: #Predicate<ChatMessageRecord> { $0.senderKind == "unknown" },
-        sort: \ChatMessageRecord.sortIndex
-    ) private var unknownSenderMessages: [ChatMessageRecord]
+    @Query private var unknownSenderMessages: [ChatMessageRecord]
     @State private var errorMessage: String?
 
+    private let chatID: String?
+    private let onMerged: ((String) -> Void)?
+
+    init(chatID: String? = nil, onMerged: ((String) -> Void)? = nil) {
+        self.chatID = chatID
+        self.onMerged = onMerged
+        if let chatID {
+            let scopedChatID = chatID
+            _unknownSenderMessages = Query(
+                filter: #Predicate<ChatMessageRecord> {
+                    $0.senderKind == "unknown" && $0.chatID == scopedChatID
+                },
+                sort: \ChatMessageRecord.sortIndex
+            )
+        } else {
+            _unknownSenderMessages = Query(
+                filter: #Predicate<ChatMessageRecord> { $0.senderKind == "unknown" },
+                sort: \ChatMessageRecord.sortIndex
+            )
+        }
+        _allChats = Query()
+    }
+
+    private var provisionalChats: [ChatRecord] {
+        allChats.filter { chat in
+            chat.requiresImportIdentityReview && (chatID == nil || chat.id == chatID)
+        }
+    }
+
     private var confirmedChats: [ChatRecord] {
-        allChats.filter { !$0.isProvisional }
+        allChats.filter { !$0.requiresImportIdentityReview }
     }
 
     var body: some View {
@@ -59,7 +83,7 @@ struct ChatImportReviewSheet: View {
                     .padding(24)
                 }
             }
-            .navigationTitle("Review Imports")
+            .navigationTitle(chatID == nil ? "Review Imports" : "Review Import")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
@@ -100,6 +124,10 @@ struct ChatImportReviewSheet: View {
         KeyboardDismissal.dismiss()
         do {
             try ChatRepository().mergeProvisionalChat(provisionalChatID, into: targetChatID)
+            if onMerged != nil {
+                dismiss()
+                onMerged?(targetChatID)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

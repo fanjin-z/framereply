@@ -7,11 +7,9 @@ import SwiftUI
 
 struct ChatIntelligenceTopBar: View {
     let chat: Chat
-    let canMergeChat: Bool
     let onBackTap: () -> Void
     let onContactTap: () -> Void
     let onRenameTap: () -> Void
-    let onMergeTap: () -> Void
     let onDeleteTap: () -> Void
 
     var body: some View {
@@ -55,15 +53,6 @@ struct ChatIntelligenceTopBar: View {
             Spacer(minLength: 8)
 
             Menu {
-                if chat.isProvisional {
-                    Button {
-                        onMergeTap()
-                    } label: {
-                        Label("Merge Into...", systemImage: "arrow.triangle.merge")
-                    }
-                    .disabled(!canMergeChat)
-                }
-
                 Button {
                     onRenameTap()
                 } label: {

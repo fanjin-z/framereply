@@ -31,7 +31,8 @@ final class SuggestedRepliesViewModel: ObservableObject {
         }
     }
 
-    func regenerate(discardExisting: Bool = false) async {
+    @discardableResult
+    func regenerate(discardExisting: Bool = false) async -> Bool {
         loadID += 1
         let currentLoadID = loadID
         if discardExisting {
@@ -48,16 +49,18 @@ final class SuggestedRepliesViewModel: ObservableObject {
         do {
             let outcome = try await coordinator.generate(chatID: chatID, force: true)
             try Task.checkCancellation()
-            guard loadID == currentLoadID else { return }
+            guard loadID == currentLoadID else { return false }
             replies = outcome.replies.map(SuggestedReply.init(text:))
+            return true
         } catch is CancellationError {
-            return
+            return false
         } catch {
-            guard loadID == currentLoadID else { return }
+            guard loadID == currentLoadID else { return false }
             if discardExisting {
                 replies = []
             }
             errorMessage = error.localizedDescription
+            return false
         }
     }
 }

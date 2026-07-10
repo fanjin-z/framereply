@@ -17,6 +17,7 @@ struct ChatIntelligenceView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isHistoryPresented = false
     @State private var isContextPresented = false
+    @State private var isReviewPresented = false
     @State private var isRenamePresented = false
     @State private var renameDraft = ""
     @State private var isMergeConfirmationPresented = false
@@ -24,9 +25,11 @@ struct ChatIntelligenceView: View {
     @State private var selectedScreenshotItems: [PhotosPickerItem] = []
     @State private var photoLoadErrorMessage: String?
     @State private var contextNote = ""
+    @State private var lastRecordedContextNote = ""
     @State private var copiedReplyID: UUID?
     @State private var isDeleteConfirmationPresented = false
     @State private var deleteErrorMessage: String?
+    @Query private var currentChatRecords: [ChatRecord]
     @Query private var messageRecords: [ChatMessageRecord]
     @Query private var contactContextRecords: [ContactContextRecord]
     @Query private var contactMemoryRecords: [ContactMemoryRecord]
@@ -48,6 +51,9 @@ struct ChatIntelligenceView: View {
         self.onContactTap = onContactTap
         self.onMergedIntoChat = onMergedIntoChat
         let chatID = chat.id
+        _currentChatRecords = Query(
+            filter: #Predicate<ChatRecord> { $0.id == chatID }
+        )
         _messageRecords = Query(
             filter: #Predicate<ChatMessageRecord> { $0.chatID == chatID },
             sort: \ChatMessageRecord.sortIndex
@@ -63,7 +69,7 @@ struct ChatIntelligenceView: View {
             filter: #Predicate<SuggestedReplyCacheRecord> { $0.chatID == chatID }
         )
         _mergeCandidateRecords = Query(
-            filter: #Predicate<ChatRecord> { !$0.isProvisional && $0.id != chatID },
+            filter: #Predicate<ChatRecord> { $0.id != chatID },
             sort: \ChatRecord.name
         )
         _suggestedRepliesModel = StateObject(
@@ -83,6 +89,26 @@ struct ChatIntelligenceView: View {
 
     private var latestMessages: [ChatMessage] {
         Array(messages.suffix(3))
+    }
+
+    private var currentChatRecord: ChatRecord? {
+        currentChatRecords.first
+    }
+
+    private var isCurrentChatProvisional: Bool {
+        currentChatRecord?.isProvisional ?? chat.isProvisional
+    }
+
+    private var unknownSenderCount: Int {
+        messageRecords.filter { $0.senderKind == "unknown" }.count
+    }
+
+    private var mergeCandidates: [ChatRecord] {
+        mergeCandidateRecords.filter { !$0.requiresImportIdentityReview }
+    }
+
+    private var shouldShowImportReviewCard: Bool {
+        isCurrentChatProvisional || unknownSenderCount > 0
     }
 
     private var replyCacheKey: Int {
@@ -127,7 +153,6 @@ struct ChatIntelligenceView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     ChatIntelligenceTopBar(
                         chat: chat,
-                        canMergeChat: !mergeCandidateRecords.isEmpty,
                         onBackTap: {
                             dismiss()
                         },
@@ -136,13 +161,26 @@ struct ChatIntelligenceView: View {
                             renameDraft = chat.name
                             isRenamePresented = true
                         },
-                        onMergeTap: {
-                            isMergeConfirmationPresented = true
-                        },
                         onDeleteTap: {
                             isDeleteConfirmationPresented = true
                         }
                     )
+
+                    if shouldShowImportReviewCard {
+                        ChatImportReviewCard(
+                            chatName: currentChatRecord?.name ?? chat.name,
+                            isProvisional: isCurrentChatProvisional,
+                            unknownSenderCount: unknownSenderCount,
+                            canMerge: !mergeCandidates.isEmpty,
+                            onKeepAsNew: confirmCurrentChat,
+                            onMergeTap: {
+                                isMergeConfirmationPresented = true
+                            },
+                            onReviewSenders: {
+                                isReviewPresented = true
+                            }
+                        )
+                    }
 
                     RecentChatSection(
                         messages: latestMessages,
@@ -206,6 +244,9 @@ struct ChatIntelligenceView: View {
         .sheet(isPresented: $isContextPresented) {
             AddChatContextSheet(note: $contextNote)
         }
+        .sheet(isPresented: $isReviewPresented) {
+            ChatImportReviewSheet(chatID: chat.id, onMerged: onMergedIntoChat)
+        }
         .alert("Rename Chat", isPresented: $isRenamePresented) {
             TextField("Chat name", text: $renameDraft)
             Button("Save") {
@@ -220,7 +261,7 @@ struct ChatIntelligenceView: View {
             isPresented: $isMergeConfirmationPresented,
             titleVisibility: .visible
         ) {
-            ForEach(mergeCandidateRecords) { candidate in
+            ForEach(mergeCandidates) { candidate in
                 Button("Merge Into \(candidate.name)") {
                     mergeChat(into: candidate.id)
                 }
@@ -256,9 +297,17 @@ struct ChatIntelligenceView: View {
         .task(id: replyCacheKey) {
             suggestedRepliesModel.loadCached()
         }
+        .task(id: shouldShowImportReviewCard) {
+            recordReviewExposureIfNeeded()
+        }
         .onChange(of: selectedScreenshotItems) { _, items in
             Task {
                 await importSelectedScreenshots(items)
+            }
+        }
+        .onChange(of: isContextPresented) { wasPresented, isPresented in
+            if wasPresented && !isPresented {
+                recordContextNoteActionIfNeeded()
             }
         }
     }
@@ -326,6 +375,7 @@ struct ChatIntelligenceView: View {
                 draftingInput: draftingInput.isEmpty ? nil : draftingInput
             ), result.chatID == chat.id {
                 suggestedRepliesModel.loadCached()
+                recordMeaningfulReviewAction()
             }
         } catch {
             photoLoadErrorMessage = error.localizedDescription
@@ -338,17 +388,32 @@ struct ChatIntelligenceView: View {
         withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             copiedReplyID = reply.id
         }
+        recordMeaningfulReviewAction()
     }
 
     private func regenerateReplies() {
         Task {
-            await suggestedRepliesModel.regenerate()
+            if await suggestedRepliesModel.regenerate() {
+                recordMeaningfulReviewAction()
+            }
         }
     }
 
     private func renameChat() {
         do {
             try ChatRepository().renameChat(id: chat.id, name: renameDraft)
+            recordMeaningfulReviewAction()
+        } catch {
+            actionErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func confirmCurrentChat() {
+        do {
+            try ChatRepository().confirmProvisionalChat(
+                chatID: chat.id,
+                name: currentChatRecord?.name ?? chat.name
+            )
         } catch {
             actionErrorMessage = error.localizedDescription
         }
@@ -373,6 +438,99 @@ struct ChatIntelligenceView: View {
         } catch {
             deleteErrorMessage = error.localizedDescription
         }
+    }
+
+    private func recordReviewExposureIfNeeded() {
+        guard shouldShowImportReviewCard else {
+            return
+        }
+        do {
+            try ChatRepository().recordImportReviewExposure(chatID: chat.id)
+        } catch {
+            actionErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func recordMeaningfulReviewAction() {
+        do {
+            try ChatRepository().recordImportReviewMeaningfulAction(chatID: chat.id)
+        } catch {
+            actionErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func recordContextNoteActionIfNeeded() {
+        let trimmedNote = contextNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedNote.isEmpty, trimmedNote != lastRecordedContextNote else {
+            return
+        }
+        lastRecordedContextNote = trimmedNote
+        recordMeaningfulReviewAction()
+    }
+}
+
+private struct ChatImportReviewCard: View {
+    let chatName: String
+    let isProvisional: Bool
+    let unknownSenderCount: Int
+    let canMerge: Bool
+    let onKeepAsNew: () -> Void
+    let onMergeTap: () -> Void
+    let onReviewSenders: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Review import", systemImage: "exclamationmark.bubble.fill")
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(RezplyColor.primary)
+
+            Text(reviewMessage)
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurfaceVariant)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 10) {
+                if isProvisional {
+                    Button("Keep as New") {
+                        onKeepAsNew()
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    if canMerge {
+                        Button("Merge Into...") {
+                            onMergeTap()
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+
+                if unknownSenderCount > 0 {
+                    if isProvisional {
+                        Button("Review Senders") {
+                            onReviewSenders()
+                        }
+                        .buttonStyle(.bordered)
+                    } else {
+                        Button("Review Senders") {
+                            onReviewSenders()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .glassPanel(cornerRadius: 18)
+    }
+
+    private var reviewMessage: String {
+        if isProvisional && unknownSenderCount > 0 {
+            return "\(chatName) is an imported chat, and \(unknownSenderCount) sender assignment\(unknownSenderCount == 1 ? "" : "s") need review."
+        }
+        if isProvisional {
+            return "\(chatName) is an imported chat. Keep it as a new chat or merge it into an existing one."
+        }
+        return "\(unknownSenderCount) sender assignment\(unknownSenderCount == 1 ? "" : "s") need review."
     }
 }
 
