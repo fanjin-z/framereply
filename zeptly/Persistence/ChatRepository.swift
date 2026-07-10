@@ -587,6 +587,28 @@ final class ChatRepository {
         }
     }
 
+    func renameChat(id: String, name: String) throws {
+        guard let chat = try chat(id: id) else {
+            return
+        }
+
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            return
+        }
+
+        chat.name = trimmedName
+        chat.initials = initials(for: trimmedName)
+        chat.updatedAt = Date()
+
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
     func deleteChat(id: String) throws {
         guard let chat = try chat(id: id) else {
             return

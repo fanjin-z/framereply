@@ -7,8 +7,11 @@ import SwiftUI
 
 struct ChatIntelligenceTopBar: View {
     let chat: Chat
+    let canMergeChat: Bool
     let onBackTap: () -> Void
     let onContactTap: () -> Void
+    let onRenameTap: () -> Void
+    let onMergeTap: () -> Void
     let onDeleteTap: () -> Void
 
     var body: some View {
@@ -43,11 +46,6 @@ struct ChatIntelligenceTopBar: View {
                             .foregroundStyle(RezplyColor.onSurface)
                             .lineLimit(1)
                             .minimumScaleFactor(0.78)
-
-                        Text(chat.isOnline ? "Online" : "Chat Intel")
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .foregroundStyle(RezplyColor.onSurfaceVariant)
-                            .lineLimit(1)
                     }
                 }
                 .contentShape(Rectangle())
@@ -58,6 +56,21 @@ struct ChatIntelligenceTopBar: View {
             Spacer(minLength: 8)
 
             Menu {
+                if chat.isProvisional {
+                    Button {
+                        onMergeTap()
+                    } label: {
+                        Label("Merge Into...", systemImage: "arrow.triangle.merge")
+                    }
+                    .disabled(!canMergeChat)
+                }
+
+                Button {
+                    onRenameTap()
+                } label: {
+                    Label("Rename Chat", systemImage: "pencil")
+                }
+
                 Button(role: .destructive) {
                     onDeleteTap()
                 } label: {

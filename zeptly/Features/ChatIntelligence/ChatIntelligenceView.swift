@@ -12,10 +12,15 @@ struct ChatIntelligenceView: View {
     let intelligence: ChatIntelligence
     @ObservedObject var providerStore: ProviderStore
     let onContactTap: () -> Void
+    let onMergedIntoChat: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var isHistoryPresented = false
     @State private var isContextPresented = false
+    @State private var isRenamePresented = false
+    @State private var renameDraft = ""
+    @State private var isMergeConfirmationPresented = false
+    @State private var actionErrorMessage: String?
     @State private var selectedScreenshotItems: [PhotosPickerItem] = []
     @State private var photoLoadErrorMessage: String?
     @State private var contextNote = ""
@@ -26,6 +31,7 @@ struct ChatIntelligenceView: View {
     @Query private var contactContextRecords: [ContactContextRecord]
     @Query private var contactMemoryRecords: [ContactMemoryRecord]
     @Query private var suggestedReplyCacheRecords: [SuggestedReplyCacheRecord]
+    @Query private var mergeCandidateRecords: [ChatRecord]
     @StateObject private var suggestedRepliesModel: SuggestedRepliesViewModel
     @StateObject private var importModel: InAppScreenshotImportViewModel
 
@@ -33,12 +39,14 @@ struct ChatIntelligenceView: View {
         chat: Chat,
         intelligence: ChatIntelligence,
         providerStore: ProviderStore,
-        onContactTap: @escaping () -> Void
+        onContactTap: @escaping () -> Void,
+        onMergedIntoChat: @escaping (String) -> Void
     ) {
         self.chat = chat
         self.intelligence = intelligence
         self.providerStore = providerStore
         self.onContactTap = onContactTap
+        self.onMergedIntoChat = onMergedIntoChat
         let chatID = chat.id
         _messageRecords = Query(
             filter: #Predicate<ChatMessageRecord> { $0.chatID == chatID },
@@ -53,6 +61,10 @@ struct ChatIntelligenceView: View {
         )
         _suggestedReplyCacheRecords = Query(
             filter: #Predicate<SuggestedReplyCacheRecord> { $0.chatID == chatID }
+        )
+        _mergeCandidateRecords = Query(
+            filter: #Predicate<ChatRecord> { !$0.isProvisional && $0.id != chatID },
+            sort: \ChatRecord.name
         )
         _suggestedRepliesModel = StateObject(
             wrappedValue: SuggestedRepliesViewModel(
@@ -115,10 +127,18 @@ struct ChatIntelligenceView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     ChatIntelligenceTopBar(
                         chat: chat,
+                        canMergeChat: !mergeCandidateRecords.isEmpty,
                         onBackTap: {
                             dismiss()
                         },
                         onContactTap: onContactTap,
+                        onRenameTap: {
+                            renameDraft = chat.name
+                            isRenamePresented = true
+                        },
+                        onMergeTap: {
+                            isMergeConfirmationPresented = true
+                        },
                         onDeleteTap: {
                             isDeleteConfirmationPresented = true
                         }
@@ -186,6 +206,29 @@ struct ChatIntelligenceView: View {
         .sheet(isPresented: $isContextPresented) {
             AddChatContextSheet(note: $contextNote)
         }
+        .alert("Rename Chat", isPresented: $isRenamePresented) {
+            TextField("Chat name", text: $renameDraft)
+            Button("Save") {
+                renameChat()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Choose a clear name for this chat.")
+        }
+        .confirmationDialog(
+            "Merge Imported Chat",
+            isPresented: $isMergeConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            ForEach(mergeCandidateRecords) { candidate in
+                Button("Merge Into \(candidate.name)") {
+                    mergeChat(into: candidate.id)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Move this imported chat into an existing chat. This can’t be undone.")
+        }
         .confirmationDialog(
             "Delete chat with \(chat.name)?",
             isPresented: $isDeleteConfirmationPresented,
@@ -205,6 +248,11 @@ struct ChatIntelligenceView: View {
         } message: {
             Text(deleteErrorMessage ?? "Try again.")
         }
+        .alert("Could Not Update Chat", isPresented: actionErrorBinding) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(actionErrorMessage ?? "Try again.")
+        }
         .task(id: replyCacheKey) {
             suggestedRepliesModel.loadCached()
         }
@@ -221,6 +269,17 @@ struct ChatIntelligenceView: View {
             set: { isPresented in
                 if !isPresented {
                     deleteErrorMessage = nil
+                }
+            }
+        )
+    }
+
+    private var actionErrorBinding: Binding<Bool> {
+        Binding(
+            get: { actionErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    actionErrorMessage = nil
                 }
             }
         )
@@ -284,6 +343,26 @@ struct ChatIntelligenceView: View {
     private func regenerateReplies() {
         Task {
             await suggestedRepliesModel.regenerate()
+        }
+    }
+
+    private func renameChat() {
+        do {
+            try ChatRepository().renameChat(id: chat.id, name: renameDraft)
+        } catch {
+            actionErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func mergeChat(into targetChatID: String) {
+        do {
+            let repository = ChatRepository()
+            try repository.mergeProvisionalChat(chat.id, into: targetChatID)
+            if try repository.chat(id: chat.id) == nil {
+                onMergedIntoChat(targetChatID)
+            }
+        } catch {
+            actionErrorMessage = error.localizedDescription
         }
     }
 

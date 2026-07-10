@@ -72,6 +72,9 @@ struct RezplyShellView: View {
                             providerStore: providerStore,
                             onContactTap: {
                                 navigationPath.append(.contactContext(chatID))
+                            },
+                            onMergedIntoChat: { targetChatID in
+                                replaceCurrentRoute(with: .chatIntelligence(targetChatID))
                             }
                         )
                     }
@@ -93,5 +96,14 @@ struct RezplyShellView: View {
 
     private func chat(withID id: String) -> Chat? {
         chatRecords.first(where: { $0.id == id }).map { Chat(record: $0) }
+    }
+
+    private func replaceCurrentRoute(with route: RezplyRoute) {
+        guard !navigationPath.isEmpty else {
+            navigationPath.append(route)
+            return
+        }
+
+        navigationPath[navigationPath.count - 1] = route
     }
 }

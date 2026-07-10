@@ -250,6 +250,28 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(try repository.chat(id: outcome.chatID)?.isProvisional, false)
     }
 
+    func testChatCanBeRenamed() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        insertChat(id: "rename-me", name: "Old Name", into: container)
+        let originalUpdatedAt = Date(timeIntervalSince1970: 0)
+        let chat = try XCTUnwrap(repository.chat(id: "rename-me"))
+        chat.updatedAt = originalUpdatedAt
+        try container.mainContext.save()
+
+        try repository.renameChat(id: "rename-me", name: "  Alex Hiking\n")
+
+        let renamed = try XCTUnwrap(repository.chat(id: "rename-me"))
+        XCTAssertEqual(renamed.name, "Alex Hiking")
+        XCTAssertEqual(renamed.initials, "AH")
+        XCTAssertGreaterThan(renamed.updatedAt, originalUpdatedAt)
+
+        try repository.renameChat(id: "rename-me", name: " \n ")
+        XCTAssertEqual(try repository.chat(id: "rename-me")?.name, "Alex Hiking")
+
+        try repository.renameChat(id: "missing-chat", name: "No Crash")
+    }
+
     func testProvisionalChatCanMergeIntoExistingChat() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
