@@ -191,10 +191,10 @@ enum ChatImportMatcher {
         switch sender {
         case .user:
             "user"
-        case .contact:
-            "contact"
-        case .other:
-            "other:\(MessageTextNormalizer.normalize(name ?? ""))"
+        case .otherParticipant:
+            "other_participant"
+        case .groupParticipant:
+            "group_participant:\(MessageTextNormalizer.normalize(name ?? ""))"
         case .unknown:
             "unknown"
         }

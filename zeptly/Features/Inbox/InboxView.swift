@@ -3,14 +3,13 @@
 //  zeptly
 //
 
+import PhotosUI
 import SwiftData
 import SwiftUI
-import PhotosUI
 
 struct InboxView: View {
     let isActive: Bool
     let onChatTap: (Chat) -> Void
-    let onAvatarTap: (Chat) -> Void
     let onImportCompleted: (String) -> Void
     @State private var searchText = ""
     @State private var isReviewPresented = false
@@ -28,12 +27,10 @@ struct InboxView: View {
         isActive: Bool,
         providerStore: ProviderStore,
         onChatTap: @escaping (Chat) -> Void,
-        onAvatarTap: @escaping (Chat) -> Void,
         onImportCompleted: @escaping (String) -> Void
     ) {
         self.isActive = isActive
         self.onChatTap = onChatTap
-        self.onAvatarTap = onAvatarTap
         self.onImportCompleted = onImportCompleted
         _importModel = StateObject(
             wrappedValue: InAppScreenshotImportViewModel(providerStore: providerStore)
@@ -75,7 +72,7 @@ struct InboxView: View {
                     isSearchActive: isActive,
                     isImporting: importModel.isLoading
                 )
-                    .padding(.top, reviewCount > 0 ? 4 : 14)
+                .padding(.top, reviewCount > 0 ? 4 : 14)
 
                 if let importErrorMessage {
                     InboxImportErrorMessage(message: importErrorMessage)
@@ -88,9 +85,6 @@ struct InboxView: View {
                             onChatTap: {
                                 onChatTap(chat)
                             },
-                            onAvatarTap: {
-                                onAvatarTap(chat)
-                            },
                             onDeleteTap: {
                                 chatPendingDeletion = chat
                                 isDeleteConfirmationPresented = true
@@ -99,9 +93,10 @@ struct InboxView: View {
                     }
 
                     if chats.isEmpty {
-                        if chatRecords.isEmpty && searchText.trimmingCharacters(
+                        let isSearchEmpty = searchText.trimmingCharacters(
                             in: .whitespacesAndNewlines
-                        ).isEmpty {
+                        ).isEmpty
+                        if chatRecords.isEmpty && isSearchEmpty {
                             EmptyImportScreenshotsPicker(
                                 selection: $selectedScreenshotItems,
                                 isLoading: importModel.isLoading

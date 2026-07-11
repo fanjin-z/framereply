@@ -7,9 +7,9 @@ import SwiftUI
 
 struct ChatMessage: Identifiable, Equatable {
     enum Sender: Equatable {
-        case contact
+        case otherParticipant
         case user
-        case other(String)
+        case groupParticipant(String)
         case unknown
     }
 

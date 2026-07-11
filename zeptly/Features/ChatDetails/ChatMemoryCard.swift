@@ -1,24 +1,28 @@
+import SwiftData
 import SwiftUI
 
-struct AboutContactCard: View {
-    let contactName: String
-    @Binding var memories: [ContactMemory]
+struct ChatMemoryCard: View {
+    let chatID: String
+    let chatName: String
+    let memoryRecords: [ChatMemoryRecord]
 
+    @Environment(\.modelContext) private var modelContext
     @State private var draft = ""
     @State private var editingMemoryID: UUID?
     @State private var editingText = ""
+    @State private var saveError: String?
 
     private var trimmedDraft: String {
         draft.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var activeMemories: [ContactMemory] {
-        memories.filter { $0.status == .active }
+    private var activeMemories: [ChatMemoryRecord] {
+        memoryRecords.filter { $0.status == ChatMemoryStatus.active.rawValue }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            SectionHeader(symbolName: "person.text.rectangle", title: "About \(contactName)") {
+            SectionHeader(symbolName: "brain", title: "Remembered Context") {
                 Text("Auto-saved")
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(RezplyColor.outline)
@@ -37,7 +41,7 @@ struct AboutContactCard: View {
                     .font(.system(size: 14, weight: .regular, design: .rounded))
                     .foregroundStyle(RezplyColor.outline)
                     .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("contact-memory-empty-state")
+                    .accessibilityIdentifier("chat-memory-empty-state")
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(activeMemories) { memory in
@@ -48,6 +52,11 @@ struct AboutContactCard: View {
         }
         .padding(24)
         .glassPanel(cornerRadius: 30)
+        .alert("Couldn’t Save Remembered Context", isPresented: saveErrorBinding) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(saveError ?? "Try again.")
+        }
     }
 
     private var memoryComposer: some View {
@@ -61,11 +70,11 @@ struct AboutContactCard: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
                     .frame(minHeight: 104)
-                    .accessibilityLabel("New memory about \(contactName)")
+                    .accessibilityLabel("New remembered context for \(chatName)")
 
                 if draft.isEmpty {
                     Text(
-                        "e.g. We met at university, she’s vegetarian, and her daughter is named Mia…"
+                        "e.g. We met at university, they prefer vegetarian restaurants…"
                     )
                     .font(.system(size: 15, weight: .regular, design: .rounded))
                     .foregroundStyle(RezplyColor.onSurface.opacity(0.62))
@@ -105,7 +114,7 @@ struct AboutContactCard: View {
     }
 
     @ViewBuilder
-    private func memoryRow(_ memory: ContactMemory) -> some View {
+    private func memoryRow(_ memory: ChatMemoryRecord) -> some View {
         if editingMemoryID == memory.id {
             VStack(alignment: .leading, spacing: 10) {
                 TextEditor(text: $editingText)
@@ -141,7 +150,7 @@ struct AboutContactCard: View {
                 editingText = memory.text
             } label: {
                 VStack(alignment: .leading, spacing: 8) {
-                    if memory.origin == .ai {
+                    if memory.origin == ChatMemoryOrigin.ai.rawValue {
                         Label("From conversation", systemImage: "sparkles")
                             .font(.system(size: 11, weight: .semibold, design: .rounded))
                             .foregroundStyle(RezplyColor.primary)
@@ -175,30 +184,63 @@ struct AboutContactCard: View {
     private func addMemory() {
         guard !trimmedDraft.isEmpty else { return }
         KeyboardDismissal.dismiss()
-        memories.append(ContactMemory(text: trimmedDraft))
-        draft = ""
+        modelContext.insert(ChatMemoryRecord(chatID: chatID, value: ChatMemory(text: trimmedDraft)))
+        if save() {
+            draft = ""
+        }
     }
 
     private func saveMemory(_ id: UUID) {
         let trimmed = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let index = memories.firstIndex(where: { $0.id == id }) else {
+        guard !trimmed.isEmpty,
+            let memory = memoryRecords.first(where: { $0.id == id })
+        else {
             return
         }
         KeyboardDismissal.dismiss()
-        memories[index].text = trimmed
-        memories[index].origin = .user
-        memories[index].certainty = .userConfirmed
-        memories[index].sourceMessageIDs = []
-        memories[index].status = .active
-        memories[index].updatedAt = Date()
-        editingMemoryID = nil
+        memory.update(
+            from: ChatMemory(
+                id: memory.id,
+                text: trimmed,
+                origin: .user,
+                certainty: .userConfirmed,
+                sourceMessageIDs: [],
+                status: .active,
+                createdAt: memory.createdAt,
+                updatedAt: Date()
+            )
+        )
+        if save() {
+            editingMemoryID = nil
+        }
     }
 
     private func deleteMemory(_ id: UUID) {
-        memories.removeAll { $0.id == id }
+        guard let memory = memoryRecords.first(where: { $0.id == id }) else { return }
+        modelContext.delete(memory)
+        _ = save()
         if editingMemoryID == id {
             editingMemoryID = nil
         }
+    }
+
+    @discardableResult
+    private func save() -> Bool {
+        do {
+            try modelContext.save()
+            return true
+        } catch {
+            modelContext.rollback()
+            saveError = error.localizedDescription
+            return false
+        }
+    }
+
+    private var saveErrorBinding: Binding<Bool> {
+        Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
+        )
     }
 }
 

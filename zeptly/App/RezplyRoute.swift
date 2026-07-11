@@ -6,8 +6,8 @@
 import SwiftUI
 
 enum RezplyRoute: Hashable {
-    case contactContext(String)
-    case chatIntelligence(String)
+    case chatDetails(String)
+    case chatAssistant(String)
     case newPersona
     case persona(UUID)
 }

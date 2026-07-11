@@ -8,14 +8,14 @@ nonisolated struct SuggestedReplyPromptMessage: Codable, Equatable, Sendable {
     let timeLabel: String
 }
 
-nonisolated enum ContactMemoryChangeAction: String, Codable, CaseIterable, Equatable, Sendable {
+nonisolated enum ChatMemoryChangeAction: String, Codable, CaseIterable, Equatable, Sendable {
     case add
     case update
     case archive
 }
 
-nonisolated struct ContactMemoryChange: Codable, Equatable, Sendable {
-    let action: ContactMemoryChangeAction
+nonisolated struct ChatMemoryChange: Codable, Equatable, Sendable {
+    let action: ChatMemoryChangeAction
     let targetMemoryID: UUID?
     let text: String?
     let sourceMessageIDs: [UUID]
@@ -43,7 +43,7 @@ nonisolated enum SuggestedReplySummaryMode: String, Codable, Equatable, Sendable
 
 nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
     let chatName: String
-    let contactMemories: [ContactMemory]
+    let chatMemories: [ChatMemory]
     let currentInteractionGoal: String
     let persona: PersonaPromptContext
     let personaLearningMessages: [SuggestedReplyPromptMessage]
@@ -57,7 +57,7 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
 
     init(
         chatName: String,
-        contactMemories: [ContactMemory],
+        chatMemories: [ChatMemory],
         currentInteractionGoal: String,
         persona: PersonaPromptContext,
         personaLearningMessages: [SuggestedReplyPromptMessage],
@@ -70,7 +70,7 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
         traceID: ImportTraceID
     ) {
         self.chatName = chatName
-        self.contactMemories = contactMemories
+        self.chatMemories = chatMemories
         self.currentInteractionGoal = currentInteractionGoal
         self.persona = persona
         self.personaLearningMessages = personaLearningMessages
@@ -89,7 +89,7 @@ nonisolated struct SuggestedReplyGenerationResult: Codable, Equatable, Sendable 
     let replies: [String]
     let conversationStrategy: String
     let strategyRationale: String
-    let memoryChanges: [ContactMemoryChange]
+    let memoryChanges: [ChatMemoryChange]
     let personaObservationChanges: [PersonaObservationChange]
 
     init(
@@ -97,7 +97,7 @@ nonisolated struct SuggestedReplyGenerationResult: Codable, Equatable, Sendable 
         replies: [String],
         conversationStrategy: String,
         strategyRationale: String,
-        memoryChanges: [ContactMemoryChange] = [],
+        memoryChanges: [ChatMemoryChange] = [],
         personaObservationChanges: [PersonaObservationChange] = []
     ) {
         self.historySummary = historySummary
@@ -202,12 +202,12 @@ nonisolated enum SuggestedReplyResultDecoder {
     }
 
     private static func decodeMemoryChange(_ object: [String: Any], index: Int) throws
-        -> ContactMemoryChange
+        -> ChatMemoryChange
     {
         let path = "memoryChanges[\(index)]"
         guard Set(object.keys) == ["action", "targetMemoryID", "text", "evidenceMessageIDs"],
             let rawAction = object["action"] as? String,
-            let action = ContactMemoryChangeAction(rawValue: rawAction),
+            let action = ChatMemoryChangeAction(rawValue: rawAction),
             let sourceValues = object["evidenceMessageIDs"] as? [String],
             (1...3).contains(sourceValues.count)
         else { throw schema(path) }
@@ -215,7 +215,7 @@ nonisolated enum SuggestedReplyResultDecoder {
         let target = uuid(from: object["targetMemoryID"])
         let text = nullableString(from: object["text"])
         try validate(action: action.rawValue, target: target, text: text, path: path)
-        return ContactMemoryChange(
+        return ChatMemoryChange(
             action: action, targetMemoryID: target, text: text, sourceMessageIDs: ids)
     }
 

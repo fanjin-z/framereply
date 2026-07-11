@@ -19,7 +19,6 @@ extension Chat {
             initials: record.initials,
             gradient: Self.gradient(for: record.appearanceStyle),
             isUnread: record.isUnread,
-            contactContext: nil,
             isProvisional: record.isProvisional
         )
     }
@@ -44,29 +43,29 @@ extension ChatMessage {
         switch record.senderKind {
         case "user":
             sender = .user
-        case "other":
-            sender = .other(record.senderName ?? "Participant")
+        case "group_participant":
+            sender = .groupParticipant(record.senderName ?? "Participant")
         case "unknown":
             sender = .unknown
         default:
-            sender = .contact
+            sender = .otherParticipant
         }
 
         self.init(id: record.id, sender: sender, text: record.text, timeLabel: record.timeLabel)
     }
 }
 
-extension ContactContextRecord {
-    func value(contactMemories: [ContactMemory] = []) -> ContactContext {
-        return ContactContext(
-            contactMemories: contactMemories,
+extension ChatContextRecord {
+    func value(chatMemories: [ChatMemory] = []) -> ChatContext {
+        return ChatContext(
+            chatMemories: chatMemories,
             currentInteractionGoal: currentInteractionGoal,
             personaID: personaID,
             personaAssignedAt: personaAssignedAt
         )
     }
 
-    func update(from value: ContactContext) {
+    func update(from value: ChatContext) {
         currentInteractionGoal = value.currentInteractionGoal
         personaID = value.personaID
         personaAssignedAt = value.personaAssignedAt
@@ -117,8 +116,8 @@ extension PersonaObservationRecord {
     }
 }
 
-extension ContactMemoryRecord {
-    var value: ContactMemory {
+extension ChatMemoryRecord {
+    var value: ChatMemory {
         let sourceMessageIDs: [UUID]
         if let data = sourceMessageIDsJSON.data(using: .utf8),
             let decoded = try? JSONDecoder().decode([UUID].self, from: data)
@@ -128,19 +127,19 @@ extension ContactMemoryRecord {
             sourceMessageIDs = []
         }
 
-        return ContactMemory(
+        return ChatMemory(
             id: id,
             text: text,
-            origin: ContactMemoryOrigin(rawValue: origin) ?? .user,
-            certainty: ContactMemoryCertainty(rawValue: certainty) ?? .userConfirmed,
+            origin: ChatMemoryOrigin(rawValue: origin) ?? .user,
+            certainty: ChatMemoryCertainty(rawValue: certainty) ?? .userConfirmed,
             sourceMessageIDs: sourceMessageIDs,
-            status: ContactMemoryStatus(rawValue: status) ?? .active,
+            status: ChatMemoryStatus(rawValue: status) ?? .active,
             createdAt: createdAt,
             updatedAt: updatedAt
         )
     }
 
-    convenience init(chatID: String, value: ContactMemory) {
+    convenience init(chatID: String, value: ChatMemory) {
         let sourceData = try? JSONEncoder().encode(value.sourceMessageIDs)
         self.init(
             id: value.id,
@@ -155,7 +154,7 @@ extension ContactMemoryRecord {
         )
     }
 
-    func update(from value: ContactMemory) {
+    func update(from value: ChatMemory) {
         text = value.text
         origin = value.origin.rawValue
         certainty = value.certainty.rawValue

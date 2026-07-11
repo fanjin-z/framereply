@@ -16,8 +16,8 @@ struct MergeMessage: Equatable {
 
     init(record: ChatMessageRecord) {
         existingID = record.id
-        if record.senderKind == "other" {
-            senderKind = ChatImportMatcher.senderKey(.other, name: record.senderName)
+        if record.senderKind == "group_participant" {
+            senderKind = ChatImportMatcher.senderKey(.groupParticipant, name: record.senderName)
         } else {
             senderKind = record.senderKind
         }

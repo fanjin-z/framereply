@@ -48,7 +48,7 @@ final class PersonaPersistenceTests: XCTestCase {
         let thoughtful = try XCTUnwrap(try personas.personas().first { $0.name == "Thoughtful" })
         try personas.setDefaultPersona(id: thoughtful.id)
 
-        XCTAssertEqual(try chats.contactContextValue(chatID: "new-chat").personaID, thoughtful.id)
+        XCTAssertEqual(try chats.chatContextValue(chatID: "new-chat").personaID, thoughtful.id)
         XCTAssertEqual(try chats.personaPromptContext(personaID: UUID()).id, thoughtful.id)
     }
 
@@ -96,7 +96,7 @@ final class PersonaPersistenceTests: XCTestCase {
         let records = try repository.personas()
         let professional = try XCTUnwrap(records.first { $0.name == "Professional" })
         let spark = try XCTUnwrap(records.first { $0.name == "Spark" })
-        let assignment = ContactContextRecord(
+        let assignment = ChatContextRecord(
             chatID: "chat", currentInteractionGoal: "",
             personaID: professional.id
         )
@@ -110,7 +110,7 @@ final class PersonaPersistenceTests: XCTestCase {
         XCTAssertEqual(assignment.personaID, spark.id)
     }
 
-    func testDeletingNonDefaultReassignsContactsToDesignatedDefault() throws {
+    func testDeletingNonDefaultReassignsChatAssignmentsToDesignatedDefault() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = PersonaRepository(container: container)
         try repository.seedPersonasIfNeeded()
@@ -119,7 +119,7 @@ final class PersonaPersistenceTests: XCTestCase {
         let spark = try XCTUnwrap(records.first { $0.name == "Spark" })
         let thoughtful = try XCTUnwrap(records.first { $0.name == "Thoughtful" })
         try repository.setDefaultPersona(id: thoughtful.id)
-        let assignment = ContactContextRecord(
+        let assignment = ChatContextRecord(
             chatID: "chat", currentInteractionGoal: "",
             personaID: spark.id
         )
@@ -143,12 +143,15 @@ final class PersonaPersistenceTests: XCTestCase {
         let assignedAt = Date()
         let old = message(
             chatID: "chat", sender: "user", createdAt: assignedAt.addingTimeInterval(-1))
-        let contact = message(
-            chatID: "chat", sender: "contact", createdAt: assignedAt.addingTimeInterval(1))
+        let otherParticipant = message(
+            chatID: "chat",
+            sender: "other_participant",
+            createdAt: assignedAt.addingTimeInterval(1)
+        )
         let future = message(
             chatID: "chat", sender: "user", createdAt: assignedAt.addingTimeInterval(2))
         container.mainContext.insert(old)
-        container.mainContext.insert(contact)
+        container.mainContext.insert(otherParticipant)
         container.mainContext.insert(future)
         try container.mainContext.save()
 

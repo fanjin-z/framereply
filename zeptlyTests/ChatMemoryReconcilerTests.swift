@@ -2,7 +2,7 @@ import XCTest
 
 @testable import zeptly
 
-final class ContactMemoryReconcilerTests: XCTestCase {
+final class ChatMemoryReconcilerTests: XCTestCase {
     func testAddsUpdatesSupersedesAndArchivesWithValidEvidence() throws {
         let evidenceID = UUID()
         let aiID = UUID()
@@ -10,14 +10,14 @@ final class ContactMemoryReconcilerTests: XCTestCase {
         let archivedID = UUID()
         let now = Date(timeIntervalSince1970: 1_000)
         let memories = [
-            ContactMemory(
+            ChatMemory(
                 id: aiID,
                 text: "Likes tea",
                 origin: .ai,
                 certainty: .aiInferred
             ),
-            ContactMemory(id: userID, text: "Lives in Paris"),
-            ContactMemory(
+            ChatMemory(id: userID, text: "Lives in Paris"),
+            ChatMemory(
                 id: archivedID,
                 text: "Conference next week",
                 origin: .ai,
@@ -25,35 +25,35 @@ final class ContactMemoryReconcilerTests: XCTestCase {
             )
         ]
 
-        let result = ContactMemoryReconciler.reconcile(
+        let result = ChatMemoryReconciler.reconcile(
             memories: memories,
             changes: [
-                ContactMemoryChange(
+                ChatMemoryChange(
                     action: .update,
                     targetMemoryID: aiID,
                     text: "Prefers coffee",
                     sourceMessageIDs: [evidenceID]
                 ),
-                ContactMemoryChange(
+                ChatMemoryChange(
                     action: .update,
                     targetMemoryID: userID,
                     text: "Now lives in Berlin",
                     sourceMessageIDs: [evidenceID]
                 ),
-                ContactMemoryChange(
+                ChatMemoryChange(
                     action: .archive,
                     targetMemoryID: archivedID,
                     text: nil,
                     sourceMessageIDs: [evidenceID]
                 ),
-                ContactMemoryChange(
+                ChatMemoryChange(
                     action: .add,
                     targetMemoryID: nil,
                     text: "Vegetarian",
                     sourceMessageIDs: [evidenceID]
                 )
             ],
-            allowedContactSourceMessageIDs: [evidenceID],
+            allowedOtherParticipantSourceMessageIDs: [evidenceID],
             now: now
         )
 
@@ -75,49 +75,49 @@ final class ContactMemoryReconcilerTests: XCTestCase {
 
     func testRejectsUnknownEvidenceTargetsAndDuplicateAdds() {
         let allowedID = UUID()
-        let memory = ContactMemory(text: "Vegetarian")
-        let result = ContactMemoryReconciler.reconcile(
+        let memory = ChatMemory(text: "Vegetarian")
+        let result = ChatMemoryReconciler.reconcile(
             memories: [memory],
             changes: [
-                ContactMemoryChange(
+                ChatMemoryChange(
                     action: .add,
                     targetMemoryID: nil,
                     text: " vegetarian. ",
                     sourceMessageIDs: [allowedID]
                 ),
-                ContactMemoryChange(
+                ChatMemoryChange(
                     action: .archive,
                     targetMemoryID: UUID(),
                     text: nil,
                     sourceMessageIDs: [allowedID]
                 ),
-                ContactMemoryChange(
+                ChatMemoryChange(
                     action: .archive,
                     targetMemoryID: memory.id,
                     text: nil,
                     sourceMessageIDs: [UUID()]
                 )
             ],
-            allowedContactSourceMessageIDs: [allowedID]
+            allowedOtherParticipantSourceMessageIDs: [allowedID]
         )
 
         XCTAssertEqual(result, [memory])
     }
 
-    func testRejectsOperationWhenAnyEvidenceIsNotContactAuthored() {
-        let contactID = UUID()
+    func testRejectsOperationWhenAnyEvidenceIsNotOtherParticipantAuthored() {
+        let otherParticipantID = UUID()
         let disallowedID = UUID()
-        let result = ContactMemoryReconciler.reconcile(
+        let result = ChatMemoryReconciler.reconcile(
             memories: [],
             changes: [
-                ContactMemoryChange(
+                ChatMemoryChange(
                     action: .add,
                     targetMemoryID: nil,
                     text: "Asked about partner hotels",
-                    sourceMessageIDs: [contactID, disallowedID]
+                    sourceMessageIDs: [otherParticipantID, disallowedID]
                 )
             ],
-            allowedContactSourceMessageIDs: [contactID]
+            allowedOtherParticipantSourceMessageIDs: [otherParticipantID]
         )
 
         XCTAssertTrue(result.isEmpty)

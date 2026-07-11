@@ -8,7 +8,7 @@ struct PersonaDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var personas: [PersonaRecord]
     @Query private var observations: [PersonaObservationRecord]
-    @Query private var assignments: [ContactContextRecord]
+    @Query private var assignments: [ChatContextRecord]
     @State private var examples = ""
     @State private var newObservation = ""
     @State private var editingID: UUID?
@@ -26,7 +26,7 @@ struct PersonaDetailView: View {
             filter: #Predicate<PersonaObservationRecord> { $0.personaID == personaID },
             sort: \PersonaObservationRecord.createdAt
         )
-        _assignments = Query(filter: #Predicate<ContactContextRecord> { $0.personaID == personaID })
+        _assignments = Query(filter: #Predicate<ChatContextRecord> { $0.personaID == personaID })
     }
 
     var body: some View {

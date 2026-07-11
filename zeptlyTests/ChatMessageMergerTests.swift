@@ -50,7 +50,7 @@ final class ChatMessageMergerTests: XCTestCase {
     }
 
     func testUnknownSenderMatchesExistingTextAsLowConfidenceWildcard() {
-        let existing = message("Same visible message", sender: .contact)
+        let existing = message("Same visible message", sender: .otherParticipant)
         let imported = message("Same visible message", sender: .unknown)
 
         let result = ChatMessageMerger.merge(existing: [existing], imported: [imported])
@@ -62,7 +62,7 @@ final class ChatMessageMergerTests: XCTestCase {
     private func message(
         _ text: String,
         time: String = "",
-        sender: AnalyzedMessageSender = .contact
+        sender: AnalyzedMessageSender = .otherParticipant
     ) -> MergeMessage {
         MergeMessage(
             analyzed: AnalyzedChatMessage(

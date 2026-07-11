@@ -1,16 +1,14 @@
 //
-//  ChatIntelligenceTopBar.swift
+//  ChatAssistantTopBar.swift
 //  zeptly
 //
 
 import SwiftUI
 
-struct ChatIntelligenceTopBar: View {
+struct ChatAssistantTopBar: View {
     let chat: Chat
     let onBackTap: () -> Void
-    let onContactTap: () -> Void
-    let onRenameTap: () -> Void
-    let onDeleteTap: () -> Void
+    let onDetailsTap: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -26,7 +24,7 @@ struct ChatIntelligenceTopBar: View {
             .accessibilityLabel("Back to inbox")
 
             Button {
-                onContactTap()
+                onDetailsTap()
             } label: {
                 HStack(spacing: 12) {
                     AvatarMark(
@@ -48,31 +46,14 @@ struct ChatIntelligenceTopBar: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Open contact context for \(chat.name)")
+            .accessibilityLabel("Open chat details for \(chat.name)")
 
             Spacer(minLength: 8)
 
-            Menu {
-                Button {
-                    onRenameTap()
-                } label: {
-                    Label("Rename Chat", systemImage: "pencil")
-                }
-
-                Button(role: .destructive) {
-                    onDeleteTap()
-                } label: {
-                    Label("Delete Chat", systemImage: "trash")
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 20, weight: .bold))
-                    .rotationEffect(.degrees(90))
-                    .foregroundStyle(RezplyColor.primary)
-                    .frame(width: 42, height: 42)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("More options")
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(RezplyColor.outline)
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, 2)
     }

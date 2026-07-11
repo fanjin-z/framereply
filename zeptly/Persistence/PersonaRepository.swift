@@ -199,11 +199,11 @@ final class PersonaRepository {
 
     func usageCount(personaID: UUID) throws -> Int {
         try context.fetchCount(
-            FetchDescriptor<ContactContextRecord>(
+            FetchDescriptor<ChatContextRecord>(
                 predicate: #Predicate { $0.personaID == personaID }))
     }
 
-    func assign(personaID: UUID, to contextRecord: ContactContextRecord, at date: Date = Date())
+    func assign(personaID: UUID, to contextRecord: ChatContextRecord, at date: Date = Date())
         throws
     {
         guard try persona(id: personaID) != nil, contextRecord.personaID != personaID else {
@@ -243,12 +243,12 @@ final class PersonaRepository {
 
         do {
             let deletedID = record.id
-            for contact in try context.fetch(
-                FetchDescriptor<ContactContextRecord>(
+            for assignment in try context.fetch(
+                FetchDescriptor<ChatContextRecord>(
                     predicate: #Predicate { $0.personaID == deletedID }))
             {
-                contact.personaID = fallbackID
-                contact.personaAssignedAt = Date()
+                assignment.personaID = fallbackID
+                assignment.personaAssignedAt = Date()
             }
             for observation in try observations(personaID: deletedID, includeInactive: true) {
                 context.delete(observation)

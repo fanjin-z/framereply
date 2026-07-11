@@ -9,6 +9,7 @@ struct SuggestedRepliesSection: View {
     let replies: [SuggestedReply]
     let copiedReplyID: UUID?
     let isLoading: Bool
+    let needsRefresh: Bool
     let errorMessage: String?
     let onCopy: (SuggestedReply) -> Void
     let onRetry: () -> Void
@@ -17,11 +18,14 @@ struct SuggestedRepliesSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader(symbolName: "rectangle.on.rectangle.angled", title: "Suggested Replies") {
-                if replies.isEmpty {
+                if replies.isEmpty || needsRefresh {
                     Button(action: onGenerate) {
-                        Label("Generate Replies", systemImage: "sparkles")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(RezplyColor.primary)
+                        Label(
+                            replies.isEmpty ? "Generate Replies" : "Update Replies",
+                            systemImage: "sparkles"
+                        )
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(RezplyColor.primary)
                     }
                     .buttonStyle(.plain)
                     .disabled(isLoading)
@@ -69,6 +73,15 @@ struct SuggestedRepliesSection: View {
                             }
                         )
                     }
+                }
+
+                if needsRefresh && !isLoading {
+                    Label(
+                        "The reply brief changed. Update when you’re ready.",
+                        systemImage: "arrow.triangle.2.circlepath"
+                    )
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurfaceVariant)
                 }
 
                 if isLoading {

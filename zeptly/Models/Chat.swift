@@ -16,6 +16,5 @@ struct Chat: Identifiable {
     let initials: String
     let gradient: [Color]
     let isUnread: Bool
-    let contactContext: ContactContext?
     var isProvisional: Bool = false
 }

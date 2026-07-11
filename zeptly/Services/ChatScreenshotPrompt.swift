@@ -8,7 +8,7 @@ import Foundation
 enum ChatScreenshotPrompt {
     static let canonicalJSONExample = """
         {
-          "conversationTitle": "Contact Name",
+          "conversationTitle": "Participant Name",
           "conversationKind": "direct",
           "titleSource": "header",
           "avatarBounds": null,
@@ -30,8 +30,8 @@ enum ChatScreenshotPrompt {
               "quotedReply": null
             },
             {
-              "sender": "contact",
-              "senderName": "Contact Name",
+              "sender": "other_participant",
+              "senderName": "Participant Name",
               "text": "Reply text",
               "timestampLabel": null,
               "outerAlignment": "left",
@@ -71,8 +71,8 @@ enum ChatScreenshotPrompt {
         - messages is the ordered transcript, one entry per readable top-level participant message. text is only the outer author's new text, preserved exactly. timestampLabel is attached literal time/date text, or null.
         - quotedReply is subordinate context referencing an earlier message. Store its visible text and referenced author there, never in text or as another message. Nested "You" names only the quoted author and must never populate outerAuthorLabel. Containment/connectors outweigh proximity.
         - Authored blockquotes remain in text. Reactions, previews, timestamps, delivery labels, separators, notices, and app UI are not messages.
-        - sender is relative to the screenshot owner: "user" is the owner; in opposed alignment its outerAlignment equals screenshotOwnerAlignment. "contact" is the one other participant in a direct chat. "other" is a group non-owner identified by visible outerAuthorLabel. "unknown" means conflicting/unsupported ownership or an unidentified group author. Never guess.
-        - senderName is normally null for "user", the reliable direct identity for "contact", and the visible identity for "other". quotedReply uses the same owner-relative roles.
+        - sender is relative to the screenshot owner: "user" is the owner; in opposed alignment its outerAlignment equals screenshotOwnerAlignment. "other_participant" is the one other participant in a direct chat. "group_participant" is a group non-owner identified by visible outerAuthorLabel. "unknown" means conflicting/unsupported ownership or an unidentified group author. Never guess.
+        - senderName is normally null for "user", the reliable direct identity for "other_participant", and the visible identity for "group_participant". quotedReply uses the same owner-relative roles.
         - senderConfidence is ownership confidence from 0...1. senderEvidence is the strongest basis: "message_status_indicator", "alignment_convention", "author_label", "avatar", "candidate_match", "mixed", or "insufficient". Use "message_status_indicator" only for a message with an unambiguous attached sent/delivered/read indicator; do not preserve the exact delivery state.
         - Mandatory consistency: every message with senderEvidence "message_status_indicator" must have sender "user" and, in opposed alignment, outerAlignment equal screenshotOwnerAlignment. All top-level messages on screenshotOwnerAlignment are "user" and messages on the opposite side are non-owner. Correct any contradiction before returning.
 
@@ -80,9 +80,9 @@ enum ChatScreenshotPrompt {
         - conversationTitle is exact visible header title: usually the other display name in a direct chat or the group title; null if unavailable. conversationKind is "direct" for one other participant, "group" for multiple, otherwise "unknown".
         - Ignore temporary system overlays in the top region, including Back Tap, Shortcut, notification, volume, call, and Dynamic Island banners. Text inside those overlays is never a conversation title.
         - titleSource is "header" for header text, "participant_label" when obtained only from an outer author label, otherwise "unavailable".
-        - avatarBounds is the tight header-profile-image rectangle in normalized 0...1 top-left-origin coordinates; exclude borders/UI and use null if unclear or absent.
+        - avatarBounds is the tight header-avatar-image rectangle in normalized 0...1 top-left-origin coordinates; exclude borders/UI and use null if unclear or absent.
         - matchedChatID is an exact supplied candidate ID supported as the same conversation, otherwise null. matchConfidence measures only that identity match and must be 0 when matchedChatID is null.
-        - Matching priority: header identity; group identity; distinctive incoming messages with timestamps; generic overlap or owner messages. An outgoing opener is not contact evidence; overlap cannot override a conflicting direct header name.
+        - Matching priority: header identity; group identity; distinctive incoming messages with timestamps; generic overlap or owner messages. An outgoing opener is not other-participant evidence; overlap cannot override a conflicting direct header name.
         - Invent nothing. Verify each observation, quote, and sender. Return one complete JSON object with every shown key, explicit nulls, and confidence values in 0...1.
 
         Canonical JSON example and field contract:
@@ -100,6 +100,10 @@ enum ChatScreenshotPrompt {
             Analyze the attached chat screenshot\(request.imageDataList.count == 1 ? "" : "s"). All attached screenshots are from the same chat. They may be unordered and may overlap. Reconcile them into one deduplicated transcript in conversation order, then extract the visible conversation identity, ordered messages, best candidate ID, and match confidence.
             """
     }
+
+    private static let participantRoleValues = [
+        "user", "other_participant", "group_participant", "unknown"
+    ]
 
     static let jsonSchema: [String: Any] = [
         "type": "object",
@@ -158,7 +162,8 @@ enum ChatScreenshotPrompt {
                     ],
                     "properties": [
                         "sender": [
-                            "type": "string", "enum": ["user", "contact", "other", "unknown"]
+                            "type": "string",
+                            "enum": participantRoleValues
                         ],
                         "senderName": ["type": ["string", "null"]],
                         "text": ["type": "string"],
@@ -180,7 +185,7 @@ enum ChatScreenshotPrompt {
                                     "properties": [
                                         "sender": [
                                             "type": "string",
-                                            "enum": ["user", "contact", "other", "unknown"]
+                                            "enum": participantRoleValues
                                         ],
                                         "senderName": ["type": ["string", "null"]],
                                         "text": ["type": "string"]

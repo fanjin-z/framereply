@@ -27,13 +27,10 @@ struct RezplyShellView: View {
                             isActive: isActive,
                             providerStore: providerStore,
                             onChatTap: { chat in
-                                navigationPath.append(.chatIntelligence(chat.id))
-                            },
-                            onAvatarTap: { chat in
-                                navigationPath.append(.contactContext(chat.id))
+                                navigationPath.append(.chatAssistant(chat.id))
                             },
                             onImportCompleted: { chatID in
-                                navigationPath.append(.chatIntelligence(chatID))
+                                navigationPath.append(.chatAssistant(chatID))
                             }
                         )
                     case .personas:
@@ -60,20 +57,22 @@ struct RezplyShellView: View {
             .ignoresSafeArea(.keyboard, edges: .bottom)
             .navigationDestination(for: RezplyRoute.self) { route in
                 switch route {
-                case .contactContext(let chatID):
+                case .chatDetails(let chatID):
                     if let chat = chat(withID: chatID) {
-                        PersistedContactContextView(chat: chat)
+                        ChatDetailsView(chat: chat) {
+                            navigationPath.removeAll()
+                        }
                     }
-                case .chatIntelligence(let chatID):
+                case .chatAssistant(let chatID):
                     if let chat = chat(withID: chatID) {
-                        ChatIntelligenceView(
+                        ChatAssistantView(
                             chat: chat,
                             providerStore: providerStore,
-                            onContactTap: {
-                                navigationPath.append(.contactContext(chatID))
+                            onDetailsTap: {
+                                navigationPath.append(.chatDetails(chatID))
                             },
                             onMergedIntoChat: { targetChatID in
-                                replaceCurrentRoute(with: .chatIntelligence(targetChatID))
+                                replaceCurrentRoute(with: .chatAssistant(targetChatID))
                             }
                         )
                     }

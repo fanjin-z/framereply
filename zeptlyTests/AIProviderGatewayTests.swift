@@ -43,7 +43,7 @@ final class AIProviderGatewayTests: XCTestCase {
     private func makeReplyRequest() -> SuggestedReplyGenerationRequest {
         SuggestedReplyGenerationRequest(
             chatName: "Sarah",
-            contactMemories: [],
+            chatMemories: [],
             currentInteractionGoal: "Reply",
             persona: PersonaPromptContext(
                 id: UUID(), name: "Warm",

@@ -212,8 +212,8 @@ nonisolated struct AnalyzedChatMessage: Codable, Equatable, Sendable {
 
 nonisolated enum AnalyzedMessageSender: String, Codable, Equatable, Sendable {
     case user
-    case contact
-    case other
+    case otherParticipant = "other_participant"
+    case groupParticipant = "group_participant"
     case unknown
 }
 

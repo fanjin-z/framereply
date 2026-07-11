@@ -231,15 +231,15 @@ nonisolated enum ChatImportAnalysisDecoder {
         kind: ChatConversationKind
     ) -> AnalyzedMessageSender {
         if kind == .direct {
-            return .contact
+            return .otherParticipant
         }
-        if reported == .contact || reported == .other {
+        if reported == .otherParticipant || reported == .groupParticipant {
             return reported
         }
         if kind == .group, name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            return .other
+            return .groupParticipant
         }
-        return .contact
+        return .otherParticipant
     }
 
     private static func normalizedLabel(_ value: String?) -> String? {

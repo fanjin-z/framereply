@@ -28,7 +28,7 @@ final class ChatImportMatcherTests: XCTestCase {
     func testTranscriptEvidenceRequiresDistinctiveLocalSignals() {
         let messages = [
             AnalyzedChatMessage(
-                sender: .contact, senderName: nil, text: "First", timestampLabel: nil),
+                sender: .otherParticipant, senderName: nil, text: "First", timestampLabel: nil),
             AnalyzedChatMessage(sender: .user, senderName: nil, text: "Second", timestampLabel: nil)
         ]
         let analysis = ChatImportAnalysis(
@@ -41,7 +41,7 @@ final class ChatImportMatcherTests: XCTestCase {
             id: "sarah-jenkins",
             name: "Sarah Jenkins",
             recentMessages: [
-                ChatCandidateMessage(sender: "contact", text: "First", timeLabel: ""),
+                ChatCandidateMessage(sender: "other_participant", text: "First", timeLabel: ""),
                 ChatCandidateMessage(sender: "user", text: "Second", timeLabel: "")
             ]
         )
@@ -188,7 +188,7 @@ final class ChatImportMatcherTests: XCTestCase {
             conversationTitle: title,
             messages: [
                 AnalyzedChatMessage(
-                    sender: .contact,
+                    sender: .otherParticipant,
                     senderName: nil,
                     text: "A new message",
                     timestampLabel: nil

@@ -1,43 +1,43 @@
 //
-//  ContactContext.swift
+//  ChatContext.swift
 //  zeptly
 //
 
 import Foundation
 
-nonisolated enum ContactMemoryOrigin: String, Codable, Equatable, Sendable {
+nonisolated enum ChatMemoryOrigin: String, Codable, Equatable, Sendable {
     case user
     case ai
 }
 
-nonisolated enum ContactMemoryCertainty: String, Codable, Equatable, Sendable {
+nonisolated enum ChatMemoryCertainty: String, Codable, Equatable, Sendable {
     case userConfirmed
     case aiInferred
 }
 
-nonisolated enum ContactMemoryStatus: String, Codable, Equatable, Sendable {
+nonisolated enum ChatMemoryStatus: String, Codable, Equatable, Sendable {
     case active
     case archived
     case superseded
 }
 
-nonisolated struct ContactMemory: Identifiable, Codable, Equatable, Sendable {
+nonisolated struct ChatMemory: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     var text: String
-    var origin: ContactMemoryOrigin
-    var certainty: ContactMemoryCertainty
+    var origin: ChatMemoryOrigin
+    var certainty: ChatMemoryCertainty
     var sourceMessageIDs: [UUID]
-    var status: ContactMemoryStatus
+    var status: ChatMemoryStatus
     var createdAt: Date
     var updatedAt: Date
 
     init(
         id: UUID = UUID(),
         text: String,
-        origin: ContactMemoryOrigin = .user,
-        certainty: ContactMemoryCertainty = .userConfirmed,
+        origin: ChatMemoryOrigin = .user,
+        certainty: ChatMemoryCertainty = .userConfirmed,
         sourceMessageIDs: [UUID] = [],
-        status: ContactMemoryStatus = .active,
+        status: ChatMemoryStatus = .active,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -52,15 +52,15 @@ nonisolated struct ContactMemory: Identifiable, Codable, Equatable, Sendable {
     }
 }
 
-struct ContactContext: Equatable {
-    var contactMemories: [ContactMemory]
+struct ChatContext: Equatable {
+    var chatMemories: [ChatMemory]
     var currentInteractionGoal: String
     var personaID: UUID
     var personaAssignedAt: Date
 
-    static func empty(personaID: UUID) -> ContactContext {
-        ContactContext(
-            contactMemories: [],
+    static func empty(personaID: UUID) -> ChatContext {
+        ChatContext(
+            chatMemories: [],
             currentInteractionGoal: "",
             personaID: personaID,
             personaAssignedAt: Date()
@@ -68,20 +68,20 @@ struct ContactContext: Equatable {
     }
 }
 
-nonisolated enum ContactMemoryReconciler {
+nonisolated enum ChatMemoryReconciler {
     static func reconcile(
-        memories: [ContactMemory],
-        changes: [ContactMemoryChange],
-        allowedContactSourceMessageIDs: Set<UUID>,
+        memories: [ChatMemory],
+        changes: [ChatMemoryChange],
+        allowedOtherParticipantSourceMessageIDs: Set<UUID>,
         now: Date = Date()
-    ) -> [ContactMemory] {
+    ) -> [ChatMemory] {
         var result = memories
 
         for change in changes {
             let evidence = change.sourceMessageIDs
             guard !evidence.isEmpty,
                 Set(evidence).count == evidence.count,
-                evidence.allSatisfy(allowedContactSourceMessageIDs.contains)
+                evidence.allSatisfy(allowedOtherParticipantSourceMessageIDs.contains)
             else {
                 continue
             }
@@ -95,7 +95,7 @@ nonisolated enum ContactMemoryReconciler {
                     continue
                 }
                 result.append(
-                    ContactMemory(
+                    ChatMemory(
                         text: text,
                         origin: .ai,
                         certainty: .aiInferred,
@@ -148,7 +148,7 @@ nonisolated enum ContactMemoryReconciler {
                     )
                     result[targetIndex].updatedAt = now
                     result.append(
-                        ContactMemory(
+                        ChatMemory(
                             text: text,
                             origin: .ai,
                             certainty: .aiInferred,
@@ -188,7 +188,7 @@ nonisolated enum ContactMemoryReconciler {
 
     private static func activeEquivalent(
         to text: String,
-        in memories: [ContactMemory],
+        in memories: [ChatMemory],
         excluding excludedID: UUID?
     ) -> Int? {
         let key = comparisonKey(text)

@@ -108,12 +108,12 @@ final class SuggestedRepliesCoordinator {
         let messages = try repository.messages(chatID: chatID)
         guard !messages.isEmpty else { return nil }
 
-        let contactContext = try repository.contactContextValue(chatID: chatID)
-        let persona = try repository.personaPromptContext(personaID: contactContext.personaID)
+        let chatContext = try repository.chatContextValue(chatID: chatID)
+        let persona = try repository.personaPromptContext(personaID: chatContext.personaID)
         let learningMessages = try repository.personaLearningMessages(
             chatID: chatID,
             personaID: persona.id,
-            assignedAt: contactContext.personaAssignedAt
+            assignedAt: chatContext.personaAssignedAt
         )
         guard let cache = try repository.suggestedReplyCache(chatID: chatID) else {
             return nil
@@ -121,7 +121,7 @@ final class SuggestedRepliesCoordinator {
         let inputFingerprint = fingerprint(
             chatName: chat.name,
             messages: messages,
-            contactContext: contactContext,
+            chatContext: chatContext,
             persona: persona,
             learningMessageIDs: learningMessages.map(\.id),
             provider: providerContext.platform,
@@ -166,19 +166,19 @@ final class SuggestedRepliesCoordinator {
             throw SuggestedRepliesError.noMessages
         }
 
-        let contactContext = try repository.contactContextValue(chatID: chatID)
-        let persona = try repository.personaPromptContext(personaID: contactContext.personaID)
+        let chatContext = try repository.chatContextValue(chatID: chatID)
+        let persona = try repository.personaPromptContext(personaID: chatContext.personaID)
         let learningMessages = try repository.personaLearningMessages(
             chatID: chatID,
             personaID: persona.id,
-            assignedAt: contactContext.personaAssignedAt
+            assignedAt: chatContext.personaAssignedAt
         )
         let cache = try repository.suggestedReplyCache(chatID: chatID)
         let replyModel = providerContext.effectiveModel
         let inputFingerprint = fingerprint(
             chatName: chat.name,
             messages: messages,
-            contactContext: contactContext,
+            chatContext: chatContext,
             persona: persona,
             learningMessageIDs: learningMessages.map(\.id),
             provider: providerContext.platform,
@@ -208,8 +208,8 @@ final class SuggestedRepliesCoordinator {
         let strategyContext = previousConversationStrategy.flatMap { $0.isEmpty ? nil : $0 }
         let request = SuggestedReplyGenerationRequest(
             chatName: chat.name,
-            contactMemories: contactContext.contactMemories.filter { $0.status == .active },
-            currentInteractionGoal: contactContext.currentInteractionGoal,
+            chatMemories: chatContext.chatMemories.filter { $0.status == .active },
+            currentInteractionGoal: chatContext.currentInteractionGoal,
             persona: persona,
             personaLearningMessages: learningMessages.map(promptMessage),
             existingHistorySummary: summaryPlan.existingSummary,
@@ -254,16 +254,16 @@ final class SuggestedRepliesCoordinator {
             historySummary = olderMessages.isEmpty ? "" : generated.historySummary
         }
 
-        let contactEvidenceMessageIDs = Set(
+        let otherParticipantEvidenceMessageIDs = Set(
             (summaryPlan.messages + recentMessages)
-                .filter { $0.senderKind == "contact" }
+                .filter { $0.senderKind == "other_participant" }
                 .map(\.id)
         )
-        var reconciledContext = contactContext
-        reconciledContext.contactMemories = ContactMemoryReconciler.reconcile(
-            memories: contactContext.contactMemories,
+        var reconciledContext = chatContext
+        reconciledContext.chatMemories = ChatMemoryReconciler.reconcile(
+            memories: chatContext.chatMemories,
             changes: generated.memoryChanges,
-            allowedContactSourceMessageIDs: contactEvidenceMessageIDs
+            allowedOtherParticipantSourceMessageIDs: otherParticipantEvidenceMessageIDs
         )
         let learningMessageIDs = Set(learningMessages.map(\.id))
         let validObservationChanges = generated.personaObservationChanges.filter {
@@ -295,7 +295,7 @@ final class SuggestedRepliesCoordinator {
         let persistedFingerprint = fingerprint(
             chatName: chat.name,
             messages: messages,
-            contactContext: reconciledContext,
+            chatContext: reconciledContext,
             persona: try repository.projectedPersonaPromptContext(
                 personaID: persona.id, changes: validObservationChanges
             ),
@@ -306,7 +306,7 @@ final class SuggestedRepliesCoordinator {
 
         try repository.saveSuggestedReplyGeneration(
             chatID: chatID,
-            contactMemories: reconciledContext.contactMemories,
+            chatMemories: reconciledContext.chatMemories,
             personaID: persona.id,
             personaObservationChanges: validObservationChanges,
             learningMessageIDs: learningMessageIDs,
@@ -383,7 +383,7 @@ final class SuggestedRepliesCoordinator {
     private func fingerprint(
         chatName: String,
         messages: [ChatMessageRecord],
-        contactContext: ContactContext,
+        chatContext: ChatContext,
         persona: PersonaPromptContext,
         learningMessageIDs: [UUID],
         provider: ProviderPlatform,
@@ -392,11 +392,11 @@ final class SuggestedRepliesCoordinator {
         let payload: [String: Any] = [
             "chatName": chatName,
             "messages": messages.map(messageObject),
-            "contactMemories": contactContext.contactMemories
+            "chatMemories": chatContext.chatMemories
                 .filter { $0.status == .active }
                 .sorted { $0.id.uuidString < $1.id.uuidString }
                 .map(memoryObject),
-            "currentInteractionGoal": contactContext.currentInteractionGoal,
+            "currentInteractionGoal": chatContext.currentInteractionGoal,
             "persona": personaObject(persona),
             "personaLearningMessageIDs": learningMessageIDs.map(\.uuidString),
             "provider": provider.rawValue,
@@ -418,7 +418,7 @@ final class SuggestedRepliesCoordinator {
             return false
         }
         let messages = try repository.messages(chatID: chatID)
-        let context = try repository.contactContextValue(chatID: chatID)
+        let context = try repository.chatContextValue(chatID: chatID)
         let persona = try repository.personaPromptContext(personaID: context.personaID)
         let learningMessages = try repository.personaLearningMessages(
             chatID: chatID, personaID: persona.id, assignedAt: context.personaAssignedAt
@@ -426,7 +426,7 @@ final class SuggestedRepliesCoordinator {
         return fingerprint(
             chatName: chat.name,
             messages: messages,
-            contactContext: context,
+            chatContext: context,
             persona: persona,
             learningMessageIDs: learningMessages.map(\.id),
             provider: providerContext.platform,
@@ -449,7 +449,7 @@ final class SuggestedRepliesCoordinator {
         ]
     }
 
-    private func memoryObject(_ memory: ContactMemory) -> [String: Any] {
+    private func memoryObject(_ memory: ChatMemory) -> [String: Any] {
         [
             "id": memory.id.uuidString.lowercased(),
             "text": memory.text,

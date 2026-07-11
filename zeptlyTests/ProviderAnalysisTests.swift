@@ -52,7 +52,7 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(messages[0]["outerAuthorLabel"] is NSNull)
         XCTAssertNil(messages[0]["hasOutboundStatusIndicator"])
         XCTAssertEqual(messages[0]["senderEvidence"] as? String, "message_status_indicator")
-        XCTAssertEqual(messages[1]["sender"] as? String, "contact")
+        XCTAssertEqual(messages[1]["sender"] as? String, "other_participant")
         XCTAssertEqual(messages[1]["outerAlignment"] as? String, "left")
         XCTAssertNotNil(messages[1]["quotedReply"] as? [String: Any])
 
@@ -92,7 +92,9 @@ final class ProviderAnalysisTests: XCTestCase {
         )
         XCTAssertTrue(
             SuggestedReplyPrompt.instructions.contains(
-                "persona instructions; protected active persona observations; mutable active persona observations")
+                "persona instructions; protected active persona observations; "
+                    + "mutable active persona observations"
+            )
         )
         let exampleData = try XCTUnwrap(
             SuggestedReplyPrompt.canonicalJSONExample.data(using: .utf8))
@@ -171,7 +173,9 @@ final class ProviderAnalysisTests: XCTestCase {
             for: makeReplyRequest(previousConversationStrategy: "Move toward confirming dinner.")
         )
         XCTAssertTrue(
-            continuityPrompt.contains(#""previousConversationStrategy":"Move toward confirming dinner.""#)
+            continuityPrompt.contains(
+                #""previousConversationStrategy":"Move toward confirming dinner.""#
+            )
         )
 
         XCTAssertThrowsError(
@@ -480,10 +484,10 @@ final class ProviderAnalysisTests: XCTestCase {
     ) -> SuggestedReplyGenerationRequest {
         SuggestedReplyGenerationRequest(
             chatName: "Sarah",
-            contactMemories: [
-                ContactMemory(text: "Met at university"),
-                ContactMemory(text: "Vegetarian"),
-                ContactMemory(text: "Archived detail", status: .archived)
+            chatMemories: [
+                ChatMemory(text: "Met at university"),
+                ChatMemory(text: "Vegetarian"),
+                ChatMemory(text: "Archived detail", status: .archived)
             ],
             currentInteractionGoal: "Confirm dinner",
             persona: PersonaPromptContext(
@@ -498,7 +502,7 @@ final class ProviderAnalysisTests: XCTestCase {
             recentMessages: [
                 SuggestedReplyPromptMessage(
                     id: UUID(),
-                    sender: "contact", senderName: "Sarah", text: "Dinner at 7?",
+                    sender: "other_participant", senderName: "Sarah", text: "Dinner at 7?",
                     timeLabel: "6:00 PM"
                 )
             ],
@@ -534,7 +538,7 @@ final class ProviderAnalysisTests: XCTestCase {
         includeQuotedReply: Bool = true
     ) -> String {
         var message: [String: Any] = [
-            "sender": "contact",
+            "sender": "other_participant",
             "senderName": "Sarah Jenkins",
             "text": "Can we meet tomorrow?",
             "timestampLabel": "10:42 AM",

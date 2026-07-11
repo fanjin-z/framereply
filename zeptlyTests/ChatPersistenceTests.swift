@@ -154,7 +154,7 @@ final class ChatPersistenceTests: XCTestCase {
             conversationTitle: "Sarah Jenkins",
             messages: [
                 AnalyzedChatMessage(
-                    sender: .contact,
+                    sender: .otherParticipant,
                     senderName: nil,
                     text: "Perfect. Please include a suggested time for the formal review too.",
                     timestampLabel: "10:50 AM"
@@ -210,7 +210,7 @@ final class ChatPersistenceTests: XCTestCase {
                     timestampLabel: nil
                 ),
                 AnalyzedChatMessage(
-                    sender: .contact,
+                    sender: .otherParticipant,
                     senderName: "Alex",
                     text: "Trail at eight?",
                     timestampLabel: nil
@@ -403,6 +403,36 @@ final class ChatPersistenceTests: XCTestCase {
         try repository.renameChat(id: "missing-chat", name: "No Crash")
     }
 
+    func testChatContextIsCreatedAndGoalAndPersonaUpdatesAreExplicit() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let personas = PersonaRepository(container: container)
+        try personas.seedPersonasIfNeeded()
+        insertChat(id: "brief-chat", name: "Brief", into: container)
+
+        let initial = try repository.ensureChatContext(chatID: "brief-chat")
+        XCTAssertEqual(initial.currentInteractionGoal, "")
+        XCTAssertFalse(try repository.updateInteractionGoal(chatID: "brief-chat", goal: ""))
+        XCTAssertTrue(
+            try repository.updateInteractionGoal(
+                chatID: "brief-chat", goal: "  Agree on dinner plans  "))
+        XCTAssertEqual(initial.currentInteractionGoal, "Agree on dinner plans")
+
+        let replacement = try XCTUnwrap(
+            try personas.personas().first { $0.id != initial.personaID })
+        let assignedAt = Date(timeIntervalSince1970: 1234)
+        XCTAssertTrue(
+            try repository.assignPersona(
+                personaID: replacement.id,
+                toChatID: "brief-chat",
+                at: assignedAt
+            ))
+        XCTAssertEqual(initial.personaID, replacement.id)
+        XCTAssertEqual(initial.personaAssignedAt, assignedAt)
+        XCTAssertFalse(
+            try repository.assignPersona(personaID: replacement.id, toChatID: "brief-chat"))
+    }
+
     func testProvisionalChatCanMergeIntoExistingChat() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
@@ -416,9 +446,9 @@ final class ChatPersistenceTests: XCTestCase {
             model: .gpt56Luna
         )
         container.mainContext.insert(
-            ContactMemoryRecord(
+            ChatMemoryRecord(
                 chatID: outcome.chatID,
-                value: ContactMemory(text: "Met on the trail")
+                value: ChatMemory(text: "Met on the trail")
             )
         )
         insertReplyCache(chatID: outcome.chatID, into: container)
@@ -429,27 +459,27 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertNil(try repository.chat(id: outcome.chatID))
         XCTAssertNil(try repository.suggestedReplyCache(chatID: outcome.chatID))
         XCTAssertEqual(try repository.messages(chatID: "target-chat").count, originalCount + 1)
-        XCTAssertTrue(try repository.contactMemories(chatID: outcome.chatID).isEmpty)
+        XCTAssertTrue(try repository.chatMemories(chatID: outcome.chatID).isEmpty)
         XCTAssertEqual(
-            try repository.contactMemories(chatID: "target-chat").map(\.text), ["Met on the trail"])
+            try repository.chatMemories(chatID: "target-chat").map(\.text), ["Met on the trail"])
     }
 
-    func testAtomicContactMemoriesPreserveMultilineTextAndMetadata() throws {
+    func testAtomicChatMemoriesPreserveMultilineTextAndMetadata() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let chatID = "memory-chat"
         insertChat(id: chatID, name: "Memory", into: container)
         let sourceID = UUID()
-        let memory = ContactMemory(
+        let memory = ChatMemory(
             text: "Met at university.\nPlanning a reunion next spring.",
             origin: .ai,
             certainty: .aiInferred,
             sourceMessageIDs: [sourceID]
         )
-        container.mainContext.insert(ContactMemoryRecord(chatID: chatID, value: memory))
+        container.mainContext.insert(ChatMemoryRecord(chatID: chatID, value: memory))
         try container.mainContext.save()
 
-        let stored = try XCTUnwrap(repository.contactMemories(chatID: chatID).first?.value)
+        let stored = try XCTUnwrap(repository.chatMemories(chatID: chatID).first?.value)
         XCTAssertEqual(stored.id, memory.id)
         XCTAssertEqual(stored.text, memory.text)
         XCTAssertEqual(stored.origin, .ai)
@@ -490,7 +520,7 @@ final class ChatPersistenceTests: XCTestCase {
             conversationTitle: "Weekend Hike",
             messages: [
                 AnalyzedChatMessage(
-                    sender: .contact,
+                    sender: .otherParticipant,
                     senderName: "Alex",
                     text: "Trail at eight?",
                     timestampLabel: "8:00 PM"
@@ -610,9 +640,12 @@ final class ChatPersistenceTests: XCTestCase {
             })
         XCTAssertTrue(importBefore.requiresReview)
 
-        try repository.resolveUnknownSender(messageID: stored.id, as: .contact)
+        try repository.resolveUnknownSender(messageID: stored.id, as: .otherParticipant)
 
-        XCTAssertEqual(try repository.messages(chatID: "known-chat").first?.senderKind, "contact")
+        XCTAssertEqual(
+            try repository.messages(chatID: "known-chat").first?.senderKind,
+            "other_participant"
+        )
         XCTAssertFalse(importBefore.requiresReview)
         XCTAssertNotEqual(importBefore.transcriptFingerprint, fingerprintBefore)
     }
@@ -640,7 +673,7 @@ final class ChatPersistenceTests: XCTestCase {
             container.mainContext.insert(
                 ChatMessageRecord(
                     chatID: id,
-                    senderKind: "contact",
+                    senderKind: "other_participant",
                     text: message,
                     normalizedText: MessageTextNormalizer.normalize(message),
                     timeLabel: "10:50 AM",
@@ -652,16 +685,16 @@ final class ChatPersistenceTests: XCTestCase {
 
     private func insertRelatedRecords(chatID: String, into container: ModelContainer) {
         container.mainContext.insert(
-            ContactContextRecord(
+            ChatContextRecord(
                 chatID: chatID,
                 currentInteractionGoal: "Reconnect",
                 personaID: UUID()
             )
         )
         container.mainContext.insert(
-            ContactMemoryRecord(
+            ChatMemoryRecord(
                 chatID: chatID,
-                value: ContactMemory(text: "Notes")
+                value: ChatMemory(text: "Notes")
             )
         )
         container.mainContext.insert(
@@ -703,8 +736,8 @@ final class ChatPersistenceTests: XCTestCase {
     }
 
     private func relatedRecordCounts(chatID: String, in container: ModelContainer) throws -> [Int] {
-        let contactRecords = try container.mainContext.fetch(
-            FetchDescriptor<ContactContextRecord>(
+        let chatContextRecords = try container.mainContext.fetch(
+            FetchDescriptor<ChatContextRecord>(
                 predicate: #Predicate { $0.chatID == chatID }
             )
         )
@@ -714,11 +747,11 @@ final class ChatPersistenceTests: XCTestCase {
             )
         )
         let memoryRecords = try container.mainContext.fetch(
-            FetchDescriptor<ContactMemoryRecord>(
+            FetchDescriptor<ChatMemoryRecord>(
                 predicate: #Predicate { $0.chatID == chatID }
             )
         )
-        return [contactRecords.count, memoryRecords.count, importRecords.count]
+        return [chatContextRecords.count, memoryRecords.count, importRecords.count]
     }
 
     private func provisionalAnalysis() -> ChatImportAnalysis {
@@ -726,7 +759,7 @@ final class ChatPersistenceTests: XCTestCase {
             conversationTitle: "Weekend Hike",
             messages: [
                 AnalyzedChatMessage(
-                    sender: .contact,
+                    sender: .otherParticipant,
                     senderName: "Alex",
                     text: "Trail at eight?",
                     timestampLabel: nil

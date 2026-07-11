@@ -219,7 +219,7 @@ enum ChatTranscriptAligner {
     }
 
     private static func isIncoming(_ sender: String) -> Bool {
-        sender == "contact" || sender.hasPrefix("other:")
+        sender == "other_participant" || sender.hasPrefix("group_participant:")
     }
 }
 

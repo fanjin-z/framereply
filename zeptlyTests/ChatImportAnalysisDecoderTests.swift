@@ -17,7 +17,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
             with: #""missingMessages""#
         )
         let wrongSender = validJSON().replacingOccurrences(
-            of: #""sender":"contact""#,
+            of: #""sender":"other_participant""#,
             with: #""sender":42"#
         )
         let unknownCandidate = validJSON().replacingOccurrences(
@@ -45,7 +45,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
 
     func testRejectsLegacyOutputWithoutVisualContract() {
         let legacyJSON =
-            #"{"conversationTitle":"Alex","messages":[{"sender":"contact","senderName":"Alex","text":"Hello","timestampLabel":null}]}"#
+            #"{"conversationTitle":"Alex","messages":[{"sender":"other_participant","senderName":"Alex","text":"Hello","timestampLabel":null}]}"#
         assertFailure(
             legacyJSON,
             kind: .schemaMismatch,
@@ -98,7 +98,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         let result = try decode(json)
 
         XCTAssertEqual(result.messages.count, 1)
-        XCTAssertEqual(result.messages[0].sender, .contact)
+        XCTAssertEqual(result.messages[0].sender, .otherParticipant)
         XCTAssertEqual(result.messages[0].text, "I remember")
         XCTAssertEqual(result.messages[0].quotedReply?.text, "I live in Guangzhou")
     }
@@ -179,7 +179,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
 
     func testTandemRegressionKeepsEightOuterMessagesAndOneNestedReply() throws {
         let json = """
-            {"conversationTitle":"Inna","conversationKind":"direct","titleSource":"header","avatarBounds":null,"ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"user","senderName":null,"text":"你好，很高兴认识你","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"你的中文看起来不错! 你学中文多久了?","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"Я сейчас учу русский. Хочу найти человека для практики","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"已经3年，在中国住了1.5年","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":{"sender":"user","senderName":null,"text":"你的中文看起来不错! 你学中文多久了?"}},{"sender":"user","senderName":null,"text":"你现在是在莫斯科吗？还是偶尔也会去中国？","timestampLabel":"Seen 1 hour ago","outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.98,"senderEvidence":"message_status_indicator","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"我刚刚回来了","timestampLabel":"3:53 PM","outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"contact","senderName":"Inna","text":"现在在莫斯科","timestampLabel":"3:53 PM","outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"你在中国上学吗？还是来旅游？","timestampLabel":"Delivered","outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.98,"senderEvidence":"message_status_indicator","quotedReply":null}],"matchedChatID":null,"matchConfidence":0.0}
+            {"conversationTitle":"Inna","conversationKind":"direct","titleSource":"header","avatarBounds":null,"ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"user","senderName":null,"text":"你好，很高兴认识你","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"你的中文看起来不错! 你学中文多久了?","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"Я сейчас учу русский. Хочу найти человека для практики","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"other_participant","senderName":"Inna","text":"已经3年，在中国住了1.5年","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":{"sender":"user","senderName":null,"text":"你的中文看起来不错! 你学中文多久了?"}},{"sender":"user","senderName":null,"text":"你现在是在莫斯科吗？还是偶尔也会去中国？","timestampLabel":"Seen 1 hour ago","outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.98,"senderEvidence":"message_status_indicator","quotedReply":null},{"sender":"other_participant","senderName":"Inna","text":"我刚刚回来了","timestampLabel":"3:53 PM","outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"other_participant","senderName":"Inna","text":"现在在莫斯科","timestampLabel":"3:53 PM","outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"你在中国上学吗？还是来旅游？","timestampLabel":"Delivered","outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.98,"senderEvidence":"message_status_indicator","quotedReply":null}],"matchedChatID":null,"matchConfidence":0.0}
             """
 
         let result = try decode(json)
@@ -188,7 +188,10 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(result.messages.count, 8)
         XCTAssertEqual(
             result.messages.map(\.sender),
-            [.user, .user, .user, .contact, .user, .contact, .contact, .user]
+            [
+                .user, .user, .user, .otherParticipant, .user, .otherParticipant,
+                .otherParticipant, .user
+            ]
         )
         XCTAssertEqual(result.messages[3].text, "已经3年，在中国住了1.5年")
         XCTAssertEqual(result.messages[3].quotedReply?.text, "你的中文看起来不错! 你学中文多久了?")
@@ -233,7 +236,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
     }
 
     private func validJSON(
-        sender: String = "contact",
+        sender: String = "other_participant",
         text: String = "Hello",
         quotedReply: String = "null",
         senderEvidence: String = "alignment_convention",

@@ -1,11 +1,11 @@
 //
-//  ContactContextField.swift
+//  ChatContextField.swift
 //  zeptly
 //
 
 import SwiftUI
 
-struct ContactContextField: View {
+struct ChatContextField: View {
     @Binding var text: String
     let placeholder: String
 

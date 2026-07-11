@@ -1,11 +1,11 @@
 //
-//  AddChatContextSheet.swift
+//  AddReplyNoteSheet.swift
 //  zeptly
 //
 
 import SwiftUI
 
-struct AddChatContextSheet: View {
+struct AddReplyNoteSheet: View {
     @Binding var note: String
     @Environment(\.dismiss) private var dismiss
 
@@ -16,11 +16,11 @@ struct AddChatContextSheet: View {
             VStack(alignment: .leading, spacing: 18) {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Add Context")
+                        Text("Add Reply Note")
                             .font(.system(size: 24, weight: .bold, design: .rounded))
                             .foregroundStyle(RezplyColor.onSurface)
 
-                        Text("Offline notes for this reply")
+                        Text("Used once for the next set of replies")
                             .font(.system(size: 14, weight: .medium, design: .rounded))
                             .foregroundStyle(RezplyColor.onSurfaceVariant)
                     }

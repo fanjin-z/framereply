@@ -1,23 +1,24 @@
 //
-//  ChatReasoningCard.swift
+//  StrategyRationaleCard.swift
 //  zeptly
 //
 
 import SwiftUI
 
-struct ChatReasoningCard: View {
+struct StrategyRationaleCard: View {
     let strategyRationale: String
+    let generatedAt: Date
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Why This Direction")
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .tracking(1.1)
-                .foregroundStyle(RezplyColor.outline)
-                .textCase(.uppercase)
+            SectionHeader(symbolName: "sparkles", title: "Why These Replies") {
+                Text(generatedAt, style: .relative)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(RezplyColor.outline)
+            }
 
             HStack(alignment: .top, spacing: 14) {
-                Image(systemName: "sparkles")
+                Image(systemName: "lightbulb.max")
                     .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(RezplyColor.primary)
                     .frame(width: 24)

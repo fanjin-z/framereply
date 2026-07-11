@@ -1,16 +1,16 @@
 //
-//  ChatCaptureControls.swift
+//  ConversationUpdateControls.swift
 //  zeptly
 //
 
 import PhotosUI
 import SwiftUI
 
-struct ChatCaptureControls: View {
+struct ConversationUpdateControls: View {
     @Binding var screenshotSelection: [PhotosPickerItem]
     let isImporting: Bool
-    let hasContextNote: Bool
-    let onContextTap: () -> Void
+    let hasReplyNote: Bool
+    let onReplyNoteTap: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
@@ -43,12 +43,12 @@ struct ChatCaptureControls: View {
             .disabled(isImporting)
 
             Button {
-                onContextTap()
+                onReplyNoteTap()
             } label: {
                 HStack(spacing: 9) {
-                    Image(systemName: hasContextNote ? "checkmark.bubble" : "text.badge.plus")
+                    Image(systemName: hasReplyNote ? "checkmark.bubble" : "text.badge.plus")
                         .font(.system(size: 16, weight: .semibold))
-                    Text(hasContextNote ? "Context Added" : "Add Context")
+                    Text(hasReplyNote ? "Reply Note Added" : "Add Reply Note")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .lineLimit(1)
                         .minimumScaleFactor(0.72)

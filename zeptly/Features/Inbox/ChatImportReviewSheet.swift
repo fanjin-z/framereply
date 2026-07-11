@@ -83,8 +83,8 @@ struct ChatImportReviewSheet: View {
                                 ForEach(unknownSenderMessages) { message in
                                     UnknownSenderReviewCard(
                                         message: message,
-                                        chatName: allChats.first(where: { $0.id == message.chatID })?
-                                            .name
+                                        chatName:
+                                            allChats.first(where: { $0.id == message.chatID })?.name
                                             ?? "Imported chat",
                                         onResolve: resolveSender
                                     )
@@ -210,12 +210,12 @@ private struct UnknownSenderReviewCard: View {
                     onResolve(message.id, .user, nil)
                 }
 
-                SenderChoiceChip("Contact") {
-                    onResolve(message.id, .contact, nil)
+                SenderChoiceChip("Other Participant") {
+                    onResolve(message.id, .otherParticipant, nil)
                 }
 
                 SenderChoiceChip(message.senderName ?? "Participant") {
-                    onResolve(message.id, .other, message.senderName)
+                    onResolve(message.id, .groupParticipant, message.senderName)
                 }
             }
         }
@@ -344,8 +344,8 @@ private struct SenderChoiceChip: View {
     }
 }
 
-private extension View {
-    func quietReviewPanel(accented: Bool = false) -> some View {
+extension View {
+    fileprivate func quietReviewPanel(accented: Bool = false) -> some View {
         background {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(.ultraThinMaterial)

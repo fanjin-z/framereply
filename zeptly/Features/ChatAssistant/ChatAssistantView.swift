@@ -1,37 +1,36 @@
 //
-//  ChatIntelligenceView.swift
+//  ChatAssistantView.swift
 //  zeptly
 //
 
-import SwiftData
 import PhotosUI
+import SwiftData
 import SwiftUI
 
-struct ChatIntelligenceView: View {
+struct ChatAssistantView: View {
     let chat: Chat
     @ObservedObject var providerStore: ProviderStore
-    let onContactTap: () -> Void
+    let onDetailsTap: () -> Void
     let onMergedIntoChat: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var isHistoryPresented = false
-    @State private var isContextPresented = false
+    @State private var isReplyNotePresented = false
     @State private var isReviewPresented = false
-    @State private var isRenamePresented = false
-    @State private var renameDraft = ""
     @State private var isMergeConfirmationPresented = false
     @State private var actionErrorMessage: String?
     @State private var selectedScreenshotItems: [PhotosPickerItem] = []
     @State private var photoLoadErrorMessage: String?
-    @State private var contextNote = ""
-    @State private var lastRecordedContextNote = ""
+    @State private var replyNote = ""
+    @State private var lastSubmittedReplyNote = ""
+    @State private var goalDraft = ""
+    @State private var didLoadContext = false
+    @State private var needsReplyRefresh = false
     @State private var copiedReplyID: UUID?
-    @State private var isDeleteConfirmationPresented = false
-    @State private var deleteErrorMessage: String?
     @Query private var currentChatRecords: [ChatRecord]
     @Query private var messageRecords: [ChatMessageRecord]
-    @Query private var contactContextRecords: [ContactContextRecord]
-    @Query private var contactMemoryRecords: [ContactMemoryRecord]
+    @Query private var chatContextRecords: [ChatContextRecord]
+    @Query private var chatMemoryRecords: [ChatMemoryRecord]
     @Query private var suggestedReplyCacheRecords: [SuggestedReplyCacheRecord]
     @Query private var mergeCandidateRecords: [ChatRecord]
     @StateObject private var suggestedRepliesModel: SuggestedRepliesViewModel
@@ -40,12 +39,12 @@ struct ChatIntelligenceView: View {
     init(
         chat: Chat,
         providerStore: ProviderStore,
-        onContactTap: @escaping () -> Void,
+        onDetailsTap: @escaping () -> Void,
         onMergedIntoChat: @escaping (String) -> Void
     ) {
         self.chat = chat
         self.providerStore = providerStore
-        self.onContactTap = onContactTap
+        self.onDetailsTap = onDetailsTap
         self.onMergedIntoChat = onMergedIntoChat
         let chatID = chat.id
         _currentChatRecords = Query(
@@ -55,12 +54,12 @@ struct ChatIntelligenceView: View {
             filter: #Predicate<ChatMessageRecord> { $0.chatID == chatID },
             sort: \ChatMessageRecord.sortIndex
         )
-        _contactContextRecords = Query(
-            filter: #Predicate<ContactContextRecord> { $0.chatID == chatID }
+        _chatContextRecords = Query(
+            filter: #Predicate<ChatContextRecord> { $0.chatID == chatID }
         )
-        _contactMemoryRecords = Query(
-            filter: #Predicate<ContactMemoryRecord> { $0.chatID == chatID },
-            sort: \ContactMemoryRecord.createdAt
+        _chatMemoryRecords = Query(
+            filter: #Predicate<ChatMemoryRecord> { $0.chatID == chatID },
+            sort: \ChatMemoryRecord.createdAt
         )
         _suggestedReplyCacheRecords = Query(
             filter: #Predicate<SuggestedReplyCacheRecord> { $0.chatID == chatID }
@@ -92,12 +91,16 @@ struct ChatIntelligenceView: View {
         suggestedRepliesModel.conversationStrategy.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var strategyRationale: String {
-        suggestedRepliesModel.strategyRationale.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
     private var currentChatRecord: ChatRecord? {
         currentChatRecords.first
+    }
+
+    @MainActor private var displayedChat: Chat {
+        currentChatRecord.map(Chat.init(record:)) ?? chat
+    }
+
+    private var currentChatContext: ChatContextRecord? {
+        chatContextRecords.first
     }
 
     private var isCurrentChatProvisional: Bool {
@@ -125,19 +128,6 @@ struct ChatIntelligenceView: View {
             hasher.combine(message.text)
             hasher.combine(message.sortIndex)
         }
-        if let context = contactContextRecords.first {
-            hasher.combine(context.currentInteractionGoal)
-            hasher.combine(context.personaID)
-            hasher.combine(context.personaAssignedAt)
-        }
-        for memory in contactMemoryRecords
-        where memory.status == ContactMemoryStatus.active.rawValue {
-            hasher.combine(memory.id)
-            hasher.combine(memory.text)
-            hasher.combine(memory.origin)
-            hasher.combine(memory.certainty)
-            hasher.combine(memory.status)
-        }
         if let cache = suggestedReplyCacheRecords.first {
             hasher.combine(cache.inputFingerprint)
             hasher.combine(cache.repliesJSON)
@@ -149,25 +139,36 @@ struct ChatIntelligenceView: View {
         return hasher.finalize()
     }
 
+    private var contextRevisionKey: Int {
+        var hasher = Hasher()
+        if let context = currentChatContext {
+            hasher.combine(context.currentInteractionGoal)
+            hasher.combine(context.personaID)
+            hasher.combine(context.personaAssignedAt)
+        }
+        for memory in chatMemoryRecords {
+            hasher.combine(memory.id)
+            hasher.combine(memory.text)
+            hasher.combine(memory.origin)
+            hasher.combine(memory.certainty)
+            hasher.combine(memory.status)
+            hasher.combine(memory.updatedAt)
+        }
+        return hasher.finalize()
+    }
+
     var body: some View {
         ZStack {
             EtherealBackground()
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    ChatIntelligenceTopBar(
-                        chat: chat,
+                    ChatAssistantTopBar(
+                        chat: displayedChat,
                         onBackTap: {
                             dismiss()
                         },
-                        onContactTap: onContactTap,
-                        onRenameTap: {
-                            renameDraft = chat.name
-                            isRenamePresented = true
-                        },
-                        onDeleteTap: {
-                            isDeleteConfirmationPresented = true
-                        }
+                        onDetailsTap: onDetailsTap
                     )
 
                     if shouldShowImportReviewCard {
@@ -185,41 +186,52 @@ struct ChatIntelligenceView: View {
                         )
                     }
 
-                    RecentChatSection(
-                        messages: latestMessages,
-                        onHistoryTap: {
-                            isHistoryPresented = true
-                        }
-                    )
-
-                    ChatCaptureControls(
-                        screenshotSelection: $selectedScreenshotItems,
-                        isImporting: importModel.isLoading,
-                        hasContextNote: !contextNote.trimmingCharacters(in: .whitespacesAndNewlines)
-                            .isEmpty,
-                        onContextTap: {
-                            isContextPresented = true
-                        }
-                    )
-
-                    if importModel.isLoading {
-                        ScreenshotImportStatusCard(
-                            symbolName: "sparkles",
-                            message: "Analyzing selected screenshots…",
-                            isLoading: true
+                    VStack(alignment: .leading, spacing: 14) {
+                        RecentChatSection(
+                            messages: latestMessages,
+                            onHistoryTap: {
+                                isHistoryPresented = true
+                            }
                         )
-                    } else if let importStatusMessage {
-                        ScreenshotImportStatusCard(
-                            symbolName: importStatusSymbolName,
-                            message: importStatusMessage,
-                            isLoading: false
+
+                        ConversationUpdateControls(
+                            screenshotSelection: $selectedScreenshotItems,
+                            isImporting: importModel.isLoading,
+                            hasReplyNote: !replyNote.trimmingCharacters(
+                                in: .whitespacesAndNewlines
+                            ).isEmpty,
+                            onReplyNoteTap: {
+                                isReplyNotePresented = true
+                            }
                         )
+
+                        if importModel.isLoading {
+                            ScreenshotImportStatusCard(
+                                symbolName: "sparkles",
+                                message: "Analyzing selected screenshots…",
+                                isLoading: true
+                            )
+                        } else if let importStatusMessage {
+                            ScreenshotImportStatusCard(
+                                symbolName: importStatusSymbolName,
+                                message: importStatusMessage,
+                                isLoading: false
+                            )
+                        }
                     }
+
+                    ReplyBriefCard(
+                        goalDraft: $goalDraft,
+                        personaID: currentChatContext?.personaID,
+                        onGoalCommit: commitGoal,
+                        onPersonaSelect: assignPersona
+                    )
 
                     SuggestedRepliesSection(
                         replies: suggestedRepliesModel.replies,
                         copiedReplyID: copiedReplyID,
                         isLoading: suggestedRepliesModel.isLoading,
+                        needsRefresh: needsReplyRefresh,
                         errorMessage: suggestedRepliesModel.errorMessage,
                         onCopy: copyReply,
                         onRetry: generateReplies,
@@ -227,11 +239,7 @@ struct ChatIntelligenceView: View {
                     )
 
                     if !conversationStrategy.isEmpty {
-                        SuggestedActionCard(conversationStrategy: conversationStrategy)
-                    }
-
-                    if !strategyRationale.isEmpty {
-                        ChatReasoningCard(strategyRationale: strategyRationale)
+                        ConversationStrategyCard(conversationStrategy: conversationStrategy)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -246,22 +254,13 @@ struct ChatIntelligenceView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $isHistoryPresented) {
-            ChatHistorySheet(chat: chat)
+            ChatHistorySheet(chat: displayedChat)
         }
-        .sheet(isPresented: $isContextPresented) {
-            AddChatContextSheet(note: $contextNote)
+        .sheet(isPresented: $isReplyNotePresented) {
+            AddReplyNoteSheet(note: $replyNote)
         }
         .sheet(isPresented: $isReviewPresented) {
             ChatImportReviewSheet(chatID: chat.id, onMerged: onMergedIntoChat)
-        }
-        .alert("Rename Chat", isPresented: $isRenamePresented) {
-            TextField("Chat name", text: $renameDraft)
-            Button("Save") {
-                renameChat()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Choose a clear name for this chat.")
         }
         .confirmationDialog(
             "Merge Imported Chat",
@@ -277,32 +276,16 @@ struct ChatIntelligenceView: View {
         } message: {
             Text("Move this imported chat into an existing chat. This can’t be undone.")
         }
-        .confirmationDialog(
-            "Delete chat with \(chat.name)?",
-            isPresented: $isDeleteConfirmationPresented,
-            titleVisibility: .visible
-        ) {
-            Button("Delete Chat", role: .destructive) {
-                deleteChat()
-            }
-            Button("Cancel") {
-                isDeleteConfirmationPresented = false
-            }
-        } message: {
-            Text("This permanently deletes this chat and its data. This can’t be undone.")
-        }
-        .alert("Could Not Delete Chat", isPresented: deleteErrorBinding) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(deleteErrorMessage ?? "Try again.")
-        }
         .alert("Could Not Update Chat", isPresented: actionErrorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(actionErrorMessage ?? "Try again.")
         }
         .task(id: replyCacheKey) {
-            await loadCachedRepliesAndRefreshIfStale()
+            loadCachedReplies()
+        }
+        .task {
+            loadChatContext()
         }
         .task(id: shouldShowImportReviewCard) {
             recordReviewExposureIfNeeded()
@@ -312,22 +295,18 @@ struct ChatIntelligenceView: View {
                 await importSelectedScreenshots(items)
             }
         }
-        .onChange(of: isContextPresented) { wasPresented, isPresented in
+        .onChange(of: isReplyNotePresented) { wasPresented, isPresented in
             if wasPresented && !isPresented {
-                handleContextNoteDismissal()
+                handleReplyNoteDismissal()
             }
         }
-    }
-
-    private var deleteErrorBinding: Binding<Bool> {
-        Binding(
-            get: { deleteErrorMessage != nil },
-            set: { isPresented in
-                if !isPresented {
-                    deleteErrorMessage = nil
-                }
+        .onChange(of: contextRevisionKey) { oldValue, newValue in
+            if didLoadContext && oldValue != newValue
+                && !suggestedRepliesModel.isLoading && !importModel.isLoading
+            {
+                needsReplyRefresh = suggestedReplyCacheRecords.first != nil
             }
-        )
+        }
     }
 
     private var actionErrorBinding: Binding<Bool> {
@@ -350,7 +329,8 @@ struct ChatIntelligenceView: View {
         }
         if let result = importModel.result {
             if let replyErrorMessage = result.replyErrorMessage {
-                return "\(result.message) Suggested replies could not be generated: \(replyErrorMessage)"
+                return "\(result.message) Suggested replies could not be generated: "
+                    + replyErrorMessage
             }
             return result.message
         }
@@ -376,12 +356,17 @@ struct ChatIntelligenceView: View {
 
         do {
             let imageDataList = try await ChatScreenshotPhotoLoader.loadData(from: items)
-            let draftingInput = contextNote.trimmingCharacters(in: .whitespacesAndNewlines)
+            let draftingInput = replyNote.trimmingCharacters(in: .whitespacesAndNewlines)
             if let result = await importModel.importScreenshots(
                 imageDataList,
                 draftingInput: draftingInput.isEmpty ? nil : draftingInput
             ), result.chatID == chat.id {
                 suggestedRepliesModel.loadCached()
+                needsReplyRefresh = false
+                if !draftingInput.isEmpty, result.replyErrorMessage == nil {
+                    replyNote = ""
+                    lastSubmittedReplyNote = ""
+                }
                 recordMeaningfulReviewAction()
             }
         } catch {
@@ -400,30 +385,24 @@ struct ChatIntelligenceView: View {
 
     private func generateReplies() {
         Task {
-            if await suggestedRepliesModel.generate() {
+            let draftingInput = replyNote.trimmingCharacters(in: .whitespacesAndNewlines)
+            if await suggestedRepliesModel.generate(
+                draftingInput: draftingInput.isEmpty ? nil : draftingInput
+            ) {
+                needsReplyRefresh = false
+                if !draftingInput.isEmpty {
+                    replyNote = ""
+                    lastSubmittedReplyNote = ""
+                }
                 recordMeaningfulReviewAction()
             }
         }
     }
 
-    private func loadCachedRepliesAndRefreshIfStale() async {
-        let hadCache = suggestedReplyCacheRecords.first != nil
+    private func loadCachedReplies() {
         suggestedRepliesModel.loadCached()
-        guard hadCache, suggestedRepliesModel.replies.isEmpty, !messageRecords.isEmpty else {
-            return
-        }
-        if await suggestedRepliesModel.generate(force: false) {
-            recordMeaningfulReviewAction()
-        }
-    }
-
-    private func renameChat() {
-        do {
-            try ChatRepository().renameChat(id: chat.id, name: renameDraft)
-            recordMeaningfulReviewAction()
-        } catch {
-            actionErrorMessage = error.localizedDescription
-        }
+        needsReplyRefresh =
+            suggestedReplyCacheRecords.first != nil && suggestedRepliesModel.replies.isEmpty
     }
 
     private func confirmCurrentChat() {
@@ -449,12 +428,37 @@ struct ChatIntelligenceView: View {
         }
     }
 
-    private func deleteChat() {
+    private func loadChatContext() {
         do {
-            try ChatRepository().deleteChat(id: chat.id)
-            dismiss()
+            let context = try ChatRepository().ensureChatContext(chatID: chat.id)
+            goalDraft = context.currentInteractionGoal
+            didLoadContext = true
         } catch {
-            deleteErrorMessage = error.localizedDescription
+            actionErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func commitGoal() {
+        guard didLoadContext else { return }
+        do {
+            if try ChatRepository().updateInteractionGoal(chatID: chat.id, goal: goalDraft) {
+                goalDraft = String(
+                    goalDraft.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500)
+                )
+                needsReplyRefresh = suggestedReplyCacheRecords.first != nil
+            }
+        } catch {
+            actionErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func assignPersona(_ personaID: UUID) {
+        do {
+            if try ChatRepository().assignPersona(personaID: personaID, toChatID: chat.id) {
+                needsReplyRefresh = suggestedReplyCacheRecords.first != nil
+            }
+        } catch {
+            actionErrorMessage = error.localizedDescription
         }
     }
 
@@ -477,16 +481,19 @@ struct ChatIntelligenceView: View {
         }
     }
 
-    private func handleContextNoteDismissal() {
-        let trimmedNote = contextNote.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedNote.isEmpty, trimmedNote != lastRecordedContextNote else {
+    private func handleReplyNoteDismissal() {
+        let trimmedNote = replyNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedNote.isEmpty, trimmedNote != lastSubmittedReplyNote else {
             return
         }
-        lastRecordedContextNote = trimmedNote
+        lastSubmittedReplyNote = trimmedNote
         recordMeaningfulReviewAction()
         guard !messageRecords.isEmpty else { return }
         Task {
             if await suggestedRepliesModel.generate(draftingInput: trimmedNote) {
+                needsReplyRefresh = false
+                replyNote = ""
+                lastSubmittedReplyNote = ""
                 recordMeaningfulReviewAction()
             }
         }

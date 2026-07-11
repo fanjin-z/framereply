@@ -106,7 +106,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                 conversationStrategy: "Draft strategy",
                 strategyRationale: "Draft rationale",
                 memoryChanges: [
-                    ContactMemoryChange(
+                    ChatMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
                         text: "Must not be saved",
@@ -129,7 +129,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertEqual(cache.historySummary, "Existing summary")
         XCTAssertEqual(cache.summarizedMessageCount, 7)
         XCTAssertEqual(cache.summarizedPrefixFingerprint, "existing-prefix")
-        XCTAssertTrue(try repository.contactMemories(chatID: chatID).isEmpty)
+        XCTAssertTrue(try repository.chatMemories(chatID: chatID).isEmpty)
         XCTAssertFalse(
             try repository.personaLearningMessages(
                 chatID: chatID,
@@ -150,13 +150,13 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let chatID = "memory-cache-chat"
         container.mainContext.insert(makeChat(id: chatID))
         container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
-        let active = ContactMemoryRecord(
+        let active = ChatMemoryRecord(
             chatID: chatID,
-            value: ContactMemory(text: "Likes tea")
+            value: ChatMemory(text: "Likes tea")
         )
-        let archived = ContactMemoryRecord(
+        let archived = ChatMemoryRecord(
             chatID: chatID,
-            value: ContactMemory(text: "Old office", status: .archived)
+            value: ChatMemory(text: "Old office", status: .archived)
         )
         container.mainContext.insert(active)
         container.mainContext.insert(archived)
@@ -177,7 +177,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         try container.mainContext.save()
         _ = try await coordinator.generate(chatID: chatID)
         XCTAssertEqual(client.requests.count, 2)
-        XCTAssertEqual(client.requests.last?.contactMemories.map(\.text), ["Likes coffee"])
+        XCTAssertEqual(client.requests.last?.chatMemories.map(\.text), ["Likes coffee"])
     }
 
     @MainActor
@@ -190,22 +190,22 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let chatID = "reply-chat"
         container.mainContext.insert(makeChat(id: chatID))
         container.mainContext.insert(
-            ContactContextRecord(
+            ChatContextRecord(
                 chatID: chatID,
                 currentInteractionGoal: "Confirm dinner",
                 personaID: thoughtfulID
             )
         )
         container.mainContext.insert(
-            ContactMemoryRecord(
+            ChatMemoryRecord(
                 chatID: chatID,
-                value: ContactMemory(text: "Met at university")
+                value: ChatMemory(text: "Met at university")
             )
         )
         container.mainContext.insert(
-            ContactMemoryRecord(
+            ChatMemoryRecord(
                 chatID: chatID,
-                value: ContactMemory(text: "Vegetarian")
+                value: ChatMemory(text: "Vegetarian")
             )
         )
         for index in 0..<22 {
@@ -226,7 +226,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertEqual(client.requests[0].olderMessagesToSummarize.count, 2)
         XCTAssertEqual(client.requests[0].recentMessages.count, 20)
         XCTAssertEqual(
-            client.requests[0].contactMemories.map(\.text), ["Met at university", "Vegetarian"])
+            client.requests[0].chatMemories.map(\.text), ["Met at university", "Vegetarian"])
         XCTAssertEqual(client.models, [.glm47FlashX])
 
         let cached = try await coordinator.generate(chatID: chatID)
@@ -285,21 +285,21 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func testPersistsOnlyMemorySupportedExclusivelyByContactMessages() async throws {
+    func testPersistsOnlyMemorySupportedExclusivelyByOtherParticipantMessages() async throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
-        let chatID = "contact-owned-memory-chat"
+        let chatID = "other-participant-owned-memory-chat"
         let userMessage = makeMessage(chatID: chatID, index: 0)
-        let contactMessage = makeMessage(chatID: chatID, index: 1)
+        let otherParticipantMessage = makeMessage(chatID: chatID, index: 1)
         let otherMessage = makeMessage(chatID: chatID, index: 2)
-        otherMessage.senderKind = "other"
+        otherMessage.senderKind = "group_participant"
         otherMessage.senderName = "Alex"
         let unknownMessage = makeMessage(chatID: chatID, index: 3)
         unknownMessage.senderKind = "unknown"
         unknownMessage.senderName = nil
 
         container.mainContext.insert(makeChat(id: chatID))
-        for message in [userMessage, contactMessage, otherMessage, unknownMessage] {
+        for message in [userMessage, otherParticipantMessage, otherMessage, unknownMessage] {
             container.mainContext.insert(message)
         }
         try container.mainContext.save()
@@ -307,43 +307,45 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let client = StubReplyService { request in
             XCTAssertEqual(
                 request.recentMessages.map(\.sender),
-                ["user", "contact", "other", "unknown"]
+                ["user", "other_participant", "group_participant", "unknown"]
             )
             return SuggestedReplyGenerationResult(
                 historySummary: request.existingHistorySummary,
                 replies: ["First", "Second"],
-                conversationStrategy: "Answer the partner-hotel question without adding unsupported details.",
-                strategyRationale: "Only contact-authored messages can support durable contact memory.",
+                conversationStrategy:
+                    "Answer the partner-hotel question without adding unsupported details.",
+                strategyRationale:
+                    "Only other-participant-authored messages can support durable chat memory.",
                 memoryChanges: [
-                    ContactMemoryChange(
+                    ChatMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
                         text: "Asked about partner hotels in Beijing",
-                        sourceMessageIDs: [contactMessage.id]
+                        sourceMessageIDs: [otherParticipantMessage.id]
                     ),
-                    ContactMemoryChange(
+                    ChatMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
                         text: "No partner hotels in Beijing",
                         sourceMessageIDs: [userMessage.id]
                     ),
-                    ContactMemoryChange(
+                    ChatMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
                         text: "Other participant detail",
                         sourceMessageIDs: [otherMessage.id]
                     ),
-                    ContactMemoryChange(
+                    ChatMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
                         text: "Unknown sender detail",
                         sourceMessageIDs: [unknownMessage.id]
                     ),
-                    ContactMemoryChange(
+                    ChatMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
                         text: "Mixed sender detail",
-                        sourceMessageIDs: [contactMessage.id, userMessage.id]
+                        sourceMessageIDs: [otherParticipantMessage.id, userMessage.id]
                     )
                 ]
             )
@@ -352,10 +354,10 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let coordinator = SuggestedRepliesCoordinator(aiService: client, repository: repository)
         _ = try await coordinator.generate(chatID: chatID)
 
-        let activeMemories = try repository.contactContextValue(chatID: chatID).contactMemories
+        let activeMemories = try repository.chatContextValue(chatID: chatID).chatMemories
             .filter { $0.status == .active }
         XCTAssertEqual(activeMemories.map(\.text), ["Asked about partner hotels in Beijing"])
-        XCTAssertEqual(activeMemories.first?.sourceMessageIDs, [contactMessage.id])
+        XCTAssertEqual(activeMemories.first?.sourceMessageIDs, [otherParticipantMessage.id])
     }
 
     @MainActor
@@ -405,7 +407,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
     private func makeMessage(chatID: String, index: Int) -> ChatMessageRecord {
         ChatMessageRecord(
             chatID: chatID,
-            senderKind: index.isMultiple(of: 2) ? "user" : "contact",
+            senderKind: index.isMultiple(of: 2) ? "user" : "other_participant",
             senderName: index.isMultiple(of: 2) ? nil : "Sarah",
             text: "Message \(index)",
             normalizedText: "message \(index)",

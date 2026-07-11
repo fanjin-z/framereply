@@ -35,7 +35,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
                     senderEvidence: .messageStatusIndicator
                 ),
                 AnalyzedChatMessage(
-                    sender: .contact,
+                    sender: .otherParticipant,
                     senderName: "Sarah Jenkins",
                     text: "你好，很高兴认识你",
                     timestampLabel: "11:01 AM",
@@ -44,7 +44,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
                     senderEvidence: .alignmentConvention
                 ),
                 AnalyzedChatMessage(
-                    sender: .other,
+                    sender: .groupParticipant,
                     senderName: "Inna",
                     text: String(repeating: "A longer group reply. ", count: 20),
                     timestampLabel: nil,
@@ -90,8 +90,14 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         let messages = try repository.messages(chatID: "sarah-jenkins")
         XCTAssertTrue(
             messages.contains { $0.text == "A newly imported reply" && $0.senderKind == "user" })
-        XCTAssertTrue(messages.contains { $0.text == "你好，很高兴认识你" && $0.senderKind == "contact" })
-        XCTAssertTrue(messages.contains { $0.senderKind == "other" && $0.senderName == "Inna" })
+        XCTAssertTrue(
+            messages.contains {
+                $0.text == "你好，很高兴认识你" && $0.senderKind == "other_participant"
+            })
+        XCTAssertTrue(
+            messages.contains {
+                $0.senderKind == "group_participant" && $0.senderName == "Inna"
+            })
         XCTAssertTrue(
             reporter.events.contains { event in
                 guard case .importCompleted(let eventTraceID, _, _, _, let inserted) = event else {
@@ -110,7 +116,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             conversationTitle: "Sarah Jenkins",
             messages: [
                 AnalyzedChatMessage(
-                    sender: .contact,
+                    sender: .otherParticipant,
                     senderName: "Sarah Jenkins",
                     text: "Can we meet tomorrow?",
                     timestampLabel: "10:42 AM",
@@ -142,9 +148,10 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         XCTAssertEqual(aiService.receivedImageDataList, images)
         XCTAssertEqual(outcome.insertedMessageCount, 1)
         XCTAssertTrue(outcome.reviewRequired)
-        XCTAssertEqual(try repository.messages(chatID: outcome.chatID).map(\.text), [
-            "Can we meet tomorrow?"
-        ])
+        XCTAssertEqual(
+            try repository.messages(chatID: outcome.chatID).map(\.text),
+            ["Can we meet tomorrow?"]
+        )
     }
 }
 

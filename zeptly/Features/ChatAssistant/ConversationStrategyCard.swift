@@ -1,11 +1,11 @@
 //
-//  SuggestedActionCard.swift
+//  ConversationStrategyCard.swift
 //  zeptly
 //
 
 import SwiftUI
 
-struct SuggestedActionCard: View {
+struct ConversationStrategyCard: View {
     let conversationStrategy: String
 
     var body: some View {

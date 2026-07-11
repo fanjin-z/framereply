@@ -161,25 +161,63 @@ final class ChatRepository {
         return dismissed
     }
 
-    func contactContext(chatID: String) throws -> ContactContextRecord? {
+    func chatContext(chatID: String) throws -> ChatContextRecord? {
         try context.fetch(
-            FetchDescriptor<ContactContextRecord>(predicate: #Predicate { $0.chatID == chatID })
+            FetchDescriptor<ChatContextRecord>(predicate: #Predicate { $0.chatID == chatID })
         ).first
     }
 
-    func contactMemories(chatID: String) throws -> [ContactMemoryRecord] {
-        var descriptor = FetchDescriptor<ContactMemoryRecord>(
+    @discardableResult
+    func ensureChatContext(chatID: String) throws -> ChatContextRecord {
+        if let existing = try chatContext(chatID: chatID) {
+            return existing
+        }
+        let record = makeChatContextRecord(try emptyChatContext(), chatID: chatID)
+        context.insert(record)
+        try context.save()
+        return record
+    }
+
+    @discardableResult
+    func updateInteractionGoal(chatID: String, goal: String) throws -> Bool {
+        let value = String(
+            goal.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500)
+        )
+        let record = try ensureChatContext(chatID: chatID)
+        guard record.currentInteractionGoal != value else { return false }
+        record.currentInteractionGoal = value
+        try context.save()
+        return true
+    }
+
+    @discardableResult
+    func assignPersona(personaID: UUID, toChatID chatID: String, at date: Date = Date()) throws
+        -> Bool
+    {
+        guard try persona(id: personaID) != nil else {
+            throw PersonaRepositoryError.invalidDefaultPersona
+        }
+        let record = try ensureChatContext(chatID: chatID)
+        guard record.personaID != personaID else { return false }
+        record.personaID = personaID
+        record.personaAssignedAt = date
+        try context.save()
+        return true
+    }
+
+    func chatMemories(chatID: String) throws -> [ChatMemoryRecord] {
+        var descriptor = FetchDescriptor<ChatMemoryRecord>(
             predicate: #Predicate { $0.chatID == chatID }
         )
         descriptor.sortBy = [SortDescriptor(\.createdAt), SortDescriptor(\.id)]
         return try context.fetch(descriptor)
     }
 
-    func contactContextValue(chatID: String) throws -> ContactContext {
-        let memories = try contactMemories(chatID: chatID).map(\.value)
-        return try contactContext(chatID: chatID)?.value(contactMemories: memories)
-            ?? ContactContext(
-                contactMemories: memories,
+    func chatContextValue(chatID: String) throws -> ChatContext {
+        let memories = try chatMemories(chatID: chatID).map(\.value)
+        return try chatContext(chatID: chatID)?.value(chatMemories: memories)
+            ?? ChatContext(
+                chatMemories: memories,
                 currentInteractionGoal: "",
                 personaID: try defaultPersona().id,
                 personaAssignedAt: Date()
@@ -336,7 +374,7 @@ final class ChatRepository {
 
     func saveSuggestedReplyGeneration(
         chatID: String,
-        contactMemories: [ContactMemory],
+        chatMemories: [ChatMemory],
         personaID: UUID,
         personaObservationChanges: [PersonaObservationChange],
         learningMessageIDs: Set<UUID>,
@@ -352,13 +390,13 @@ final class ChatRepository {
         promptVersion: Int
     ) throws {
         do {
-            let storedMemories = try self.contactMemories(chatID: chatID)
+            let storedMemories = try self.chatMemories(chatID: chatID)
             let recordsByID = Dictionary(uniqueKeysWithValues: storedMemories.map { ($0.id, $0) })
-            for memory in contactMemories {
+            for memory in chatMemories {
                 if let record = recordsByID[memory.id] {
                     record.update(from: memory)
                 } else {
-                    context.insert(ContactMemoryRecord(chatID: chatID, value: memory))
+                    context.insert(ChatMemoryRecord(chatID: chatID, value: memory))
                 }
             }
 
@@ -428,7 +466,7 @@ final class ChatRepository {
     }
 
     /// Caches reply text without applying generation output to conversation
-    /// summaries, contact memory, or persona learning.
+    /// summaries, chat memory, or persona learning.
     func saveSuggestedRepliesOnly(
         chatID: String,
         replies: [String],
@@ -681,12 +719,12 @@ final class ChatRepository {
 
         let chatID = id
         let messageRecords = try messages(chatID: chatID)
-        let contactRecords = try context.fetch(
-            FetchDescriptor<ContactContextRecord>(
+        let chatContextRecords = try context.fetch(
+            FetchDescriptor<ChatContextRecord>(
                 predicate: #Predicate { $0.chatID == chatID }
             )
         )
-        let memoryRecords = try contactMemories(chatID: chatID)
+        let memoryRecords = try chatMemories(chatID: chatID)
         let importRecords = try imports(chatID: chatID)
         let replyCache = try suggestedReplyCache(chatID: chatID)
         let learningReceipts = try context.fetch(
@@ -697,8 +735,8 @@ final class ChatRepository {
         for message in messageRecords {
             context.delete(message)
         }
-        for contact in contactRecords {
-            context.delete(contact)
+        for chatContext in chatContextRecords {
+            context.delete(chatContext)
         }
         for memory in memoryRecords {
             context.delete(memory)
@@ -727,8 +765,11 @@ final class ChatRepository {
             let recentMessages = try messages(chatID: chat.id).suffix(recentMessageLimit).map {
                 message in
                 let sender: String
-                if message.senderKind == "other" {
-                    sender = ChatImportMatcher.senderKey(.other, name: message.senderName)
+                if message.senderKind == "group_participant" {
+                    sender = ChatImportMatcher.senderKey(
+                        .groupParticipant,
+                        name: message.senderName
+                    )
                 } else {
                     sender = message.senderKind
                 }
@@ -780,7 +821,7 @@ final class ChatRepository {
         } else {
             targetChat = makeProvisionalChat(from: analysis)
             context.insert(targetChat)
-            context.insert(makeContactRecord(try emptyContactContext(), chatID: targetChat.id))
+            context.insert(makeChatContextRecord(try emptyChatContext(), chatID: targetChat.id))
         }
 
         if let avatarArtifact,
@@ -909,7 +950,7 @@ final class ChatRepository {
         as sender: AnalyzedMessageSender,
         participantName: String? = nil
     ) throws {
-        guard sender == .user || sender == .contact || sender == .other else {
+        guard sender == .user || sender == .otherParticipant || sender == .groupParticipant else {
             return
         }
         guard
@@ -924,12 +965,12 @@ final class ChatRepository {
         case .user:
             message.senderKind = "user"
             message.senderName = nil
-        case .contact:
-            message.senderKind = "contact"
+        case .otherParticipant:
+            message.senderKind = "other_participant"
             message.senderName = nil
-        case .other:
+        case .groupParticipant:
             let trimmedName = participantName?.trimmingCharacters(in: .whitespacesAndNewlines)
-            message.senderKind = "other"
+            message.senderKind = "group_participant"
             message.senderName =
                 trimmedName?.isEmpty == false ? trimmedName : (message.senderName ?? "Participant")
         case .unknown:
@@ -997,10 +1038,10 @@ final class ChatRepository {
         for message in provisionalMessages {
             context.delete(message)
         }
-        if let contact = try contactContext(chatID: provisionalChatID) {
-            context.delete(contact)
+        if let chatContext = try chatContext(chatID: provisionalChatID) {
+            context.delete(chatContext)
         }
-        for memory in try contactMemories(chatID: provisionalChatID) {
+        for memory in try chatMemories(chatID: provisionalChatID) {
             memory.chatID = targetChatID
         }
         if let replyCache = try suggestedReplyCache(chatID: provisionalChatID) {
@@ -1060,11 +1101,11 @@ final class ChatRepository {
         case .user:
             senderKind = "user"
             senderName = nil
-        case .contact:
-            senderKind = "contact"
+        case .otherParticipant:
+            senderKind = "other_participant"
             senderName = nil
-        case .other(let name):
-            senderKind = "other"
+        case .groupParticipant(let name):
+            senderKind = "group_participant"
             senderName = name
         case .unknown:
             senderKind = "unknown"
@@ -1083,20 +1124,20 @@ final class ChatRepository {
         )
     }
 
-    private func makeContactRecord(_ contact: ContactContext, chatID: String)
-        -> ContactContextRecord
+    private func makeChatContextRecord(_ chatContext: ChatContext, chatID: String)
+        -> ChatContextRecord
     {
-        return ContactContextRecord(
+        return ChatContextRecord(
             chatID: chatID,
-            currentInteractionGoal: contact.currentInteractionGoal,
-            personaID: contact.personaID,
-            personaAssignedAt: contact.personaAssignedAt
+            currentInteractionGoal: chatContext.currentInteractionGoal,
+            personaID: chatContext.personaID,
+            personaAssignedAt: chatContext.personaAssignedAt
         )
     }
 
-    private func emptyContactContext() throws -> ContactContext {
-        ContactContext(
-            contactMemories: [], currentInteractionGoal: "",
+    private func emptyChatContext() throws -> ChatContext {
+        ChatContext(
+            chatMemories: [], currentInteractionGoal: "",
             personaID: try defaultPersona().id,
             personaAssignedAt: Date()
         )
@@ -1105,7 +1146,7 @@ final class ChatRepository {
     private func makeProvisionalChat(from analysis: ChatImportAnalysis) -> ChatRecord {
         let title = analysis.conversationTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
         let participant = analysis.messages.lazy.compactMap { message -> String? in
-            guard message.sender == .contact || message.sender == .other else {
+            guard message.sender == .otherParticipant || message.sender == .groupParticipant else {
                 return nil
             }
             let name = message.senderName?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1135,7 +1176,7 @@ final class ChatRepository {
     }
 
     private func persistedSenderKind(_ comparisonKey: String) -> String {
-        comparisonKey.hasPrefix("other:") ? "other" : comparisonKey
+        comparisonKey.hasPrefix("group_participant:") ? "group_participant" : comparisonKey
     }
 
     private func applyAvatar(_ artifact: AvatarArtifact, to chat: ChatRecord) {
@@ -1243,7 +1284,8 @@ final class ChatRepository {
     private func refreshImportReviewState(chatID: String) throws {
         let messageRecords = try messages(chatID: chatID)
         let stillHasUnknownSender = messageRecords.contains { $0.senderKind == "unknown" }
-        let requiresImportIdentityReview = try chat(id: chatID)?.requiresImportIdentityReview == true
+        let requiresImportIdentityReview =
+            try chat(id: chatID)?.requiresImportIdentityReview == true
         let requiresReview = stillHasUnknownSender || requiresImportIdentityReview
         let fingerprint = TranscriptFingerprinter.fingerprint(
             chatID: chatID,
@@ -1259,12 +1301,12 @@ final class ChatRepository {
         switch message.senderKind {
         case "user":
             .user
-        case "other":
-            .other
+        case "group_participant":
+            .groupParticipant
         case "unknown":
             .unknown
         default:
-            .contact
+            .otherParticipant
         }
     }
 }

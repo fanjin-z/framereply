@@ -8,24 +8,25 @@ import SwiftUI
 struct ChatRow: View {
     let chat: Chat
     let onChatTap: () -> Void
-    let onAvatarTap: () -> Void
     let onDeleteTap: () -> Void
 
     var body: some View {
-        HStack(spacing: 16) {
-            avatar
+        Button(action: onChatTap) {
+            HStack(spacing: 16) {
+                AvatarMark(
+                    initials: chat.initials,
+                    symbolName: chat.avatarSymbol,
+                    colors: chat.gradient,
+                    imageData: chat.avatarData,
+                    size: 50
+                )
 
-            Button {
-                onChatTap()
-            } label: {
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(chat.name)
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                            .foregroundStyle(RezplyColor.onSurface)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                    }
+                    Text(chat.name)
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .foregroundStyle(RezplyColor.onSurface)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
 
                     PillChip(
                         title: chat.chipTitle,
@@ -37,8 +38,10 @@ struct ChatRow: View {
                     Text(chat.preview)
                         .font(
                             .system(
-                                size: 15, weight: chat.isUnread ? .medium : .regular,
-                                design: .rounded)
+                                size: 15,
+                                weight: chat.isUnread ? .medium : .regular,
+                                design: .rounded
+                            )
                         )
                         .foregroundStyle(
                             chat.isUnread ? RezplyColor.onSurfaceVariant : RezplyColor.outline
@@ -46,12 +49,15 @@ struct ChatRow: View {
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(RezplyColor.outline)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Open Chat Intelligence for \(chat.name)")
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Open Chat Assistant for \(chat.name)")
         .padding(.vertical, 12)
         .padding(.leading, 18)
         .padding(.trailing, 16)
@@ -79,22 +85,4 @@ struct ChatRow: View {
         }
     }
 
-    @ViewBuilder
-    private var avatar: some View {
-        let mark = AvatarMark(
-            initials: chat.initials,
-            symbolName: chat.avatarSymbol,
-            colors: chat.gradient,
-            imageData: chat.avatarData,
-            size: 50
-        )
-
-        Button {
-            onAvatarTap()
-        } label: {
-            mark
-        }
-        .buttonStyle(SoftPressButtonStyle())
-        .accessibilityLabel("Open contact context for \(chat.name)")
-    }
 }

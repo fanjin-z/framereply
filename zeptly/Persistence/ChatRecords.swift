@@ -125,9 +125,10 @@ final class ChatRecord {
         if let importReviewStateJSON {
             self.importReviewStateJSON = importReviewStateJSON
         } else if isProvisional {
-            self.importReviewStateJSON = ChatImportReviewState(
-                identityStatus: .needsReview
-            ).jsonString
+            self.importReviewStateJSON =
+                ChatImportReviewState(
+                    identityStatus: .needsReview
+                ).jsonString
         } else {
             self.importReviewStateJSON = nil
         }
@@ -175,7 +176,7 @@ final class ChatMessageRecord {
 }
 
 @Model
-final class ContactContextRecord {
+final class ChatContextRecord {
     var id: UUID
     var chatID: String
     var currentInteractionGoal: String
@@ -291,7 +292,7 @@ final class PersonaLearningReceiptRecord {
 }
 
 @Model
-final class ContactMemoryRecord {
+final class ChatMemoryRecord {
     var id: UUID
     var chatID: String
     var text: String
@@ -394,7 +395,7 @@ final class ChatImportRecord {
     var operationID: UUID?
     var draftingInputStateRaw: String?
     /// One-use text supplied from the screenshot Shortcut. It is never promoted
-    /// to chat history, contact memory, or persona learning.
+    /// to chat history, chat memory, or persona learning.
     var draftingInput: String?
     var draftingInputCreatedAt: Date?
 
