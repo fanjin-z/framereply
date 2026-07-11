@@ -15,7 +15,7 @@ final class AIProviderGatewayTests: XCTestCase {
 
         try await service.validate(
             platform: .zaiInternational,
-            selectedModel: .glm46VFlashX,
+            selectedTier: .advanced,
             apiKey: "validation-key"
         )
         XCTAssertEqual(adapter.validatedModels, [.glm46VFlashX])
@@ -63,7 +63,7 @@ final class AIProviderGatewayTests: XCTestCase {
 private final class GatewayProviderConfiguration: ProviderConfigurationProviding {
     let activeProvider: ProviderConnection? = ProviderConnection(
         platform: .zaiInternational,
-        model: .glm46VFlashX
+        tier: .advanced
     )
 
     func savedAPIKey(for platform: ProviderPlatform) -> String? {
@@ -79,10 +79,10 @@ private final class RecordingProviderAdapter: AIProviderAdapter {
     private(set) var replyModels: [ProviderModel] = []
     private(set) var apiKeys: [String] = []
 
-    func modelProfile(for selectedModel: ProviderModel) -> ProviderModelProfile? {
-        guard selectedModel == .glm46VFlashX else { return nil }
+    func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile? {
+        guard selectedTier == .advanced else { return nil }
         return ProviderModelProfile(
-            selectedModel: selectedModel,
+            selectedTier: selectedTier,
             screenshotAnalysisModel: .glm46VFlashX,
             suggestedReplyModel: .glm47FlashX
         )

@@ -22,7 +22,8 @@ final class ProviderStore: ObservableObject {
     private let userDefaults: UserDefaults
     private let keychain: any KeychainStoring
     private let registry: AIProviderRegistry
-    private let providersKey = "zeptly.providerConnections.v1"
+    private let providersKey = "zeptly.providerConnections.v2"
+    private let legacyProvidersKey = "zeptly.providerConnections.v1"
     private let activePlatformKey = "zeptly.activeProviderPlatform.v1"
 
     var activeProvider: ProviderConnection? {
@@ -52,23 +53,29 @@ final class ProviderStore: ObservableObject {
         self.userDefaults = userDefaults
         self.keychain = keychain
         self.registry = registry
-        let loadedProviders = Self.loadProviders(
+        let loadResult = Self.loadProviders(
             from: userDefaults,
             key: providersKey,
+            legacyKey: legacyProvidersKey,
             registry: registry
         )
-        providers = loadedProviders
+        providers = loadResult.providers
         activePlatform = Self.loadActivePlatform(
             from: userDefaults,
             key: activePlatformKey,
-            providers: loadedProviders
+            providers: loadResult.providers
         )
-        saveProviders()
-        saveActivePlatform()
+        if loadResult.shouldSaveV2 {
+            saveProviders()
+            saveActivePlatform()
+        }
+        if loadResult.shouldRemoveLegacy {
+            userDefaults.removeObject(forKey: legacyProvidersKey)
+        }
     }
 
-    func connect(platform: ProviderPlatform, model: ProviderModel, apiKey: String) async throws {
-        guard platform.isConnectable, registry.profile(for: platform, selectedModel: model) != nil
+    func connect(platform: ProviderPlatform, tier: ProviderTier, apiKey: String) async throws {
+        guard platform.isConnectable, registry.profile(for: platform, selectedTier: tier) != nil
         else {
             throw ProviderConnectionError.unsupportedProvider
         }
@@ -81,7 +88,7 @@ final class ProviderStore: ObservableObject {
         do {
             try await AIService(registry: registry).validate(
                 platform: platform,
-                selectedModel: model,
+                selectedTier: tier,
                 apiKey: trimmedKey
             )
         } catch is AIServiceError {
@@ -96,7 +103,7 @@ final class ProviderStore: ObservableObject {
             throw ProviderConnectionError.keychainFailure(error.localizedDescription)
         }
 
-        upsertConnection(platform: platform, model: model)
+        upsertConnection(platform: platform, tier: tier)
         activate(platform: platform)
     }
 
@@ -111,14 +118,14 @@ final class ProviderStore: ObservableObject {
         activePlatform = platform
     }
 
-    func setModel(_ model: ProviderModel, for platform: ProviderPlatform) {
+    func setTier(_ tier: ProviderTier, for platform: ProviderPlatform) {
         guard
-            registry.profile(for: platform, selectedModel: model) != nil,
+            registry.profile(for: platform, selectedTier: tier) != nil,
             let index = providers.firstIndex(where: { $0.platform == platform })
         else {
             return
         }
-        providers[index].model = model
+        providers[index].tier = tier
     }
 
     func remove(platform: ProviderPlatform) throws {
@@ -139,14 +146,14 @@ final class ProviderStore: ObservableObject {
         providers.remove(at: removedIndex)
     }
 
-    private func upsertConnection(platform: ProviderPlatform, model: ProviderModel) {
+    private func upsertConnection(platform: ProviderPlatform, tier: ProviderTier) {
         if let existingIndex = providers.firstIndex(where: { $0.platform == platform }) {
-            providers[existingIndex].model = model
+            providers[existingIndex].tier = tier
         } else {
             providers.append(
                 ProviderConnection(
                     platform: platform,
-                    model: model
+                    tier: tier
                 )
             )
         }
@@ -169,26 +176,111 @@ final class ProviderStore: ObservableObject {
         }
     }
 
+    private struct ProviderLoadResult {
+        let providers: [ProviderConnection]
+        let shouldSaveV2: Bool
+        let shouldRemoveLegacy: Bool
+    }
+
+    private struct LegacyProviderConnection: Decodable {
+        let id: UUID
+        let platform: ProviderPlatform
+        let model: String
+    }
+
     private static func loadProviders(
         from userDefaults: UserDefaults,
         key: String,
+        legacyKey: String,
         registry: AIProviderRegistry
-    ) -> [ProviderConnection] {
-        guard let data = userDefaults.data(forKey: key) else {
-            return []
+    ) -> ProviderLoadResult {
+        if let data = userDefaults.data(forKey: key) {
+            do {
+                let providers = try JSONDecoder().decode([ProviderConnection].self, from: data)
+                    .filter { provider in
+                        provider.platform.isConnectable
+                            && registry.profile(
+                                for: provider.platform,
+                                selectedTier: provider.tier
+                            ) != nil
+                    }
+                return ProviderLoadResult(
+                    providers: providers,
+                    shouldSaveV2: true,
+                    shouldRemoveLegacy: false
+                )
+            } catch {
+                return ProviderLoadResult(
+                    providers: [],
+                    shouldSaveV2: false,
+                    shouldRemoveLegacy: false
+                )
+            }
         }
 
+        guard let legacyData = userDefaults.data(forKey: legacyKey) else {
+            return ProviderLoadResult(
+                providers: [],
+                shouldSaveV2: true,
+                shouldRemoveLegacy: false
+            )
+        }
         do {
-            return try JSONDecoder().decode([ProviderConnection].self, from: data)
-                .filter { provider in
-                    provider.platform.isConnectable
-                        && registry.profile(
-                            for: provider.platform,
-                            selectedModel: provider.model
-                        ) != nil
+            let legacyProviders = try JSONDecoder().decode(
+                [LegacyProviderConnection].self,
+                from: legacyData
+            )
+            let providers = legacyProviders.compactMap { legacy -> ProviderConnection? in
+                guard let tier = legacyTier(for: legacy.model, platform: legacy.platform),
+                    registry.profile(for: legacy.platform, selectedTier: tier) != nil
+                else {
+                    return nil
                 }
+                return ProviderConnection(id: legacy.id, platform: legacy.platform, tier: tier)
+            }
+            guard providers.count == legacyProviders.count else {
+                return ProviderLoadResult(
+                    providers: [],
+                    shouldSaveV2: false,
+                    shouldRemoveLegacy: false
+                )
+            }
+            return ProviderLoadResult(
+                providers: providers,
+                shouldSaveV2: true,
+                shouldRemoveLegacy: true
+            )
         } catch {
-            return []
+            return ProviderLoadResult(
+                providers: [],
+                shouldSaveV2: false,
+                shouldRemoveLegacy: false
+            )
+        }
+    }
+
+    private static func legacyTier(
+        for model: String,
+        platform: ProviderPlatform
+    ) -> ProviderTier? {
+        switch (platform, model) {
+        case (.openAI, "gpt-5.4-mini"):
+            .basic
+        case (.openAI, "gpt-5.4"):
+            .advanced
+        case (.openAI, "gpt-5.5"):
+            .best
+        case (.zaiInternational, "glm-4.6v-flash"),
+            (.zhipuChina, "glm-4.6v-flash"):
+            .basic
+        case (.zaiInternational, "glm-4.6v-flashx"),
+            (.zhipuChina, "glm-4.6v-flashx"):
+            .advanced
+        case (.zaiInternational, "glm-4.6v"),
+            (.zhipuChina, "glm-4.6v"):
+            .best
+        default:
+            nil
         }
     }
 

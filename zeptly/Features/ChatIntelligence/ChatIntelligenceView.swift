@@ -145,7 +145,7 @@ struct ChatIntelligenceView: View {
             hasher.combine(cache.generatedAt)
         }
         hasher.combine(providerStore.activeProvider?.platform.rawValue)
-        hasher.combine(providerStore.activeProvider?.model.rawValue)
+        hasher.combine(providerStore.activeProvider?.tier.rawValue)
         return hasher.finalize()
     }
 

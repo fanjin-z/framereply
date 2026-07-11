@@ -9,7 +9,7 @@ struct ProviderCard: View {
     let provider: ProviderConnection
     let isActive: Bool
     let onActivate: () -> Void
-    let onModelChange: (ProviderModel) -> Void
+    let onTierChange: (ProviderTier) -> Void
     let onRemove: () -> Void
 
     var body: some View {
@@ -56,8 +56,8 @@ struct ProviderCard: View {
             }
 
             if isActive {
-                SettingStatusRow(title: "Model") {
-                    modelMenu
+                SettingStatusRow(title: "Performance") {
+                    tierMenu
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -97,23 +97,30 @@ struct ProviderCard: View {
         .accessibilityHint(isActive ? "Current model provider" : "Makes this provider active")
     }
 
-    private var modelMenu: some View {
+    private var tierMenu: some View {
         Menu {
-            ForEach(provider.platform.supportedModels) { model in
+            ForEach(provider.platform.supportedTiers) { tier in
                 Button {
-                    onModelChange(model)
+                    onTierChange(tier)
                 } label: {
-                    Text("\(model.displayName) - \(model.rawValue)")
+                    Text(tier.displayName)
+                    Text(provider.platform.modelSummary(for: tier))
                 }
             }
         } label: {
             HStack(spacing: 6) {
-                Text(provider.model.rawValue)
-                    .lineLimit(1)
+                Text(
+                    "\(provider.tier.displayName) · \(provider.platform.modelSummary(for: provider.tier))"
+                )
+                .lineLimit(1)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 11, weight: .bold))
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Performance tier")
+        .accessibilityValue(
+            "\(provider.tier.displayName), \(provider.platform.modelSummary(for: provider.tier))"
+        )
     }
 }

@@ -40,22 +40,12 @@ struct ZAIClient: AIProviderAdapter {
 
     var platform: ProviderPlatform { region.platform }
 
-    func modelProfile(for selectedModel: ProviderModel) -> ProviderModelProfile? {
-        let replyModel: ProviderModel
-        switch selectedModel {
-        case .glm46VFlashX:
-            replyModel = .glm47FlashX
-        case .glm46VFlash:
-            replyModel = .glm47Flash
-        case .glm46V:
-            replyModel = .glm47
-        default:
-            return nil
-        }
+    func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile? {
+        let models = platform.models(for: selectedTier)
         return ProviderModelProfile(
-            selectedModel: selectedModel,
-            screenshotAnalysisModel: selectedModel,
-            suggestedReplyModel: replyModel
+            selectedTier: selectedTier,
+            screenshotAnalysisModel: models.analysis,
+            suggestedReplyModel: models.replies
         )
     }
 

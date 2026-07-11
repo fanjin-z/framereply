@@ -5,42 +5,66 @@ import XCTest
 
 final class ProviderStoreTests: XCTestCase {
     @MainActor
-    func testVisionTiersResolveToEquivalentReplyModels() {
+    func testProviderTiersResolveToExpectedTaskModels() {
         let registry = AIProviderRegistry.live()
         XCTAssertEqual(
-            registry.profile(for: .openAI, selectedModel: .gpt54Mini)?.suggestedReplyModel,
-            .gpt54Mini
+            registry.profile(for: .openAI, selectedTier: .basic)?.screenshotAnalysisModel,
+            .gpt56Luna
         )
         XCTAssertEqual(
-            registry.profile(for: .openAI, selectedModel: .gpt55)?.screenshotAnalysisModel,
-            .gpt55
+            registry.profile(for: .openAI, selectedTier: .advanced)?.suggestedReplyModel,
+            .gpt56Terra
         )
         XCTAssertEqual(
-            registry.profile(for: .zaiInternational, selectedModel: .glm46VFlashX)?
-                .suggestedReplyModel,
-            .glm47FlashX
+            registry.profile(for: .openAI, selectedTier: .best)?.suggestedReplyModel,
+            .gpt56Sol
         )
         XCTAssertEqual(
-            registry.profile(for: .zhipuChina, selectedModel: .glm46VFlash)?.suggestedReplyModel,
+            registry.profile(for: .zaiInternational, selectedTier: .basic)?.screenshotAnalysisModel,
+            .glm46VFlash
+        )
+        XCTAssertEqual(
+            registry.profile(for: .zhipuChina, selectedTier: .basic)?.suggestedReplyModel,
             .glm47Flash
         )
         XCTAssertEqual(
-            registry.profile(for: .zhipuChina, selectedModel: .glm46V)?.suggestedReplyModel,
+            registry.profile(for: .zaiInternational, selectedTier: .advanced)?
+                .screenshotAnalysisModel,
+            .glm46VFlashX
+        )
+        XCTAssertEqual(
+            registry.profile(for: .zhipuChina, selectedTier: .advanced)?.suggestedReplyModel,
+            .glm47FlashX
+        )
+        XCTAssertEqual(
+            registry.profile(for: .zaiInternational, selectedTier: .best)?.screenshotAnalysisModel,
+            .glm46V
+        )
+        XCTAssertEqual(
+            registry.profile(for: .zhipuChina, selectedTier: .best)?.suggestedReplyModel,
             .glm47
         )
-        XCTAssertNil(registry.profile(for: .zaiInternational, selectedModel: .glm47))
     }
 
     @MainActor
     func testProviderCatalogAndModelCompatibility() throws {
         XCTAssertEqual(ProviderPlatform.allCases, [.openAI, .zaiInternational, .zhipuChina])
         XCTAssertEqual(
-            ProviderPlatform.zaiInternational.supportedModels,
-            ProviderPlatform.zhipuChina.supportedModels
+            ProviderPlatform.zaiInternational.supportedTiers,
+            [.basic, .advanced, .best]
         )
         XCTAssertNotEqual(
             ProviderPlatform.zaiInternational.keychainAccount,
             ProviderPlatform.zhipuChina.keychainAccount
+        )
+        XCTAssertTrue(ProviderPlatform.allCases.allSatisfy { $0.defaultTier == .advanced })
+        XCTAssertEqual(
+            ProviderPlatform.openAI.modelSummary(for: .advanced),
+            "gpt-5.6-terra"
+        )
+        XCTAssertEqual(
+            ProviderPlatform.zaiInternational.modelSummary(for: .advanced),
+            "glm-4.6v-flashx"
         )
 
         let (defaults, suiteName) = makeDefaults()
@@ -48,29 +72,23 @@ final class ProviderStoreTests: XCTestCase {
         try saveProviders(makeProviders(), to: defaults)
         let store = ProviderStore(userDefaults: defaults)
 
-        store.setModel(.glm46V, for: .zaiInternational)
+        store.setTier(.best, for: .zaiInternational)
         XCTAssertEqual(
-            store.providers.first(where: { $0.platform == .zaiInternational })?.model,
-            .glm46V
+            store.providers.first(where: { $0.platform == .zaiInternational })?.tier,
+            .best
         )
 
-        store.setModel(.glm46VFlash, for: .zhipuChina)
+        store.setTier(.basic, for: .zhipuChina)
         XCTAssertEqual(
-            store.providers.first(where: { $0.platform == .zhipuChina })?.model,
-            .glm46VFlash
-        )
-
-        store.setModel(.gpt55, for: .zaiInternational)
-        XCTAssertEqual(
-            store.providers.first(where: { $0.platform == .zaiInternational })?.model,
-            .glm46V
+            store.providers.first(where: { $0.platform == .zhipuChina })?.tier,
+            .basic
         )
 
         let savedData = try XCTUnwrap(defaults.data(forKey: ProviderStoreTestKey.providers))
         let savedProviders = try JSONDecoder().decode([ProviderConnection].self, from: savedData)
         XCTAssertEqual(
-            savedProviders.first(where: { $0.platform == .zaiInternational })?.model,
-            .glm46V
+            savedProviders.first(where: { $0.platform == .zaiInternational })?.tier,
+            .best
         )
     }
 
@@ -196,6 +214,52 @@ final class ProviderStoreTests: XCTestCase {
         XCTAssertEqual(defaults.string(forKey: ProviderStoreTestKey.activePlatform), "zhipuChina")
     }
 
+    @MainActor
+    func testLegacyProviderModelsMigrateToStableTiers() throws {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let cases: [(ProviderPlatform, String, ProviderTier)] = [
+            (.openAI, "gpt-5.4-mini", .basic),
+            (.openAI, "gpt-5.4", .advanced),
+            (.openAI, "gpt-5.5", .best),
+            (.zaiInternational, "glm-4.6v-flash", .basic),
+            (.zaiInternational, "glm-4.6v-flashx", .advanced),
+            (.zhipuChina, "glm-4.6v", .best)
+        ]
+        let fixtures = cases.map { item in
+            LegacyProviderFixture(id: UUID(), platform: item.0, model: item.1)
+        }
+        defaults.set(
+            try JSONEncoder().encode(fixtures),
+            forKey: ProviderStoreTestKey.legacyProviders
+        )
+        defaults.set("openAI", forKey: ProviderStoreTestKey.activePlatform)
+
+        let store = ProviderStore(userDefaults: defaults)
+
+        XCTAssertEqual(store.providers.count, fixtures.count)
+        for (fixture, item) in zip(fixtures, cases) {
+            XCTAssertEqual(store.providers.first(where: { $0.id == fixture.id })?.tier, item.2)
+        }
+        XCTAssertEqual(store.activePlatform, .openAI)
+        XCTAssertNil(defaults.data(forKey: ProviderStoreTestKey.legacyProviders))
+        XCTAssertNotNil(defaults.data(forKey: ProviderStoreTestKey.providers))
+    }
+
+    @MainActor
+    func testMalformedLegacyPayloadIsRetainedWithoutWritingV2() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let malformed = Data("{".utf8)
+        defaults.set(malformed, forKey: ProviderStoreTestKey.legacyProviders)
+
+        let store = ProviderStore(userDefaults: defaults)
+
+        XCTAssertTrue(store.providers.isEmpty)
+        XCTAssertEqual(defaults.data(forKey: ProviderStoreTestKey.legacyProviders), malformed)
+        XCTAssertNil(defaults.data(forKey: ProviderStoreTestKey.providers))
+    }
+
     private func makeDefaults() -> (UserDefaults, String) {
         let suiteName = "ProviderStoreTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -207,15 +271,15 @@ final class ProviderStoreTests: XCTestCase {
         [
             ProviderConnection(
                 platform: .zaiInternational,
-                model: .glm46VFlashX
+                tier: .advanced
             ),
             ProviderConnection(
                 platform: .zhipuChina,
-                model: .glm46VFlashX
+                tier: .advanced
             ),
             ProviderConnection(
                 platform: .openAI,
-                model: .gpt54Mini
+                tier: .basic
             )
         ]
     }
@@ -232,8 +296,15 @@ final class ProviderStoreTests: XCTestCase {
 }
 
 private enum ProviderStoreTestKey {
-    static let providers = "zeptly.providerConnections.v1"
+    static let providers = "zeptly.providerConnections.v2"
+    static let legacyProviders = "zeptly.providerConnections.v1"
     static let activePlatform = "zeptly.activeProviderPlatform.v1"
+}
+
+private struct LegacyProviderFixture: Codable {
+    let id: UUID
+    let platform: ProviderPlatform
+    let model: String
 }
 
 private final class TestKeychainStore: KeychainStoring {

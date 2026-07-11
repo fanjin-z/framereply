@@ -127,7 +127,7 @@ final class ChatPersistenceTests: XCTestCase {
                 analysis: provisionalAnalysis(),
                 confirmedChatID: nil,
                 provider: .openAI,
-                model: .gpt54Mini
+                model: .gpt56Luna
             )
             importedChatID = outcome.chatID
         }
@@ -174,13 +174,13 @@ final class ChatPersistenceTests: XCTestCase {
             analysis: analysis,
             confirmedChatID: "sarah-jenkins",
             provider: .openAI,
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
         let second = try repository.applyImport(
             analysis: analysis,
             confirmedChatID: "sarah-jenkins",
             provider: .openAI,
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
 
         XCTAssertEqual(first.insertedMessageCount, 1)
@@ -224,7 +224,7 @@ final class ChatPersistenceTests: XCTestCase {
             analysis: analysis,
             confirmedChatID: nil,
             provider: .openAI,
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
 
         XCTAssertTrue(outcome.reviewRequired)
@@ -245,7 +245,7 @@ final class ChatPersistenceTests: XCTestCase {
             analysis: provisionalAnalysis(),
             confirmedChatID: nil,
             provider: .openAI,
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
 
         try repository.confirmProvisionalChat(chatID: outcome.chatID, name: "Alex Hiking")
@@ -277,7 +277,7 @@ final class ChatPersistenceTests: XCTestCase {
             analysis: provisionalAnalysis(),
             confirmedChatID: nil,
             provider: .openAI,
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
         let importRecord = try XCTUnwrap(
             container.mainContext.fetch(FetchDescriptor<ChatImportRecord>()).first
@@ -313,7 +313,7 @@ final class ChatPersistenceTests: XCTestCase {
             analysis: provisionalAnalysis(),
             confirmedChatID: nil,
             provider: .openAI,
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
         let firstView = Date(timeIntervalSince1970: 1_000)
 
@@ -337,7 +337,7 @@ final class ChatPersistenceTests: XCTestCase {
             analysis: provisionalAnalysis(),
             confirmedChatID: nil,
             provider: .openAI,
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
 
         try repository.recordImportReviewMeaningfulAction(chatID: outcome.chatID)
@@ -369,7 +369,7 @@ final class ChatPersistenceTests: XCTestCase {
             analysis: analysis,
             confirmedChatID: nil,
             provider: .openAI,
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
 
         try repository.recordImportReviewExposure(chatID: outcome.chatID)
@@ -413,7 +413,7 @@ final class ChatPersistenceTests: XCTestCase {
             analysis: provisionalAnalysis(),
             confirmedChatID: nil,
             provider: .openAI,
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
         container.mainContext.insert(
             ContactMemoryRecord(
@@ -516,7 +516,7 @@ final class ChatPersistenceTests: XCTestCase {
             matchDecision: decision,
             avatarArtifact: artifact,
             provider: .openAI,
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
 
         let storedChat = try XCTUnwrap(repository.chat(id: outcome.chatID))
@@ -549,7 +549,7 @@ final class ChatPersistenceTests: XCTestCase {
             confirmedChatID: nil,
             avatarArtifact: artifact,
             provider: .openAI,
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
 
         try repository.mergeProvisionalChat(outcome.chatID, into: "target-chat")
@@ -593,7 +593,7 @@ final class ChatPersistenceTests: XCTestCase {
             analysis: analysis,
             confirmedChatID: "known-chat",
             provider: .openAI,
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
         let stored = try XCTUnwrap(repository.messages(chatID: "known-chat").first)
         let importBefore = try XCTUnwrap(

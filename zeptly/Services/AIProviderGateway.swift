@@ -6,7 +6,7 @@ nonisolated enum AIProviderCapability: String, CaseIterable, Hashable, Sendable 
 }
 
 nonisolated struct ProviderModelProfile: Equatable, Sendable {
-    let selectedModel: ProviderModel
+    let selectedTier: ProviderTier
     let screenshotAnalysisModel: ProviderModel?
     let suggestedReplyModel: ProviderModel?
 
@@ -34,7 +34,7 @@ nonisolated struct ProviderModelProfile: Equatable, Sendable {
 @MainActor
 protocol AIProviderAdapter: ProviderValidator, ChatScreenshotAnalyzing, SuggestedReplyGenerating {
     var platform: ProviderPlatform { get }
-    func modelProfile(for selectedModel: ProviderModel) -> ProviderModelProfile?
+    func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile?
 }
 
 @MainActor
@@ -61,9 +61,9 @@ struct AIProviderRegistry {
 
     func profile(
         for platform: ProviderPlatform,
-        selectedModel: ProviderModel
+        selectedTier: ProviderTier
     ) -> ProviderModelProfile? {
-        adapters[platform]?.modelProfile(for: selectedModel)
+        adapters[platform]?.modelProfile(for: selectedTier)
     }
 }
 
@@ -140,13 +140,13 @@ final class AIService: AIServiceProviding {
 
     func validate(
         platform: ProviderPlatform,
-        selectedModel: ProviderModel,
+        selectedTier: ProviderTier,
         apiKey: String
     ) async throws {
         guard let adapter = registry.adapter(for: platform) else {
             throw AIServiceError.unsupportedProvider
         }
-        guard let profile = adapter.modelProfile(for: selectedModel),
+        guard let profile = adapter.modelProfile(for: selectedTier),
             let validationModel = profile.screenshotAnalysisModel ?? profile.suggestedReplyModel
         else {
             throw AIServiceError.unsupportedCapability
@@ -163,7 +163,7 @@ final class AIService: AIServiceProviding {
             throw AIServiceError.noActiveProvider
         }
         guard let adapter = registry.adapter(for: connection.platform),
-            let profile = adapter.modelProfile(for: connection.model)
+            let profile = adapter.modelProfile(for: connection.tier)
         else {
             throw AIServiceError.unsupportedProvider
         }

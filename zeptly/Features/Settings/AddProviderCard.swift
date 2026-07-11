@@ -32,7 +32,7 @@ enum AddProviderStatus {
 
 struct AddProviderCard: View {
     @Binding var selectedPlatform: ProviderPlatform?
-    @Binding var selectedModel: ProviderModel?
+    @Binding var selectedTier: ProviderTier?
     @Binding var apiKey: String
     @Binding var status: AddProviderStatus
 
@@ -44,7 +44,7 @@ struct AddProviderCard: View {
     private var isConnectDisabled: Bool {
         status.isTesting
             || selectedPlatform?.isConnectable != true
-            || selectedModel == nil
+            || selectedTier == nil
             || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
@@ -76,7 +76,7 @@ struct AddProviderCard: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 providerMenu
-                modelSelector
+                tierSelector
 
                 VStack(alignment: .leading, spacing: 7) {
                     Text("API Key")
@@ -172,7 +172,7 @@ struct AddProviderCard: View {
                 ForEach(ProviderPlatform.allCases) { platform in
                     Button {
                         selectedPlatform = platform
-                        selectedModel = platform.supportedModels.first
+                        selectedTier = platform.defaultTier
                     } label: {
                         Text(
                             platform.isConnectable
@@ -208,20 +208,23 @@ struct AddProviderCard: View {
         }
     }
 
-    private var modelSelector: some View {
-        let availableModels = selectedPlatform?.supportedModels ?? []
+    private var tierSelector: some View {
+        let availableTiers = selectedPlatform?.supportedTiers ?? []
 
         return VStack(alignment: .leading, spacing: 7) {
-            Text("Model")
+            Text("Performance")
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(RezplyColor.onSurface)
 
             Menu {
-                ForEach(availableModels) { model in
+                ForEach(availableTiers) { tier in
                     Button {
-                        selectedModel = model
+                        selectedTier = tier
                     } label: {
-                        Text("\(model.displayName) - \(model.rawValue)")
+                        if let selectedPlatform {
+                            Text(tier.displayName)
+                            Text(selectedPlatform.modelSummary(for: tier))
+                        }
                     }
                 }
             } label: {
@@ -231,14 +234,14 @@ struct AddProviderCard: View {
                         .foregroundStyle(RezplyColor.primary)
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(selectedModel?.displayName ?? "Select model")
+                        Text(selectedTier?.displayName ?? "Select performance")
                             .font(.system(size: 16, weight: .regular, design: .rounded))
                             .foregroundStyle(
-                                selectedModel == nil ? RezplyColor.outline : RezplyColor.onSurface)
+                                selectedTier == nil ? RezplyColor.outline : RezplyColor.onSurface)
 
-                        if let selectedModel {
-                            Text(selectedModel.rawValue)
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        if let selectedPlatform, let selectedTier {
+                            Text(selectedPlatform.modelSummary(for: selectedTier))
+                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
                                 .foregroundStyle(RezplyColor.onSurfaceVariant)
                                 .lineLimit(1)
                         }
@@ -258,7 +261,21 @@ struct AddProviderCard: View {
                 }
             }
             .buttonStyle(.plain)
-            .disabled(availableModels.isEmpty)
+            .accessibilityLabel("Performance tier")
+            .accessibilityValue(accessibilityTierValue)
+            .disabled(availableTiers.isEmpty)
+
+            Text(
+                "The underlying model may be updated automatically within your selected performance tier."
+            )
+            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .foregroundStyle(RezplyColor.outline)
+            .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var accessibilityTierValue: String {
+        guard let selectedPlatform, let selectedTier else { return "Not selected" }
+        return "\(selectedTier.displayName), \(selectedPlatform.modelSummary(for: selectedTier))"
     }
 }

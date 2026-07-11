@@ -48,7 +48,7 @@ final class ProviderValidatorTests: XCTestCase {
 
         try await OpenAIClient(session: makeSession()).validate(
             apiKey: "open-key",
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
 
         XCTAssertEqual(URLProtocolStub.requests.count, 1)
@@ -57,7 +57,7 @@ final class ProviderValidatorTests: XCTestCase {
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer open-key")
 
         let body = try jsonBody(request)
-        XCTAssertEqual(body["model"] as? String, "gpt-5.4-mini")
+        XCTAssertEqual(body["model"] as? String, "gpt-5.6-luna")
         XCTAssertEqual(body["input"] as? String, "Reply exactly: OK.")
         XCTAssertEqual(body["max_output_tokens"] as? Int, 16)
         XCTAssertEqual((body["reasoning"] as? [String: Any])?["effort"] as? String, "none")
@@ -72,7 +72,7 @@ final class ProviderValidatorTests: XCTestCase {
         )
         await assertInvalidResponse(
             from: OpenAIClient(session: makeSession()),
-            model: .gpt54Mini,
+            model: .gpt56Luna,
             body:
                 #"{"id":"resp_1","status":"incomplete","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
         )
@@ -91,24 +91,24 @@ final class ProviderValidatorTests: XCTestCase {
             .providerUnavailable, statusCode: 503, validator: validator, model: .glm46VFlashX)
         await assertHTTPError(
             .invalidKey, statusCode: 401, validator: OpenAIClient(session: makeSession()),
-            model: .gpt54Mini)
+            model: .gpt56Luna)
         await assertHTTPError(
             .insufficientBalance,
             statusCode: 429,
             body: #"{"error":{"code":"insufficient_quota","message":"No quota"}}"#,
             validator: OpenAIClient(session: makeSession()),
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
         await assertHTTPError(
             .rateLimited,
             statusCode: 429,
             body: #"{"error":{"code":"rate_limit_exceeded","message":"Slow down"}}"#,
             validator: OpenAIClient(session: makeSession()),
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
         await assertHTTPError(
             .providerUnavailable, statusCode: 500, validator: OpenAIClient(session: makeSession()),
-            model: .gpt54Mini)
+            model: .gpt56Luna)
     }
 
     @MainActor

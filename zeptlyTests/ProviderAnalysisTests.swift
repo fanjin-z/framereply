@@ -248,7 +248,7 @@ final class ProviderAnalysisTests: XCTestCase {
         _ = try await OpenAIClient(session: makeSession()).analyzeChatScreenshot(
             makeMultiImageRequest(),
             apiKey: "open-key",
-            model: .gpt54Mini
+            model: .gpt56Luna
         )
 
         let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
@@ -275,6 +275,28 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertFalse(prompt.contains("OCR observations"))
         XCTAssertTrue(
             try XCTUnwrap(body["instructions"] as? String).contains("Literal visual observations"))
+    }
+
+    @MainActor
+    func testOpenAIHigherTiersUseOriginalImageDetail() async throws {
+        let models: [ProviderModel] = [.gpt56Terra, .gpt56Sol]
+        AnalysisURLProtocolStub.responses = models.map { _ in
+            (200, openAIResponse(content: validAnalysisJSON(matchedChatID: nil)))
+        }
+
+        for model in models {
+            _ = try await OpenAIClient(session: makeSession()).analyzeChatScreenshot(
+                makeRequest(),
+                apiKey: "open-key",
+                model: model
+            )
+            let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.last))
+            XCTAssertEqual(body["model"] as? String, model.rawValue)
+            let input = try XCTUnwrap(body["input"] as? [[String: Any]])
+            let content = try XCTUnwrap(input.first?["content"] as? [[String: Any]])
+            let image = try XCTUnwrap(content.first { $0["type"] as? String == "input_image" })
+            XCTAssertEqual(image["detail"] as? String, "original")
+        }
     }
 
     @MainActor
@@ -358,13 +380,13 @@ final class ProviderAnalysisTests: XCTestCase {
         ]
 
         let result = try await OpenAIClient(session: makeSession()).generateSuggestedReplies(
-            makeReplyRequest(), apiKey: "key", model: .gpt54Mini
+            makeReplyRequest(), apiKey: "key", model: .gpt56Luna
         )
 
         XCTAssertEqual(
             result.replies, ["Sounds good to me.", "That works — looking forward to it!"])
         let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
-        XCTAssertEqual(body["model"] as? String, "gpt-5.4-mini")
+        XCTAssertEqual(body["model"] as? String, "gpt-5.6-luna")
         XCTAssertEqual(body["store"] as? Bool, false)
         XCTAssertEqual(body["max_output_tokens"] as? Int, 3_200)
         XCTAssertEqual((body["reasoning"] as? [String: Any])?["effort"] as? String, "none")
@@ -395,7 +417,7 @@ final class ProviderAnalysisTests: XCTestCase {
 
         AnalysisURLProtocolStub.responses = [(200, openAIResponse(content: content))]
         let openAIResult = try await OpenAIClient(session: makeSession()).generateSuggestedReplies(
-            makeReplyRequest(), apiKey: "key", model: .gpt54Mini
+            makeReplyRequest(), apiKey: "key", model: .gpt56Luna
         )
 
         AnalysisURLProtocolStub.reset()

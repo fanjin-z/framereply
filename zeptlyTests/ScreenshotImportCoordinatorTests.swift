@@ -86,7 +86,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         XCTAssertFalse(outcome.reviewRequired)
         XCTAssertEqual(aiService.receivedImageData, imageData)
         XCTAssertEqual(aiService.receivedImageDataList, [imageData])
-        XCTAssertEqual(aiService.receivedContext?.effectiveModel, .gpt54Mini)
+        XCTAssertEqual(aiService.receivedContext?.effectiveModel, .gpt56Luna)
         let messages = try repository.messages(chatID: "sarah-jenkins")
         XCTAssertTrue(
             messages.contains { $0.text == "A newly imported reply" && $0.senderKind == "user" })
@@ -175,12 +175,12 @@ private final class StubAnalysisService: AIServiceProviding {
     private let context = AIProviderExecutionContext(
         platform: .openAI,
         profile: ProviderModelProfile(
-            selectedModel: .gpt54Mini,
-            screenshotAnalysisModel: .gpt54Mini,
-            suggestedReplyModel: .gpt54Mini
+            selectedTier: .basic,
+            screenshotAnalysisModel: .gpt56Luna,
+            suggestedReplyModel: .gpt56Luna
         ),
         capability: .screenshotAnalysis,
-        effectiveModel: .gpt54Mini
+        effectiveModel: .gpt56Luna
     )
 
     init(analysis: ChatImportAnalysis) {

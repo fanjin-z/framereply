@@ -11,7 +11,7 @@ struct SettingsView: View {
     let isActive: Bool
 
     @State private var selectedPlatform: ProviderPlatform?
-    @State private var selectedModel: ProviderModel?
+    @State private var selectedTier: ProviderTier?
     @State private var apiKey = ""
     @State private var addProviderStatus: AddProviderStatus = .idle
     @State private var isAddProviderPresented = false
@@ -37,7 +37,7 @@ struct SettingsView: View {
                 addProviderStatus = .idle
             }
         }
-        .onChange(of: selectedModel) { _, _ in
+        .onChange(of: selectedTier) { _, _ in
             if case .connected = addProviderStatus {
                 addProviderStatus = .idle
             }
@@ -187,8 +187,8 @@ struct SettingsView: View {
                                 providerStore.activate(platform: provider.platform)
                             }
                         },
-                        onModelChange: { model in
-                            providerStore.setModel(model, for: provider.platform)
+                        onTierChange: { tier in
+                            providerStore.setTier(tier, for: provider.platform)
                         },
                         onRemove: {
                             providerToRemove = provider
@@ -353,7 +353,7 @@ struct SettingsView: View {
 
             AddProviderCard(
                 selectedPlatform: $selectedPlatform,
-                selectedModel: $selectedModel,
+                selectedTier: $selectedTier,
                 apiKey: $apiKey,
                 status: $addProviderStatus,
                 onConnect: connectProvider,
@@ -374,8 +374,8 @@ struct SettingsView: View {
             return
         }
 
-        guard let selectedModel else {
-            addProviderStatus = .failed("Select a model before saving.")
+        guard let selectedTier else {
+            addProviderStatus = .failed("Select a performance tier before saving.")
             return
         }
 
@@ -387,7 +387,7 @@ struct SettingsView: View {
             do {
                 try await providerStore.connect(
                     platform: selectedPlatform,
-                    model: selectedModel,
+                    tier: selectedTier,
                     apiKey: apiKey
                 )
 
@@ -445,7 +445,7 @@ struct SettingsView: View {
 
     private func resetAddProviderForm() {
         selectedPlatform = nil
-        selectedModel = nil
+        selectedTier = nil
         apiKey = ""
         addProviderStatus = .idle
     }

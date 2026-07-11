@@ -477,7 +477,7 @@ extension AIProviderExecutionContext {
         AIProviderExecutionContext(
             platform: .zaiInternational,
             profile: ProviderModelProfile(
-                selectedModel: .glm46VFlashX,
+                selectedTier: .advanced,
                 screenshotAnalysisModel: .glm46VFlashX,
                 suggestedReplyModel: .glm47FlashX
             ),
@@ -490,7 +490,7 @@ extension AIProviderExecutionContext {
         AIProviderExecutionContext(
             platform: .zhipuChina,
             profile: ProviderModelProfile(
-                selectedModel: .glm46VFlashX,
+                selectedTier: .advanced,
                 screenshotAnalysisModel: .glm46VFlashX,
                 suggestedReplyModel: .glm47FlashX
             ),

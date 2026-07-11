@@ -21,12 +21,12 @@ struct OpenAIClient: AIProviderAdapter {
 
     var platform: ProviderPlatform { .openAI }
 
-    func modelProfile(for selectedModel: ProviderModel) -> ProviderModelProfile? {
-        guard Self.supportedModels.contains(selectedModel) else { return nil }
+    func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile? {
+        let models = platform.models(for: selectedTier)
         return ProviderModelProfile(
-            selectedModel: selectedModel,
-            screenshotAnalysisModel: selectedModel,
-            suggestedReplyModel: selectedModel
+            selectedTier: selectedTier,
+            screenshotAnalysisModel: models.analysis,
+            suggestedReplyModel: models.replies
         )
     }
 
@@ -334,7 +334,7 @@ struct OpenAIClient: AIProviderAdapter {
         }
     }
 
-    private static let supportedModels: Set<ProviderModel> = [.gpt54Mini, .gpt54, .gpt55]
+    private static let supportedModels: Set<ProviderModel> = [.gpt56Luna, .gpt56Terra, .gpt56Sol]
 
     private func summaryFallback(for request: SuggestedReplyGenerationRequest) -> String? {
         if request.summaryMode == .unchanged {
@@ -426,9 +426,9 @@ struct OpenAIClient: AIProviderAdapter {
 extension ProviderModel {
     fileprivate var openAIImageDetail: String {
         switch self {
-        case .gpt54Mini:
+        case .gpt56Luna:
             "high"
-        case .gpt54, .gpt55:
+        case .gpt56Terra, .gpt56Sol:
             "original"
         default:
             "high"

@@ -38,20 +38,35 @@ enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
         true
     }
 
-    var supportedModels: [ProviderModel] {
-        switch self {
-        case .openAI:
-            [.gpt54Mini, .gpt54, .gpt55]
-        case .zaiInternational, .zhipuChina:
-            [.glm46VFlashX, .glm46VFlash, .glm46V]
+    var supportedTiers: [ProviderTier] { ProviderTier.allCases }
+    var defaultTier: ProviderTier { .advanced }
+
+    func models(for tier: ProviderTier) -> (analysis: ProviderModel, replies: ProviderModel) {
+        switch (self, tier) {
+        case (.openAI, .basic):
+            (.gpt56Luna, .gpt56Luna)
+        case (.openAI, .advanced):
+            (.gpt56Terra, .gpt56Terra)
+        case (.openAI, .best):
+            (.gpt56Sol, .gpt56Sol)
+        case (.zaiInternational, .basic), (.zhipuChina, .basic):
+            (.glm46VFlash, .glm47Flash)
+        case (.zaiInternational, .advanced), (.zhipuChina, .advanced):
+            (.glm46VFlashX, .glm47FlashX)
+        case (.zaiInternational, .best), (.zhipuChina, .best):
+            (.glm46V, .glm47)
         }
+    }
+
+    func modelSummary(for tier: ProviderTier) -> String {
+        models(for: tier).analysis.rawValue
     }
 }
 
 enum ProviderModel: String, Codable, CaseIterable, Identifiable {
-    case gpt54Mini = "gpt-5.4-mini"
-    case gpt54 = "gpt-5.4"
-    case gpt55 = "gpt-5.5"
+    case gpt56Luna = "gpt-5.6-luna"
+    case gpt56Terra = "gpt-5.6-terra"
+    case gpt56Sol = "gpt-5.6-sol"
     case glm46VFlashX = "glm-4.6v-flashx"
     case glm46VFlash = "glm-4.6v-flash"
     case glm46V = "glm-4.6v"
@@ -61,60 +76,40 @@ enum ProviderModel: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+}
+
+enum ProviderTier: String, Codable, CaseIterable, Identifiable, Sendable {
+    case basic
+    case advanced
+    case best
+
+    var id: String { rawValue }
+
     var displayName: String {
         switch self {
-        case .gpt54Mini:
-            "Balanced"
-        case .gpt54:
-            "Advanced"
-        case .gpt55:
-            "Best"
-        case .glm46VFlashX:
-            "Default"
-        case .glm46VFlash:
-            "Free"
-        case .glm46V:
-            "Quality"
-        case .glm47FlashX:
-            "Default Replies"
-        case .glm47Flash:
-            "Free Replies"
-        case .glm47:
-            "Quality Replies"
+        case .basic: "Basic"
+        case .advanced: "Advanced"
+        case .best: "Best"
         }
     }
 
     var detail: String {
         switch self {
-        case .gpt54Mini:
-            "High-quality replies at a balanced cost"
-        case .gpt54:
-            "Stronger reasoning and tone handling"
-        case .gpt55:
-            "Highest-quality, polished replies"
-        case .glm46VFlashX:
-            "Fast screenshot analysis and everyday replies"
-        case .glm46VFlash:
-            "Free screenshot analysis and replies"
-        case .glm46V:
-            "Highest-quality GLM analysis and replies"
-        case .glm47FlashX:
-            "Fast text generation for everyday replies"
-        case .glm47Flash:
-            "Free text generation for replies"
-        case .glm47:
-            "Highest-quality GLM text generation"
+        case .basic:
+            "Lowest cost; may be less reliable with subtle or complex context"
+        case .advanced:
+            "Recommended for consistently strong results at moderate cost"
+        case .best:
+            "Highest-quality interpretation and writing at the highest cost"
         }
     }
-
 }
 
 struct ProviderConnection: Identifiable, Codable {
     var id: UUID = UUID()
     let platform: ProviderPlatform
-    var model: ProviderModel
+    var tier: ProviderTier
 
     var name: String { platform.displayName }
     var symbolName: String { platform.symbolName }
-    var modelName: String { model.rawValue }
 }
