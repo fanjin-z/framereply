@@ -16,26 +16,36 @@ struct ContactContextView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
-                    Button {
-                        KeyboardDismissal.dismiss()
-                        dismiss()
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(RezplyColor.primary)
-                            .frame(width: 46, height: 46)
-                            .background {
-                                Circle()
-                                    .fill(Color.white.opacity(0.68))
-                                    .shadow(
-                                        color: RezplyColor.primaryContainer.opacity(0.12),
-                                        radius: 18, x: 0, y: 10)
-                            }
-                    }
-                    .buttonStyle(SoftPressButtonStyle())
-                    .accessibilityLabel("Back to inbox")
+                    HStack(spacing: 12) {
+                        Button {
+                            KeyboardDismissal.dismiss()
+                            dismiss()
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundStyle(RezplyColor.primary)
+                                .frame(width: 42, height: 42)
+                        }
+                        .buttonStyle(SoftPressButtonStyle())
+                        .accessibilityLabel("Back to inbox")
 
-                    ContactProfileCard(chat: chat)
+                        AvatarMark(
+                            initials: chat.initials,
+                            symbolName: chat.avatarSymbol,
+                            colors: chat.gradient,
+                            imageData: chat.avatarData,
+                            size: 42
+                        )
+
+                        Text(chat.name)
+                            .font(.system(size: 19, weight: .semibold, design: .rounded))
+                            .foregroundStyle(RezplyColor.onSurface)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+
+                        Spacer(minLength: 8)
+                    }
+                    .padding(.horizontal, 2)
 
                     AboutContactCard(
                         contactName: chat.name,
