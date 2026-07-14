@@ -16,6 +16,7 @@ struct ChatAssistantView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isHistoryPresented = false
     @State private var isReplyNotePresented = false
+    @State private var isImportSourcePresented = false
     @State private var isReviewPresented = false
     @State private var isMergeConfirmationPresented = false
     @State private var actionErrorMessage: String?
@@ -195,11 +196,13 @@ struct ChatAssistantView: View {
                         )
 
                         ConversationUpdateControls(
-                            screenshotSelection: $selectedScreenshotItems,
                             isImporting: importModel.isLoading,
                             hasReplyNote: !replyNote.trimmingCharacters(
                                 in: .whitespacesAndNewlines
                             ).isEmpty,
+                            onAddMessagesTap: {
+                                isImportSourcePresented = true
+                            },
                             onReplyNoteTap: {
                                 isReplyNotePresented = true
                             }
@@ -208,7 +211,9 @@ struct ChatAssistantView: View {
                         if importModel.isLoading {
                             ScreenshotImportStatusCard(
                                 symbolName: "sparkles",
-                                message: "Analyzing selected screenshots…",
+                                message: importModel.importKind == .copiedMessages
+                                    ? "Analyzing copied messages…"
+                                    : "Analyzing selected screenshots…",
                                 isLoading: true
                             )
                         } else if let importStatusMessage {
@@ -259,6 +264,16 @@ struct ChatAssistantView: View {
         .sheet(isPresented: $isReplyNotePresented) {
             AddReplyNoteSheet(note: $replyNote)
         }
+        .sheet(isPresented: $isImportSourcePresented) {
+            ChatImportSourceSheet(
+                screenshotSelection: $selectedScreenshotItems,
+                onPaste: { items in
+                    Task {
+                        await importCopiedMessages(items)
+                    }
+                }
+            )
+        }
         .sheet(isPresented: $isReviewPresented) {
             ChatImportReviewSheet(chatID: chat.id, onMerged: onMergedIntoChat)
         }
@@ -291,6 +306,9 @@ struct ChatAssistantView: View {
             recordReviewExposureIfNeeded()
         }
         .onChange(of: selectedScreenshotItems) { _, items in
+            if !items.isEmpty {
+                isImportSourcePresented = false
+            }
             Task {
                 await importSelectedScreenshots(items)
             }
@@ -371,6 +389,25 @@ struct ChatAssistantView: View {
             }
         } catch {
             photoLoadErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func importCopiedMessages(_ items: [String]) async {
+        guard !items.isEmpty else { return }
+        photoLoadErrorMessage = nil
+
+        let draftingInput = replyNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let result = await importModel.importCopiedMessages(
+            items,
+            draftingInput: draftingInput.isEmpty ? nil : draftingInput
+        ), result.chatID == chat.id {
+            suggestedRepliesModel.loadCached()
+            needsReplyRefresh = false
+            if !draftingInput.isEmpty, result.replyErrorMessage == nil {
+                replyNote = ""
+                lastSubmittedReplyNote = ""
+            }
+            recordMeaningfulReviewAction()
         }
     }
 

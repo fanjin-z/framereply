@@ -25,6 +25,12 @@ By default, `run.sh` builds and launches the app on an `iPhone 17` simulator. Yo
 ./run.sh "iPhone 16"
 ```
 
+## Chat Import
+
+Inside Zeptly, tap **Add Messages** to choose up to eight screenshots or explicitly paste copied messages. Paste accepts up to 8,000 characters, 40 text items, and an estimated 25 messages. Screenshots remain available for apps or conversations that do not expose useful copied text.
+
+Copied text is analyzed transiently by the selected model provider. Zeptly stores the extracted messages, not the raw pasted transcript. Imports with uncertain ownership are saved and shown in the existing **Review Imports** flow; suggested replies are still attempted.
+
 ## Screenshot Shortcut
 
 Zeptly's recommended shortcut is **Zeptly**. It takes a screenshot, imports the visible chat, and shows two suggested replies.
@@ -51,6 +57,17 @@ On iOS 26 or later, **Analyze Chat Screenshot** first offers **Add Context or Dr
 For Back Tap, turn off **Settings -> Accessibility -> Touch -> Back Tap -> Show Banner**. The banner can cover a messaging app's conversation title before the screenshot is taken. The screenshot animation and context input sheet still provide visible confirmation that the shortcut ran; no vibration action is required.
 
 Until the canonical installer link is configured, create a shortcut named **Zeptly** manually using the same four actions and connect each action to the previous action's output.
+
+## Copied Messages Shortcut
+
+Create a second shortcut named **Zeptly Copied Messages** and connect these actions:
+
+1. **Get Clipboard**
+2. **Analyze Copied Messages**
+3. **Generate Suggested Replies**
+4. **Show Result**
+
+The Analyze action accepts either one combined transcript or multiple connected text items. The workflow can be launched from Shortcuts, Siri, Back Tap, the Action Button, or the Home Screen. It does not replace the screenshot shortcut.
 
 ### Maintainer notes
 

@@ -167,7 +167,7 @@ nonisolated enum ShortcutResponseBuilder {
 }
 
 nonisolated struct ScreenshotImportEntity: AppEntity {
-    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Screenshot Import")
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Chat Import")
     static let defaultQuery = ScreenshotImportEntityQuery()
 
     let id: UUID
@@ -181,7 +181,7 @@ nonisolated struct ScreenshotImportEntity: AppEntity {
     let insertedMessageCount: Int
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(chatName)", subtitle: "Analyzed chat screenshot")
+        DisplayRepresentation(title: "\(chatName)", subtitle: "Analyzed chat input")
     }
 
     init(outcome: ScreenshotImportOutcome, operationID: UUID) {
@@ -239,6 +239,117 @@ nonisolated struct ScreenshotImportEntityQuery: EntityQuery {
                     record: record, chatName: chat.name, operationID: operationID)
             }
         }
+    }
+}
+
+nonisolated enum ChatImportIntentSupport {
+    static func finalize(
+        outcome: ScreenshotImportOutcome,
+        input: String?,
+        traceID: ImportTraceID,
+        startedAt: Date,
+        eventReporter: any ImportEventReporting,
+        lifecycleReporter: ShortcutLifecycleReporter
+    ) async throws -> ScreenshotImportEntity {
+        eventReporter.record(.stageStarted(traceID: traceID, stage: .persistence))
+        let state = try await MainActor.run {
+            let repository = ChatRepository(context: ModelContext(ZeptlyDataStore.shared))
+            return try repository.resolveDraftingInput(
+                input,
+                importID: outcome.importID,
+                operationID: traceID.value
+            )
+        }
+        let hasInput = state == .submitted
+        lifecycleReporter.record(
+            hasInput ? .inputSubmitted : .inputSkipped,
+            operationID: traceID.value,
+            startedAt: startedAt,
+            state: state,
+            hasInput: hasInput
+        )
+        lifecycleReporter.record(
+            .stateCommitted,
+            operationID: traceID.value,
+            startedAt: startedAt,
+            state: state,
+            hasInput: hasInput
+        )
+        lifecycleReporter.record(
+            .analyzeReturned,
+            operationID: traceID.value,
+            startedAt: startedAt
+        )
+        return ScreenshotImportEntity(outcome: outcome, operationID: traceID.value)
+    }
+
+    static func rethrowImportError(
+        _ error: Error,
+        traceID: ImportTraceID,
+        startedAt: Date,
+        eventReporter: any ImportEventReporting,
+        lifecycleReporter: ShortcutLifecycleReporter,
+        synchronizationMessage: String,
+        persistenceMessage: String
+    ) throws -> Never {
+        if error is CancellationError {
+            lifecycleReporter.record(
+                .inputCancelled,
+                operationID: traceID.value,
+                startedAt: startedAt
+            )
+            eventReporter.record(
+                .importFailed(traceID: traceID, stage: .shortcut, errorCode: "cancelled")
+            )
+            throw CancellationError()
+        }
+        if let appIntentError = error as? AppIntentError {
+            lifecycleReporter.record(
+                .inputCancelled,
+                operationID: traceID.value,
+                startedAt: startedAt
+            )
+            eventReporter.record(
+                .importFailed(traceID: traceID, stage: .shortcut, errorCode: "cancelled")
+            )
+            throw appIntentError
+        }
+        if let importError = error as? ScreenshotImportError {
+            throw ShortcutExecutionError(
+                message: importError.localizedDescription,
+                diagnosticID: traceID.diagnosticID
+            )
+        }
+        if let providerError = error as? ProviderConnectionError {
+            throw ShortcutExecutionError(
+                message: providerError.localizedDescription,
+                diagnosticID: traceID.diagnosticID
+            )
+        }
+        if error is DraftingInputSynchronizationError {
+            eventReporter.record(
+                .importFailed(
+                    traceID: traceID,
+                    stage: .persistence,
+                    errorCode: "input_synchronization_failed"
+                )
+            )
+            throw ShortcutExecutionError(
+                message: synchronizationMessage,
+                diagnosticID: traceID.diagnosticID
+            )
+        }
+        if let shortcutError = error as? ShortcutExecutionError {
+            throw shortcutError
+        }
+
+        eventReporter.record(
+            .importFailed(traceID: traceID, stage: .persistence, errorCode: "import_failed")
+        )
+        throw ShortcutExecutionError(
+            message: persistenceMessage,
+            diagnosticID: traceID.diagnosticID
+        )
     }
 }
 
@@ -350,73 +461,25 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
                 )
             }
 
-            let outcome = try await pendingOutcome
-            eventReporter.record(.stageStarted(traceID: traceID, stage: .persistence))
-            let state = try await MainActor.run {
-                let repository = ChatRepository(context: ModelContext(ZeptlyDataStore.shared))
-                return try repository.resolveDraftingInput(
-                    input,
-                    importID: outcome.importID,
-                    operationID: traceID.value
-                )
-            }
-            let hasInput = state == .submitted
-            lifecycleReporter.record(
-                hasInput ? .inputSubmitted : .inputSkipped,
-                operationID: traceID.value,
+            let entity = try await ChatImportIntentSupport.finalize(
+                outcome: try await pendingOutcome,
+                input: input,
+                traceID: traceID,
                 startedAt: startedAt,
-                state: state,
-                hasInput: hasInput
+                eventReporter: eventReporter,
+                lifecycleReporter: lifecycleReporter
             )
-            lifecycleReporter.record(
-                .stateCommitted,
-                operationID: traceID.value,
-                startedAt: startedAt,
-                state: state,
-                hasInput: hasInput
-            )
-            lifecycleReporter.record(
-                .analyzeReturned, operationID: traceID.value, startedAt: startedAt)
-            return .result(
-                value: ScreenshotImportEntity(outcome: outcome, operationID: traceID.value))
-        } catch is CancellationError {
-            lifecycleReporter.record(
-                .inputCancelled, operationID: traceID.value, startedAt: startedAt)
-            eventReporter.record(
-                .importFailed(traceID: traceID, stage: .shortcut, errorCode: "cancelled"))
-            throw CancellationError()
-        } catch let error as AppIntentError {
-            lifecycleReporter.record(
-                .inputCancelled, operationID: traceID.value, startedAt: startedAt)
-            eventReporter.record(
-                .importFailed(traceID: traceID, stage: .shortcut, errorCode: "cancelled"))
-            throw error
-        } catch let error as ScreenshotImportError {
-            throw ShortcutExecutionError(
-                message: error.localizedDescription, diagnosticID: traceID.diagnosticID
-            )
-        } catch let error as ProviderConnectionError {
-            throw ShortcutExecutionError(
-                message: error.localizedDescription, diagnosticID: traceID.diagnosticID
-            )
-        } catch is DraftingInputSynchronizationError {
-            eventReporter.record(
-                .importFailed(
-                    traceID: traceID, stage: .persistence, errorCode: "input_synchronization_failed"
-                )
-            )
-            throw ShortcutExecutionError(
-                message:
-                    "The optional input could not be synchronized with this screenshot import.",
-                diagnosticID: traceID.diagnosticID
-            )
-        } catch let error as ShortcutExecutionError {
-            throw error
+            return .result(value: entity)
         } catch {
-            eventReporter.record(
-                .importFailed(traceID: traceID, stage: .persistence, errorCode: "import_failed"))
-            throw ShortcutExecutionError(
-                message: "The chat history could not be saved.", diagnosticID: traceID.diagnosticID
+            try ChatImportIntentSupport.rethrowImportError(
+                error,
+                traceID: traceID,
+                startedAt: startedAt,
+                eventReporter: eventReporter,
+                lifecycleReporter: lifecycleReporter,
+                synchronizationMessage:
+                    "The optional input could not be synchronized with this screenshot import.",
+                persistenceMessage: "The chat history could not be saved."
             )
         }
     }
@@ -427,6 +490,119 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
             filename: file.filename,
             type: file.type
         )
+    }
+}
+
+struct AnalyzeCopiedMessagesIntent: AppIntent {
+    static let title: LocalizedStringResource = "Analyze Copied Messages"
+    static let description = IntentDescription(
+        "Imports copied chat messages while you optionally add context or draft a reply. The raw copied text isn't saved."
+    )
+    static let openAppWhenRun = false
+
+    @Parameter(
+        title: "Copied Messages",
+        description: "Pass text from Get Clipboard or another Shortcuts action.",
+        inputConnectionBehavior: .connectToPreviousIntentResult
+    )
+    var messages: [String]?
+
+    @Parameter(
+        title: "Context or Draft",
+        description: "Optional context or a rough reply used once for this generation.",
+        inputOptions: String.IntentInputOptions(multiline: true)
+    )
+    var draftingInput: String?
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Analyze \(\.$messages)") {
+            \.$draftingInput
+        }
+    }
+
+    func perform() async throws -> some IntentResult & ReturnsValue<ScreenshotImportEntity> {
+        let traceID = ImportTraceID()
+        let startedAt = Date()
+        let eventReporter = OSLogImportEventReporter()
+        let lifecycleReporter = ShortcutLifecycleReporter()
+        let transcriptItems = (messages ?? []).filter {
+            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        guard !transcriptItems.isEmpty else {
+            eventReporter.record(
+                .importFailed(traceID: traceID, stage: .shortcut, errorCode: "no_transcript")
+            )
+            throw ShortcutExecutionError(
+                message: "No copied message text was provided.",
+                diagnosticID: traceID.diagnosticID
+            )
+        }
+
+        let coordinator = await MainActor.run { ScreenshotImportCoordinator() }
+        do {
+            lifecycleReporter.record(
+                .analysisStarted, operationID: traceID.value, startedAt: startedAt)
+            async let pendingOutcome: ScreenshotImportOutcome = {
+                let outcome = try await coordinator.process(
+                    transcriptItems: transcriptItems,
+                    traceID: traceID
+                )
+                lifecycleReporter.record(
+                    .analysisCompleted, operationID: traceID.value, startedAt: startedAt)
+                return outcome
+            }()
+
+            let input: String?
+            if let draftingInput {
+                input = draftingInput
+            } else if #available(iOS 26.0, *) {
+                lifecycleReporter.record(
+                    .inputChoiceDisplayed, operationID: traceID.value, startedAt: startedAt)
+                let add = IntentChoiceOption(title: "Add Context or Draft")
+                let skip = IntentChoiceOption(title: "Skip")
+                let choice = try await requestChoice(
+                    between: [add, skip],
+                    dialog:
+                        "Add optional context or a rough draft while Zeptly analyzes the copied messages?"
+                )
+                if choice == skip {
+                    input = nil
+                } else {
+                    lifecycleReporter.record(
+                        .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
+                    input = try await $draftingInput.requestValue(
+                        "Analyzing copied messages… Add context or draft what you want to say. Tap Done when finished."
+                    )
+                }
+            } else {
+                lifecycleReporter.record(
+                    .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
+                input = try await $draftingInput.requestValue(
+                    "Analyzing copied messages… Add optional context or a draft. Tap Done empty to skip."
+                )
+            }
+
+            let entity = try await ChatImportIntentSupport.finalize(
+                outcome: try await pendingOutcome,
+                input: input,
+                traceID: traceID,
+                startedAt: startedAt,
+                eventReporter: eventReporter,
+                lifecycleReporter: lifecycleReporter
+            )
+            return .result(value: entity)
+        } catch {
+            try ChatImportIntentSupport.rethrowImportError(
+                error,
+                traceID: traceID,
+                startedAt: startedAt,
+                eventReporter: eventReporter,
+                lifecycleReporter: lifecycleReporter,
+                synchronizationMessage:
+                    "The optional input could not be synchronized with this chat import.",
+                persistenceMessage: "The copied chat history could not be saved."
+            )
+        }
     }
 }
 
@@ -594,6 +770,12 @@ struct ZeptlyShortcutsProvider: AppShortcutsProvider {
             phrases: ["Generate suggested replies with \(.applicationName)"],
             shortTitle: "Generate Suggested Replies",
             systemImageName: "text.bubble"
+        )
+        AppShortcut(
+            intent: AnalyzeCopiedMessagesIntent(),
+            phrases: ["Analyze copied messages with \(.applicationName)"],
+            shortTitle: "Analyze Copied Messages",
+            systemImageName: "doc.on.clipboard"
         )
     }
 }

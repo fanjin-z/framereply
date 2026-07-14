@@ -204,7 +204,7 @@ struct SettingsView: View {
             HStack(spacing: 10) {
                 Image(systemName: "camera.viewfinder")
                     .font(.system(size: 20, weight: .medium))
-                Text("Shortcut")
+                Text("Shortcuts")
                     .font(.system(size: 21, weight: .bold, design: .rounded))
             }
             .foregroundStyle(RezplyColor.primary)
@@ -230,7 +230,7 @@ struct SettingsView: View {
                             .foregroundStyle(RezplyColor.onSurface)
 
                         Text(
-                            "Takes a screenshot, imports the visible chat, and shows two suggested replies."
+                            "Import a screenshot with Zeptly, or build a copied-message workflow with the Analyze Copied Messages action."
                         )
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(RezplyColor.onSurfaceVariant)
@@ -239,6 +239,7 @@ struct SettingsView: View {
                 }
 
                 shortcutInstallControl
+                copiedMessagesShortcutNote
                 shortcutShareSheetSetup
             }
             .padding(20)
@@ -247,6 +248,20 @@ struct SettingsView: View {
                 RoundedRectangle(cornerRadius: 0)
                     .fill(Color.white.opacity(0.42))
             }
+        }
+    }
+
+    private var copiedMessagesShortcutNote: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Copied messages")
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurface)
+            Text(
+                "In Shortcuts, connect Get Clipboard -> Analyze Copied Messages -> Generate Suggested Replies -> Show Result."
+            )
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .foregroundStyle(RezplyColor.onSurfaceVariant)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 

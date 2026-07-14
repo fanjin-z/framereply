@@ -810,6 +810,7 @@ final class ChatRepository {
         avatarArtifact: AvatarArtifact? = nil,
         provider: ProviderPlatform,
         model: ProviderModel,
+        sourceApp: String? = nil,
         traceID: ImportTraceID = ImportTraceID()
     ) throws -> ScreenshotImportOutcome {
         var matchedExisting = false
@@ -899,7 +900,7 @@ final class ChatRepository {
             matchReason: matchDecision?.reason.rawValue,
             avatarEvidence: matchDecision?.avatarEvidence.rawValue,
             transcriptEvidence: matchDecision?.transcriptEvidence.rawValue,
-            sourceApp: nil,
+            sourceApp: sourceApp,
             diagnosticID: traceID.diagnosticID,
             matchedExisting: matchedExisting,
             operationID: traceID.value,

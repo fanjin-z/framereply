@@ -106,7 +106,7 @@ struct OpenAIClient: AIProviderAdapter {
         request.httpBody = try JSONSerialization.data(
             withJSONObject: [
                 "model": model.rawValue,
-                "instructions": ChatScreenshotPrompt.instructions,
+                "instructions": ChatScreenshotPrompt.instructions(for: analysisRequest),
                 "input": [
                     [
                         "role": "user",
@@ -188,27 +188,31 @@ struct OpenAIClient: AIProviderAdapter {
         )
 
         let forcedFinishReason = completion.status == "completed" ? nil : "length"
-        ChatImportDebugLogger.rawResponse(
-            traceID: analysisRequest.traceID,
-            provider: provider,
-            model: model.rawValue,
-            attempt: 1,
-            finishReason: completion.status,
-            content: completion.outputText
-        )
+        if analysisRequest.sharedTranscript == nil {
+            ChatImportDebugLogger.rawResponse(
+                traceID: analysisRequest.traceID,
+                provider: provider,
+                model: model.rawValue,
+                attempt: 1,
+                finishReason: completion.status,
+                content: completion.outputText
+            )
+        }
         do {
             let analysis = try ChatImportAnalysisDecoder.decode(
                 content: completion.outputText,
                 finishReason: forcedFinishReason,
                 candidateIDs: Set(analysisRequest.candidates.map(\.id))
             )
-            ChatImportDebugLogger.normalized(
-                analysis,
-                traceID: analysisRequest.traceID,
-                provider: provider,
-                model: model.rawValue,
-                attempt: 1
-            )
+            if analysisRequest.sharedTranscript == nil {
+                ChatImportDebugLogger.normalized(
+                    analysis,
+                    traceID: analysisRequest.traceID,
+                    provider: provider,
+                    model: model.rawValue,
+                    attempt: 1
+                )
+            }
             return analysis
         } catch let failure as StructuredOutputFailure {
             eventReporter.record(

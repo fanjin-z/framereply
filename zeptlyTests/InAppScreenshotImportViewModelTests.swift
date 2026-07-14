@@ -73,6 +73,33 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testImportsCopiedMessagesAndStillGeneratesRepliesWhenReviewIsRequired() async throws {
+        let importer = StubInAppImporter(
+            outcome: makeOutcome(insertedMessageCount: 2, reviewRequired: true)
+        )
+        let replies = StubInAppReplies(
+            outcome: SuggestedRepliesOutcome(replies: ["First", "Second"], source: .generated)
+        )
+        let viewModel = InAppScreenshotImportViewModel(
+            importer: importer,
+            repliesGenerator: replies
+        )
+
+        let result = await viewModel.importCopiedMessages(
+            ["Alice - 9:42 PM - Hello", " ", "Me - 9:43 PM - Hi"]
+        )
+
+        XCTAssertEqual(
+            importer.receivedTranscriptItems,
+            ["Alice - 9:42 PM - Hello", "Me - 9:43 PM - Hi"]
+        )
+        XCTAssertEqual(viewModel.importKind, .copiedMessages)
+        XCTAssertTrue(result?.outcome.reviewRequired == true)
+        XCTAssertEqual(result?.replies?.replies, ["First", "Second"])
+        XCTAssertEqual(replies.requests.map(\.chatID), ["chat-1"])
+    }
+
+    @MainActor
     private func makeOutcome(
         insertedMessageCount: Int,
         reviewRequired: Bool
@@ -100,6 +127,7 @@ private final class StubInAppImporter: ScreenshotImportProcessing {
     private let outcome: ScreenshotImportOutcome?
     private let error: Error?
     private(set) var receivedImageDataList: [Data] = []
+    private(set) var receivedTranscriptItems: [String] = []
 
     init(outcome: ScreenshotImportOutcome? = nil, error: Error? = nil) {
         self.outcome = outcome
@@ -111,6 +139,17 @@ private final class StubInAppImporter: ScreenshotImportProcessing {
         traceID: ImportTraceID
     ) async throws -> ScreenshotImportOutcome {
         receivedImageDataList = imageDataList
+        if let error {
+            throw error
+        }
+        return outcome!
+    }
+
+    func process(
+        transcriptItems: [String],
+        traceID: ImportTraceID
+    ) async throws -> ScreenshotImportOutcome {
+        receivedTranscriptItems = transcriptItems
         if let error {
             throw error
         }

@@ -112,7 +112,10 @@ struct ZAIClient: AIProviderAdapter {
         var body: [String: Any] = [
             "model": model.rawValue,
             "messages": [
-                ["role": "system", "content": ChatScreenshotPrompt.instructions],
+                [
+                    "role": "system",
+                    "content": ChatScreenshotPrompt.instructions(for: analysisRequest)
+                ],
                 [
                     "role": "user",
                     "content": userContent
@@ -150,14 +153,16 @@ struct ZAIClient: AIProviderAdapter {
 
         let completion = try? decodeResponse(data)
         let choice = completion?.choices.first
-        ChatImportDebugLogger.rawResponse(
-            traceID: analysisRequest.traceID,
-            provider: region.providerID,
-            model: model.rawValue,
-            attempt: 1,
-            finishReason: choice?.finishReason,
-            content: choice?.message.content
-        )
+        if analysisRequest.sharedTranscript == nil {
+            ChatImportDebugLogger.rawResponse(
+                traceID: analysisRequest.traceID,
+                provider: region.providerID,
+                model: model.rawValue,
+                attempt: 1,
+                finishReason: choice?.finishReason,
+                content: choice?.message.content
+            )
+        }
         recordResponse(
             request: analysisRequest,
             model: model,
@@ -177,13 +182,15 @@ struct ZAIClient: AIProviderAdapter {
                 finishReason: choice.finishReason,
                 candidateIDs: candidateIDs
             )
-            ChatImportDebugLogger.normalized(
-                analysis,
-                traceID: analysisRequest.traceID,
-                provider: region.providerID,
-                model: model.rawValue,
-                attempt: 1
-            )
+            if analysisRequest.sharedTranscript == nil {
+                ChatImportDebugLogger.normalized(
+                    analysis,
+                    traceID: analysisRequest.traceID,
+                    provider: region.providerID,
+                    model: model.rawValue,
+                    attempt: 1
+                )
+            }
             return analysis
         } catch let failure as StructuredOutputFailure {
             eventReporter.record(

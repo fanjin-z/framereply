@@ -17,13 +17,57 @@ nonisolated struct ChatCandidateMessage: Codable, Equatable, Sendable {
     let timeLabel: String
 }
 
-nonisolated struct ChatScreenshotAnalysisRequest: Equatable, Sendable {
-    let imageDataList: [Data]
+nonisolated struct SharedTranscriptInput: Codable, Equatable, Sendable {
+    static let maximumCharacterCount = 8_000
+    static let maximumItemCount = 40
+    static let maximumEstimatedMessageCount = 25
+
+    let items: [String]
+
+    var characterCount: Int {
+        items.reduce(0) { $0 + $1.count }
+    }
+
+    var estimatedMessageCount: Int {
+        items.reduce(0) { count, item in
+            count + max(1, Self.estimatedHeaders(in: item))
+        }
+    }
+
+    private static func estimatedHeaders(in text: String) -> Int {
+        text.components(separatedBy: .newlines).reduce(0) { count, line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let looksBracketed = trimmed.hasPrefix("[") && trimmed.contains("]")
+                && trimmed.contains(":")
+            let looksDashed = trimmed.first?.isNumber == true && trimmed.contains(" - ")
+                && trimmed.contains(":")
+            return count + ((looksBracketed || looksDashed) ? 1 : 0)
+        }
+    }
+}
+
+nonisolated enum ChatImportPayload: Equatable, Sendable {
+    case screenshots([Data])
+    case sharedTranscript(SharedTranscriptInput)
+}
+
+nonisolated struct ChatImportAnalysisRequest: Equatable, Sendable {
+    let payload: ChatImportPayload
     let candidates: [ChatMatchCandidate]
     let traceID: ImportTraceID
 
+    var imageDataList: [Data] {
+        guard case .screenshots(let imageDataList) = payload else { return [] }
+        return imageDataList
+    }
+
     var imageData: Data {
         imageDataList.first ?? Data()
+    }
+
+    var sharedTranscript: SharedTranscriptInput? {
+        guard case .sharedTranscript(let transcript) = payload else { return nil }
+        return transcript
     }
 
     init(
@@ -39,11 +83,23 @@ nonisolated struct ChatScreenshotAnalysisRequest: Equatable, Sendable {
         candidates: [ChatMatchCandidate],
         traceID: ImportTraceID = ImportTraceID()
     ) {
-        self.imageDataList = imageDataList
+        payload = .screenshots(imageDataList)
+        self.candidates = candidates
+        self.traceID = traceID
+    }
+
+    init(
+        transcriptItems: [String],
+        candidates: [ChatMatchCandidate],
+        traceID: ImportTraceID = ImportTraceID()
+    ) {
+        payload = .sharedTranscript(SharedTranscriptInput(items: transcriptItems))
         self.candidates = candidates
         self.traceID = traceID
     }
 }
+
+typealias ChatScreenshotAnalysisRequest = ChatImportAnalysisRequest
 
 nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
     let conversationTitle: String?

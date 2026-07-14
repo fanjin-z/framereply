@@ -153,6 +153,187 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             ["Can we meet tomorrow?"]
         )
     }
+
+    @MainActor
+    func testCoordinatorProcessesCopiedMessagesAndRecordsSharedTextSource() async throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        try repository.seedIfNeeded()
+        let analysis = ChatImportAnalysis(
+            conversationTitle: nil,
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .unknown,
+                    senderName: "Alice",
+                    text: "Can we meet tomorrow?",
+                    timestampLabel: "07/13/26, 9:42 PM",
+                    outerAlignment: .unknown,
+                    outerAuthorLabel: "Alice",
+                    senderConfidence: 0,
+                    senderEvidence: .insufficient
+                )
+            ],
+            matchedChatID: nil,
+            matchConfidence: 0,
+            conversationKind: .direct,
+            titleSource: .unavailable,
+            ownershipConvention: .unobservable
+        )
+        let aiService = StubAnalysisService(analysis: analysis)
+        let coordinator = ScreenshotImportCoordinator(
+            aiService: aiService,
+            repository: repository
+        )
+        let transcriptItems = [
+            "[07/13/26, 9:42 PM] Alice: Can we meet tomorrow?",
+            "  "
+        ]
+
+        let outcome = try await coordinator.process(transcriptItems: transcriptItems)
+
+        XCTAssertEqual(
+            aiService.receivedTranscriptItems,
+            ["[07/13/26, 9:42 PM] Alice: Can we meet tomorrow?"]
+        )
+        XCTAssertTrue(aiService.receivedImageDataList.isEmpty)
+        XCTAssertTrue(outcome.reviewRequired)
+        XCTAssertEqual(
+            try repository.messages(chatID: outcome.chatID).map(\.text),
+            ["Can we meet tomorrow?"]
+        )
+        XCTAssertEqual(try repository.importRecord(id: outcome.importID)?.sourceApp, "shared_text")
+    }
+
+    @MainActor
+    func testScreenshotThenCopiedTextOnlyAddsGenuinelyNewMessages() async throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        try repository.seedIfNeeded()
+        container.mainContext.insert(
+            ChatRecord(
+                id: "cross-source-chat",
+                name: "Alice",
+                preview: "Existing conversation",
+                chipTitle: "General",
+                chipSymbol: "number",
+                avatarSymbol: nil,
+                initials: "A",
+                appearanceStyle: 0,
+                isUnread: false
+            )
+        )
+
+        func analysis(messages: [AnalyzedChatMessage]) -> ChatImportAnalysis {
+            ChatImportAnalysis(
+                conversationTitle: "Alice",
+                messages: messages,
+                matchedChatID: "cross-source-chat",
+                matchConfidence: 0.99,
+                titleSource: .header,
+                ownershipConvention: MessageOwnershipConvention(
+                    mode: .opposedAlignment,
+                    screenshotOwnerAlignment: .right,
+                    screenshotOwnerAuthorLabel: nil
+                )
+            )
+        }
+        let firstMessage = AnalyzedChatMessage(
+            sender: .otherParticipant,
+            senderName: "Alice",
+            text: "Are you free tomorrow?",
+            timestampLabel: "9:42 PM",
+            outerAlignment: .left,
+            senderConfidence: 0.95,
+            senderEvidence: .alignmentConvention
+        )
+        let secondMessage = AnalyzedChatMessage(
+            sender: .user,
+            senderName: nil,
+            text: "Yes, after six.",
+            timestampLabel: "9:43 PM",
+            outerAlignment: .right,
+            senderConfidence: 0.95,
+            senderEvidence: .alignmentConvention
+        )
+        let aiService = StubAnalysisService(analysis: analysis(messages: [firstMessage]))
+        let coordinator = ScreenshotImportCoordinator(
+            aiService: aiService,
+            repository: repository
+        )
+
+        let screenshotOutcome = try await coordinator.process(imageData: Data([1]))
+        aiService.analysis = analysis(messages: [firstMessage, secondMessage])
+        let textOutcome = try await coordinator.process(
+            transcriptItems: [
+                "[07/13/26, 9:42 PM] Alice: Are you free tomorrow?",
+                "[07/13/26, 9:43 PM] Me: Yes, after six."
+            ]
+        )
+
+        XCTAssertEqual(screenshotOutcome.insertedMessageCount, 1)
+        XCTAssertEqual(textOutcome.insertedMessageCount, 1)
+        XCTAssertEqual(
+            try repository.messages(chatID: "cross-source-chat").map(\.text),
+            ["Are you free tomorrow?", "Yes, after six."]
+        )
+        XCTAssertEqual(
+            try repository.importRecord(id: textOutcome.importID)?.sourceApp,
+            "shared_text"
+        )
+    }
+
+    @MainActor
+    func testCoordinatorRejectsEmptyAndOversizedCopiedMessagesBeforeProviderResolution() async throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let coordinator = ScreenshotImportCoordinator(
+            aiService: StubAnalysisService(
+                analysis: ChatImportAnalysis(
+                    conversationTitle: nil,
+                    messages: [],
+                    matchedChatID: nil,
+                    matchConfidence: 0,
+                    titleSource: .unavailable,
+                    ownershipConvention: .unobservable
+                )
+            ),
+            repository: ChatRepository(container: container)
+        )
+
+        do {
+            _ = try await coordinator.process(transcriptItems: [" \n "])
+            XCTFail("Expected noTranscript")
+        } catch let error as ScreenshotImportError {
+            XCTAssertEqual(error.code, "no_transcript")
+        }
+
+        do {
+            _ = try await coordinator.process(
+                transcriptItems: [String(repeating: "a", count: 8_001)]
+            )
+            XCTFail("Expected transcriptTooLarge")
+        } catch let error as ScreenshotImportError {
+            XCTAssertEqual(error.code, "transcript_too_large")
+        }
+
+        do {
+            _ = try await coordinator.process(
+                transcriptItems: Array(repeating: "message", count: 41)
+            )
+            XCTFail("Expected transcriptTooLarge")
+        } catch let error as ScreenshotImportError {
+            XCTAssertEqual(error.code, "transcript_too_large")
+        }
+
+        let combined = (1...26).map { index in
+            "[07/13/26, 9:\(String(format: "%02d", index)) PM] Alice: Message \(index)"
+        }.joined(separator: "\n")
+        do {
+            _ = try await coordinator.process(transcriptItems: [combined])
+            XCTFail("Expected transcriptTooLarge")
+        } catch let error as ScreenshotImportError {
+            XCTAssertEqual(error.code, "transcript_too_large")
+        }
+    }
 }
 
 private final class CoordinatorEventReporter: ImportEventReporting, @unchecked Sendable {
@@ -174,9 +355,10 @@ private final class CoordinatorEventReporter: ImportEventReporting, @unchecked S
 
 @MainActor
 private final class StubAnalysisService: AIServiceProviding {
-    let analysis: ChatImportAnalysis
+    var analysis: ChatImportAnalysis
     private(set) var receivedImageData: Data?
     private(set) var receivedImageDataList: [Data] = []
+    private(set) var receivedTranscriptItems: [String] = []
     private(set) var receivedContext: AIProviderExecutionContext?
 
     private let context = AIProviderExecutionContext(
@@ -209,6 +391,7 @@ private final class StubAnalysisService: AIServiceProviding {
     ) async throws -> ChatImportAnalysis {
         receivedImageData = request.imageData
         receivedImageDataList = request.imageDataList
+        receivedTranscriptItems = request.sharedTranscript?.items ?? []
         receivedContext = context
         return analysis
     }

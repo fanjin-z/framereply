@@ -3,30 +3,25 @@
 //  zeptly
 //
 
-import PhotosUI
 import SwiftUI
 
 struct ConversationUpdateControls: View {
-    @Binding var screenshotSelection: [PhotosPickerItem]
     let isImporting: Bool
     let hasReplyNote: Bool
+    let onAddMessagesTap: () -> Void
     let onReplyNoteTap: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
-            PhotosPicker(
-                selection: $screenshotSelection,
-                maxSelectionCount: 8,
-                matching: .images
-            ) {
+            Button(action: onAddMessagesTap) {
                 HStack(spacing: 9) {
                     if isImporting {
                         ProgressView()
                     } else {
-                        Image(systemName: "photo.on.rectangle.angled")
+                        Image(systemName: "text.below.photo")
                             .font(.system(size: 16, weight: .semibold))
                     }
-                    Text(isImporting ? "Importing…" : "Import Screenshots")
+                    Text(isImporting ? "Importing…" : "Add Messages")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .lineLimit(2)
                         .minimumScaleFactor(0.72)

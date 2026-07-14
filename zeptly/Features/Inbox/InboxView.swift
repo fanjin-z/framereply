@@ -13,6 +13,7 @@ struct InboxView: View {
     let onImportCompleted: (String) -> Void
     @State private var searchText = ""
     @State private var isReviewPresented = false
+    @State private var isImportSourcePresented = false
     @State private var chatPendingDeletion: Chat?
     @State private var isDeleteConfirmationPresented = false
     @State private var deleteErrorMessage: String?
@@ -68,9 +69,11 @@ struct InboxView: View {
 
                 InboxSearchImportRow(
                     searchText: $searchText,
-                    screenshotSelection: $selectedScreenshotItems,
                     isSearchActive: isActive,
-                    isImporting: importModel.isLoading
+                    isImporting: importModel.isLoading,
+                    onImportTap: {
+                        isImportSourcePresented = true
+                    }
                 )
                 .padding(.top, reviewCount > 0 ? 4 : 14)
 
@@ -97,9 +100,11 @@ struct InboxView: View {
                             in: .whitespacesAndNewlines
                         ).isEmpty
                         if chatRecords.isEmpty && isSearchEmpty {
-                            EmptyImportScreenshotsPicker(
-                                selection: $selectedScreenshotItems,
-                                isLoading: importModel.isLoading
+                            EmptyImportPrompt(
+                                isLoading: importModel.isLoading,
+                                onImportTap: {
+                                    isImportSourcePresented = true
+                                }
                             )
                         } else {
                             EmptySearchState()
@@ -116,6 +121,16 @@ struct InboxView: View {
         .scrollIndicators(.hidden)
         .sheet(isPresented: $isReviewPresented) {
             ChatImportReviewSheet()
+        }
+        .sheet(isPresented: $isImportSourcePresented) {
+            ChatImportSourceSheet(
+                screenshotSelection: $selectedScreenshotItems,
+                onPaste: { items in
+                    Task {
+                        await importCopiedMessages(items)
+                    }
+                }
+            )
         }
         .confirmationDialog(
             "Delete chat with \(chatPendingDeletion?.name ?? "this person")?",
@@ -137,6 +152,9 @@ struct InboxView: View {
             Text(deleteErrorMessage ?? "Try again.")
         }
         .onChange(of: selectedScreenshotItems) { _, items in
+            if !items.isEmpty {
+                isImportSourcePresented = false
+            }
             Task {
                 await importSelectedScreenshots(items)
             }
@@ -192,6 +210,15 @@ struct InboxView: View {
             }
         } catch {
             photoLoadErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func importCopiedMessages(_ items: [String]) async {
+        guard !items.isEmpty else { return }
+        photoLoadErrorMessage = nil
+
+        if let result = await importModel.importCopiedMessages(items) {
+            onImportCompleted(result.chatID)
         }
     }
 
@@ -282,20 +309,16 @@ private struct InboxImportReviewNudge: View {
 
 private struct InboxSearchImportRow: View {
     @Binding var searchText: String
-    @Binding var screenshotSelection: [PhotosPickerItem]
     let isSearchActive: Bool
     let isImporting: Bool
+    let onImportTap: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
             SearchField(text: $searchText, isActive: isSearchActive)
                 .frame(maxWidth: .infinity)
 
-            PhotosPicker(
-                selection: $screenshotSelection,
-                maxSelectionCount: 8,
-                matching: .images
-            ) {
+            Button(action: onImportTap) {
                 ZStack {
                     Circle()
                         .fill(RezplyColor.primary)
@@ -310,7 +333,7 @@ private struct InboxSearchImportRow: View {
                         ProgressView()
                             .tint(.white)
                     } else {
-                        Image(systemName: "photo.badge.plus")
+                        Image(systemName: "text.below.photo")
                             .font(.system(size: 18, weight: .bold))
                             .foregroundStyle(.white)
                     }
@@ -319,30 +342,14 @@ private struct InboxSearchImportRow: View {
             }
             .buttonStyle(.plain)
             .disabled(isImporting)
-            .accessibilityLabel("Import screenshots")
+            .accessibilityLabel("Add messages")
         }
-    }
-}
-
-private struct EmptyImportScreenshotsPicker: View {
-    @Binding var selection: [PhotosPickerItem]
-    let isLoading: Bool
-
-    var body: some View {
-        PhotosPicker(
-            selection: $selection,
-            maxSelectionCount: 8,
-            matching: .images
-        ) {
-            EmptyImportPrompt(isLoading: isLoading)
-        }
-        .buttonStyle(.plain)
-        .disabled(isLoading)
     }
 }
 
 private struct EmptyImportPrompt: View {
     let isLoading: Bool
+    let onImportTap: () -> Void
 
     var body: some View {
         VStack(spacing: 18) {
@@ -354,38 +361,42 @@ private struct EmptyImportPrompt: View {
                 .font(.system(size: 17, weight: .bold, design: .rounded))
                 .foregroundStyle(RezplyColor.onSurface)
 
-            HStack(spacing: 9) {
-                if isLoading {
-                    ProgressView()
-                        .tint(.white)
-                } else {
-                    Image(systemName: "photo.badge.plus")
-                        .font(.system(size: 15, weight: .bold))
-                }
+            Button(action: onImportTap) {
+                HStack(spacing: 9) {
+                    if isLoading {
+                        ProgressView()
+                            .tint(.white)
+                    } else {
+                        Image(systemName: "text.below.photo")
+                            .font(.system(size: 15, weight: .bold))
+                    }
 
-                Text(isLoading ? "Importing Screenshots" : "Import Screenshots")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.76)
+                    Text(isLoading ? "Importing Messages" : "Add Messages")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.76)
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 18)
+                .frame(height: 46)
+                .background {
+                    Capsule(style: .continuous)
+                        .fill(RezplyColor.primary)
+                        .shadow(
+                            color: RezplyColor.primaryContainer.opacity(0.28),
+                            radius: 16,
+                            x: 0,
+                            y: 9
+                        )
+                }
             }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 18)
-            .frame(height: 46)
-            .background {
-                Capsule(style: .continuous)
-                    .fill(RezplyColor.primary)
-                    .shadow(
-                        color: RezplyColor.primaryContainer.opacity(0.28),
-                        radius: 16,
-                        x: 0,
-                        y: 9
-                    )
-            }
+            .buttonStyle(.plain)
+            .disabled(isLoading)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 34)
         .glassPanel(cornerRadius: 26)
-        .accessibilityLabel("Import screenshots")
+        .accessibilityLabel("Add messages")
     }
 }
 

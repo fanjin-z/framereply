@@ -7,6 +7,8 @@ import Foundation
 
 enum ScreenshotImportError: LocalizedError {
     case noImage
+    case noTranscript
+    case transcriptTooLarge
     case noActiveProvider
     case missingAPIKey
     case unsupportedProvider
@@ -15,12 +17,16 @@ enum ScreenshotImportError: LocalizedError {
         switch self {
         case .noImage:
             "Select at least one screenshot to import."
+        case .noTranscript:
+            "Copy at least one text message before importing."
+        case .transcriptTooLarge:
+            "The copied transcript is too large. Select fewer messages and try again."
         case .noActiveProvider:
-            "Connect and select a model provider before importing a screenshot."
+            "Connect and select a model provider before importing messages."
         case .missingAPIKey:
             "The selected provider API key is unavailable. Reconnect it in Settings."
         case .unsupportedProvider:
-            "The selected provider cannot analyze chat screenshots."
+            "The selected provider cannot analyze chat imports."
         }
     }
 
@@ -28,6 +34,10 @@ enum ScreenshotImportError: LocalizedError {
         switch self {
         case .noImage:
             "no_image"
+        case .noTranscript:
+            "no_transcript"
+        case .transcriptTooLarge:
+            "transcript_too_large"
         case .noActiveProvider:
             "no_provider"
         case .missingAPIKey:
@@ -89,8 +99,45 @@ final class ScreenshotImportCoordinator {
         imageDataList: [Data],
         traceID: ImportTraceID = ImportTraceID()
     ) async throws -> ScreenshotImportOutcome {
+        try await process(payload: .screenshots(imageDataList), traceID: traceID)
+    }
+
+    func process(
+        transcriptItems: [String],
+        traceID: ImportTraceID = ImportTraceID()
+    ) async throws -> ScreenshotImportOutcome {
+        let items = transcriptItems.filter {
+            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        guard !items.isEmpty else {
+            eventReporter.record(
+                .importFailed(traceID: traceID, stage: .shortcut, errorCode: "no_transcript")
+            )
+            throw ScreenshotImportError.noTranscript
+        }
+        let transcript = SharedTranscriptInput(items: items)
+        guard transcript.characterCount <= SharedTranscriptInput.maximumCharacterCount,
+            transcript.items.count <= SharedTranscriptInput.maximumItemCount,
+            transcript.estimatedMessageCount <= SharedTranscriptInput.maximumEstimatedMessageCount
+        else {
+            eventReporter.record(
+                .importFailed(
+                    traceID: traceID,
+                    stage: .shortcut,
+                    errorCode: "transcript_too_large"
+                )
+            )
+            throw ScreenshotImportError.transcriptTooLarge
+        }
+        return try await process(payload: .sharedTranscript(transcript), traceID: traceID)
+    }
+
+    private func process(
+        payload: ChatImportPayload,
+        traceID: ImportTraceID
+    ) async throws -> ScreenshotImportOutcome {
         eventReporter.record(.stageStarted(traceID: traceID, stage: .shortcut))
-        guard !imageDataList.isEmpty else {
+        if case .screenshots(let imageDataList) = payload, imageDataList.isEmpty {
             eventReporter.record(
                 .importFailed(traceID: traceID, stage: .shortcut, errorCode: "no_image")
             )
@@ -109,11 +156,21 @@ final class ScreenshotImportCoordinator {
 
         try repository.seedIfNeeded()
         let candidates = try repository.matchCandidates()
-        let request = ChatScreenshotAnalysisRequest(
-            imageDataList: imageDataList,
-            candidates: candidates,
-            traceID: traceID
-        )
+        let request: ChatImportAnalysisRequest
+        switch payload {
+        case .screenshots(let imageDataList):
+            request = ChatImportAnalysisRequest(
+                imageDataList: imageDataList,
+                candidates: candidates,
+                traceID: traceID
+            )
+        case .sharedTranscript(let transcript):
+            request = ChatImportAnalysisRequest(
+                transcriptItems: transcript.items,
+                candidates: candidates,
+                traceID: traceID
+            )
+        }
         eventReporter.record(.stageStarted(traceID: traceID, stage: .provider))
         let analysis: ChatImportAnalysis
         do {
@@ -167,10 +224,16 @@ final class ScreenshotImportCoordinator {
         }
 
         eventReporter.record(.stageStarted(traceID: traceID, stage: .matching))
-        let avatarArtifact = AvatarIdentityService.extract(
-            from: request.imageData,
-            bounds: analysis.avatarBounds
-        )
+        let avatarArtifact: AvatarArtifact?
+        switch payload {
+        case .screenshots:
+            avatarArtifact = AvatarIdentityService.extract(
+                from: request.imageData,
+                bounds: analysis.avatarBounds
+            )
+        case .sharedTranscript:
+            avatarArtifact = nil
+        }
         let matchDecision = ChatImportMatcher.decision(
             analysis: analysis,
             candidates: candidates,
@@ -187,6 +250,7 @@ final class ScreenshotImportCoordinator {
                 avatarArtifact: avatarArtifact,
                 provider: providerContext.platform,
                 model: providerContext.effectiveModel,
+                sourceApp: request.sharedTranscript == nil ? nil : "shared_text",
                 traceID: traceID
             )
             eventReporter.record(
