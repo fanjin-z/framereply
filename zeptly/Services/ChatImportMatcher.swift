@@ -13,6 +13,7 @@ enum AvatarEvidenceLevel: String, Equatable, Sendable {
 
 enum ChatMatchReason: String, Equatable, Sendable {
     case confirmedDisplayName = "confirmed_display_name"
+    case confirmedParticipantAlias = "confirmed_participant_alias"
     case confirmedAvatar = "confirmed_avatar"
     case confirmedTranscript = "confirmed_transcript"
     case lowAIConfidence = "low_ai_confidence"
@@ -89,42 +90,55 @@ enum ChatImportMatcher {
 
         let normalizedTitle = MessageTextNormalizer.normalize(analysis.conversationTitle ?? "")
         let normalizedCandidate = MessageTextNormalizer.normalize(candidate.name)
-        let titleWasObserved = analysis.titleSource == .header && !normalizedTitle.isEmpty
-        let exactName = titleWasObserved && normalizedTitle == normalizedCandidate
-        let sameNameCandidates = candidates.filter {
-            MessageTextNormalizer.normalize($0.name) == normalizedTitle
+        let titleWasObserved =
+            (analysis.titleSource == .header || analysis.titleSource == .participantLabel)
+            && !normalizedTitle.isEmpty
+        let exactDisplayName = titleWasObserved && normalizedTitle == normalizedCandidate
+        let exactIdentityLabel =
+            titleWasObserved && candidate.identityLabelKeys.contains(normalizedTitle)
+        let sameLabelCandidates = candidates.filter {
+            $0.identityLabelKeys.contains(normalizedTitle)
         }
 
-        if titleWasObserved, analysis.conversationKind == .direct, !exactName {
-            guard avatarEvidence == .strong else {
-                return review(
+        if titleWasObserved, analysis.conversationKind == .direct, !exactIdentityLabel {
+            if avatarEvidence == .strong {
+                return confirmed(
                     analysis,
-                    suggestedID: proposedID,
+                    chatID: proposedID,
                     avatarEvidence: avatarEvidence,
                     transcriptEvidence: transcript,
-                    reason: .displayNameConflict
+                    reason: .confirmedAvatar
                 )
             }
+            if transcript == .strong {
+                return confirmed(
+                    analysis,
+                    chatID: proposedID,
+                    avatarEvidence: avatarEvidence,
+                    transcriptEvidence: transcript,
+                    reason: .confirmedTranscript
+                )
+            }
+            return review(
+                analysis,
+                suggestedID: proposedID,
+                avatarEvidence: avatarEvidence,
+                transcriptEvidence: transcript,
+                reason: .displayNameConflict
+            )
+        }
+
+        if exactIdentityLabel, sameLabelCandidates.count == 1 {
             return confirmed(
                 analysis,
                 chatID: proposedID,
                 avatarEvidence: avatarEvidence,
                 transcriptEvidence: transcript,
-                reason: .confirmedAvatar
+                reason: exactDisplayName ? .confirmedDisplayName : .confirmedParticipantAlias
             )
         }
 
-        if exactName, sameNameCandidates.count == 1 {
-            return confirmed(
-                analysis,
-                chatID: proposedID,
-                avatarEvidence: avatarEvidence,
-                transcriptEvidence: transcript,
-                reason: .confirmedDisplayName
-            )
-        }
-
-        if exactName, sameNameCandidates.count > 1 {
+        if exactIdentityLabel, sameLabelCandidates.count > 1 {
             if avatarEvidence == .strong {
                 return confirmed(
                     analysis,
@@ -254,5 +268,11 @@ enum ChatImportMatcher {
             transcriptEvidence: transcriptEvidence,
             reason: reason
         )
+    }
+}
+
+private extension ChatMatchCandidate {
+    var identityLabelKeys: Set<String> {
+        Set(([name] + participantAliases).map(MessageTextNormalizer.normalize))
     }
 }

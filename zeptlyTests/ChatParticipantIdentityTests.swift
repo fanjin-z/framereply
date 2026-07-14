@@ -41,6 +41,16 @@ final class ChatParticipantIdentityTests: XCTestCase {
             [
                 "Test User"
             ])
+        let recognizedParticipantLabels =
+            [chat.name] + (try repository.participantAliases(chatID: chat.id).map(\.displayLabel))
+        XCTAssertEqual(
+            Set(recognizedParticipantLabels.compactMap(ChatParticipantAlias.normalizedKey)),
+            ["sample contact"]
+        )
+        XCTAssertFalse(
+            recognizedParticipantLabels.compactMap(ChatParticipantAlias.normalizedKey)
+                .contains("test user")
+        )
     }
 
     func testInverseCopiedTranscriptSelectionRenamesChatToOtherAuthor() throws {
@@ -223,6 +233,59 @@ final class ChatParticipantIdentityTests: XCTestCase {
         XCTAssertNil(try repository.chat(id: provisional.chatID))
     }
 
+    func testManualMergeUnionsParticipantAliasesAndLearnsProvisionalName() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let target = ChatRecord(
+            id: "merge-target",
+            name: "Sarah Jenkins",
+            preview: "",
+            chipTitle: "General",
+            chipSymbol: "number",
+            avatarSymbol: nil,
+            initials: "SJ",
+            appearanceStyle: 0,
+            isUnread: false,
+            conversationKind: .direct
+        )
+        container.mainContext.insert(target)
+        try container.mainContext.save()
+        try repository.addParticipantAlias(chatID: target.id, label: "Sarah J.")
+
+        let provisional = try repository.applyImport(
+            analysis: ChatImportAnalysis(
+                conversationTitle: "@sarah_work",
+                messages: [
+                    AnalyzedChatMessage(
+                        sender: .otherParticipant,
+                        senderName: "@sarah_work",
+                        text: "Message from the renamed account",
+                        timestampLabel: nil
+                    )
+                ],
+                matchedChatID: nil,
+                matchConfidence: 0,
+                conversationKind: .direct,
+                titleSource: .header
+            ),
+            confirmedChatID: nil,
+            provider: .openAI,
+            model: .gpt56Luna
+        )
+        try repository.addParticipantAlias(
+            chatID: provisional.chatID,
+            label: "Sarah Chen"
+        )
+
+        try repository.mergeProvisionalChat(provisional.chatID, into: target.id)
+
+        XCTAssertEqual(
+            Set(try repository.participantAliases(chatID: target.id).map(\.normalizedLabel)),
+            ["sarah j.", "sarah chen", "@sarah_work"]
+        )
+        XCTAssertNil(try repository.chatContext(chatID: provisional.chatID))
+    }
+
     func testAliasesNormalizeForgetAndDeleteWithChat() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
@@ -259,6 +322,191 @@ final class ChatParticipantIdentityTests: XCTestCase {
         try container.mainContext.save()
         try repository.deleteChat(id: first.chatID)
         XCTAssertTrue(try repository.selfAliases(chatID: first.chatID).isEmpty)
+    }
+
+    func testParticipantAliasJSONRoundTripsAndLegacyRecordDefaultsEmpty() throws {
+        let legacy = ChatContextRecord(
+            chatID: "legacy-chat",
+            currentInteractionGoal: "",
+            personaID: UUID()
+        )
+        XCTAssertNil(legacy.participantAliasesJSON)
+        XCTAssertTrue(legacy.participantAliases.isEmpty)
+
+        let alias = ChatParticipantAlias(
+            id: UUID(),
+            displayLabel: "@alex_92",
+            createdAt: Date(timeIntervalSince1970: 123)
+        )
+        legacy.participantAliases = [alias]
+
+        XCTAssertNotNil(legacy.participantAliasesJSON)
+        XCTAssertEqual(legacy.participantAliases, [alias])
+    }
+
+    func testParticipantNamesRoundTripDeduplicateRenamePromoteAndRemove() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chat = ChatRecord(
+            id: "participant-names",
+            name: "Sarah Jenkins",
+            preview: "",
+            chipTitle: "General",
+            chipSymbol: "number",
+            avatarSymbol: nil,
+            initials: "SJ",
+            appearanceStyle: 0,
+            isUnread: false,
+            conversationKind: .direct
+        )
+        container.mainContext.insert(chat)
+        try container.mainContext.save()
+
+        XCTAssertThrowsError(
+            try repository.updateParticipantNames(
+                chatID: chat.id,
+                displayName: "   ",
+                aliases: []
+            )
+        ) { error in
+            XCTAssertEqual(error as? ChatParticipantNameError, .emptyDisplayName)
+        }
+
+        XCTAssertTrue(try repository.participantAliases(chatID: chat.id).isEmpty)
+        XCTAssertTrue(
+            try repository.addParticipantAlias(
+                chatID: chat.id,
+                label: "  Café   Sarah "
+            )
+        )
+        XCTAssertFalse(
+            try repository.addParticipantAlias(
+                chatID: chat.id,
+                label: "cafe sarah"
+            )
+        )
+
+        try repository.updateParticipantNames(
+            chatID: chat.id,
+            displayName: "Sarah Chen",
+            aliases: try repository.participantAliases(chatID: chat.id) + [
+                ChatParticipantAlias(displayLabel: "Imported Chat")
+            ]
+        )
+
+        XCTAssertEqual(try repository.chat(id: chat.id)?.name, "Sarah Chen")
+        var aliases = try repository.participantAliases(chatID: chat.id)
+        XCTAssertEqual(Set(aliases.map(\.normalizedLabel)), ["cafe sarah", "sarah jenkins"])
+        XCTAssertEqual(
+            aliases.first(where: { $0.normalizedLabel == "cafe sarah" })?.displayLabel,
+            "Café Sarah"
+        )
+
+        let promoted = try XCTUnwrap(
+            aliases.first(where: { $0.normalizedLabel == "cafe sarah" })
+        )
+        try repository.promoteParticipantAlias(chatID: chat.id, aliasID: promoted.id)
+
+        XCTAssertEqual(try repository.chat(id: chat.id)?.name, "Café Sarah")
+        aliases = try repository.participantAliases(chatID: chat.id)
+        XCTAssertTrue(aliases.contains(where: { $0.normalizedLabel == "sarah chen" }))
+        let removable = try XCTUnwrap(
+            aliases.first(where: { $0.normalizedLabel == "sarah jenkins" })
+        )
+        XCTAssertTrue(
+            try repository.removeParticipantAlias(chatID: chat.id, aliasID: removable.id)
+        )
+        XCTAssertFalse(
+            try repository.participantAliases(chatID: chat.id)
+                .contains(where: { $0.id == removable.id })
+        )
+        XCTAssertNotNil(try repository.chatContext(chatID: chat.id)?.participantAliasesJSON)
+    }
+
+    func testConfirmedExistingImportLearnsChangedNameButReviewDoesNot() throws {
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chat = ChatRecord(
+            id: "known-participant",
+            name: "Old Name",
+            preview: "",
+            chipTitle: "General",
+            chipSymbol: "number",
+            avatarSymbol: nil,
+            initials: "ON",
+            appearanceStyle: 0,
+            isUnread: false,
+            conversationKind: .direct
+        )
+        container.mainContext.insert(chat)
+        try container.mainContext.save()
+
+        let confirmedAnalysis = ChatImportAnalysis(
+            conversationTitle: "New Name",
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .otherParticipant,
+                    senderName: "New Name",
+                    text: "A confirmed message",
+                    timestampLabel: nil
+                )
+            ],
+            matchedChatID: chat.id,
+            matchConfidence: 0.98,
+            conversationKind: .direct,
+            titleSource: .header
+        )
+        let confirmedDecision = ChatMatchDecision(
+            disposition: .confirmed,
+            confirmedChatID: chat.id,
+            suggestedChatID: chat.id,
+            aiConfidence: 0.98,
+            avatarEvidence: .strong,
+            transcriptEvidence: .none,
+            reason: .confirmedAvatar
+        )
+        _ = try repository.applyImport(
+            analysis: confirmedAnalysis,
+            confirmedChatID: chat.id,
+            matchDecision: confirmedDecision,
+            provider: .openAI,
+            model: .gpt56Luna
+        )
+
+        XCTAssertEqual(
+            try repository.participantAliases(chatID: chat.id).map(\.normalizedLabel),
+            ["new name"]
+        )
+
+        let reviewAnalysis = ChatImportAnalysis(
+            conversationTitle: "Untrusted Name",
+            messages: [],
+            matchedChatID: chat.id,
+            matchConfidence: 0.7,
+            conversationKind: .direct,
+            titleSource: .header
+        )
+        let reviewDecision = ChatMatchDecision(
+            disposition: .review,
+            confirmedChatID: nil,
+            suggestedChatID: chat.id,
+            aiConfidence: 0.7,
+            avatarEvidence: .none,
+            transcriptEvidence: .none,
+            reason: .lowAIConfidence
+        )
+        _ = try repository.applyImport(
+            analysis: reviewAnalysis,
+            confirmedChatID: chat.id,
+            matchDecision: reviewDecision,
+            provider: .openAI,
+            model: .gpt56Luna
+        )
+
+        XCTAssertFalse(
+            try repository.participantAliases(chatID: chat.id)
+                .contains(where: { $0.normalizedLabel == "untrusted name" })
+        )
     }
 
     private func copiedTranscriptAnalysis() -> ChatImportAnalysis {

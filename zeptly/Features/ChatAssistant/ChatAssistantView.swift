@@ -34,6 +34,7 @@ struct ChatAssistantView: View {
     @Query private var chatMemoryRecords: [ChatMemoryRecord]
     @Query private var suggestedReplyCacheRecords: [SuggestedReplyCacheRecord]
     @Query private var mergeCandidateRecords: [ChatRecord]
+    @Query private var mergeCandidateContextRecords: [ChatContextRecord]
     @StateObject private var suggestedRepliesModel: SuggestedRepliesViewModel
     @StateObject private var importModel: InAppScreenshotImportViewModel
 
@@ -68,6 +69,9 @@ struct ChatAssistantView: View {
         _mergeCandidateRecords = Query(
             filter: #Predicate<ChatRecord> { $0.id != chatID },
             sort: \ChatRecord.name
+        )
+        _mergeCandidateContextRecords = Query(
+            filter: #Predicate<ChatContextRecord> { $0.chatID != chatID }
         )
         _suggestedRepliesModel = StateObject(
             wrappedValue: SuggestedRepliesViewModel(
@@ -114,6 +118,20 @@ struct ChatAssistantView: View {
 
     private var mergeCandidates: [ChatRecord] {
         mergeCandidateRecords.filter { !$0.requiresImportIdentityReview }
+    }
+
+    private func mergeCandidateLabel(_ candidate: ChatRecord) -> String {
+        guard let alias = mergeCandidateContextRecords
+            .first(where: { $0.chatID == candidate.id })?
+            .participantAliases
+            .first(where: {
+                ChatParticipantAlias.normalizedKey($0.displayLabel)
+                    != ChatParticipantAlias.normalizedKey(candidate.name)
+            })
+        else {
+            return candidate.name
+        }
+        return "\(candidate.name) — also \(alias.displayLabel)"
     }
 
     private var shouldShowImportReviewCard: Bool {
@@ -283,7 +301,7 @@ struct ChatAssistantView: View {
             titleVisibility: .visible
         ) {
             ForEach(mergeCandidates) { candidate in
-                Button("Merge Into \(candidate.name)") {
+                Button("Merge Into \(mergeCandidateLabel(candidate))") {
                     mergeChat(into: candidate.id)
                 }
             }

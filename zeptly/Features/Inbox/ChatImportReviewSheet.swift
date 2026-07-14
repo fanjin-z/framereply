@@ -9,6 +9,7 @@ import SwiftUI
 struct ChatImportReviewSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Query private var allChats: [ChatRecord]
+    @Query private var allChatContexts: [ChatContextRecord]
     @Query private var unknownSenderMessages: [ChatMessageRecord]
     @State private var errorMessage: String?
     @State private var individuallyReviewedChatIDs: Set<String> = []
@@ -34,6 +35,7 @@ struct ChatImportReviewSheet: View {
             )
         }
         _allChats = Query()
+        _allChatContexts = Query()
     }
 
     private var provisionalChats: [ChatRecord] {
@@ -105,6 +107,7 @@ struct ChatImportReviewSheet: View {
                                     ImportReviewCard(
                                         chat: chat,
                                         mergeCandidates: confirmedChats,
+                                        mergeLabel: mergeCandidateLabel,
                                         onConfirm: confirm,
                                         onMerge: merge
                                     )
@@ -224,6 +227,20 @@ struct ChatImportReviewSheet: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func mergeCandidateLabel(_ candidate: ChatRecord) -> String {
+        guard let alias = allChatContexts
+            .first(where: { $0.chatID == candidate.id })?
+            .participantAliases
+            .first(where: {
+                ChatParticipantAlias.normalizedKey($0.displayLabel)
+                    != ChatParticipantAlias.normalizedKey(candidate.name)
+            })
+        else {
+            return candidate.name
+        }
+        return "\(candidate.name) — also \(alias.displayLabel)"
     }
 
     private func resolveSender(
@@ -422,6 +439,7 @@ private struct ParticipantIdentityReviewCard: View {
 private struct ImportReviewCard: View {
     let chat: ChatRecord
     let mergeCandidates: [ChatRecord]
+    let mergeLabel: (ChatRecord) -> String
     let onConfirm: (String, String) -> Void
     let onMerge: (String, String) -> Void
 
@@ -430,11 +448,13 @@ private struct ImportReviewCard: View {
     init(
         chat: ChatRecord,
         mergeCandidates: [ChatRecord],
+        mergeLabel: @escaping (ChatRecord) -> String,
         onConfirm: @escaping (String, String) -> Void,
         onMerge: @escaping (String, String) -> Void
     ) {
         self.chat = chat
         self.mergeCandidates = mergeCandidates
+        self.mergeLabel = mergeLabel
         self.onConfirm = onConfirm
         self.onMerge = onMerge
         _name = State(initialValue: chat.name)
@@ -488,7 +508,7 @@ private struct ImportReviewCard: View {
                 if !mergeCandidates.isEmpty {
                     Menu {
                         ForEach(mergeCandidates) { candidate in
-                            Button(candidate.name) {
+                            Button(mergeLabel(candidate)) {
                                 onMerge(chat.id, candidate.id)
                             }
                         }

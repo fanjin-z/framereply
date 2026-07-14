@@ -646,6 +646,10 @@ final class ChatPersistenceTests: XCTestCase {
             try repository.messages(chatID: "known-chat").first?.senderKind,
             "other_participant"
         )
+        XCTAssertEqual(
+            try repository.participantAliases(chatID: "known-chat").map(\.normalizedLabel),
+            ["alex"]
+        )
         XCTAssertFalse(importBefore.requiresReview)
         XCTAssertNotEqual(importBefore.transcriptFingerprint, fingerprintBefore)
     }

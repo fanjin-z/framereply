@@ -5,6 +5,43 @@
 
 import Foundation
 
+nonisolated struct ChatParticipantAlias: Identifiable, Codable, Equatable, Sendable {
+    let id: UUID
+    var displayLabel: String
+    var createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        displayLabel: String,
+        createdAt: Date = Date()
+    ) {
+        self.id = id
+        self.displayLabel = displayLabel
+        self.createdAt = createdAt
+    }
+
+    var normalizedLabel: String {
+        Self.normalizedKey(displayLabel) ?? ""
+    }
+
+    static func displayLabel(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let collapsed =
+            value
+            .precomposedStringWithCanonicalMapping
+            .split(whereSeparator: \Character.isWhitespace)
+            .joined(separator: " ")
+        return collapsed.isEmpty ? nil : collapsed
+    }
+
+    static func normalizedKey(_ value: String?) -> String? {
+        guard let displayLabel = displayLabel(value) else { return nil }
+        return displayLabel
+            .precomposedStringWithCompatibilityMapping
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+    }
+}
+
 nonisolated enum ChatMemoryOrigin: String, Codable, Equatable, Sendable {
     case user
     case ai
@@ -57,13 +94,15 @@ struct ChatContext: Equatable {
     var currentInteractionGoal: String
     var personaID: UUID
     var personaAssignedAt: Date
+    var participantAliases: [ChatParticipantAlias] = []
 
     static func empty(personaID: UUID) -> ChatContext {
         ChatContext(
             chatMemories: [],
             currentInteractionGoal: "",
             personaID: personaID,
-            personaAssignedAt: Date()
+            personaAssignedAt: Date(),
+            participantAliases: []
         )
     }
 }

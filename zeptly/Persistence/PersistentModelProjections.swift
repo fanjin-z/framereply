@@ -61,7 +61,8 @@ extension ChatContextRecord {
             chatMemories: chatMemories,
             currentInteractionGoal: currentInteractionGoal,
             personaID: personaID,
-            personaAssignedAt: personaAssignedAt
+            personaAssignedAt: personaAssignedAt,
+            participantAliases: participantAliases
         )
     }
 
@@ -69,6 +70,7 @@ extension ChatContextRecord {
         currentInteractionGoal = value.currentInteractionGoal
         personaID = value.personaID
         personaAssignedAt = value.personaAssignedAt
+        participantAliases = value.participantAliases
     }
 }
 

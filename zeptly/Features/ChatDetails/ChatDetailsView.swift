@@ -12,11 +12,13 @@ struct ChatDetailsView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Query private var chatRecords: [ChatRecord]
+    @Query private var chatContextRecords: [ChatContextRecord]
     @Query private var selfAliasRecords: [ChatSelfAliasRecord]
     @Query private var memoryRecords: [ChatMemoryRecord]
     @Query private var replyCaches: [SuggestedReplyCacheRecord]
     @State private var isRenamePresented = false
     @State private var renameDraft = ""
+    @State private var isEditNamesPresented = false
     @State private var isDeleteConfirmationPresented = false
     @State private var isForgetIdentityConfirmationPresented = false
     @State private var errorMessage: String?
@@ -26,6 +28,9 @@ struct ChatDetailsView: View {
         self.onDeleted = onDeleted
         let chatID = chat.id
         _chatRecords = Query(filter: #Predicate<ChatRecord> { $0.id == chatID })
+        _chatContextRecords = Query(
+            filter: #Predicate<ChatContextRecord> { $0.chatID == chatID }
+        )
         _selfAliasRecords = Query(
             filter: #Predicate<ChatSelfAliasRecord> { $0.chatID == chatID },
             sort: \ChatSelfAliasRecord.createdAt
@@ -45,6 +50,14 @@ struct ChatDetailsView: View {
 
     private var rationale: String {
         replyCaches.first?.strategyRationale.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    private var isDirectChat: Bool {
+        chatRecords.first?.conversationKind == .direct
+    }
+
+    private var participantAliases: [ChatParticipantAlias] {
+        chatContextRecords.first?.participantAliases ?? []
     }
 
     var body: some View {
@@ -70,9 +83,13 @@ struct ChatDetailsView: View {
                                 .foregroundStyle(RezplyColor.onSurface)
                                 .lineLimit(2)
 
-                            Button("Rename Chat") {
-                                renameDraft = displayedChat.name
-                                isRenamePresented = true
+                            Button(isDirectChat ? "Edit Names" : "Rename Chat") {
+                                if isDirectChat {
+                                    isEditNamesPresented = true
+                                } else {
+                                    renameDraft = displayedChat.name
+                                    isRenamePresented = true
+                                }
                             }
                             .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundStyle(RezplyColor.primary)
@@ -153,6 +170,13 @@ struct ChatDetailsView: View {
         .interactiveSwipeBackEnabled()
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $isEditNamesPresented) {
+            EditParticipantNamesSheet(
+                chatID: chat.id,
+                displayName: displayedChat.name,
+                aliases: participantAliases
+            )
+        }
         .alert("Rename Chat", isPresented: $isRenamePresented) {
             TextField("Chat name", text: $renameDraft)
             Button("Save", action: renameChat)
@@ -231,6 +255,143 @@ struct ChatDetailsView: View {
     private func forgetImportedIdentity() {
         do {
             try ChatRepository().forgetImportedSelfLabels(chatID: chat.id)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private var errorBinding: Binding<Bool> {
+        Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )
+    }
+}
+
+private struct EditParticipantNamesSheet: View {
+    let chatID: String
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var displayName: String
+    @State private var aliases: [ChatParticipantAlias]
+    @State private var newAlias = ""
+    @State private var errorMessage: String?
+
+    init(chatID: String, displayName: String, aliases: [ChatParticipantAlias]) {
+        self.chatID = chatID
+        _displayName = State(initialValue: displayName)
+        _aliases = State(initialValue: aliases)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Display name", text: $displayName)
+                        .textInputAutocapitalization(.words)
+                        .submitLabel(.done)
+                } header: {
+                    Text("Display name")
+                } footer: {
+                    Text("This is the name shown throughout Zeptly.")
+                }
+
+                Section {
+                    ForEach(aliases) { alias in
+                        HStack(spacing: 12) {
+                            Text(alias.displayLabel)
+                                .foregroundStyle(RezplyColor.onSurface)
+
+                            Spacer()
+
+                            Menu {
+                                Button("Use as Display Name") {
+                                    promote(alias)
+                                }
+                                Button("Remove Name", role: .destructive) {
+                                    aliases.removeAll { $0.id == alias.id }
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis.circle")
+                                    .foregroundStyle(RezplyColor.primary)
+                            }
+                            .accessibilityLabel("Options for \(alias.displayLabel)")
+                        }
+                    }
+
+                    HStack(spacing: 10) {
+                        TextField("Name or username", text: $newAlias)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .submitLabel(.done)
+                            .onSubmit(addAlias)
+
+                        Button("Add", action: addAlias)
+                            .disabled(ChatParticipantAlias.displayLabel(newAlias) == nil)
+                    }
+                } header: {
+                    Text("Also known as")
+                } footer: {
+                    Text(
+                        "Zeptly uses these names to recognize this person in screenshots and pasted transcripts. Removing one may make a future import require review; existing messages won’t change."
+                    )
+                }
+            }
+            .navigationTitle("Edit Names")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: save)
+                        .disabled(ChatParticipantAlias.displayLabel(displayName) == nil)
+                }
+            }
+            .alert("Could Not Update Names", isPresented: errorBinding) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "Try again.")
+            }
+        }
+    }
+
+    private func addAlias() {
+        guard let label = ChatParticipantAlias.displayLabel(newAlias),
+            let key = ChatParticipantAlias.normalizedKey(label),
+            key != ChatParticipantAlias.normalizedKey(displayName),
+            key != ChatParticipantAlias.normalizedKey("Imported Chat"),
+            !aliases.contains(where: { $0.normalizedLabel == key })
+        else {
+            newAlias = ""
+            return
+        }
+        aliases.append(ChatParticipantAlias(displayLabel: label))
+        newAlias = ""
+    }
+
+    private func promote(_ alias: ChatParticipantAlias) {
+        let formerDisplayName = displayName
+        displayName = alias.displayLabel
+        aliases.removeAll { $0.id == alias.id }
+        if let formerLabel = ChatParticipantAlias.displayLabel(formerDisplayName),
+            let formerKey = ChatParticipantAlias.normalizedKey(formerLabel),
+            formerKey != ChatParticipantAlias.normalizedKey("Imported Chat"),
+            formerKey != ChatParticipantAlias.normalizedKey(displayName),
+            !aliases.contains(where: { $0.normalizedLabel == formerKey })
+        {
+            aliases.append(ChatParticipantAlias(displayLabel: formerLabel))
+        }
+    }
+
+    private func save() {
+        do {
+            try ChatRepository().updateParticipantNames(
+                chatID: chatID,
+                displayName: displayName,
+                aliases: aliases
+            )
+            dismiss()
         } catch {
             errorMessage = error.localizedDescription
         }

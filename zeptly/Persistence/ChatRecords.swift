@@ -213,19 +213,37 @@ final class ChatContextRecord {
     var currentInteractionGoal: String
     var personaID: UUID
     var personaAssignedAt: Date
+    // Optional so existing stores can lightweight-migrate safely.
+    var participantAliasesJSON: String?
+
+    var participantAliases: [ChatParticipantAlias] {
+        get {
+            guard let data = participantAliasesJSON?.data(using: .utf8) else { return [] }
+            return (try? JSONDecoder().decode([ChatParticipantAlias].self, from: data)) ?? []
+        }
+        set {
+            guard !newValue.isEmpty, let data = try? JSONEncoder().encode(newValue) else {
+                participantAliasesJSON = nil
+                return
+            }
+            participantAliasesJSON = String(data: data, encoding: .utf8)
+        }
+    }
 
     init(
         id: UUID = UUID(),
         chatID: String,
         currentInteractionGoal: String,
         personaID: UUID,
-        personaAssignedAt: Date = Date()
+        personaAssignedAt: Date = Date(),
+        participantAliasesJSON: String? = nil
     ) {
         self.id = id
         self.chatID = chatID
         self.currentInteractionGoal = currentInteractionGoal
         self.personaID = personaID
         self.personaAssignedAt = personaAssignedAt
+        self.participantAliasesJSON = participantAliasesJSON
     }
 
 }

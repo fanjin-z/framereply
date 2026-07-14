@@ -112,6 +112,91 @@ final class ChatImportMatcherTests: XCTestCase {
         XCTAssertEqual(decision.reason, .displayNameConflict)
     }
 
+    func testUniqueParticipantAliasConfirmsSelectedChat() {
+        let analysis = makeAnalysis(
+            title: "@sarah_work",
+            confidence: 0.96,
+            matchedChatID: "sarah-jenkins",
+            titleSource: .participantLabel
+        )
+        let candidate = ChatMatchCandidate(
+            id: "sarah-jenkins",
+            name: "Sarah Jenkins",
+            participantAliases: ["@Sarah_Work"],
+            recentMessages: []
+        )
+
+        let decision = ChatImportMatcher.decision(
+            analysis: analysis,
+            candidates: [candidate]
+        )
+
+        XCTAssertEqual(decision.confirmedChatID, candidate.id)
+        XCTAssertEqual(decision.reason, .confirmedParticipantAlias)
+    }
+
+    func testDuplicateParticipantAliasStillRequiresDiscriminator() {
+        let analysis = makeAnalysis(
+            title: "Alex",
+            confidence: 0.98,
+            matchedChatID: "alex-one"
+        )
+        let candidates = ["alex-one", "alex-two"].map {
+            ChatMatchCandidate(
+                id: $0,
+                name: $0,
+                participantAliases: ["Alex"],
+                recentMessages: []
+            )
+        }
+
+        let decision = ChatImportMatcher.decision(
+            analysis: analysis,
+            candidates: candidates
+        )
+
+        XCTAssertNil(decision.confirmedChatID)
+        XCTAssertEqual(decision.reason, .duplicateDisplayName)
+    }
+
+    func testStrongTranscriptCanConfirmPreviouslyUnseenChangedName() {
+        let incoming = "The reservation code is ZXQ-9182."
+        let analysis = ChatImportAnalysis(
+            conversationTitle: "New Profile Name",
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .otherParticipant,
+                    senderName: "New Profile Name",
+                    text: incoming,
+                    timestampLabel: "8:42 PM"
+                )
+            ],
+            matchedChatID: "old-name",
+            matchConfidence: 0.98,
+            conversationKind: .direct,
+            titleSource: .header
+        )
+        let candidate = ChatMatchCandidate(
+            id: "old-name",
+            name: "Old Name",
+            recentMessages: [
+                ChatCandidateMessage(
+                    sender: "other_participant",
+                    text: incoming,
+                    timeLabel: "8:42 PM"
+                )
+            ]
+        )
+
+        let decision = ChatImportMatcher.decision(
+            analysis: analysis,
+            candidates: [candidate]
+        )
+
+        XCTAssertEqual(decision.confirmedChatID, candidate.id)
+        XCTAssertEqual(decision.reason, .confirmedTranscript)
+    }
+
     func testUniqueStrongAvatarCanConfirmRenamedDirectChat() {
         let artifact = MatcherAvatarFixture.artifact
         let analysis = makeAnalysis(
@@ -182,7 +267,8 @@ final class ChatImportMatcherTests: XCTestCase {
     private func makeAnalysis(
         title: String,
         confidence: Double,
-        matchedChatID: String = "sarah-jenkins"
+        matchedChatID: String = "sarah-jenkins",
+        titleSource: ChatTitleSource = .header
     ) -> ChatImportAnalysis {
         ChatImportAnalysis(
             conversationTitle: title,
@@ -195,7 +281,9 @@ final class ChatImportMatcherTests: XCTestCase {
                 )
             ],
             matchedChatID: matchedChatID,
-            matchConfidence: confidence
+            matchConfidence: confidence,
+            conversationKind: .direct,
+            titleSource: titleSource
         )
     }
 

@@ -82,6 +82,7 @@ enum ChatScreenshotPrompt {
         - titleSource is "header" for header text, "participant_label" when obtained only from an outer author label, otherwise "unavailable".
         - avatarBounds is the tight header-avatar-image rectangle in normalized 0...1 top-left-origin coordinates; exclude borders/UI and use null if unclear or absent.
         - matchedChatID is an exact supplied candidate ID supported as the same conversation, otherwise null. matchConfidence measures only that identity match and must be 0 when matchedChatID is null.
+        - A candidate's participantAliases are recognized names for the same direct-chat participant. Treat an exact alias like that candidate's name, while still requiring other evidence when the same label belongs to multiple candidates.
         - Matching priority: header identity; group identity; distinctive incoming messages with timestamps; generic overlap or owner messages. An outgoing opener is not other-participant evidence; overlap cannot override a conflicting direct header name.
         - Invent nothing. Verify each observation, quote, and sender. Return one complete JSON object with every shown key, explicit nulls, and confidence values in 0...1.
 
@@ -108,6 +109,7 @@ enum ChatScreenshotPrompt {
         - conversationTitle is an explicit conversation or group title only. A participant name in a message header is not automatically the conversation title. Use null when no title is present.
         - conversationKind is "direct" only when the structure clearly contains exactly two participants, "group" for more than two, otherwise "unknown". titleSource is "participant_label" only when a reliable non-owner participant label supplies the direct-chat identity; otherwise "unavailable".
         - matchedChatID must be an exact supplied candidate ID supported by distinctive transcript overlap or explicit identity. matchConfidence measures only that identity match and must be 0 when matchedChatID is null.
+        - A candidate's participantAliases are recognized names for the same direct-chat participant. Treat an exact alias like that candidate's name, while still requiring other evidence when the same label belongs to multiple candidates.
         - quotedReply is subordinate quoted context only when the text explicitly represents a reply quotation. Otherwise keep authored blockquotes in text.
 
         4. Output
