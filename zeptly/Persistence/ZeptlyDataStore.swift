@@ -9,6 +9,7 @@ import SwiftData
 enum ZeptlyDataStore {
     static let schema = Schema([
         ChatRecord.self,
+        ChatSelfAliasRecord.self,
         ChatMessageRecord.self,
         ChatContextRecord.self,
         ChatMemoryRecord.self,

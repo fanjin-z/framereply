@@ -196,6 +196,8 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             ["[07/13/26, 9:42 PM] Alice: Can we meet tomorrow?"]
         )
         XCTAssertTrue(aiService.receivedImageDataList.isEmpty)
+        XCTAssertEqual(aiService.receivedContext?.capability, .transcriptAnalysis)
+        XCTAssertEqual(aiService.receivedContext?.effectiveModel, .gpt56Terra)
         XCTAssertTrue(outcome.reviewRequired)
         XCTAssertEqual(
             try repository.messages(chatID: outcome.chatID).map(\.text),
@@ -283,7 +285,9 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func testCoordinatorRejectsEmptyAndOversizedCopiedMessagesBeforeProviderResolution() async throws {
+    func testCoordinatorRejectsEmptyAndOversizedCopiedMessagesBeforeProviderResolution()
+        async throws
+    {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let coordinator = ScreenshotImportCoordinator(
             aiService: StubAnalysisService(
@@ -366,6 +370,7 @@ private final class StubAnalysisService: AIServiceProviding {
         profile: ProviderModelProfile(
             selectedTier: .basic,
             screenshotAnalysisModel: .gpt56Luna,
+            transcriptAnalysisModel: .gpt56Terra,
             suggestedReplyModel: .gpt56Luna
         ),
         capability: .screenshotAnalysis,
@@ -379,10 +384,17 @@ private final class StubAnalysisService: AIServiceProviding {
     func activeContext(
         requiring capability: AIProviderCapability
     ) throws -> AIProviderExecutionContext {
-        guard capability == .screenshotAnalysis else {
+        guard let model = context.profile.model(for: capability),
+            capability == .screenshotAnalysis || capability == .transcriptAnalysis
+        else {
             throw AIServiceError.unsupportedCapability
         }
-        return context
+        return AIProviderExecutionContext(
+            platform: context.platform,
+            profile: context.profile,
+            capability: capability,
+            effectiveModel: model
+        )
     }
 
     func analyzeChatScreenshot(

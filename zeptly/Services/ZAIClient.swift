@@ -45,6 +45,7 @@ struct ZAIClient: AIProviderAdapter {
         return ProviderModelProfile(
             selectedTier: selectedTier,
             screenshotAnalysisModel: models.analysis,
+            transcriptAnalysisModel: models.replies,
             suggestedReplyModel: models.replies
         )
     }
@@ -87,7 +88,10 @@ struct ZAIClient: AIProviderAdapter {
         apiKey: String,
         model: ProviderModel
     ) async throws -> ChatImportAnalysis {
-        guard Self.visionModels.contains(model) else {
+        let supportsModel =
+            analysisRequest.sharedTranscript == nil
+            ? Self.visionModels.contains(model) : Self.textModels.contains(model)
+        guard supportsModel else {
             throw ProviderConnectionError.unsupportedProvider
         }
         let images = try analysisRequest.imageDataList.map(ScreenshotImagePayload.init(data:))
@@ -193,6 +197,15 @@ struct ZAIClient: AIProviderAdapter {
             }
             return analysis
         } catch let failure as StructuredOutputFailure {
+            ChatImportDebugLogger.structuredOutputFailure(
+                failure,
+                traceID: analysisRequest.traceID,
+                provider: region.providerID,
+                model: model.rawValue,
+                attempt: 1,
+                finishReason: choice?.finishReason,
+                content: choice?.message.content ?? String(data: data, encoding: .utf8)
+            )
             eventReporter.record(
                 .structuredOutputFailure(
                     traceID: analysisRequest.traceID,

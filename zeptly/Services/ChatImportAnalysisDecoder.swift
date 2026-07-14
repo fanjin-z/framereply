@@ -256,19 +256,81 @@ nonisolated enum ChatImportAnalysisDecoder {
             text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        guard text.hasPrefix("```"), text.hasSuffix("```") else {
+        if text.hasPrefix("```"), text.hasSuffix("```"),
+            let firstNewline = text.firstIndex(of: "\n")
+        {
+            let bodyStart = text.index(after: firstNewline)
+            let closingFence = text.index(text.endIndex, offsetBy: -3)
+            if bodyStart <= closingFence {
+                text = String(text[bodyStart..<closingFence])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+
+        if isJSONObject(text) {
             return text
         }
-        guard let firstNewline = text.firstIndex(of: "\n") else {
-            return text
+        return singleEmbeddedJSONObject(in: text) ?? text
+    }
+
+    /// Some providers occasionally wrap an otherwise valid object in a short explanation or
+    /// Markdown fence even when asked for JSON. Recover only when there is exactly one complete,
+    /// independently valid object. Never attempt to repair malformed JSON.
+    private static func singleEmbeddedJSONObject(in text: String) -> String? {
+        var candidates: [String] = []
+        var objectStart: String.Index?
+        var depth = 0
+        var isInsideString = false
+        var isEscaping = false
+        var index = text.startIndex
+
+        while index < text.endIndex {
+            let character = text[index]
+
+            if objectStart == nil {
+                if character == "{" {
+                    objectStart = index
+                    depth = 1
+                    isInsideString = false
+                    isEscaping = false
+                }
+            } else if isInsideString {
+                if isEscaping {
+                    isEscaping = false
+                } else if character == "\\" {
+                    isEscaping = true
+                } else if character == "\"" {
+                    isInsideString = false
+                }
+            } else if character == "\"" {
+                isInsideString = true
+            } else if character == "{" {
+                depth += 1
+            } else if character == "}" {
+                depth -= 1
+                if depth == 0, let start = objectStart {
+                    let end = text.index(after: index)
+                    let candidate = String(text[start..<end])
+                    if isJSONObject(candidate) {
+                        candidates.append(candidate)
+                    }
+                    objectStart = nil
+                }
+            }
+
+            index = text.index(after: index)
         }
-        let bodyStart = text.index(after: firstNewline)
-        let closingFence = text.index(text.endIndex, offsetBy: -3)
-        guard bodyStart <= closingFence else {
-            return text
+
+        return candidates.count == 1 ? candidates[0] : nil
+    }
+
+    private static func isJSONObject(_ text: String) -> Bool {
+        guard let data = text.data(using: .utf8),
+            let value = try? JSONSerialization.jsonObject(with: data)
+        else {
+            return false
         }
-        return String(text[bodyStart..<closingFence])
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return value is [String: Any]
     }
 
     private static func codingPath(for error: DecodingError) -> String? {

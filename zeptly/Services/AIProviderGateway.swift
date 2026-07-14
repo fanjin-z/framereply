@@ -2,18 +2,23 @@ import Foundation
 
 nonisolated enum AIProviderCapability: String, CaseIterable, Hashable, Sendable {
     case screenshotAnalysis
+    case transcriptAnalysis
     case suggestedReplies
 }
 
 nonisolated struct ProviderModelProfile: Equatable, Sendable {
     let selectedTier: ProviderTier
     let screenshotAnalysisModel: ProviderModel?
+    let transcriptAnalysisModel: ProviderModel?
     let suggestedReplyModel: ProviderModel?
 
     var capabilities: Set<AIProviderCapability> {
         var result: Set<AIProviderCapability> = []
         if screenshotAnalysisModel != nil {
             result.insert(.screenshotAnalysis)
+        }
+        if transcriptAnalysisModel != nil {
+            result.insert(.transcriptAnalysis)
         }
         if suggestedReplyModel != nil {
             result.insert(.suggestedReplies)
@@ -25,6 +30,8 @@ nonisolated struct ProviderModelProfile: Equatable, Sendable {
         switch capability {
         case .screenshotAnalysis:
             screenshotAnalysisModel
+        case .transcriptAnalysis:
+            transcriptAnalysisModel
         case .suggestedReplies:
             suggestedReplyModel
         }
@@ -147,7 +154,9 @@ final class AIService: AIServiceProviding {
             throw AIServiceError.unsupportedProvider
         }
         guard let profile = adapter.modelProfile(for: selectedTier),
-            let validationModel = profile.screenshotAnalysisModel ?? profile.suggestedReplyModel
+            let validationModel =
+                profile.screenshotAnalysisModel ?? profile.transcriptAnalysisModel
+                ?? profile.suggestedReplyModel
         else {
             throw AIServiceError.unsupportedCapability
         }
@@ -186,7 +195,9 @@ final class AIService: AIServiceProviding {
         _ request: ChatScreenshotAnalysisRequest,
         using context: AIProviderExecutionContext
     ) async throws -> ChatImportAnalysis {
-        guard context.capability == .screenshotAnalysis else {
+        let requiredCapability: AIProviderCapability =
+            request.sharedTranscript == nil ? .screenshotAnalysis : .transcriptAnalysis
+        guard context.capability == requiredCapability else {
             throw AIServiceError.unsupportedCapability
         }
         let (adapter, apiKey) = try resolve(context)

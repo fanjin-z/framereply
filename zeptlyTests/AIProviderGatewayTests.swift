@@ -27,6 +27,13 @@ final class AIProviderGatewayTests: XCTestCase {
             using: analysisContext
         )
 
+        let transcriptContext = try service.activeContext(requiring: .transcriptAnalysis)
+        XCTAssertEqual(transcriptContext.effectiveModel, .glm47FlashX)
+        _ = try await service.analyzeChatScreenshot(
+            ChatScreenshotAnalysisRequest(transcriptItems: ["Alex: Hello"], candidates: []),
+            using: transcriptContext
+        )
+
         let replyContext = try service.activeContext(requiring: .suggestedReplies)
         XCTAssertEqual(replyContext.effectiveModel, .glm47FlashX)
         let result = try await service.generateSuggestedReplies(
@@ -35,9 +42,10 @@ final class AIProviderGatewayTests: XCTestCase {
         )
 
         XCTAssertEqual(result.replies, ["First", "Second"])
-        XCTAssertEqual(adapter.analysisModels, [.glm46VFlashX])
+        XCTAssertEqual(adapter.analysisModels, [.glm46VFlashX, .glm47FlashX])
         XCTAssertEqual(adapter.replyModels, [.glm47FlashX])
-        XCTAssertEqual(adapter.apiKeys, ["validation-key", "saved-key", "saved-key"])
+        XCTAssertEqual(
+            adapter.apiKeys, ["validation-key", "saved-key", "saved-key", "saved-key"])
     }
 
     private func makeReplyRequest() -> SuggestedReplyGenerationRequest {
@@ -84,6 +92,7 @@ private final class RecordingProviderAdapter: AIProviderAdapter {
         return ProviderModelProfile(
             selectedTier: selectedTier,
             screenshotAnalysisModel: .glm46VFlashX,
+            transcriptAnalysisModel: .glm47FlashX,
             suggestedReplyModel: .glm47FlashX
         )
     }

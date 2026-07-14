@@ -481,6 +481,7 @@ extension AIProviderExecutionContext {
             profile: ProviderModelProfile(
                 selectedTier: .advanced,
                 screenshotAnalysisModel: .glm46VFlashX,
+                transcriptAnalysisModel: .glm47FlashX,
                 suggestedReplyModel: .glm47FlashX
             ),
             capability: .suggestedReplies,
@@ -494,6 +495,7 @@ extension AIProviderExecutionContext {
             profile: ProviderModelProfile(
                 selectedTier: .advanced,
                 screenshotAnalysisModel: .glm46VFlashX,
+                transcriptAnalysisModel: .glm47FlashX,
                 suggestedReplyModel: .glm47FlashX
             ),
             capability: .suggestedReplies,

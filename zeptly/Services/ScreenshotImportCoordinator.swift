@@ -145,7 +145,12 @@ final class ScreenshotImportCoordinator {
         }
         let providerContext: AIProviderExecutionContext
         do {
-            providerContext = try aiService.activeContext(requiring: .screenshotAnalysis)
+            let capability: AIProviderCapability =
+                switch payload {
+                case .screenshots: .screenshotAnalysis
+                case .sharedTranscript: .transcriptAnalysis
+                }
+            providerContext = try aiService.activeContext(requiring: capability)
         } catch let error as AIServiceError {
             let importError = ScreenshotImportError(error)
             eventReporter.record(

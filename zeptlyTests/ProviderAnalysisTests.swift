@@ -353,7 +353,7 @@ final class ProviderAnalysisTests: XCTestCase {
             model: .gpt56Luna
         )
         _ = try await ZAIClient(region: .international, session: makeSession())
-            .analyzeChatScreenshot(request, apiKey: "zai-key", model: .glm46V)
+            .analyzeChatScreenshot(request, apiKey: "zai-key", model: .glm47)
 
         let openAIBody = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
         let openAIInput = try XCTUnwrap(openAIBody["input"] as? [[String: Any]])
@@ -371,6 +371,11 @@ final class ProviderAnalysisTests: XCTestCase {
         )
 
         let zaiBody = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.last))
+        XCTAssertEqual(zaiBody["model"] as? String, ProviderModel.glm47.rawValue)
+        XCTAssertEqual(
+            (zaiBody["response_format"] as? [String: Any])?["type"] as? String,
+            "json_object"
+        )
         let zaiMessages = try XCTUnwrap(zaiBody["messages"] as? [[String: Any]])
         XCTAssertTrue(
             try XCTUnwrap(zaiMessages.first?["content"] as? String).contains(

@@ -175,6 +175,26 @@ nonisolated struct ShortcutLifecycleReporter: Sendable {
 }
 
 nonisolated enum ChatImportDebugLogger {
+    static func structuredOutputFailure(
+        _ failure: StructuredOutputFailure,
+        traceID: ImportTraceID,
+        provider: String,
+        model: String,
+        attempt: Int,
+        finishReason: String?,
+        content: String?
+    ) {
+        #if DEBUG
+            let finish = finishReason ?? "none"
+            let path = failure.codingPath ?? "none"
+            Swift.print(
+                "[ChatImportAI][decode-failed] trace=\(traceID.diagnosticID) provider=\(provider) model=\(model) attempt=\(attempt) finish=\(finish) kind=\(failure.kind.rawValue) path=\(path)"
+            )
+            Swift.print("[ChatImportAI][returned-content]")
+            Swift.print(content ?? "<empty>")
+        #endif
+    }
+
     static func rawResponse(
         traceID: ImportTraceID,
         provider: String,

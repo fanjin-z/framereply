@@ -11,6 +11,7 @@ struct ChatImportReviewSheet: View {
     @Query private var allChats: [ChatRecord]
     @Query private var unknownSenderMessages: [ChatMessageRecord]
     @State private var errorMessage: String?
+    @State private var individuallyReviewedChatIDs: Set<String> = []
 
     private let chatID: String?
     private let onMerged: ((String) -> Void)?
@@ -45,8 +46,46 @@ struct ChatImportReviewSheet: View {
         allChats.filter { !$0.requiresImportIdentityReview }
     }
 
+    private var participantReviewGroups: [ParticipantReviewGroup] {
+        let labelGroups = UnknownSenderLabelGroup.make(from: unknownSenderMessages)
+        var chatOrder: [String] = []
+        var grouped: [String: [UnknownSenderLabelGroup]] = [:]
+        for group in labelGroups {
+            if grouped[group.chatID] == nil {
+                chatOrder.append(group.chatID)
+            }
+            grouped[group.chatID, default: []].append(group)
+        }
+        return chatOrder.compactMap { id in
+            guard let groups = grouped[id], !groups.isEmpty else { return nil }
+            return ParticipantReviewGroup(
+                chatID: id,
+                chatName: allChats.first(where: { $0.id == id })?.name ?? "Imported chat",
+                groups: groups
+            )
+        }
+    }
+
+    private var visibleParticipantReviewGroups: [ParticipantReviewGroup] {
+        participantReviewGroups.filter { !individuallyReviewedChatIDs.contains($0.chatID) }
+    }
+
+    private var individualMessages: [ChatMessageRecord] {
+        unknownSenderMessages.filter { individuallyReviewedChatIDs.contains($0.chatID) }
+    }
+
+    private var unlabeledMessages: [ChatMessageRecord] {
+        unknownSenderMessages.filter {
+            !individuallyReviewedChatIDs.contains($0.chatID)
+                && ParticipantLabelNormalizer.key($0.senderName) == nil
+        }
+    }
+
     private var showsSectionHeaders: Bool {
-        !provisionalChats.isEmpty && !unknownSenderMessages.isEmpty
+        !provisionalChats.isEmpty
+            && (!visibleParticipantReviewGroups.isEmpty
+                || !individualMessages.isEmpty
+                || !unlabeledMessages.isEmpty)
     }
 
     var body: some View {
@@ -73,14 +112,48 @@ struct ChatImportReviewSheet: View {
                             }
                         }
 
-                        if !unknownSenderMessages.isEmpty {
+                        if !visibleParticipantReviewGroups.isEmpty {
                             if showsSectionHeaders {
-                                ImportReviewSectionHeader(title: "Sender labels")
+                                ImportReviewSectionHeader(title: "Sender identities")
                                     .padding(.top, 4)
                             }
 
                             VStack(spacing: 10) {
-                                ForEach(unknownSenderMessages) { message in
+                                ForEach(visibleParticipantReviewGroups) { reviewGroup in
+                                    ParticipantIdentityReviewCard(
+                                        reviewGroup: reviewGroup,
+                                        onSelect: resolveIdentity,
+                                        onReviewIndividually: {
+                                            individuallyReviewedChatIDs.insert(reviewGroup.chatID)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        if !individualMessages.isEmpty {
+                            ImportReviewSectionHeader(title: "Review messages individually")
+                                .padding(.top, 4)
+
+                            VStack(spacing: 10) {
+                                ForEach(individualMessages) { message in
+                                    UnknownSenderReviewCard(
+                                        message: message,
+                                        chatName:
+                                            allChats.first(where: { $0.id == message.chatID })?.name
+                                            ?? "Imported chat",
+                                        onResolve: resolveSender
+                                    )
+                                }
+                            }
+                        }
+
+                        if !unlabeledMessages.isEmpty {
+                            ImportReviewSectionHeader(title: "Messages without sender labels")
+                                .padding(.top, 4)
+
+                            VStack(spacing: 10) {
+                                ForEach(unlabeledMessages) { message in
                                     UnknownSenderReviewCard(
                                         message: message,
                                         chatName:
@@ -166,6 +239,28 @@ struct ChatImportReviewSheet: View {
             errorMessage = error.localizedDescription
         }
     }
+
+    private func resolveIdentity(
+        reviewGroup: ParticipantReviewGroup,
+        selectedGroup: UnknownSenderLabelGroup
+    ) {
+        do {
+            try ChatRepository().resolveUnknownSenderLabels(
+                chatID: reviewGroup.chatID,
+                selfLabel: selectedGroup.displayLabel
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct ParticipantReviewGroup: Identifiable {
+    let chatID: String
+    let chatName: String
+    let groups: [UnknownSenderLabelGroup]
+
+    var id: String { chatID }
 }
 
 private struct ImportReviewSectionHeader: View {
@@ -218,6 +313,106 @@ private struct UnknownSenderReviewCard: View {
                     onResolve(message.id, .groupParticipant, message.senderName)
                 }
             }
+        }
+        .padding(14)
+        .quietReviewPanel(accented: true)
+    }
+}
+
+private struct ParticipantIdentityReviewCard: View {
+    let reviewGroup: ParticipantReviewGroup
+    let onSelect: (ParticipantReviewGroup, UnknownSenderLabelGroup) -> Void
+    let onReviewIndividually: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Which name is you?")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurface)
+
+                Spacer(minLength: 8)
+
+                Text(reviewGroup.chatName)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurfaceVariant)
+                    .lineLimit(1)
+            }
+
+            Text("Choose once to label every message from these authors.")
+                .font(.system(size: 13, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurfaceVariant)
+
+            VStack(spacing: 8) {
+                ForEach(reviewGroup.groups) { group in
+                    Button {
+                        onSelect(reviewGroup, group)
+                    } label: {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(group.displayLabel)
+                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                    .foregroundStyle(RezplyColor.onSurface)
+
+                                ForEach(Array(group.sampleMessages.enumerated()), id: \.offset) {
+                                    _, sample in
+                                    Text(sample)
+                                        .font(.system(size: 12, design: .rounded))
+                                        .foregroundStyle(RezplyColor.onSurfaceVariant)
+                                        .lineLimit(1)
+                                }
+                            }
+
+                            Spacer(minLength: 8)
+
+                            VStack(alignment: .trailing, spacing: 8) {
+                                Text(
+                                    "\(group.messageIDs.count) "
+                                        + (group.messageIDs.count == 1 ? "message" : "messages")
+                                )
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(RezplyColor.onSurfaceVariant)
+
+                                Label(
+                                    "This is me",
+                                    systemImage: "person.crop.circle.badge.checkmark"
+                                )
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 11)
+                                .frame(height: 32)
+                                .background {
+                                    Capsule(style: .continuous)
+                                        .fill(RezplyColor.primary)
+                                }
+                            }
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(RezplyColor.secondaryContainer.opacity(0.5))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .stroke(RezplyColor.primary.opacity(0.22), lineWidth: 1)
+                                }
+                                .shadow(
+                                    color: RezplyColor.primaryContainer.opacity(0.14),
+                                    radius: 8,
+                                    y: 4
+                                )
+                        }
+                    }
+                    .buttonStyle(SoftPressButtonStyle())
+                    .accessibilityLabel(
+                        "Choose \(group.displayLabel) as me, \(group.messageIDs.count) messages"
+                    )
+                }
+            }
+
+            Button("Review messages individually", action: onReviewIndividually)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(RezplyColor.primary)
         }
         .padding(14)
         .quietReviewPanel(accented: true)
@@ -314,6 +509,9 @@ private struct ImportReviewCard: View {
         }
         .padding(14)
         .quietReviewPanel()
+        .onChange(of: chat.name) { _, newName in
+            name = newName
+        }
     }
 }
 

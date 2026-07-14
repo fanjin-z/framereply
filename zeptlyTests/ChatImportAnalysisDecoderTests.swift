@@ -9,6 +9,10 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(try decode(exact).messages.first?.text, "Hello")
         XCTAssertEqual(
             try decode("\u{FEFF}  ```json\n\(exact)\n```  ").messages.first?.text, "Hello")
+        XCTAssertEqual(
+            try decode("Here is the result:\n```json\n\(exact)\n```\nDone.").messages.first?.text,
+            "Hello"
+        )
     }
 
     func testClassifiesInvalidResponses() {
@@ -32,6 +36,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
             (nil, "stop", .emptyResponse, nil),
             (validJSON(), "length", .truncatedResponse, nil),
             ("{not json", "stop", .invalidJSON, nil),
+            ("prefix \(validJSON()) suffix \(validJSON())", "stop", .invalidJSON, nil),
             (missingMessages, "stop", .schemaMismatch, "messages"),
             (wrongSender, "stop", .schemaMismatch, "messages[0].sender"),
             (unknownCandidate, "stop", .invalidCandidateID, "matchedChatID"),

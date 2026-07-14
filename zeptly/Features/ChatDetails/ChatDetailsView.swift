@@ -12,11 +12,13 @@ struct ChatDetailsView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Query private var chatRecords: [ChatRecord]
+    @Query private var selfAliasRecords: [ChatSelfAliasRecord]
     @Query private var memoryRecords: [ChatMemoryRecord]
     @Query private var replyCaches: [SuggestedReplyCacheRecord]
     @State private var isRenamePresented = false
     @State private var renameDraft = ""
     @State private var isDeleteConfirmationPresented = false
+    @State private var isForgetIdentityConfirmationPresented = false
     @State private var errorMessage: String?
 
     init(chat: Chat, onDeleted: @escaping () -> Void) {
@@ -24,6 +26,10 @@ struct ChatDetailsView: View {
         self.onDeleted = onDeleted
         let chatID = chat.id
         _chatRecords = Query(filter: #Predicate<ChatRecord> { $0.id == chatID })
+        _selfAliasRecords = Query(
+            filter: #Predicate<ChatSelfAliasRecord> { $0.chatID == chatID },
+            sort: \ChatSelfAliasRecord.createdAt
+        )
         _memoryRecords = Query(
             filter: #Predicate<ChatMemoryRecord> { $0.chatID == chatID },
             sort: \ChatMemoryRecord.createdAt
@@ -84,6 +90,41 @@ struct ChatDetailsView: View {
                         )
                     }
 
+                    if !selfAliasRecords.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Label("You appear as", systemImage: "person.text.rectangle")
+                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .foregroundStyle(RezplyColor.onSurface)
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(selfAliasRecords) { alias in
+                                    Text(alias.displayLabel)
+                                        .font(
+                                            .system(size: 14, weight: .semibold, design: .rounded)
+                                        )
+                                        .foregroundStyle(RezplyColor.onSurface)
+                                        .padding(.horizontal, 12)
+                                        .frame(height: 34)
+                                        .background {
+                                            Capsule(style: .continuous)
+                                                .fill(RezplyColor.secondaryContainer.opacity(0.48))
+                                        }
+                                }
+                            }
+
+                            Text("Zeptly uses these names only for future imports into this chat.")
+                                .font(.system(size: 13, design: .rounded))
+                                .foregroundStyle(RezplyColor.onSurfaceVariant)
+
+                            Button("Forget imported identity", role: .destructive) {
+                                isForgetIdentityConfirmationPresented = true
+                            }
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                        }
+                        .padding(20)
+                        .glassPanel(cornerRadius: 26)
+                    }
+
                     ChatMemoryCard(
                         chatID: chat.id,
                         chatName: displayedChat.name,
@@ -129,6 +170,17 @@ struct ChatDetailsView: View {
         } message: {
             Text("This permanently deletes this chat and its data. This can’t be undone.")
         }
+        .confirmationDialog(
+            "Forget imported identity?",
+            isPresented: $isForgetIdentityConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("Forget Identity", role: .destructive, action: forgetImportedIdentity)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "Future imports may ask which sender is you again. Existing messages won’t change.")
+        }
         .alert("Could Not Update Chat", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -171,6 +223,14 @@ struct ChatDetailsView: View {
         do {
             try ChatRepository().deleteChat(id: chat.id)
             onDeleted()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func forgetImportedIdentity() {
+        do {
+            try ChatRepository().forgetImportedSelfLabels(chatID: chat.id)
         } catch {
             errorMessage = error.localizedDescription
         }

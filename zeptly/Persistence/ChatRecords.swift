@@ -65,6 +65,7 @@ final class ChatRecord {
     var initials: String
     var appearanceStyle: Int
     var isUnread: Bool
+    var conversationKindRaw: String
     var importReviewStateJSON: String?
     var createdAt: Date
     var updatedAt: Date
@@ -86,6 +87,11 @@ final class ChatRecord {
         requiresImportIdentityReview
     }
 
+    var conversationKind: ChatConversationKind {
+        get { ChatConversationKind(rawValue: conversationKindRaw) ?? .unknown }
+        set { conversationKindRaw = newValue.rawValue }
+    }
+
     init(
         id: String,
         name: String,
@@ -96,6 +102,7 @@ final class ChatRecord {
         initials: String,
         appearanceStyle: Int,
         isUnread: Bool,
+        conversationKind: ChatConversationKind = .unknown,
         isProvisional: Bool = false,
         importReviewStateJSON: String? = nil,
         avatarData: Data? = nil,
@@ -122,6 +129,7 @@ final class ChatRecord {
         self.initials = initials
         self.appearanceStyle = appearanceStyle
         self.isUnread = isUnread
+        self.conversationKindRaw = conversationKind.rawValue
         if let importReviewStateJSON {
             self.importReviewStateJSON = importReviewStateJSON
         } else if isProvisional {
@@ -134,6 +142,29 @@ final class ChatRecord {
         }
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+}
+
+@Model
+final class ChatSelfAliasRecord {
+    var id: UUID
+    var chatID: String
+    var normalizedLabel: String
+    var displayLabel: String
+    var createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        chatID: String,
+        normalizedLabel: String,
+        displayLabel: String,
+        createdAt: Date = Date()
+    ) {
+        self.id = id
+        self.chatID = chatID
+        self.normalizedLabel = normalizedLabel
+        self.displayLabel = displayLabel
+        self.createdAt = createdAt
     }
 }
 

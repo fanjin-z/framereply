@@ -26,6 +26,7 @@ struct OpenAIClient: AIProviderAdapter {
         return ProviderModelProfile(
             selectedTier: selectedTier,
             screenshotAnalysisModel: models.analysis,
+            transcriptAnalysisModel: models.replies,
             suggestedReplyModel: models.replies
         )
     }
@@ -155,6 +156,15 @@ struct OpenAIClient: AIProviderAdapter {
             completion = try JSONDecoder().decode(OpenAIResponse.self, from: data)
         } catch {
             let failure = StructuredOutputFailure(kind: .schemaMismatch, codingPath: "response")
+            ChatImportDebugLogger.structuredOutputFailure(
+                failure,
+                traceID: analysisRequest.traceID,
+                provider: provider,
+                model: model.rawValue,
+                attempt: 1,
+                finishReason: nil,
+                content: String(data: data, encoding: .utf8)
+            )
             recordStructuredFailure(
                 failure,
                 request: analysisRequest,
@@ -215,6 +225,15 @@ struct OpenAIClient: AIProviderAdapter {
             }
             return analysis
         } catch let failure as StructuredOutputFailure {
+            ChatImportDebugLogger.structuredOutputFailure(
+                failure,
+                traceID: analysisRequest.traceID,
+                provider: provider,
+                model: model.rawValue,
+                attempt: 1,
+                finishReason: completion.status,
+                content: completion.outputText
+            )
             eventReporter.record(
                 .structuredOutputFailure(
                     traceID: analysisRequest.traceID,

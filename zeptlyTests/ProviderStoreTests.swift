@@ -28,6 +28,10 @@ final class ProviderStoreTests: XCTestCase {
             .glm47Flash
         )
         XCTAssertEqual(
+            registry.profile(for: .zhipuChina, selectedTier: .basic)?.transcriptAnalysisModel,
+            .glm47Flash
+        )
+        XCTAssertEqual(
             registry.profile(for: .zaiInternational, selectedTier: .advanced)?
                 .screenshotAnalysisModel,
             .glm46VFlashX
