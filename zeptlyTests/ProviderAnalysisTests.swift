@@ -13,8 +13,10 @@ final class ProviderAnalysisTests: XCTestCase {
         let schemaData = try JSONSerialization.data(withJSONObject: ChatScreenshotPrompt.jsonSchema)
         let schema = try XCTUnwrap(String(data: schemaData, encoding: .utf8))
         let canonical = ChatScreenshotPrompt.canonicalJSONExample
-        for removedKey in ["participants", "sourceApp", "matchBasis", "hasOutboundStatusIndicator"]
-        {
+        for removedKey in [
+            "participants", "sourceApp", "matchBasis", "hasOutboundStatusIndicator",
+            "avatarBounds"
+        ] {
             XCTAssertFalse(schema.contains(#""\#(removedKey)""#))
             XCTAssertFalse(canonical.contains(#""\#(removedKey)""#))
         }
@@ -26,6 +28,9 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertNotNil(rootProperties["conversationTitle"])
         XCTAssertNotNil(rootProperties["messages"])
         XCTAssertNotNil(rootProperties["ownershipConvention"])
+        XCTAssertNil(rootProperties["avatarBounds"])
+        XCTAssertFalse(ChatScreenshotPrompt.instructions.contains("avatarBounds"))
+        XCTAssertFalse(ChatScreenshotPrompt.sharedTranscriptInstructions.contains("avatarBounds"))
         let ownershipSchema = try XCTUnwrap(
             rootProperties["ownershipConvention"] as? [String: Any]
         )
@@ -642,7 +647,6 @@ final class ProviderAnalysisTests: XCTestCase {
             "conversationTitle": "Sarah Jenkins",
             "conversationKind": "direct",
             "titleSource": "header",
-            "avatarBounds": NSNull(),
             "ownershipConvention": [
                 "mode": "opposed_alignment",
                 "screenshotOwnerAlignment": "right",

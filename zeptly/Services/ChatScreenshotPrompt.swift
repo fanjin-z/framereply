@@ -11,7 +11,6 @@ enum ChatScreenshotPrompt {
           "conversationTitle": "Participant Name",
           "conversationKind": "direct",
           "titleSource": "header",
-          "avatarBounds": null,
           "ownershipConvention": {
             "mode": "opposed_alignment",
             "screenshotOwnerAlignment": "right",
@@ -80,7 +79,6 @@ enum ChatScreenshotPrompt {
         - conversationTitle is exact visible header title: usually the other display name in a direct chat or the group title; null if unavailable. conversationKind is "direct" for one other participant, "group" for multiple, otherwise "unknown".
         - Ignore temporary system overlays in the top region, including Back Tap, Shortcut, notification, volume, call, and Dynamic Island banners. Text inside those overlays is never a conversation title.
         - titleSource is "header" for header text, "participant_label" when obtained only from an outer author label, otherwise "unavailable".
-        - avatarBounds is the tight header-avatar-image rectangle in normalized 0...1 top-left-origin coordinates; exclude borders/UI and use null if unclear or absent.
         - matchedChatID is an exact supplied candidate ID supported as the same conversation, otherwise null. matchConfidence measures only that identity match and must be 0 when matchedChatID is null.
         - A candidate's participantAliases are recognized names for the same direct-chat participant. Treat an exact alias like that candidate's name, while still requiring other evidence when the same label belongs to multiple candidates.
         - Matching priority: header identity; group identity; distinctive incoming messages with timestamps; generic overlap or owner messages. An outgoing opener is not other-participant evidence; overlap cannot override a conflicting direct header name.
@@ -103,7 +101,7 @@ enum ChatScreenshotPrompt {
         - sender is relative to the person importing the transcript: "user" is that person, "other_participant" is the one other person in a direct chat, "group_participant" is a named non-owner in a group, and "unknown" is unresolved.
         - Use "user" only when an explicit self label identifies the importing person or distinctive message overlap with an existing candidate establishes the role. Use "candidate_match" for the latter evidence.
         - Never infer ownership from meaning, tone, pronouns, message sequence, or which person appears to ask or answer. If ownership is not supported, return "unknown" and preserve the explicit author label in senderName and outerAuthorLabel.
-        - For text imports, outerAlignment is always "unknown". ownershipConvention.mode is "author_identity" only when explicit author identity establishes ownership; otherwise it is "unobservable". screenshotOwnerAlignment is always "unknown" and avatarBounds is always null.
+        - For text imports, outerAlignment is always "unknown". ownershipConvention.mode is "author_identity" only when explicit author identity establishes ownership; otherwise it is "unobservable". screenshotOwnerAlignment is always "unknown".
 
         3. Conversation identity and matching
         - conversationTitle is an explicit conversation or group title only. A participant name in a message header is not automatically the conversation title. Use null when no title is present.
@@ -130,7 +128,8 @@ enum ChatScreenshotPrompt {
 
         if let transcript = request.sharedTranscript {
             let transcriptData = try? JSONEncoder().encode(transcript)
-            let transcriptJSON = transcriptData.flatMap { String(data: $0, encoding: .utf8) }
+            let transcriptJSON =
+                transcriptData.flatMap { String(data: $0, encoding: .utf8) }
                 ?? #"{"items":[]}"#
             return """
                 Existing chat candidates:
@@ -159,7 +158,7 @@ enum ChatScreenshotPrompt {
         "type": "object",
         "additionalProperties": false,
         "required": [
-            "conversationTitle", "conversationKind", "titleSource", "avatarBounds",
+            "conversationTitle", "conversationKind", "titleSource",
             "ownershipConvention", "messages", "matchedChatID", "matchConfidence"
         ],
         "properties": [
@@ -167,22 +166,6 @@ enum ChatScreenshotPrompt {
             "conversationKind": ["type": "string", "enum": ["direct", "group", "unknown"]],
             "titleSource": [
                 "type": "string", "enum": ["header", "participant_label", "unavailable"]
-            ],
-            "avatarBounds": [
-                "anyOf": [
-                    ["type": "null"],
-                    [
-                        "type": "object",
-                        "additionalProperties": false,
-                        "required": ["x", "y", "width", "height"],
-                        "properties": [
-                            "x": ["type": "number", "minimum": 0, "maximum": 1],
-                            "y": ["type": "number", "minimum": 0, "maximum": 1],
-                            "width": ["type": "number", "minimum": 0, "maximum": 1],
-                            "height": ["type": "number", "minimum": 0, "maximum": 1]
-                        ]
-                    ]
-                ]
             ],
             "ownershipConvention": [
                 "type": "object",

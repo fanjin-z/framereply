@@ -5,23 +5,15 @@ enum ChatMatchDisposition: String, Equatable, Sendable {
     case review
 }
 
-enum AvatarEvidenceLevel: String, Equatable, Sendable {
-    case none
-    case strong
-    case competing
-}
-
 enum ChatMatchReason: String, Equatable, Sendable {
     case confirmedDisplayName = "confirmed_display_name"
     case confirmedParticipantAlias = "confirmed_participant_alias"
-    case confirmedAvatar = "confirmed_avatar"
     case confirmedTranscript = "confirmed_transcript"
     case lowAIConfidence = "low_ai_confidence"
     case noAICandidate = "no_ai_candidate"
     case unknownAICandidate = "unknown_ai_candidate"
     case displayNameConflict = "display_name_conflict"
     case duplicateDisplayName = "duplicate_display_name"
-    case competingAvatar = "competing_avatar"
     case insufficientLocalEvidence = "insufficient_local_evidence"
 }
 
@@ -30,7 +22,6 @@ struct ChatMatchDecision: Equatable, Sendable {
     let confirmedChatID: String?
     let suggestedChatID: String?
     let aiConfidence: Double
-    let avatarEvidence: AvatarEvidenceLevel
     let transcriptEvidence: TranscriptEvidenceLevel
     let reason: ChatMatchReason
 }
@@ -40,9 +31,7 @@ enum ChatImportMatcher {
 
     static func decision(
         analysis: ChatImportAnalysis,
-        candidates: [ChatMatchCandidate],
-        avatarArtifact: AvatarArtifact? = nil,
-        storedAvatars: [StoredAvatarFingerprint] = []
+        candidates: [ChatMatchCandidate]
     ) -> ChatMatchDecision {
         guard let proposedID = analysis.matchedChatID else {
             return review(analysis, reason: .noAICandidate)
@@ -54,20 +43,6 @@ enum ChatImportMatcher {
             return review(analysis, suggestedID: proposedID, reason: .lowAIConfidence)
         }
 
-        let avatarSimilarities = AvatarIdentityService.similarities(
-            artifact: avatarArtifact,
-            candidates: storedAvatars
-        )
-        let strongAvatarID = AvatarIdentityService.uniqueStrongMatch(in: avatarSimilarities)
-        let avatarEvidence: AvatarEvidenceLevel
-        if strongAvatarID == proposedID {
-            avatarEvidence = .strong
-        } else if strongAvatarID != nil {
-            avatarEvidence = .competing
-        } else {
-            avatarEvidence = .none
-        }
-
         let imported = analysis.messages.map { transcriptMessage($0) }
         let allCandidateMessages = candidates.map { candidate in
             candidate.recentMessages.map { transcriptMessage($0) }
@@ -77,16 +52,6 @@ enum ChatImportMatcher {
             candidate: candidate.recentMessages.map { transcriptMessage($0) },
             allCandidates: allCandidateMessages
         )
-
-        if avatarEvidence == .competing {
-            return review(
-                analysis,
-                suggestedID: proposedID,
-                avatarEvidence: avatarEvidence,
-                transcriptEvidence: transcript,
-                reason: .competingAvatar
-            )
-        }
 
         let normalizedTitle = MessageTextNormalizer.normalize(analysis.conversationTitle ?? "")
         let normalizedCandidate = MessageTextNormalizer.normalize(candidate.name)
@@ -101,20 +66,10 @@ enum ChatImportMatcher {
         }
 
         if titleWasObserved, analysis.conversationKind == .direct, !exactIdentityLabel {
-            if avatarEvidence == .strong {
-                return confirmed(
-                    analysis,
-                    chatID: proposedID,
-                    avatarEvidence: avatarEvidence,
-                    transcriptEvidence: transcript,
-                    reason: .confirmedAvatar
-                )
-            }
             if transcript == .strong {
                 return confirmed(
                     analysis,
                     chatID: proposedID,
-                    avatarEvidence: avatarEvidence,
                     transcriptEvidence: transcript,
                     reason: .confirmedTranscript
                 )
@@ -122,7 +77,6 @@ enum ChatImportMatcher {
             return review(
                 analysis,
                 suggestedID: proposedID,
-                avatarEvidence: avatarEvidence,
                 transcriptEvidence: transcript,
                 reason: .displayNameConflict
             )
@@ -132,27 +86,16 @@ enum ChatImportMatcher {
             return confirmed(
                 analysis,
                 chatID: proposedID,
-                avatarEvidence: avatarEvidence,
                 transcriptEvidence: transcript,
                 reason: exactDisplayName ? .confirmedDisplayName : .confirmedParticipantAlias
             )
         }
 
         if exactIdentityLabel, sameLabelCandidates.count > 1 {
-            if avatarEvidence == .strong {
-                return confirmed(
-                    analysis,
-                    chatID: proposedID,
-                    avatarEvidence: avatarEvidence,
-                    transcriptEvidence: transcript,
-                    reason: .confirmedAvatar
-                )
-            }
             if transcript == .strong {
                 return confirmed(
                     analysis,
                     chatID: proposedID,
-                    avatarEvidence: avatarEvidence,
                     transcriptEvidence: transcript,
                     reason: .confirmedTranscript
                 )
@@ -160,26 +103,15 @@ enum ChatImportMatcher {
             return review(
                 analysis,
                 suggestedID: proposedID,
-                avatarEvidence: avatarEvidence,
                 transcriptEvidence: transcript,
                 reason: .duplicateDisplayName
             )
         }
 
-        if avatarEvidence == .strong {
-            return confirmed(
-                analysis,
-                chatID: proposedID,
-                avatarEvidence: avatarEvidence,
-                transcriptEvidence: transcript,
-                reason: .confirmedAvatar
-            )
-        }
         if transcript == .strong {
             return confirmed(
                 analysis,
                 chatID: proposedID,
-                avatarEvidence: avatarEvidence,
                 transcriptEvidence: transcript,
                 reason: .confirmedTranscript
             )
@@ -188,7 +120,6 @@ enum ChatImportMatcher {
         return review(
             analysis,
             suggestedID: proposedID,
-            avatarEvidence: avatarEvidence,
             transcriptEvidence: transcript,
             reason: .insufficientLocalEvidence
         )
@@ -237,7 +168,6 @@ enum ChatImportMatcher {
     private static func confirmed(
         _ analysis: ChatImportAnalysis,
         chatID: String,
-        avatarEvidence: AvatarEvidenceLevel,
         transcriptEvidence: TranscriptEvidenceLevel,
         reason: ChatMatchReason
     ) -> ChatMatchDecision {
@@ -246,7 +176,6 @@ enum ChatImportMatcher {
             confirmedChatID: chatID,
             suggestedChatID: chatID,
             aiConfidence: analysis.matchConfidence,
-            avatarEvidence: avatarEvidence,
             transcriptEvidence: transcriptEvidence,
             reason: reason
         )
@@ -255,7 +184,6 @@ enum ChatImportMatcher {
     private static func review(
         _ analysis: ChatImportAnalysis,
         suggestedID: String? = nil,
-        avatarEvidence: AvatarEvidenceLevel = .none,
         transcriptEvidence: TranscriptEvidenceLevel = .none,
         reason: ChatMatchReason
     ) -> ChatMatchDecision {
@@ -264,15 +192,14 @@ enum ChatImportMatcher {
             confirmedChatID: nil,
             suggestedChatID: suggestedID,
             aiConfidence: analysis.matchConfidence,
-            avatarEvidence: avatarEvidence,
             transcriptEvidence: transcriptEvidence,
             reason: reason
         )
     }
 }
 
-private extension ChatMatchCandidate {
-    var identityLabelKeys: Set<String> {
+extension ChatMatchCandidate {
+    fileprivate var identityLabelKeys: Set<String> {
         Set(([name] + participantAliases).map(MessageTextNormalizer.normalize))
     }
 }

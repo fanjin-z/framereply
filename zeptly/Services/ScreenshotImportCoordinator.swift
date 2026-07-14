@@ -229,21 +229,9 @@ final class ScreenshotImportCoordinator {
         }
 
         eventReporter.record(.stageStarted(traceID: traceID, stage: .matching))
-        let avatarArtifact: AvatarArtifact?
-        switch payload {
-        case .screenshots:
-            avatarArtifact = AvatarIdentityService.extract(
-                from: request.imageData,
-                bounds: analysis.avatarBounds
-            )
-        case .sharedTranscript:
-            avatarArtifact = nil
-        }
         let matchDecision = ChatImportMatcher.decision(
             analysis: analysis,
-            candidates: candidates,
-            avatarArtifact: avatarArtifact,
-            storedAvatars: try repository.storedAvatarFingerprints()
+            candidates: candidates
         )
 
         eventReporter.record(.stageStarted(traceID: traceID, stage: .persistence))
@@ -252,7 +240,6 @@ final class ScreenshotImportCoordinator {
                 analysis: analysis,
                 confirmedChatID: matchDecision.confirmedChatID,
                 matchDecision: matchDecision,
-                avatarArtifact: avatarArtifact,
                 provider: providerContext.platform,
                 model: providerContext.effectiveModel,
                 sourceApp: request.sharedTranscript == nil ? nil : "shared_text",

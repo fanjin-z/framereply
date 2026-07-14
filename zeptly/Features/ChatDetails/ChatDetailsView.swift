@@ -73,7 +73,6 @@ struct ChatDetailsView: View {
                             initials: displayedChat.initials,
                             symbolName: displayedChat.avatarSymbol,
                             colors: displayedChat.gradient,
-                            imageData: displayedChat.avatarData,
                             size: 58
                         )
 

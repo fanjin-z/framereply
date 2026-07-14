@@ -50,9 +50,11 @@ nonisolated struct SharedTranscriptInput: Codable, Equatable, Sendable {
     private static func estimatedHeaders(in text: String) -> Int {
         text.components(separatedBy: .newlines).reduce(0) { count, line in
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            let looksBracketed = trimmed.hasPrefix("[") && trimmed.contains("]")
+            let looksBracketed =
+                trimmed.hasPrefix("[") && trimmed.contains("]")
                 && trimmed.contains(":")
-            let looksDashed = trimmed.first?.isNumber == true && trimmed.contains(" - ")
+            let looksDashed =
+                trimmed.first?.isNumber == true && trimmed.contains(" - ")
                 && trimmed.contains(":")
             return count + ((looksBracketed || looksDashed) ? 1 : 0)
         }
@@ -121,7 +123,6 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
     let matchConfidence: Double
     let conversationKind: ChatConversationKind
     let titleSource: ChatTitleSource
-    let avatarBounds: NormalizedAvatarBounds?
     let ownershipConvention: MessageOwnershipConvention
 
     private enum CodingKeys: String, CodingKey {
@@ -131,7 +132,6 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
         case matchConfidence
         case conversationKind
         case titleSource
-        case avatarBounds
         case ownershipConvention
     }
 
@@ -142,7 +142,6 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
         matchConfidence: Double,
         conversationKind: ChatConversationKind = .direct,
         titleSource: ChatTitleSource = .header,
-        avatarBounds: NormalizedAvatarBounds? = nil,
         ownershipConvention: MessageOwnershipConvention = .unobservable
     ) {
         self.conversationTitle = conversationTitle
@@ -151,7 +150,6 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
         self.matchConfidence = matchConfidence
         self.conversationKind = conversationKind
         self.titleSource = titleSource
-        self.avatarBounds = avatarBounds
         self.ownershipConvention = ownershipConvention
     }
 
@@ -170,7 +168,6 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
         titleSource =
             (try? container.decode(ChatTitleSource.self, forKey: .titleSource))
             ?? .unavailable
-        avatarBounds = try? container.decode(NormalizedAvatarBounds.self, forKey: .avatarBounds)
         ownershipConvention = try container.decode(
             MessageOwnershipConvention.self,
             forKey: .ownershipConvention
@@ -210,14 +207,6 @@ nonisolated enum ChatTitleSource: String, Codable, Equatable, Sendable {
     case header
     case participantLabel = "participant_label"
     case unavailable
-}
-
-/// Unit coordinates use a top-left origin and describe the visible header avatar.
-nonisolated struct NormalizedAvatarBounds: Codable, Equatable, Sendable {
-    let x: Double
-    let y: Double
-    let width: Double
-    let height: Double
 }
 
 nonisolated struct AnalyzedChatMessage: Codable, Equatable, Sendable {

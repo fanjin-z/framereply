@@ -73,16 +73,6 @@ nonisolated enum ChatImportAnalysisDecoder {
         if let matchedChatID = analysis.matchedChatID, !candidateIDs.contains(matchedChatID) {
             throw StructuredOutputFailure(kind: .invalidCandidateID, codingPath: "matchedChatID")
         }
-        if let bounds = analysis.avatarBounds {
-            let values = [bounds.x, bounds.y, bounds.width, bounds.height]
-            guard values.allSatisfy({ $0.isFinite && (0...1).contains($0) }),
-                bounds.x + bounds.width <= 1,
-                bounds.y + bounds.height <= 1
-            else {
-                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "avatarBounds")
-            }
-        }
-
         return analysis
     }
 
@@ -125,7 +115,6 @@ nonisolated enum ChatImportAnalysisDecoder {
                 matchConfidence: analysis.matchConfidence,
                 conversationKind: analysis.conversationKind,
                 titleSource: titleSource,
-                avatarBounds: analysis.avatarBounds,
                 ownershipConvention: analysis.ownershipConvention
             ),
             notes: notes

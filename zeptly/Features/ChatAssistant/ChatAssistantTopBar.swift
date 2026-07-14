@@ -31,7 +31,6 @@ struct ChatAssistantTopBar: View {
                         initials: chat.initials,
                         symbolName: chat.avatarSymbol,
                         colors: chat.gradient,
-                        imageData: chat.avatarData,
                         size: 42
                     )
 

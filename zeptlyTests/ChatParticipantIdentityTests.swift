@@ -461,9 +461,8 @@ final class ChatParticipantIdentityTests: XCTestCase {
             confirmedChatID: chat.id,
             suggestedChatID: chat.id,
             aiConfidence: 0.98,
-            avatarEvidence: .strong,
-            transcriptEvidence: .none,
-            reason: .confirmedAvatar
+            transcriptEvidence: .strong,
+            reason: .confirmedTranscript
         )
         _ = try repository.applyImport(
             analysis: confirmedAnalysis,
@@ -491,7 +490,6 @@ final class ChatParticipantIdentityTests: XCTestCase {
             confirmedChatID: nil,
             suggestedChatID: chat.id,
             aiConfidence: 0.7,
-            avatarEvidence: .none,
             transcriptEvidence: .none,
             reason: .lowAIConfidence
         )

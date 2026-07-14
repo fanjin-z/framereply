@@ -4,13 +4,11 @@
 //
 
 import SwiftUI
-import UIKit
 
 struct AvatarMark: View {
     let initials: String
     let symbolName: String?
     let colors: [Color]
-    var imageData: Data? = nil
     var size: CGFloat = 64
 
     var body: some View {
@@ -28,13 +26,7 @@ struct AvatarMark: View {
                 }
                 .shadow(color: RezplyColor.primaryContainer.opacity(0.22), radius: 14, x: 0, y: 8)
                 .overlay {
-                    if let imageData, let image = UIImage(data: imageData) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: size, height: size)
-                            .clipShape(Circle())
-                    } else if let symbolName {
+                    if let symbolName {
                         Image(systemName: symbolName)
                             .font(.system(size: size * 0.36, weight: .medium))
                             .foregroundStyle(RezplyColor.primary)
