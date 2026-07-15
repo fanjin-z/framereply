@@ -1,78 +1,64 @@
 # Zeptly
 
-Zeptly is an open-source AI reply assistant for context-aware communication.
-
-## Status
-
-Zeptly is in early preview.
+Zeptly is an open-source iOS and iPadOS AI reply assistant for context-aware communication.
 
 ## Requirements
 
-- macOS with Xcode installed.
-- iOS Simulator.
+- macOS with Xcode 26.6 or a compatible newer release.
+- An iOS 26 simulator or device.
+- Your own supported model-provider API key. Provider usage may incur charges billed by that provider.
 
-## Quick Start
+## Quick start
 
 ```bash
 git clone git@github.com:fanjin-z/zeptly.git
 cd zeptly
-./run.sh
+cp Config/Local.xcconfig.example Config/Local.xcconfig
+# Put your Apple Developer Team ID in Local.xcconfig for device builds.
 ```
 
-By default, `run.sh` builds and launches the app on an `iPhone 17` simulator. You can pass another simulator name if needed:
+Open `zeptly.xcodeproj`, select the shared `zeptly` scheme and an iOS simulator, then choose **Product → Run**. No signing identity is needed for simulator builds.
+
+For a command-line build:
 
 ```bash
-./run.sh "iPhone 16"
+xcodebuild build \
+  -project zeptly.xcodeproj \
+  -scheme zeptly \
+  -destination 'generic/platform=iOS Simulator' \
+  CODE_SIGNING_ALLOWED=NO
 ```
 
-## Import Chats
+## Privacy and provider access
 
-### In Zeptly
+Zeptly has no proxy server, advertising, analytics, or tracking. API keys are stored in the device Keychain. Chats, extracted messages, personas, context, and generated replies are stored in the app's protected local database and excluded from device backups.
 
-Tap **Add Messages** to choose up to eight screenshots or paste message text.
+Before connecting a provider, Zeptly requires explicit consent to send selected screenshots or text, participant information, context, and drafts directly to that provider. Source images are normalized and are not retained by Zeptly after processing; extracted messages are stored locally. Provider retention and processing are governed by the selected provider's policy. OpenAI requests set `store: false`, but OpenAI may still retain abuse-monitoring data under its API data controls.
 
-### With Shortcuts
+See the project [Privacy Policy](docs/privacy.md), [Terms](docs/terms.md), and [Age Suitability](docs/age-suitability.md) pages.
 
-Add either workflow from **Zeptly → Settings → Shortcuts**.
+## Import chats
 
-#### Images
+In Zeptly, tap **Add Messages** to choose up to eight still images or paste message text. Images are re-encoded, stripped of metadata, and bounded to 5 MB each and 20 MB per request. Text import accepts 8,000 characters, 40 text items, and approximately 25 messages.
 
-1. Tap **Add Image Shortcut** to install **Zeptly Images**.
-2. Run it to capture the conversation currently on screen.
-3. To import saved images, select 1–8 images from the same conversation in Photos, then tap **Share → Zeptly Images**.
+Zeptly also supports two team-published Apple Shortcuts:
 
-```text
-Shared images ──┐
-                ├→ Analyze → Generate replies → Show result
-Take screenshot ┘
-```
+- **Zeptly Images** accepts 1–8 shared images or captures the current screen.
+- **Zeptly Text** accepts shared text or reads the clipboard when run directly.
 
-#### Text
+Shortcut installation buttons appear only when verified team-owned iCloud links are configured. See [Shortcut maintenance](docs/shortcuts.md).
 
-1. Tap **Add Text Shortcut** to install **Zeptly Text**.
-2. If your chat app can share selected messages as plain text, tap **Share → Zeptly Text**.
-3. Otherwise, copy the messages and run **Zeptly Text**.
+AI-generated suggestions are drafts. Review them before sending.
 
-```text
-Shared text ──┐
-              ├→ Analyze → Generate replies → Show result
-Get Clipboard ┘
-```
+## Release and automation
 
-Run either shortcut from Spotlight, Siri, the Action button, Back Tap, the Home Screen, or the Shortcuts app.
+The first App Store release is archived, signed, validated, and submitted manually through Xcode Organizer. The public repository intentionally contains no signing or distribution automation and no App Store credentials.
 
-### Notes
+See the [release runbook](docs/release.md) for the remaining owner-operated checks and safe future automation options.
 
-- Text import accepts up to 8,000 characters, 40 text items, and approximately 25 messages.
-- Images and message text are sent transiently to the selected model provider. Zeptly stores extracted messages, not source images or raw imported text.
-- Imports with uncertain ownership are saved in **Review Imports**; Zeptly still attempts to generate replies.
-- Early-preview shortcuts using **Analyze Chat Screenshot** must be replaced with **Zeptly Images**.
+## Contributing and security
 
-See [Shortcut maintenance and troubleshooting](docs/shortcuts.md) for the exact workflows, publishing checklist, recovery process, and Back Tap guidance.
-
-## Contributing
-
-Contributions are welcome once contribution guidelines are added. Unless explicitly stated otherwise, contributions intentionally submitted for inclusion in Zeptly are provided under the Apache License 2.0.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Report vulnerabilities privately according to [SECURITY.md](SECURITY.md); never open a public issue containing credentials, private conversations, or exploitable details.
 
 ## License
 
