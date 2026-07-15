@@ -14,11 +14,21 @@
 			remoteGlobalIDString = 2F03FF602F66E23300D9B3F1;
 			remoteInfo = zeptly;
 		};
+		C1000000000000000000000A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2F03FF592F66E23300D9B3F1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2F03FF602F66E23300D9B3F1;
+			remoteInfo = zeptly;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		2F03FF612F66E23300D9B3F1 /* zeptly.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = zeptly.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000001 /* zeptlyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = zeptlyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C10000000000000000000001 /* zeptlyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = zeptlyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10000000000000000000001 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
+		B10000000000000000000002 /* Local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig.example; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -30,6 +40,11 @@
 		A10000000000000000000002 /* zeptlyTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = zeptlyTests;
+			sourceTree = "<group>";
+		};
+		C10000000000000000000002 /* zeptlyUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = zeptlyUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -49,14 +64,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C10000000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		2F03FF582F66E23300D9B3F1 = {
 			isa = PBXGroup;
 			children = (
+				B10000000000000000000003 /* Config */,
 				2F03FF632F66E23300D9B3F1 /* zeptly */,
 				A10000000000000000000002 /* zeptlyTests */,
+				C10000000000000000000002 /* zeptlyUITests */,
 				2F03FF622F66E23300D9B3F1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -66,8 +90,18 @@
 			children = (
 				2F03FF612F66E23300D9B3F1 /* zeptly.app */,
 				A10000000000000000000001 /* zeptlyTests.xctest */,
+				C10000000000000000000001 /* zeptlyUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		B10000000000000000000003 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000001 /* Base.xcconfig */,
+				B10000000000000000000002 /* Local.xcconfig.example */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -118,6 +152,29 @@
 			productReference = A10000000000000000000001 /* zeptlyTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		C10000000000000000000006 /* zeptlyUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C10000000000000000000007 /* Build configuration list for PBXNativeTarget "zeptlyUITests" */;
+			buildPhases = (
+				C10000000000000000000004 /* Sources */,
+				C10000000000000000000003 /* Frameworks */,
+				C10000000000000000000005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C1000000000000000000000B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C10000000000000000000002 /* zeptlyUITests */,
+			);
+			name = zeptlyUITests;
+			packageProductDependencies = (
+			);
+			productName = zeptlyUITests;
+			productReference = C10000000000000000000001 /* zeptlyUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -133,6 +190,10 @@
 					};
 					A10000000000000000000006 = {
 						CreatedOnToolsVersion = 26.3;
+						TestTargetID = 2F03FF602F66E23300D9B3F1;
+					};
+					C10000000000000000000006 = {
+						CreatedOnToolsVersion = 26.6;
 						TestTargetID = 2F03FF602F66E23300D9B3F1;
 					};
 				};
@@ -153,6 +214,7 @@
 			targets = (
 				2F03FF602F66E23300D9B3F1 /* zeptly */,
 				A10000000000000000000006 /* zeptlyTests */,
+				C10000000000000000000006 /* zeptlyUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -166,6 +228,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A10000000000000000000005 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C10000000000000000000005 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -189,6 +258,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C10000000000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -197,11 +273,17 @@
 			target = 2F03FF602F66E23300D9B3F1 /* zeptly */;
 			targetProxy = A1000000000000000000000A /* PBXContainerItemProxy */;
 		};
+		C1000000000000000000000B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2F03FF602F66E23300D9B3F1 /* zeptly */;
+			targetProxy = C1000000000000000000000A /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		2F03FF6A2F66E23400D9B3F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000001 /* Base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -235,7 +317,6 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = 9FDQ573SQ7;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -267,6 +348,7 @@
 		};
 		2F03FF6B2F66E23400D9B3F1 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000001 /* Base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -300,7 +382,6 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 9FDQ573SQ7;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -325,16 +406,18 @@
 		};
 		2F03FF6D2F66E23400D9B3F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000001 /* Base.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = zeptly/zeptly.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9FDQ573SQ7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Zeptly;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -359,16 +442,19 @@
 		};
 		2F03FF6E2F66E23400D9B3F1 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000001 /* Base.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = zeptly/zeptly.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9FDQ573SQ7;
+				ENABLE_CODE_COVERAGE = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Zeptly;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -393,11 +479,11 @@
 		};
 		A10000000000000000000008 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000001 /* Base.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9FDQ573SQ7;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
@@ -412,11 +498,11 @@
 		};
 		A10000000000000000000009 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000001 /* Base.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9FDQ573SQ7;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
@@ -426,6 +512,40 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/zeptly.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/zeptly";
+			};
+			name = Release;
+		};
+		C10000000000000000000008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000001 /* Base.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gigabeyond.zeptlyUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = zeptly;
+			};
+			name = Debug;
+		};
+		C10000000000000000000009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000001 /* Base.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gigabeyond.zeptlyUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = zeptly;
 			};
 			name = Release;
 		};
@@ -455,6 +575,15 @@
 			buildConfigurations = (
 				A10000000000000000000008 /* Debug */,
 				A10000000000000000000009 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C10000000000000000000007 /* Build configuration list for PBXNativeTarget "zeptlyUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C10000000000000000000008 /* Debug */,
+				C10000000000000000000009 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

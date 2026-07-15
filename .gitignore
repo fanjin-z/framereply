@@ -1,6 +1,13 @@
-# Xcode
+# Xcode build products and diagnostics
 build/
 DerivedData/
+*.ipa
+*.xcarchive
+*.xcresult
+*.dSYM
+*.dSYM.zip
+
+# Xcode per-user state
 *.pbxuser
 !default.pbxuser
 *.mode1v3
@@ -18,45 +25,60 @@ xcuserdata/
 
 # Swift Package Manager
 .build/
+.swiftpm/
 Packages/
 Package.pins
-Package.resolved
-*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
-# CocoaPods
+# Local configuration, credentials, and signing material
+.env
+.env.*
+!.env.example
+.envrc
+.direnv/
+[Ll]ocal*.xcconfig
+[Ss]ecrets*.xcconfig
+*.[Ll]ocal.xcconfig
+*.[Ss]ecret.xcconfig
+*.p8
+*.p12
+*.pfx
+*.mobileprovision
+*.provisionprofile
+*.cer
+*.csr
+*.der
+*.pem
+*.key
+*.keychain
+*.keychain-db
+
+# Optional dependency managers
 Pods/
-
-# Carthage
 Carthage/Build/
 Carthage/Checkouts/
 
-# Fastlane
+# Local release-tool output
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
-fastlane/test_output
+fastlane/test_output/
 
-# OS files
+# Apple platform and developer tools
 .DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
-ehthumbs.db
-Thumbs.db
-
-# Code Injection
 iOSInjectionProject/
-
-# Playgrounds
 timeline.xctimeline
 playground.xcworkspace
 
-# Swift Package Manager (Xcode-managed)
-.swiftpm/
-
-# Editor
+# Editors
 .vscode/
-
-# Sweetpad
+.idea/
+.fleet/
 buildServer.json
+
+# Other operating systems
+ehthumbs.db
+Thumbs.db

@@ -1,0 +1,3 @@
+// Signing is intentionally local. Xcode Cloud or a local developer may override this setting.
+DEVELOPMENT_TEAM =
+#include? "Local.xcconfig"
