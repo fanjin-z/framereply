@@ -5,6 +5,24 @@ import XCTest
 
 @MainActor
 final class ChatPersistenceTests: XCTestCase {
+    func testReleaseStoreAndSeedUseVersionOne() throws {
+        XCTAssertEqual(ZeptlyDataStore.configurationName, "ZeptlyChatsV1")
+        XCTAssertEqual(ZeptlyDataStore.defaultStoreURL.lastPathComponent, "ZeptlyChatsV1.store")
+
+        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        try repository.seedIfNeeded()
+        try repository.seedIfNeeded()
+
+        let metadata = try container.mainContext.fetch(
+            FetchDescriptor<StoreMetadataRecord>(
+                predicate: #Predicate { $0.key == "sampleSeedVersion" }
+            )
+        )
+        XCTAssertEqual(metadata.count, 1)
+        XCTAssertEqual(metadata.first?.value, "1")
+    }
+
     func testDraftingInputLifecycle() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)

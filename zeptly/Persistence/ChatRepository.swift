@@ -60,7 +60,7 @@ nonisolated enum DraftingInputBarrier {
 @MainActor
 final class ChatRepository {
     private let context: ModelContext
-    private let seedVersion = "2"
+    private let seedVersion = "1"
     private let seedVersionKey = "sampleSeedVersion"
 
     convenience init() {

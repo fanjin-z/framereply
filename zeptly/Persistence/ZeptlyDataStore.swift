@@ -7,6 +7,10 @@ import Foundation
 import SwiftData
 
 enum ZeptlyDataStore {
+    static let configurationName = "ZeptlyChatsV1"
+    static let defaultStoreURL = URL.applicationSupportDirectory.appending(
+        path: "\(configurationName).store")
+
     static let schema = Schema([
         ChatRecord.self,
         ChatSelfAliasRecord.self,
@@ -33,7 +37,7 @@ enum ZeptlyDataStore {
         let configuration: ModelConfiguration
         if let url {
             configuration = ModelConfiguration(
-                "ZeptlyChatsV3",
+                configurationName,
                 schema: schema,
                 url: url,
                 allowsSave: true,
@@ -42,16 +46,16 @@ enum ZeptlyDataStore {
         } else {
             if inMemory {
                 configuration = ModelConfiguration(
-                    "ZeptlyChatsV3",
+                    configurationName,
                     schema: schema,
                     isStoredInMemoryOnly: true,
                     cloudKitDatabase: .none
                 )
             } else {
                 configuration = ModelConfiguration(
-                    "ZeptlyChatsV3",
+                    configurationName,
                     schema: schema,
-                    url: URL.applicationSupportDirectory.appending(path: "ZeptlyChatsV3.store"),
+                    url: defaultStoreURL,
                     allowsSave: true,
                     cloudKitDatabase: .none
                 )

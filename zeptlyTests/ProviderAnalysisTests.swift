@@ -10,6 +10,9 @@ final class ProviderAnalysisTests: XCTestCase {
     }
 
     func testFiveContractsHaveExactClosedRootKeys() throws {
+        XCTAssertEqual(ChatScreenshotPrompt.version, 1)
+        XCTAssertEqual(SuggestedReplyPrompt.version, 1)
+
         let screenshot = ChatScreenshotPrompt.contract(for: makeRequest())
         let shared = ChatScreenshotPrompt.contract(
             for: ChatImportAnalysisRequest(transcriptItems: ["Alice: Hi"], candidates: []))
@@ -22,13 +25,13 @@ final class ProviderAnalysisTests: XCTestCase {
             keys: [
                 "extractionStatus", "conversationTitle", "conversationKind", "titleSource",
                 "ownershipConvention", "messages", "matchedChatID", "matchConfidence"
-            ], version: 2)
+            ], version: ChatScreenshotPrompt.version)
         try assertContract(
             shared,
             keys: [
                 "extractionStatus", "conversationTitle", "conversationKind", "titleSource",
                 "messages", "matchedChatID", "matchConfidence"
-            ], version: 2)
+            ], version: ChatScreenshotPrompt.version)
         try assertContract(
             standard,
             keys: [
@@ -89,7 +92,9 @@ final class ProviderAnalysisTests: XCTestCase {
 
         let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
         XCTAssertEqual(body["store"] as? Bool, false)
-        XCTAssertNotNil(body["prompt_cache_key"] as? String)
+        XCTAssertEqual(
+            body["prompt_cache_key"] as? String,
+            "screenshot_import-v1-gpt-5.6-sol")
         let format = try XCTUnwrap(
             (body["text"] as? [String: Any])?["format"] as? [String: Any])
         XCTAssertEqual(format["type"] as? String, "json_schema")
@@ -121,6 +126,9 @@ final class ProviderAnalysisTests: XCTestCase {
         let format = try XCTUnwrap(
             (body["text"] as? [String: Any])?["format"] as? [String: Any])
         XCTAssertEqual(format["name"] as? String, "suggested_reply_drafting")
+        XCTAssertEqual(
+            body["prompt_cache_key"] as? String,
+            "suggested_reply_drafting-v1-gpt-5.6-luna")
         let schema = try XCTUnwrap(format["schema"] as? [String: Any])
         XCTAssertEqual(
             Set(try XCTUnwrap(schema["properties"] as? [String: Any]).keys),

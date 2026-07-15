@@ -118,6 +118,26 @@ final class ProviderStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testProviderStoreUsesOnlyReleaseV1Preferences() throws {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set(
+            try JSONEncoder().encode(makeProviders()),
+            forKey: ProviderStoreTestKey.retiredProviders
+        )
+
+        let store = ProviderStore(userDefaults: defaults)
+
+        XCTAssertTrue(store.providers.isEmpty)
+        XCTAssertNil(store.activePlatform)
+        let releaseData = try XCTUnwrap(
+            defaults.data(forKey: ProviderStoreTestKey.providers))
+        XCTAssertTrue(
+            try JSONDecoder().decode([ProviderConnection].self, from: releaseData).isEmpty)
+        XCTAssertNotNil(defaults.data(forKey: ProviderStoreTestKey.retiredProviders))
+    }
+
+    @MainActor
     func testFallbackAndEmptyProviderSelection() throws {
         do {
             let (defaults, suiteName) = makeDefaults()
@@ -254,7 +274,8 @@ final class ProviderStoreTests: XCTestCase {
 }
 
 private enum ProviderStoreTestKey {
-    static let providers = "zeptly.providerConnections.v2"
+    static let providers = "zeptly.providerConnections.v1"
+    static let retiredProviders = "zeptly.providerConnections.v2"
     static let activePlatform = "zeptly.activeProviderPlatform.v1"
 }
 

@@ -22,7 +22,7 @@ final class ProviderStore: ObservableObject {
     private let userDefaults: UserDefaults
     private let keychain: any KeychainStoring
     private let registry: AIProviderRegistry
-    private let providersKey = "zeptly.providerConnections.v2"
+    private let providersKey = "zeptly.providerConnections.v1"
     private let activePlatformKey = "zeptly.activeProviderPlatform.v1"
 
     var activeProvider: ProviderConnection? {

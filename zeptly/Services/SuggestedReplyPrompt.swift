@@ -1,7 +1,7 @@
 import Foundation
 
 nonisolated enum SuggestedReplyPrompt {
-    static let version = 13
+    static let version = 1
 
     private static let standardInstructions = """
         Task
