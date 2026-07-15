@@ -3,7 +3,7 @@ import XCTest
 @testable import zeptly
 
 final class SharedTranscriptInputTests: XCTestCase {
-    func testMessageEstimatesCoverStandaloneCombinedAndOversizedTranscripts() {
+    func testMessageEstimatesCoverStandaloneAndGeneratedCombinedTranscripts() {
         let standalone = SharedTranscriptInput(items: [
             "[07/13/26, 9:42 PM] Alice: Hello\ncontinued",
             "13.07.2026, 21:43 - Bob: Hi",
@@ -13,20 +13,16 @@ final class SharedTranscriptInputTests: XCTestCase {
         XCTAssertEqual(standalone.characterCount, standalone.items.reduce(0) { $0 + $1.count })
         XCTAssertEqual(standalone.estimatedMessageCount, 3)
 
-        let mixed = SharedTranscriptInput(items: [
-            "[07/13/26, 9:42 PM] Alice: One\n[07/13/26, 9:43 PM] Bob: Two",
-            "A standalone WeChat copied-message item"
-        ])
-        XCTAssertEqual(mixed.estimatedMessageCount, 3)
-
-        let lines = (1...26).map { index in
-            "[07/13/26, 9:\(String(format: "%02d", index)) PM] Alice: Message \(index)"
+        let generatedTranscript = (1...9).map { index in
+            let sender = index.isMultiple(of: 2) ? "Person A" : "Person B"
+            let minute = String(format: "%02d", index)
+            return "[07/13/26, 9:\(minute) PM] \(sender): Test message \(index)"
         }
-        let oversized = SharedTranscriptInput(items: [lines.joined(separator: "\n")])
-        XCTAssertEqual(oversized.estimatedMessageCount, 26)
-        XCTAssertGreaterThan(
-            oversized.estimatedMessageCount,
-            SharedTranscriptInput.maximumEstimatedMessageCount
-        )
+        .joined(separator: "\n\n")
+        let combined = SharedTranscriptInput(items: [generatedTranscript])
+
+        XCTAssertEqual(combined.items, [generatedTranscript])
+        XCTAssertEqual(combined.estimatedMessageCount, 9)
+        XCTAssertEqual(combined.characterCount, generatedTranscript.count)
     }
 }

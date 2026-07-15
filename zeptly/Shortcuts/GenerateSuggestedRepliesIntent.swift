@@ -172,7 +172,7 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
     @Parameter(
         title: "Analyzed Chat",
         description:
-            "The output from Analyze Chat Screenshot or Analyze Copied Messages.",
+            "The output from Analyze Chat Images or Analyze Chat Text.",
         inputConnectionBehavior: .connectToPreviousIntentResult
     )
     var analyzedChat: AnalyzedChatEntity?

@@ -18,9 +18,9 @@ enum ScreenshotImportError: LocalizedError {
         case .noImage:
             "Select at least one screenshot to import."
         case .noTranscript:
-            "Copy at least one text message before importing."
+            "Share or copy at least one text message before importing."
         case .transcriptTooLarge:
-            "The copied transcript is too large. Select fewer messages and try again."
+            "The chat text is too large. Select fewer messages and try again."
         case .noActiveProvider:
             "Connect and select a model provider before importing messages."
         case .missingAPIKey:

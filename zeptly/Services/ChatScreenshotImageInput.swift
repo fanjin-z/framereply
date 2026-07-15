@@ -7,19 +7,23 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-enum ChatScreenshotImageInput {
+nonisolated enum ChatScreenshotImageInput {
     static func isSupportedImage(data: Data, filename: String? = nil, type: UTType? = nil) -> Bool {
-        if let type {
-            return type.conforms(to: .image)
+        guard !data.isEmpty else {
+            return false
         }
 
-        if let filename {
+        if let type, !type.conforms(to: .image) {
+            return false
+        }
+
+        if type == nil, let filename {
             let fileExtension = URL(fileURLWithPath: filename).pathExtension.lowercased()
             if !fileExtension.isEmpty,
                 let inferredType = UTType(filenameExtension: fileExtension),
-                inferredType.conforms(to: .image)
+                !inferredType.conforms(to: .image)
             {
-                return true
+                return false
             }
         }
 
@@ -38,6 +42,6 @@ enum ChatScreenshotImageInput {
             return true
         }
 
-        return !data.isEmpty
+        return false
     }
 }

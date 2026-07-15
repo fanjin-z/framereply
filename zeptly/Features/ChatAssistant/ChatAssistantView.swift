@@ -230,7 +230,7 @@ struct ChatAssistantView: View {
                             ScreenshotImportStatusCard(
                                 symbolName: "sparkles",
                                 message: importModel.importKind == .copiedMessages
-                                    ? "Analyzing copied messages…"
+                                    ? "Analyzing chat text…"
                                     : "Analyzing selected screenshots…",
                                 isLoading: true
                             )

@@ -5,7 +5,6 @@
 //  Created by Fanjin Zeng on 3/15/26.
 //
 
-import AppIntents
 import SwiftData
 import SwiftUI
 
@@ -21,7 +20,6 @@ struct ZeptlyApp: App {
         } catch {
             assertionFailure("Unable to seed Zeptly data: \(error)")
         }
-        ZeptlyShortcutsProvider.updateAppShortcutParameters()
     }
 
     var body: some Scene {

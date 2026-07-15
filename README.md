@@ -25,60 +25,50 @@ By default, `run.sh` builds and launches the app on an `iPhone 17` simulator. Yo
 ./run.sh "iPhone 16"
 ```
 
-## Chat Import
+## Import Chats
 
-Inside Zeptly, tap **Add Messages** to choose up to eight screenshots or explicitly paste copied messages. Paste accepts up to 8,000 characters, 40 text items, and an estimated 25 messages. Screenshots remain available for apps or conversations that do not expose useful copied text.
+### In Zeptly
 
-Copied text is analyzed transiently by the selected model provider. Zeptly stores the extracted messages, not the raw pasted transcript. Imports with uncertain ownership are saved and shown in the existing **Review Imports** flow; suggested replies are still attempted.
+Tap **Add Messages** to choose up to eight screenshots or paste message text.
 
-## Screenshot Shortcut
+### With Shortcuts
 
-Zeptly's recommended shortcut is **Zeptly**. It takes a screenshot, imports the visible chat, and shows two suggested replies.
+Add either workflow from **Zeptly → Settings → Shortcuts**.
 
-### Setup once
+#### Images
 
-1. In Zeptly, open **Settings -> Screenshot Shortcut -> Add Shortcut**.
-2. In Shortcuts, open **Zeptly -> (i) Details** and turn on **Show in Share Sheet**.
-3. From Photos or another app, tap **Share -> Edit Actions** and add **Zeptly** to **Favorites**.
+1. Tap **Add Image Shortcut** to install **Zeptly Images**.
+2. Run it to capture the conversation currently on screen.
+3. To import saved images, select 1–8 images from the same conversation in Photos, then tap **Share → Zeptly Images**.
 
-### Use it
+```text
+Shared images ──┐
+                ├→ Analyze → Generate replies → Show result
+Take screenshot ┘
+```
 
-Run **Zeptly** from the Share Sheet, Shortcuts, Siri, the Action button, Back Tap, or another supported system surface. The shortcut performs four actions:
+#### Text
 
-1. **Take Screenshot**
-2. **Analyze Chat Screenshot**
-3. **Generate Suggested Replies**
-4. **Show Result**
+1. Tap **Add Text Shortcut** to install **Zeptly Text**.
+2. If your chat app can share selected messages as plain text, tap **Share → Zeptly Text**.
+3. Otherwise, copy the messages and run **Zeptly Text**.
+
+```text
+Shared text ──┐
+              ├→ Analyze → Generate replies → Show result
+Get Clipboard ┘
+```
+
+Run either shortcut from Spotlight, Siri, the Action button, Back Tap, the Home Screen, or the Shortcuts app.
 
 ### Notes
 
-On iOS 26 or later, **Analyze Chat Screenshot** first offers **Add Context or Draft** and **Skip**. Choosing Add opens a multiline prompt while analysis continues; Done with blank text is also treated as Skip. The system Cancel button stops the Shortcut. On iOS 18-25, the text prompt explains that Done empty skips and Cancel stops. Submitted text is used once and expires after 15 minutes if the workflow is abandoned. **Generate Suggested Replies** waits until that input choice is durably committed, then returns ready-to-display text containing the import status and two replies. Screenshot import remains successful if reply generation is temporarily unavailable.
+- Text import accepts up to 8,000 characters, 40 text items, and approximately 25 messages.
+- Images and message text are sent transiently to the selected model provider. Zeptly stores extracted messages, not source images or raw imported text.
+- Imports with uncertain ownership are saved in **Review Imports**; Zeptly still attempts to generate replies.
+- Early-preview shortcuts using **Analyze Chat Screenshot** must be replaced with **Zeptly Images**.
 
-For Back Tap, turn off **Settings -> Accessibility -> Touch -> Back Tap -> Show Banner**. The banner can cover a messaging app's conversation title before the screenshot is taken. The screenshot animation and context input sheet still provide visible confirmation that the shortcut ran; no vibration action is required.
-
-Until the canonical installer link is configured, create a shortcut named **Zeptly** manually using the same four actions and connect each action to the previous action's output.
-
-## Copied Messages Shortcut
-
-Create a second shortcut named **Zeptly Copied Messages** and connect these actions:
-
-1. **Get Clipboard**
-2. **Analyze Copied Messages**
-3. **Generate Suggested Replies**
-4. **Show Result**
-
-The Analyze action accepts either one combined transcript or multiple connected text items. The workflow can be launched from Shortcuts, Siri, Back Tap, the Action Button, or the Home Screen. It does not replace the screenshot shortcut.
-
-### Maintainer notes
-
-- Publish the canonical shortcut from a team-controlled Apple account and set its iCloud URL in `ScreenshotShortcutConfiguration.canonicalURLString`.
-- Test the public link before each release. Use **Stop Sharing** in Shortcuts when the link must be revoked; deleting the local shortcut is not the revocation workflow.
-
-To keep a signed recovery backup:
-
-1. Open **Zeptly** in Shortcuts and choose **Share**.
-2. Choose **Options → File → Anyone**, then save the exported `.shortcut` file to secure team storage outside the app bundle.
-3. Re-export the file whenever the workflow changes and verify that another device can import it.
+See [Shortcut maintenance and troubleshooting](docs/shortcuts.md) for the exact workflows, publishing checklist, recovery process, and Back Tap guidance.
 
 ## Contributing
 

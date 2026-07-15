@@ -94,12 +94,6 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     providerHeader
                     providerContent
-                    Text(
-                        "Screenshot images are uploaded transiently to your selected model provider for analysis. Zeptly does not save the image."
-                    )
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(RezplyColor.outline)
-                    .fixedSize(horizontal: false, vertical: true)
                 }
 
                 shortcutSection
@@ -202,145 +196,144 @@ struct SettingsView: View {
     private var shortcutSection: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 10) {
-                Image(systemName: "camera.viewfinder")
+                Image(systemName: "bolt.fill")
                     .font(.system(size: 20, weight: .medium))
                 Text("Shortcuts")
                     .font(.system(size: 21, weight: .bold, design: .rounded))
             }
             .foregroundStyle(RezplyColor.primary)
 
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(alignment: .top, spacing: 14) {
-                    Circle()
-                        .fill(Color.white.opacity(0.78))
-                        .frame(width: 42, height: 42)
-                        .shadow(
-                            color: RezplyColor.primaryContainer.opacity(0.18), radius: 12, x: 0,
-                            y: 8
-                        )
-                        .overlay {
-                            Image(systemName: "photo.badge.arrow.down")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundStyle(RezplyColor.primary)
-                        }
-
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text("Zeptly")
-                            .font(.system(size: 17, weight: .bold, design: .rounded))
-                            .foregroundStyle(RezplyColor.onSurface)
-
-                        Text(
-                            "Import a screenshot with Zeptly, or build a copied-message workflow with the Analyze Copied Messages action."
-                        )
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(RezplyColor.onSurfaceVariant)
-                        .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-
-                shortcutInstallControl
-                copiedMessagesShortcutNote
-                shortcutShareSheetSetup
-            }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background {
-                RoundedRectangle(cornerRadius: 0)
-                    .fill(Color.white.opacity(0.42))
-            }
-        }
-    }
-
-    private var copiedMessagesShortcutNote: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Copied messages")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(RezplyColor.onSurface)
             Text(
-                "In Shortcuts, connect Get Clipboard -> Analyze Copied Messages -> Generate Suggested Replies -> Show Result."
+                "Add one or both. Each imports recent messages and shows two suggested replies."
+            )
+            .font(.system(size: 13, weight: .semibold, design: .rounded))
+            .foregroundStyle(RezplyColor.onSurfaceVariant)
+            .fixedSize(horizontal: false, vertical: true)
+
+            shortcutWorkflowCard(
+                title: "Images",
+                description:
+                    "Share 1–8 screenshots or photos from one chat, or run the shortcut to capture the screen.",
+                symbol: "photo.on.rectangle.angled",
+                routes: [
+                    ("square.and.arrow.up", "Share images → replies"),
+                    ("hand.tap", "Run → screenshot → replies")
+                ],
+                buttonTitle: "Add Image Shortcut",
+                installation: ShortcutInstallationCatalog.images
+            )
+
+            shortcutWorkflowCard(
+                title: "Text",
+                description:
+                    "Share selected message text when your chat app supports it, or copy messages and run the shortcut.",
+                symbol: "text.bubble",
+                routes: [
+                    ("square.and.arrow.up", "Share text → replies"),
+                    ("doc.on.clipboard", "Copy messages → run → replies")
+                ],
+                buttonTitle: "Add Text Shortcut",
+                installation: ShortcutInstallationCatalog.text
+            )
+
+            Text(
+                "Run installed shortcuts from Spotlight, the Action button, Back Tap, the Home Screen, Siri, or Shortcuts."
             )
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .foregroundStyle(RezplyColor.onSurfaceVariant)
             .fixedSize(horizontal: false, vertical: true)
+
+            Text(
+                "Images and message text are sent to your selected model provider for analysis. Zeptly does not save source images or raw imported text."
+            )
+            .font(.system(size: 12, weight: .medium, design: .rounded))
+            .foregroundStyle(RezplyColor.outline)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    private var shortcutShareSheetSetup: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Run from other apps")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(RezplyColor.onSurface)
-
-            VStack(alignment: .leading, spacing: 10) {
-                shortcutShareSheetStep(
-                    number: 1,
-                    text: Text(
-                        "Shortcuts -> Zeptly \(Image(systemName: "ellipsis.circle")) -> \(Image(systemName: "info.circle")) Details -> Show in Share Sheet"
-                    ),
-                    accessibilityText:
-                        "Shortcuts to Zeptly to the info button, Details, then Show in Share Sheet"
-                )
-                shortcutShareSheetStep(
-                    number: 2,
-                    text: Text("In Photos app: \(Image(systemName: "square.and.arrow.up")) Share -> Edit Actions"),
-                    accessibilityText: "In Photos app: Share, then Edit Actions"
-                )
-                shortcutShareSheetStep(
-                    number: 3,
-                    text: Text("Add Zeptly to Favorites"),
-                    accessibilityText: "Add Zeptly to Favorites"
-                )
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Run from other apps setup")
-    }
-
-    private func shortcutShareSheetStep(
-        number: Int,
-        text: Text,
-        accessibilityText: String
+    private func shortcutWorkflowCard(
+        title: String,
+        description: String,
+        symbol: String,
+        routes: [(symbol: String, text: String)],
+        buttonTitle: String,
+        installation: ShortcutInstallationDefinition
     ) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            ZStack {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 14) {
                 Circle()
-                    .fill(RezplyColor.primaryContainer.opacity(0.52))
-                    .frame(width: 24, height: 24)
+                    .fill(Color.white.opacity(0.78))
+                    .frame(width: 42, height: 42)
+                    .shadow(
+                        color: RezplyColor.primaryContainer.opacity(0.18), radius: 12, x: 0,
+                        y: 8
+                    )
+                    .overlay {
+                        Image(systemName: symbol)
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(RezplyColor.primary)
+                    }
 
-                Text("\(number)")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundStyle(RezplyColor.primary)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title)
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .foregroundStyle(RezplyColor.onSurface)
+
+                    Text(description)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(RezplyColor.onSurfaceVariant)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
-            text
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(RezplyColor.onSurfaceVariant)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(routes.enumerated()), id: \.offset) { _, route in
+                    Label {
+                        Text(route.text)
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    } icon: {
+                        Image(systemName: route.symbol)
+                            .font(.system(size: 12, weight: .semibold))
+                            .frame(width: 18)
+                    }
+                    .foregroundStyle(RezplyColor.onSurfaceVariant)
+                }
+            }
+            .accessibilityElement(children: .combine)
+
+            shortcutInstallControl(
+                installation: installation,
+                buttonTitle: buttonTitle
+            )
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Step \(number): \(accessibilityText)")
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 0)
+                .fill(Color.white.opacity(0.42))
+        }
     }
 
     @ViewBuilder
-    private var shortcutInstallControl: some View {
-        if let installationURL = ScreenshotShortcutConfiguration.installationURL {
+    private func shortcutInstallControl(
+        installation: ShortcutInstallationDefinition,
+        buttonTitle: String
+    ) -> some View {
+        if let installationURL = installation.installationURL {
             Link(destination: installationURL) {
-                shortcutInstallLabel(title: "Add Shortcut", symbol: "arrow.up.forward.app")
+                shortcutInstallLabel(title: buttonTitle, symbol: "arrow.up.forward.app")
             }
             .buttonStyle(SoftPressButtonStyle())
-            .accessibilityHint("Opens the Zeptly shortcut preview")
+            .accessibilityLabel("Install \(installation.title)")
+            .accessibilityHint("Opens the \(installation.title) shortcut preview")
         } else {
-            VStack(alignment: .leading, spacing: 8) {
-                Button(action: {}) {
-                    shortcutInstallLabel(title: "Add Shortcut", symbol: "arrow.up.forward.app")
-                }
-                .buttonStyle(SoftPressButtonStyle())
-                .disabled(true)
-
-                Text("The installer link has not been configured yet.")
+            #if DEBUG
+                Label("Installer unavailable in this build", systemImage: "hammer")
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(RezplyColor.outline)
-            }
+                    .accessibilityLabel("\(installation.title) installer unavailable in this build")
+            #endif
         }
     }
 

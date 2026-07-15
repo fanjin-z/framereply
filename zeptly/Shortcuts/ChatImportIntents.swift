@@ -206,20 +206,77 @@ nonisolated struct ShortcutExecutionError: LocalizedError, CustomLocalizedString
     }
 }
 
-struct AnalyzeChatScreenshotIntent: AppIntent {
-    static let title: LocalizedStringResource = "Analyze Chat Screenshot"
+nonisolated enum ChatImageIntentInputError: LocalizedError, Equatable, Sendable {
+    case noImages
+    case tooManyImages(maximum: Int)
+    case invalidImage(position: Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .noImages:
+            "No chat images were provided."
+        case .tooManyImages(let maximum):
+            "Choose no more than \(maximum) images from the same chat."
+        case .invalidImage(let position):
+            "Image \(position) is empty or is not a readable image."
+        }
+    }
+
+    var code: String {
+        switch self {
+        case .noImages:
+            "no_image"
+        case .tooManyImages:
+            "too_many_images"
+        case .invalidImage:
+            "invalid_image"
+        }
+    }
+}
+
+nonisolated enum ChatImageIntentInput {
+    static let maximumImageCount = 8
+
+    static func validatedData(from files: [IntentFile]?) throws -> [Data] {
+        let files = files ?? []
+        guard !files.isEmpty else {
+            throw ChatImageIntentInputError.noImages
+        }
+        guard files.count <= maximumImageCount else {
+            throw ChatImageIntentInputError.tooManyImages(maximum: maximumImageCount)
+        }
+
+        return try files.enumerated().map { index, file in
+            let data = file.data
+            guard !data.isEmpty,
+                ChatScreenshotImageInput.isSupportedImage(
+                    data: data,
+                    filename: file.filename,
+                    type: file.type
+                )
+            else {
+                throw ChatImageIntentInputError.invalidImage(position: index + 1)
+            }
+            return data
+        }
+    }
+}
+
+struct AnalyzeChatImagesIntent: AppIntent {
+    static let title: LocalizedStringResource = "Analyze Chat Images"
     static let description = IntentDescription(
-        "Imports visible messages while you optionally add context or draft a reply. The screenshot isn't saved."
+        "Imports one to eight images from the same chat while you optionally add context or draft a reply. The images aren't saved."
     )
     static let openAppWhenRun = false
 
     @Parameter(
-        title: "Screenshot",
-        description: "Pass an image, such as the output from Take Screenshot or Get Clipboard.",
+        title: "Chat Images",
+        description:
+            "Pass one to eight images from the same chat, such as shared photos or the output from Take Screenshot.",
         supportedContentTypes: [.image],
         inputConnectionBehavior: .connectToPreviousIntentResult
     )
-    var screenshot: IntentFile?
+    var chatImages: [IntentFile]?
 
     @Parameter(
         title: "Context or Draft",
@@ -229,7 +286,7 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
     var draftingInput: String?
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Analyze \(\.$screenshot)") {
+        Summary("Analyze \(\.$chatImages)") {
             \.$draftingInput
         }
     }
@@ -239,32 +296,28 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
         let startedAt = Date()
         let eventReporter = OSLogImportEventReporter()
         let lifecycleReporter = ShortcutLifecycleReporter()
-        guard let screenshot else {
-            eventReporter.record(
-                .importFailed(traceID: traceID, stage: .shortcut, errorCode: "no_image"))
-            throw ShortcutExecutionError(
-                message: "No image input was provided.", diagnosticID: traceID.diagnosticID
-            )
-        }
 
-        eventReporter.record(.stageStarted(traceID: traceID, stage: .screenshotDecoding))
-        guard isImageFile(screenshot) else {
+        let imageDataList: [Data]
+        do {
+            imageDataList = try ChatImageIntentInput.validatedData(from: chatImages)
+        } catch let error as ChatImageIntentInputError {
             eventReporter.record(
-                .importFailed(
-                    traceID: traceID, stage: .screenshotDecoding, errorCode: "invalid_image"))
+                .importFailed(traceID: traceID, stage: .shortcut, errorCode: error.code)
+            )
             throw ShortcutExecutionError(
-                message: "The provided file is not a readable image.",
+                message: error.localizedDescription,
                 diagnosticID: traceID.diagnosticID
             )
         }
 
+        eventReporter.record(.stageStarted(traceID: traceID, stage: .screenshotDecoding))
         let coordinator = await MainActor.run { ScreenshotImportCoordinator() }
         do {
             lifecycleReporter.record(
                 .analysisStarted, operationID: traceID.value, startedAt: startedAt)
             async let pendingOutcome: ScreenshotImportOutcome = {
                 let outcome = try await coordinator.process(
-                    imageData: screenshot.data,
+                    imageDataList: imageDataList,
                     traceID: traceID
                 )
                 lifecycleReporter.record(
@@ -283,7 +336,7 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
                 let choice = try await requestChoice(
                     between: [add, skip],
                     dialog:
-                        "Add optional context or a rough draft while Zeptly analyzes the screenshot?"
+                        "Add optional context or a rough draft while Zeptly analyzes the chat images?"
                 )
                 if choice == skip {
                     input = nil
@@ -291,14 +344,14 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
                     lifecycleReporter.record(
                         .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                     input = try await $draftingInput.requestValue(
-                        "Analyzing screenshot… Add context or draft what you want to say. Tap Done when finished. Cancel stops the shortcut."
+                        "Analyzing chat images… Add context or draft what you want to say. Tap Done when finished. Cancel stops the shortcut."
                     )
                 }
             } else {
                 lifecycleReporter.record(
                     .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                 input = try await $draftingInput.requestValue(
-                    "Analyzing screenshot… Add optional context or a draft. Tap Done empty to skip; Cancel stops the shortcut."
+                    "Analyzing chat images… Add optional context or a draft. Tap Done empty to skip; Cancel stops the shortcut."
                 )
             }
 
@@ -319,31 +372,23 @@ struct AnalyzeChatScreenshotIntent: AppIntent {
                 eventReporter: eventReporter,
                 lifecycleReporter: lifecycleReporter,
                 synchronizationMessage:
-                    "The optional input could not be synchronized with this screenshot import.",
+                    "The optional input could not be synchronized with this image import.",
                 persistenceMessage: "The chat history could not be saved."
             )
         }
     }
-
-    private func isImageFile(_ file: IntentFile) -> Bool {
-        ChatScreenshotImageInput.isSupportedImage(
-            data: file.data,
-            filename: file.filename,
-            type: file.type
-        )
-    }
 }
 
 struct AnalyzeCopiedMessagesIntent: AppIntent {
-    static let title: LocalizedStringResource = "Analyze Copied Messages"
+    static let title: LocalizedStringResource = "Analyze Chat Text"
     static let description = IntentDescription(
-        "Imports copied chat messages while you optionally add context or draft a reply. The raw copied text isn't saved."
+        "Imports shared or copied chat text while you optionally add context or draft a reply. The raw text isn't saved."
     )
     static let openAppWhenRun = false
 
     @Parameter(
-        title: "Copied Messages",
-        description: "Pass text from Get Clipboard or another Shortcuts action.",
+        title: "Chat Text",
+        description: "Pass shared plain text, Get Clipboard output, or text from another action.",
         inputConnectionBehavior: .connectToPreviousIntentResult
     )
     var copiedMessages: [String]?
@@ -374,7 +419,7 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
                 .importFailed(traceID: traceID, stage: .shortcut, errorCode: "no_transcript")
             )
             throw ShortcutExecutionError(
-                message: "No copied message text was provided.",
+                message: "No shared or copied message text was provided.",
                 diagnosticID: traceID.diagnosticID
             )
         }
@@ -404,7 +449,7 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
                 let choice = try await requestChoice(
                     between: [add, skip],
                     dialog:
-                        "Add optional context or a rough draft while Zeptly analyzes the copied messages?"
+                        "Add optional context or a rough draft while Zeptly analyzes the chat text?"
                 )
                 if choice == skip {
                     input = nil
@@ -412,14 +457,14 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
                     lifecycleReporter.record(
                         .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                     input = try await $draftingInput.requestValue(
-                        "Analyzing copied messages… Add context or draft what you want to say. Tap Done when finished."
+                        "Analyzing chat text… Add context or draft what you want to say. Tap Done when finished."
                     )
                 }
             } else {
                 lifecycleReporter.record(
                     .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                 input = try await $draftingInput.requestValue(
-                    "Analyzing copied messages… Add optional context or a draft. Tap Done empty to skip."
+                    "Analyzing chat text… Add optional context or a draft. Tap Done empty to skip."
                 )
             }
 
@@ -441,7 +486,7 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
                 lifecycleReporter: lifecycleReporter,
                 synchronizationMessage:
                     "The optional input could not be synchronized with this chat import.",
-                persistenceMessage: "The copied chat history could not be saved."
+                persistenceMessage: "The imported chat text could not be saved."
             )
         }
     }
