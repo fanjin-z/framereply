@@ -272,7 +272,12 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                 )
                 return .result(value: response.dialog)
             case .pending:
-                preconditionFailure("The readiness barrier must not return pending.")
+                let response = ShortcutResponseBuilder.failure(
+                    message: "The analyzed chat is not ready yet. Run the Analyze action again.",
+                    errorCode: "import_pending",
+                    traceID: traceID
+                )
+                return .result(value: response.dialog)
             }
             let replyCoordinator = await MainActor.run { SuggestedRepliesCoordinator() }
             let replies = try await replyCoordinator.generate(

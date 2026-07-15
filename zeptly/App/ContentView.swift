@@ -1,10 +1,6 @@
 //
 //  ContentView.swift
 //  zeptly
-//
-//  Created by Fanjin Zeng on 3/15/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {

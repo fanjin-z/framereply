@@ -5,10 +5,12 @@
 
 import Foundation
 
-enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
+nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
     case openAI
     case zaiInternational
     case zhipuChina
+
+    static var availableCases: [ProviderPlatform] { allCases }
 
     var id: String { rawValue }
 
@@ -29,7 +31,9 @@ enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
         switch self {
         case .openAI:
             "waveform"
-        case .zaiInternational, .zhipuChina:
+        case .zaiInternational:
+            "sparkles.rectangle.stack"
+        case .zhipuChina:
             "sparkles.rectangle.stack"
         }
     }
@@ -45,11 +49,17 @@ enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
             (.gpt56Terra, .gpt56Terra)
         case (.openAI, .best):
             (.gpt56Sol, .gpt56Sol)
-        case (.zaiInternational, .basic), (.zhipuChina, .basic):
+        case (.zaiInternational, .basic):
             (.glm46VFlash, .glm47Flash)
-        case (.zaiInternational, .advanced), (.zhipuChina, .advanced):
+        case (.zaiInternational, .advanced):
             (.glm46VFlashX, .glm47FlashX)
-        case (.zaiInternational, .best), (.zhipuChina, .best):
+        case (.zaiInternational, .best):
+            (.glm46V, .glm47)
+        case (.zhipuChina, .basic):
+            (.glm46VFlash, .glm47Flash)
+        case (.zhipuChina, .advanced):
+            (.glm46VFlashX, .glm47FlashX)
+        case (.zhipuChina, .best):
             (.glm46V, .glm47)
         }
     }

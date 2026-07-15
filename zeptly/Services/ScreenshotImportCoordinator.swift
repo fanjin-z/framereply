@@ -9,8 +9,12 @@ enum ScreenshotImportError: LocalizedError {
     case noImage
     case noTranscript
     case transcriptTooLarge
+    case tooManyImages
+    case unsupportedImage
+    case imagePayloadTooLarge
     case noActiveProvider
     case missingAPIKey
+    case consentRequired
     case unsupportedProvider
 
     var errorDescription: String? {
@@ -21,10 +25,18 @@ enum ScreenshotImportError: LocalizedError {
             "Share or copy at least one text message before importing."
         case .transcriptTooLarge:
             "The chat text is too large. Select fewer messages and try again."
+        case .tooManyImages:
+            "Select no more than eight screenshots from one chat."
+        case .unsupportedImage:
+            "A selected image could not be processed safely. Use a still PNG, JPEG, or HEIC image."
+        case .imagePayloadTooLarge:
+            "The selected images are too large to process safely. Choose fewer or smaller images."
         case .noActiveProvider:
             "Connect and select a model provider before importing messages."
         case .missingAPIKey:
             "The selected provider API key is unavailable. Reconnect it in Settings."
+        case .consentRequired:
+            "Allow provider sharing in Settings → Privacy & Data first."
         case .unsupportedProvider:
             "The selected provider cannot analyze chat imports."
         }
@@ -38,10 +50,18 @@ enum ScreenshotImportError: LocalizedError {
             "no_transcript"
         case .transcriptTooLarge:
             "transcript_too_large"
+        case .tooManyImages:
+            "too_many_images"
+        case .unsupportedImage:
+            "unsupported_image"
+        case .imagePayloadTooLarge:
+            "image_payload_too_large"
         case .noActiveProvider:
             "no_provider"
         case .missingAPIKey:
             "missing_api_key"
+        case .consentRequired:
+            "provider_consent_required"
         case .unsupportedProvider:
             "unsupported_provider"
         }
@@ -53,6 +73,8 @@ enum ScreenshotImportError: LocalizedError {
             self = .noActiveProvider
         case .missingAPIKey:
             self = .missingAPIKey
+        case .consentRequired:
+            self = .consentRequired
         case .unsupportedProvider, .unsupportedCapability:
             self = .unsupportedProvider
         }
@@ -99,7 +121,8 @@ final class ScreenshotImportCoordinator {
         imageDataList: [Data],
         traceID: ImportTraceID = ImportTraceID()
     ) async throws -> ScreenshotImportOutcome {
-        try await process(payload: .screenshots(imageDataList), traceID: traceID)
+        let normalized = try ScreenshotImageNormalizer.normalize(imageDataList)
+        return try await process(payload: .screenshots(normalized), traceID: traceID)
     }
 
     func process(
@@ -264,6 +287,7 @@ final class ScreenshotImportCoordinator {
 protocol ProviderConfigurationProviding: AnyObject {
     var activeProvider: ProviderConnection? { get }
     func savedAPIKey(for platform: ProviderPlatform) -> String?
+    func hasValidDataConsent(for platform: ProviderPlatform) -> Bool
 }
 
 extension ProviderStore: ProviderConfigurationProviding {}

@@ -12,7 +12,7 @@ struct OpenAIClient: AIProviderAdapter {
     private let validationMaxOutputTokens = 16
 
     init(
-        session: URLSession = .shared,
+        session: URLSession = ProviderNetworkSession.make(),
         eventReporter: any ImportEventReporting = OSLogImportEventReporter()
     ) {
         self.session = session
@@ -231,7 +231,7 @@ struct OpenAIClient: AIProviderAdapter {
             throw ProviderConnectionError.invalidResponse("OpenAI refused the import request.")
         }
         if analysisRequest.sharedTranscript == nil {
-            ChatImportDebugLogger.rawResponse(
+            ChatImportDebugLogger.responseMetadata(
                 traceID: analysisRequest.traceID,
                 provider: provider,
                 model: model.rawValue,
@@ -456,6 +456,7 @@ struct OpenAIClient: AIProviderAdapter {
     }
 
     private func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        try ProviderNetworkSession.validateHTTPS(request, allowedHost: "api.openai.com")
         do {
             return try await session.data(for: request)
         } catch let error as URLError {
@@ -486,8 +487,7 @@ struct OpenAIClient: AIProviderAdapter {
             throw ProviderConnectionError.providerUnavailable
         default:
             throw ProviderConnectionError.invalidResponse(
-                openAIError(from: data)?.message
-                    ?? "OpenAI returned HTTP \(httpResponse.statusCode)."
+                "OpenAI rejected the request with HTTP \(httpResponse.statusCode)."
             )
         }
     }

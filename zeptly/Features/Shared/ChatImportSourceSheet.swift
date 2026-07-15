@@ -55,9 +55,11 @@ struct ChatImportSourceSheet: View {
                     .glassPanel(cornerRadius: 20)
                 }
 
-                Text("Copied text is sent transiently to your selected model provider for analysis and is not saved as a raw transcript.")
-                    .font(.system(size: 12, design: .rounded))
-                    .foregroundStyle(RezplyColor.onSurfaceVariant)
+                Text(
+                    "Copied text is sent to your selected provider for analysis. Zeptly stores the imported messages in its protected local database, but does not retain a separate copy of the source transcript."
+                )
+                .font(.system(size: 12, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurfaceVariant)
 
                 Spacer()
             }

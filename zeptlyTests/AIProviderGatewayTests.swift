@@ -48,6 +48,22 @@ final class AIProviderGatewayTests: XCTestCase {
             adapter.apiKeys, ["validation-key", "saved-key", "saved-key", "saved-key"])
     }
 
+    @MainActor
+    func testRevokedConsentStopsBeforeAnyProviderRequest() async throws {
+        let adapter = RecordingProviderAdapter()
+        let configuration = GatewayProviderConfiguration(hasConsent: false)
+        let service = AIService(
+            providerConfiguration: configuration,
+            registry: AIProviderRegistry(adapters: [adapter])
+        )
+
+        XCTAssertThrowsError(try service.activeContext(requiring: .screenshotAnalysis)) { error in
+            XCTAssertEqual(error as? AIServiceError, .consentRequired)
+        }
+        XCTAssertTrue(adapter.apiKeys.isEmpty)
+        XCTAssertTrue(adapter.analysisModels.isEmpty)
+    }
+
     private func makeReplyRequest() -> SuggestedReplyGenerationRequest {
         SuggestedReplyGenerationRequest(
             task: .standard,
@@ -73,9 +89,18 @@ private final class GatewayProviderConfiguration: ProviderConfigurationProviding
         platform: .zaiInternational,
         tier: .advanced
     )
+    private let hasConsent: Bool
+
+    init(hasConsent: Bool = true) {
+        self.hasConsent = hasConsent
+    }
 
     func savedAPIKey(for platform: ProviderPlatform) -> String? {
         "saved-key"
+    }
+
+    func hasValidDataConsent(for platform: ProviderPlatform) -> Bool {
+        hasConsent
     }
 }
 

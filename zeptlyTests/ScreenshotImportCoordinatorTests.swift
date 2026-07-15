@@ -1,4 +1,5 @@
 import SwiftData
+import UIKit
 import XCTest
 
 @testable import zeptly
@@ -67,10 +68,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         let traceID = ImportTraceID(
             value: UUID(uuidString: "12345678-0000-0000-0000-000000000000")!
         )
-        let imageDataList = [
-            Data([0x89, 0x50, 0x4E, 0x47, 0x01, 0x02, 0x03]),
-            Data([0xFF, 0xD8, 0xFF, 0xE0, 0x02])
-        ]
+        let imageDataList = [makeTestImageData(color: .blue), makeTestImageData(color: .green)]
         let outcome = try await coordinator.process(
             imageDataList: imageDataList,
             traceID: traceID
@@ -81,7 +79,12 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         XCTAssertEqual(outcome.diagnosticID, "12345678")
         XCTAssertEqual(outcome.insertedMessageCount, 3)
         XCTAssertFalse(outcome.reviewRequired)
-        XCTAssertEqual(aiService.receivedImageDataList, imageDataList)
+        XCTAssertEqual(aiService.receivedImageDataList.count, 2)
+        XCTAssertTrue(aiService.receivedImageDataList.allSatisfy { $0.starts(with: [0xFF, 0xD8]) })
+        XCTAssertTrue(
+            aiService.receivedImageDataList.allSatisfy {
+                $0.count <= ScreenshotImageNormalizer.maximumBytesPerImage
+            })
         XCTAssertEqual(aiService.receivedContext?.effectiveModel, .gpt56Luna)
         let messages = try repository.messages(chatID: "sarah-jenkins")
         XCTAssertTrue(
@@ -154,7 +157,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             repository: repository
         )
 
-        let screenshotOutcome = try await coordinator.process(imageData: Data([1]))
+        let screenshotOutcome = try await coordinator.process(imageData: makeTestImageData())
         aiService.analysis = analysis(messages: [firstMessage, secondMessage])
         let textOutcome = try await coordinator.process(
             transcriptItems: [
@@ -234,6 +237,15 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         } catch let error as ScreenshotImportError {
             XCTAssertEqual(error.code, "transcript_too_large")
         }
+    }
+}
+
+@MainActor
+private func makeTestImageData(color: UIColor = .purple) -> Data {
+    let renderer = UIGraphicsImageRenderer(size: CGSize(width: 64, height: 96))
+    return renderer.jpegData(withCompressionQuality: 0.95) { context in
+        color.setFill()
+        context.fill(CGRect(x: 0, y: 0, width: 64, height: 96))
     }
 }
 

@@ -13,7 +13,8 @@ nonisolated enum ChatImportAnalysisDecoder {
         candidateIDs: Set<String>
     ) throws -> ChatImportAnalysis {
         if let finishReason, finishReason != "stop" {
-            let kind: StructuredOutputFailureKind = finishReason == "length"
+            let kind: StructuredOutputFailureKind =
+                finishReason == "length"
                 ? .truncatedResponse : .schemaMismatch
             throw StructuredOutputFailure(kind: kind, codingPath: "finish_reason")
         }
@@ -182,15 +183,20 @@ nonisolated enum ChatImportAnalysisDecoder {
         guard let messages = root["messages"] as? [[String: Any]] else {
             throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "messages")
         }
-        let required: Set<String> = isSharedTranscript
-            ? ["sender", "senderName", "text", "timestampLabel", "senderConfidence", "senderEvidence"]
+        let required: Set<String> =
+            isSharedTranscript
+            ? [
+                "sender", "senderName", "text", "timestampLabel", "senderConfidence",
+                "senderEvidence"
+            ]
             : [
                 "sender", "senderName", "text", "timestampLabel", "outerAlignment",
                 "outerAuthorLabel", "senderConfidence", "senderEvidence"
             ]
         for (index, message) in messages.enumerated() {
             guard Set(message.keys) == required else {
-                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "messages[\(index)]")
+                throw StructuredOutputFailure(
+                    kind: .schemaMismatch, codingPath: "messages[\(index)]")
             }
         }
     }

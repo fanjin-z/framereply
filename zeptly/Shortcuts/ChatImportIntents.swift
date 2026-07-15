@@ -1,9 +1,6 @@
 //
 //  ChatImportIntents.swift
 //  zeptly
-//
-//  Created by GitHub Copilot.
-//
 
 import AppIntents
 import Foundation
@@ -382,7 +379,7 @@ struct AnalyzeChatImagesIntent: AppIntent {
 struct AnalyzeCopiedMessagesIntent: AppIntent {
     static let title: LocalizedStringResource = "Analyze Chat Text"
     static let description = IntentDescription(
-        "Imports shared or copied chat text while you optionally add context or draft a reply. The raw text isn't saved."
+        "Imports shared or copied chat text while you optionally add context or draft a reply. Imported messages are stored locally; the source transcript is not retained separately."
     )
     static let openAppWhenRun = false
 

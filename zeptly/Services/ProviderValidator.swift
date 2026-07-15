@@ -35,6 +35,7 @@ nonisolated enum ProviderConnectionError: LocalizedError, Sendable {
     case structuredOutput(ProviderStructuredOutputError)
     case networkFailure(String)
     case keychainFailure(String)
+    case dataConsentRequired
     case unsupportedProvider
 
     var errorDescription: String? {
@@ -72,6 +73,8 @@ nonisolated enum ProviderConnectionError: LocalizedError, Sendable {
             message
         case .keychainFailure(let message):
             "The API key was valid, but Zeptly could not save it securely. \(message)"
+        case .dataConsentRequired:
+            "Allow provider data sharing before connecting."
         case .unsupportedProvider:
             "This provider is not available yet."
         }

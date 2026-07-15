@@ -32,6 +32,10 @@ struct SuggestedRepliesSection: View {
                 }
             }
 
+            Label("AI-generated — review before sending", systemImage: "exclamationmark.bubble")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(RezplyColor.onSurfaceVariant)
+
             if isLoading && replies.isEmpty {
                 HStack(spacing: 12) {
                     ProgressView()

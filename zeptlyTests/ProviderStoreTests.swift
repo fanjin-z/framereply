@@ -5,6 +5,35 @@ import XCTest
 
 final class ProviderStoreTests: XCTestCase {
     @MainActor
+    func testProviderConnectionRequiresPersistedConsentBeforeSaving() async throws {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let keychain = TestKeychainStore()
+        let store = ProviderStore(
+            userDefaults: defaults,
+            registry: .live(),
+            keychain: keychain
+        )
+
+        do {
+            try await store.connect(
+                platform: .openAI,
+                tier: .advanced,
+                apiKey: "synthetic-key"
+            )
+            XCTFail("Expected consentRequired")
+        } catch let error as ProviderConnectionError {
+            guard case .dataConsentRequired = error else {
+                return XCTFail("Expected dataConsentRequired, got \(error)")
+            }
+        }
+
+        XCTAssertTrue(store.providers.isEmpty)
+        XCTAssertNil(store.activePlatform)
+        XCTAssertNil(try keychain.get(account: ProviderPlatform.openAI.keychainAccount))
+    }
+
+    @MainActor
     func testProviderCatalogTiersAndModelCompatibility() throws {
         let registry = AIProviderRegistry.live()
         XCTAssertEqual(
@@ -210,6 +239,56 @@ final class ProviderStoreTests: XCTestCase {
         XCTAssertEqual(store.providers.map(\.platform), makeProviders().map(\.platform))
         XCTAssertEqual(store.activePlatform, .zhipuChina)
         XCTAssertEqual(defaults.string(forKey: ProviderStoreTestKey.activePlatform), "zhipuChina")
+    }
+
+    @MainActor
+    func testFullProviderDeletionRemovesDefaultsConsentAndEveryCredential() throws {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        try saveProviders(makeProviders(), to: defaults)
+        defaults.set("openAI", forKey: ProviderStoreTestKey.activePlatform)
+        defaults.set("remove-me", forKey: "zeptly.testPreference")
+        ProviderDataConsentStore(userDefaults: defaults).grantConsent(for: .openAI)
+        let keychain = TestKeychainStore()
+        for platform in ProviderPlatform.availableCases {
+            try keychain.set("secret", for: platform.keychainAccount)
+        }
+        let store = ProviderStore(
+            userDefaults: defaults,
+            registry: .live(),
+            keychain: keychain
+        )
+
+        try store.deleteAllProviderData()
+
+        XCTAssertTrue(store.providers.isEmpty)
+        XCTAssertNil(store.activePlatform)
+        XCTAssertNil(defaults.object(forKey: "zeptly.testPreference"))
+        XCTAssertFalse(store.hasValidDataConsent(for: .openAI))
+        for platform in ProviderPlatform.availableCases {
+            XCTAssertNil(try keychain.get(account: platform.keychainAccount))
+        }
+    }
+
+    @MainActor
+    func testFreshInstallationPurgesOrphanedKeychainCredentials() throws {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let keychain = TestKeychainStore()
+        for platform in ProviderPlatform.availableCases {
+            try keychain.set("orphan", for: platform.keychainAccount)
+        }
+
+        _ = ProviderStore(
+            userDefaults: defaults,
+            registry: .live(),
+            keychain: keychain,
+            reconcileInstallation: true
+        )
+
+        for platform in ProviderPlatform.availableCases {
+            XCTAssertNil(try keychain.get(account: platform.keychainAccount))
+        }
     }
 
     private func makeDefaults() -> (UserDefaults, String) {

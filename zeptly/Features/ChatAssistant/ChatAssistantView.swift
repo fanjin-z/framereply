@@ -121,13 +121,15 @@ struct ChatAssistantView: View {
     }
 
     private func mergeCandidateLabel(_ candidate: ChatRecord) -> String {
-        guard let alias = mergeCandidateContextRecords
-            .first(where: { $0.chatID == candidate.id })?
-            .participantAliases
-            .first(where: {
-                ChatParticipantAlias.normalizedKey($0.displayLabel)
-                    != ChatParticipantAlias.normalizedKey(candidate.name)
-            })
+        guard
+            let alias =
+                mergeCandidateContextRecords
+                .first(where: { $0.chatID == candidate.id })?
+                .participantAliases
+                .first(where: {
+                    ChatParticipantAlias.normalizedKey($0.displayLabel)
+                        != ChatParticipantAlias.normalizedKey(candidate.name)
+                })
         else {
             return candidate.name
         }

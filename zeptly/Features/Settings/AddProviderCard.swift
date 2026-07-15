@@ -37,6 +37,7 @@ struct AddProviderCard: View {
     @Binding var status: AddProviderStatus
 
     let onConnect: () -> Void
+    let onShowDataSharingDetails: () -> Void
     let onCancel: () -> Void
 
     @State private var isAPIKeyVisible = false
@@ -116,6 +117,17 @@ struct AddProviderCard: View {
                             .fill(Color.white.opacity(0.56))
                     }
 
+                    Label("Stored securely on this device.", systemImage: "lock.fill")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(RezplyColor.outline)
+                }
+
+                if selectedPlatform != nil {
+                    Button("Data Sharing Details", systemImage: "info.circle") {
+                        onShowDataSharingDetails()
+                    }
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .accessibilityIdentifier("provider-data-sharing-details")
                 }
 
                 if let inlineMessage = status.inlineMessage {
@@ -141,7 +153,7 @@ struct AddProviderCard: View {
                         } else {
                             Image(systemName: "square.and.arrow.down")
                         }
-                        Text(status.isTesting ? "Saving..." : "Save")
+                        Text(status.isTesting ? "Connecting..." : "Connect")
                     }
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
@@ -169,7 +181,7 @@ struct AddProviderCard: View {
                 .foregroundStyle(RezplyColor.onSurface)
 
             Menu {
-                ForEach(ProviderPlatform.allCases) { platform in
+                ForEach(ProviderPlatform.availableCases) { platform in
                     Button {
                         selectedPlatform = platform
                         selectedTier = platform.defaultTier
@@ -262,12 +274,6 @@ struct AddProviderCard: View {
             .accessibilityValue(accessibilityTierValue)
             .disabled(availableTiers.isEmpty)
 
-            Text(
-                "The underlying model may be updated automatically within your selected performance tier."
-            )
-            .font(.system(size: 11, weight: .medium, design: .rounded))
-            .foregroundStyle(RezplyColor.outline)
-            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -275,4 +281,5 @@ struct AddProviderCard: View {
         guard let selectedPlatform, let selectedTier else { return "Not selected" }
         return "\(selectedTier.displayName), \(selectedPlatform.modelSummary(for: selectedTier))"
     }
+
 }

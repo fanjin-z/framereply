@@ -9,6 +9,8 @@ import UIKit
 struct SettingsView: View {
     @ObservedObject var providerStore: ProviderStore
     let isActive: Bool
+    let onShortcutGuideTap: () -> Void
+    let onPrivacyAndDataTap: () -> Void
 
     @State private var selectedPlatform: ProviderPlatform?
     @State private var selectedTier: ProviderTier?
@@ -18,6 +20,8 @@ struct SettingsView: View {
     @State private var isKeyboardPresented = false
     @State private var providerToRemove: ProviderConnection?
     @State private var providerRemovalError: String?
+    @State private var providerAwaitingConsent: ProviderPlatform?
+    @State private var providerDataDetails: ProviderPlatform?
 
     var body: some View {
         ZStack {
@@ -86,6 +90,25 @@ struct SettingsView: View {
         } message: {
             Text(providerRemovalError ?? "")
         }
+        .alert(
+            consentDisclosure?.permissionTitle ?? "Share chat content?",
+            isPresented: Binding(
+                get: { providerAwaitingConsent != nil },
+                set: { if $0 == false { providerAwaitingConsent = nil } }
+            )
+        ) {
+            Button("Not Now", role: .cancel) {
+                providerAwaitingConsent = nil
+            }
+            Button("Allow & Connect") {
+                authorizeAndConnectProvider()
+            }
+        } message: {
+            Text(consentDisclosure?.permissionMessage ?? "")
+        }
+        .sheet(item: $providerDataDetails) { platform in
+            ProviderDataSharingDetailsView(platform: platform)
+        }
     }
 
     private var providerList: some View {
@@ -97,6 +120,7 @@ struct SettingsView: View {
                 }
 
                 shortcutSection
+                privacyAndDataSection
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 94)
@@ -194,161 +218,109 @@ struct SettingsView: View {
     }
 
     private var shortcutSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(spacing: 10) {
-                Image(systemName: "bolt.fill")
-                    .font(.system(size: 20, weight: .medium))
-                Text("Shortcuts")
-                    .font(.system(size: 21, weight: .bold, design: .rounded))
-            }
-            .foregroundStyle(RezplyColor.primary)
+        Group {
+            if shouldShowShortcutSection {
+                VStack(alignment: .leading, spacing: 14) {
+                    Label("Shortcuts", systemImage: "bolt.fill")
+                        .font(.system(size: 21, weight: .bold, design: .rounded))
+                        .foregroundStyle(RezplyColor.primary)
 
-            Text(
-                "Add one or both. Each imports recent messages and shows two suggested replies."
-            )
-            .font(.system(size: 13, weight: .semibold, design: .rounded))
-            .foregroundStyle(RezplyColor.onSurfaceVariant)
-            .fixedSize(horizontal: false, vertical: true)
-
-            shortcutWorkflowCard(
-                title: "Images",
-                description:
-                    "Share 1–8 screenshots or photos from one chat, or run the shortcut to capture the screen.",
-                symbol: "photo.on.rectangle.angled",
-                routes: [
-                    ("square.and.arrow.up", "Share images → replies"),
-                    ("hand.tap", "Run → screenshot → replies")
-                ],
-                buttonTitle: "Add Image Shortcut",
-                installation: ShortcutInstallationCatalog.images
-            )
-
-            shortcutWorkflowCard(
-                title: "Text",
-                description:
-                    "Share selected message text when your chat app supports it, or copy messages and run the shortcut.",
-                symbol: "text.bubble",
-                routes: [
-                    ("square.and.arrow.up", "Share text → replies"),
-                    ("doc.on.clipboard", "Copy messages → run → replies")
-                ],
-                buttonTitle: "Add Text Shortcut",
-                installation: ShortcutInstallationCatalog.text
-            )
-
-            Text(
-                "Run installed shortcuts from Spotlight, the Action button, Back Tap, the Home Screen, Siri, or Shortcuts."
-            )
-            .font(.system(size: 12, weight: .semibold, design: .rounded))
-            .foregroundStyle(RezplyColor.onSurfaceVariant)
-            .fixedSize(horizontal: false, vertical: true)
-
-            Text(
-                "Images and message text are sent to your selected model provider for analysis. Zeptly does not save source images or raw imported text."
-            )
-            .font(.system(size: 12, weight: .medium, design: .rounded))
-            .foregroundStyle(RezplyColor.outline)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private func shortcutWorkflowCard(
-        title: String,
-        description: String,
-        symbol: String,
-        routes: [(symbol: String, text: String)],
-        buttonTitle: String,
-        installation: ShortcutInstallationDefinition
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 14) {
-                Circle()
-                    .fill(Color.white.opacity(0.78))
-                    .frame(width: 42, height: 42)
-                    .shadow(
-                        color: RezplyColor.primaryContainer.opacity(0.18), radius: 12, x: 0,
-                        y: 8
+                    shortcutInstallRow(
+                        title: "Image Shortcut",
+                        subtitle: "Import screenshots",
+                        symbol: "photo.on.rectangle.angled",
+                        installation: ShortcutInstallationCatalog.images
                     )
-                    .overlay {
-                        Image(systemName: symbol)
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(RezplyColor.primary)
+                    shortcutInstallRow(
+                        title: "Text Shortcut",
+                        subtitle: "Import copied messages",
+                        symbol: "text.bubble",
+                        installation: ShortcutInstallationCatalog.text
+                    )
+
+                    Button(action: onShortcutGuideTap) {
+                        settingsNavigationLabel(
+                            title: "Setup Guide",
+                            subtitle: "Ways to run and troubleshoot Shortcuts",
+                            symbol: "questionmark.circle"
+                        )
                     }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(title)
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
-                        .foregroundStyle(RezplyColor.onSurface)
-
-                    Text(description)
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(RezplyColor.onSurfaceVariant)
-                        .fixedSize(horizontal: false, vertical: true)
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("shortcut-setup-guide")
                 }
             }
-
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(routes.enumerated()), id: \.offset) { _, route in
-                    Label {
-                        Text(route.text)
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    } icon: {
-                        Image(systemName: route.symbol)
-                            .font(.system(size: 12, weight: .semibold))
-                            .frame(width: 18)
-                    }
-                    .foregroundStyle(RezplyColor.onSurfaceVariant)
-                }
-            }
-            .accessibilityElement(children: .combine)
-
-            shortcutInstallControl(
-                installation: installation,
-                buttonTitle: buttonTitle
-            )
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            RoundedRectangle(cornerRadius: 0)
-                .fill(Color.white.opacity(0.42))
         }
     }
 
     @ViewBuilder
-    private func shortcutInstallControl(
-        installation: ShortcutInstallationDefinition,
-        buttonTitle: String
+    private func shortcutInstallRow(
+        title: String,
+        subtitle: String,
+        symbol: String,
+        installation: ShortcutInstallationDefinition
     ) -> some View {
         if let installationURL = installation.installationURL {
-            Link(destination: installationURL) {
-                shortcutInstallLabel(title: buttonTitle, symbol: "arrow.up.forward.app")
-            }
-            .buttonStyle(SoftPressButtonStyle())
-            .accessibilityLabel("Install \(installation.title)")
-            .accessibilityHint("Opens the \(installation.title) shortcut preview")
+            compactShortcutRow(
+                title: title,
+                subtitle: subtitle,
+                symbol: symbol,
+                trailing: AnyView(
+                    Link("Install", destination: installationURL)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .accessibilityLabel("Install \(installation.title)")
+                )
+            )
         } else {
             #if DEBUG
-                Label("Installer unavailable in this build", systemImage: "hammer")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(RezplyColor.outline)
-                    .accessibilityLabel("\(installation.title) installer unavailable in this build")
+                compactShortcutRow(
+                    title: title,
+                    subtitle: subtitle,
+                    symbol: symbol,
+                    trailing: AnyView(
+                        Text("Unavailable")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundStyle(RezplyColor.outline)
+                    )
+                )
             #endif
         }
     }
 
-    private func shortcutInstallLabel(title: String, symbol: String) -> some View {
-        HStack(spacing: 8) {
+    private func compactShortcutRow(
+        title: String,
+        subtitle: String,
+        symbol: String,
+        trailing: AnyView
+    ) -> some View {
+        HStack(spacing: 12) {
             Image(systemName: symbol)
-                .font(.system(size: 13, weight: .bold))
-            Text(title)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(RezplyColor.primary)
+                .frame(width: 30)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurface)
+                Text(subtitle)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurfaceVariant)
+            }
+
+            Spacer()
+            trailing
         }
-        .foregroundStyle(.white)
         .padding(.horizontal, 18)
-        .frame(minHeight: 44)
-        .background(RezplyColor.primary)
-        .clipShape(Capsule())
+        .frame(minHeight: 62)
+        .background(Color.white.opacity(0.42))
+    }
+
+    private var shouldShowShortcutSection: Bool {
+        #if DEBUG
+            true
+        #else
+            ShortcutInstallationCatalog.all.contains { $0.installationURL != nil }
+        #endif
     }
 
     private var addProviderPopup: some View {
@@ -364,7 +336,8 @@ struct SettingsView: View {
                 selectedTier: $selectedTier,
                 apiKey: $apiKey,
                 status: $addProviderStatus,
-                onConnect: connectProvider,
+                onConnect: requestProviderConnection,
+                onShowDataSharingDetails: showProviderDataSharingDetails,
                 onCancel: dismissAddProvider
             )
             .frame(maxWidth: 560)
@@ -375,15 +348,45 @@ struct SettingsView: View {
         .zIndex(10)
     }
 
-    private func connectProvider() {
+    private func requestProviderConnection() {
         KeyboardDismissal.dismiss()
         guard let selectedPlatform else {
-            addProviderStatus = .failed("Select a provider before saving.")
+            addProviderStatus = .failed("Select a provider before connecting.")
             return
         }
 
-        guard let selectedTier else {
-            addProviderStatus = .failed("Select a performance tier before saving.")
+        guard selectedTier != nil else {
+            addProviderStatus = .failed("Select a performance tier before connecting.")
+            return
+        }
+
+        guard apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+            addProviderStatus = .failed("Enter an API key before connecting.")
+            return
+        }
+
+        if providerStore.hasValidDataConsent(for: selectedPlatform) {
+            connectProvider()
+        } else {
+            providerAwaitingConsent = selectedPlatform
+        }
+    }
+
+    private func authorizeAndConnectProvider() {
+        guard let platform = providerAwaitingConsent, platform == selectedPlatform else {
+            providerAwaitingConsent = nil
+            addProviderStatus = .failed("Select the provider again and retry.")
+            return
+        }
+
+        providerStore.grantDataConsent(for: platform)
+        providerAwaitingConsent = nil
+        connectProvider()
+    }
+
+    private func connectProvider() {
+        guard let selectedPlatform, let selectedTier else {
+            addProviderStatus = .failed("Complete the provider settings and retry.")
             return
         }
 
@@ -435,6 +438,7 @@ struct SettingsView: View {
         }
 
         KeyboardDismissal.dismiss()
+        providerAwaitingConsent = nil
         withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
             isAddProviderPresented = false
         }
@@ -446,6 +450,7 @@ struct SettingsView: View {
         }
 
         isAddProviderPresented = false
+        providerAwaitingConsent = nil
         if addProviderStatus.isTesting == false {
             resetAddProviderForm()
         }
@@ -455,6 +460,7 @@ struct SettingsView: View {
         selectedPlatform = nil
         selectedTier = nil
         apiKey = ""
+        providerAwaitingConsent = nil
         addProviderStatus = .idle
     }
 
@@ -484,5 +490,57 @@ struct SettingsView: View {
         }
 
         self.providerToRemove = nil
+    }
+
+    private var privacyAndDataSection: some View {
+        Button(action: onPrivacyAndDataTap) {
+            settingsNavigationLabel(
+                title: "Privacy & Data",
+                subtitle: "Sharing permissions and local data",
+                symbol: "hand.raised.fill"
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("privacy-and-data")
+    }
+
+    private func settingsNavigationLabel(
+        title: String,
+        subtitle: String,
+        symbol: String
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(RezplyColor.primary)
+                .frame(width: 30)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurface)
+                Text(subtitle)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(RezplyColor.onSurfaceVariant)
+            }
+
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(RezplyColor.outline)
+        }
+        .padding(.horizontal, 18)
+        .frame(minHeight: 64)
+        .background(Color.white.opacity(0.42))
+    }
+
+    private var consentDisclosure: ProviderDataConsentDisclosure? {
+        providerAwaitingConsent.map(ProviderDataConsentDisclosure.init(provider:))
+    }
+
+    private func showProviderDataSharingDetails() {
+        if let selectedPlatform {
+            providerDataDetails = selectedPlatform
+        }
     }
 }

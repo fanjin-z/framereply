@@ -45,7 +45,13 @@ struct RezplyShellView: View {
                     case .settings:
                         SettingsView(
                             providerStore: providerStore,
-                            isActive: isActive
+                            isActive: isActive,
+                            onShortcutGuideTap: {
+                                navigationPath.append(.shortcutSetup)
+                            },
+                            onPrivacyAndDataTap: {
+                                navigationPath.append(.privacyAndData)
+                            }
                         )
                     }
                 }
@@ -85,6 +91,10 @@ struct RezplyShellView: View {
                     }
                 case .persona(let personaID):
                     PersonaDetailView(personaID: personaID, providerStore: providerStore)
+                case .shortcutSetup:
+                    ShortcutSetupView()
+                case .privacyAndData:
+                    PrivacyAndDataView(providerStore: providerStore)
                 }
             }
         }

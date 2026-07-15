@@ -62,11 +62,12 @@ struct AIProviderRegistry {
     static func live(
         eventReporter: any ImportEventReporting = OSLogImportEventReporter()
     ) -> AIProviderRegistry {
-        AIProviderRegistry(adapters: [
+        let adapters: [any AIProviderAdapter] = [
             OpenAIClient(eventReporter: eventReporter),
             ZAIClient(region: .international, eventReporter: eventReporter),
             ZAIClient(region: .china, eventReporter: eventReporter)
-        ])
+        ]
+        return AIProviderRegistry(adapters: adapters)
     }
 
     func adapter(for platform: ProviderPlatform) -> (any AIProviderAdapter)? {
@@ -90,6 +91,7 @@ nonisolated struct AIProviderExecutionContext: Equatable, Sendable {
 nonisolated enum AIServiceError: LocalizedError, Sendable {
     case noActiveProvider
     case missingAPIKey
+    case consentRequired
     case unsupportedProvider
     case unsupportedCapability
 
@@ -99,6 +101,8 @@ nonisolated enum AIServiceError: LocalizedError, Sendable {
             "Connect and select a model provider first."
         case .missingAPIKey:
             "The selected provider API key is unavailable. Reconnect it in Settings."
+        case .consentRequired:
+            "Review and accept this provider's data-sharing disclosure in Settings first."
         case .unsupportedProvider:
             "The selected provider is not available."
         case .unsupportedCapability:
@@ -110,6 +114,7 @@ nonisolated enum AIServiceError: LocalizedError, Sendable {
         switch self {
         case .noActiveProvider: "no_provider"
         case .missingAPIKey: "missing_api_key"
+        case .consentRequired: "provider_consent_required"
         case .unsupportedProvider, .unsupportedCapability: "unsupported_provider"
         }
     }
@@ -188,6 +193,9 @@ final class AIService: AIServiceProviding {
         guard providerConfiguration.savedAPIKey(for: connection.platform)?.isEmpty == false
         else {
             throw AIServiceError.missingAPIKey
+        }
+        guard providerConfiguration.hasValidDataConsent(for: connection.platform) else {
+            throw AIServiceError.consentRequired
         }
         return AIProviderExecutionContext(
             platform: connection.platform,

@@ -30,7 +30,7 @@ struct ZAIClient: AIProviderAdapter {
 
     init(
         region: Region,
-        session: URLSession = .shared,
+        session: URLSession = ProviderNetworkSession.make(),
         eventReporter: any ImportEventReporting = OSLogImportEventReporter()
     ) {
         self.region = region
@@ -148,7 +148,7 @@ struct ZAIClient: AIProviderAdapter {
             let completion = try decodeResponse(data)
             let choice = completion.choices.first
             if analysisRequest.sharedTranscript == nil {
-                ChatImportDebugLogger.rawResponse(
+                ChatImportDebugLogger.responseMetadata(
                     traceID: analysisRequest.traceID,
                     provider: region.providerID,
                     model: model.rawValue,
@@ -222,7 +222,9 @@ struct ZAIClient: AIProviderAdapter {
                 )
             }
         }
-        preconditionFailure("Z.AI structured-output retry loop exhausted unexpectedly")
+        throw ProviderConnectionError.invalidResponse(
+            "\(region.platform.displayName) could not complete the structured response."
+        )
     }
 
     func generateSuggestedReplies(
@@ -330,7 +332,9 @@ struct ZAIClient: AIProviderAdapter {
                 )
             }
         }
-        preconditionFailure("Z.AI structured-output retry loop exhausted unexpectedly")
+        throw ProviderConnectionError.invalidResponse(
+            "\(region.platform.displayName) could not complete the structured response."
+        )
     }
 
     private func summaryFallback(for request: SuggestedReplyGenerationRequest) -> String? {
@@ -348,7 +352,8 @@ struct ZAIClient: AIProviderAdapter {
         messages.append(["role": "assistant", "content": priorContent])
         messages.append([
             "role": "user",
-            "content": "The previous object failed local contract validation. Return one corrected complete JSON object only, with exactly the required keys and value types."
+            "content":
+                "The previous object failed local contract validation. Return one corrected complete JSON object only, with exactly the required keys and value types."
         ])
     }
 
@@ -396,6 +401,12 @@ struct ZAIClient: AIProviderAdapter {
     }
 
     private func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        guard let host = region.baseURL.host else {
+            throw ProviderConnectionError.networkFailure(
+                "The provider request was blocked because its destination was invalid."
+            )
+        }
+        try ProviderNetworkSession.validateHTTPS(request, allowedHost: host)
         do {
             return try await session.data(for: request)
         } catch let error as URLError {
@@ -424,8 +435,7 @@ struct ZAIClient: AIProviderAdapter {
                     provider: region.providerID,
                     httpStatus: response.statusCode,
                     providerCode: providerError?.error.code,
-                    message: providerError?.error.message
-                        ?? "\(region.platform.displayName) rejected an API parameter."
+                    message: "\(region.platform.displayName) rejected an API parameter."
                 )
             )
         default:

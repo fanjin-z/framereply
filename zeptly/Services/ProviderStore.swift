@@ -22,8 +22,11 @@ final class ProviderStore: ObservableObject {
     private let userDefaults: UserDefaults
     private let keychain: any KeychainStoring
     private let registry: AIProviderRegistry
-    private let providersKey = "zeptly.providerConnections.v1"
-    private let activePlatformKey = "zeptly.activeProviderPlatform.v1"
+    private let consentStore: ProviderDataConsentStore
+    private static let providersKey = "zeptly.providerConnections.v1"
+    private static let activePlatformKey = "zeptly.activeProviderPlatform.v1"
+    private static let installationMarkerKey = "zeptly.installationMarker.v1"
+    private var isResetting = false
 
     var activeProvider: ProviderConnection? {
         guard let activePlatform else {
@@ -33,41 +36,63 @@ final class ProviderStore: ObservableObject {
     }
 
     convenience init(userDefaults: UserDefaults = .standard) {
-        self.init(userDefaults: userDefaults, registry: .live())
+        self.init(
+            userDefaults: userDefaults,
+            registry: .live(),
+            keychain: KeychainStore(),
+            reconcileInstallation: true
+        )
     }
 
     convenience init(userDefaults: UserDefaults, registry: AIProviderRegistry) {
         self.init(
             userDefaults: userDefaults,
             registry: registry,
-            keychain: KeychainStore()
+            keychain: KeychainStore(),
+            reconcileInstallation: true
         )
     }
 
     init(
         userDefaults: UserDefaults,
         registry: AIProviderRegistry,
-        keychain: any KeychainStoring
+        keychain: any KeychainStoring,
+        reconcileInstallation: Bool = false
     ) {
         self.userDefaults = userDefaults
         self.keychain = keychain
         self.registry = registry
+        consentStore = ProviderDataConsentStore(userDefaults: userDefaults)
+        if reconcileInstallation {
+            Self.reconcileInstallation(
+                userDefaults: userDefaults,
+                keychain: keychain,
+                markerKey: Self.installationMarkerKey
+            )
+        }
         let loadedProviders = Self.loadProviders(
             from: userDefaults,
-            key: providersKey,
+            key: Self.providersKey,
             registry: registry
         )
         providers = loadedProviders
         activePlatform = Self.loadActivePlatform(
             from: userDefaults,
-            key: activePlatformKey,
+            key: Self.activePlatformKey,
             providers: loadedProviders
         )
         saveProviders()
         saveActivePlatform()
     }
 
-    func connect(platform: ProviderPlatform, tier: ProviderTier, apiKey: String) async throws {
+    func connect(
+        platform: ProviderPlatform,
+        tier: ProviderTier,
+        apiKey: String
+    ) async throws {
+        guard consentStore.hasValidConsent(for: platform) else {
+            throw ProviderConnectionError.dataConsentRequired
+        }
         guard registry.profile(for: platform, selectedTier: tier) != nil
         else {
             throw ProviderConnectionError.unsupportedProvider
@@ -104,6 +129,18 @@ final class ProviderStore: ObservableObject {
         try? keychain.get(account: keychainAccount(for: platform))
     }
 
+    func hasValidDataConsent(for platform: ProviderPlatform) -> Bool {
+        consentStore.hasValidConsent(for: platform)
+    }
+
+    func grantDataConsent(for platform: ProviderPlatform) {
+        consentStore.grantConsent(for: platform)
+    }
+
+    func revokeDataConsent(for platform: ProviderPlatform) {
+        consentStore.revokeConsent(for: platform)
+    }
+
     func activate(platform: ProviderPlatform) {
         guard providers.contains(where: { $0.platform == platform }) else {
             return
@@ -127,6 +164,7 @@ final class ProviderStore: ObservableObject {
         }
 
         try keychain.delete(account: keychainAccount(for: platform))
+        consentStore.revokeConsent(for: platform)
 
         if activePlatform == platform {
             let nextIndex = providers.index(after: removedIndex)
@@ -137,6 +175,22 @@ final class ProviderStore: ObservableObject {
         }
 
         providers.remove(at: removedIndex)
+    }
+
+    func deleteAllProviderData() throws {
+        for platform in ProviderPlatform.availableCases {
+            try keychain.delete(account: keychainAccount(for: platform))
+        }
+
+        isResetting = true
+        defer { isResetting = false }
+        providers = []
+        activePlatform = nil
+        for key in userDefaults.dictionaryRepresentation().keys {
+            userDefaults.removeObject(forKey: key)
+        }
+        consentStore.revokeAllConsent()
+        userDefaults.set(true, forKey: Self.installationMarkerKey)
     }
 
     private func upsertConnection(platform: ProviderPlatform, tier: ProviderTier) {
@@ -153,19 +207,21 @@ final class ProviderStore: ObservableObject {
     }
 
     private func saveProviders() {
+        guard isResetting == false else { return }
         do {
             let data = try JSONEncoder().encode(providers)
-            userDefaults.set(data, forKey: providersKey)
+            userDefaults.set(data, forKey: Self.providersKey)
         } catch {
             assertionFailure("Failed to save providers: \(error)")
         }
     }
 
     private func saveActivePlatform() {
+        guard isResetting == false else { return }
         if let activePlatform {
-            userDefaults.set(activePlatform.rawValue, forKey: activePlatformKey)
+            userDefaults.set(activePlatform.rawValue, forKey: Self.activePlatformKey)
         } else {
-            userDefaults.removeObject(forKey: activePlatformKey)
+            userDefaults.removeObject(forKey: Self.activePlatformKey)
         }
     }
 
@@ -205,5 +261,22 @@ final class ProviderStore: ObservableObject {
 
     private func keychainAccount(for platform: ProviderPlatform) -> String {
         platform.keychainAccount
+    }
+
+    private static func reconcileInstallation(
+        userDefaults: UserDefaults,
+        keychain: any KeychainStoring,
+        markerKey: String
+    ) {
+        guard userDefaults.bool(forKey: markerKey) == false else { return }
+
+        do {
+            for platform in ProviderPlatform.availableCases {
+                try keychain.delete(account: platform.keychainAccount)
+            }
+            userDefaults.set(true, forKey: markerKey)
+        } catch {
+            // Leave the marker unset so a later launch retries cleanup.
+        }
     }
 }

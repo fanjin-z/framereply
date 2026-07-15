@@ -131,7 +131,8 @@ nonisolated enum SuggestedReplyResultDecoder {
         historySummaryFallback: String? = nil
     ) throws -> SuggestedReplyGenerationResult {
         if let finishReason, finishReason != "stop" {
-            let kind: StructuredOutputFailureKind = finishReason == "length"
+            let kind: StructuredOutputFailureKind =
+                finishReason == "length"
                 ? .truncatedResponse : .schemaMismatch
             throw StructuredOutputFailure(kind: kind, codingPath: "finish_reason")
         }

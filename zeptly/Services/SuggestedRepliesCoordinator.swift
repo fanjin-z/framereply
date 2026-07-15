@@ -28,6 +28,7 @@ nonisolated struct SuggestedRepliesOutcome: Equatable, Sendable {
 nonisolated enum SuggestedRepliesError: LocalizedError, Sendable {
     case noActiveProvider
     case missingAPIKey
+    case consentRequired
     case noMessages
     case chatNotFound
     case unsupportedProvider
@@ -39,6 +40,8 @@ nonisolated enum SuggestedRepliesError: LocalizedError, Sendable {
             "Connect and select a model provider to generate replies."
         case .missingAPIKey:
             "The selected provider API key is unavailable. Reconnect it in Settings."
+        case .consentRequired:
+            "Allow provider sharing in Settings → Privacy & Data first."
         case .noMessages:
             "Import at least one chat message before generating replies."
         case .chatNotFound:
@@ -54,6 +57,7 @@ nonisolated enum SuggestedRepliesError: LocalizedError, Sendable {
         switch self {
         case .noActiveProvider: "no_provider"
         case .missingAPIKey: "missing_api_key"
+        case .consentRequired: "provider_consent_required"
         case .noMessages: "no_messages"
         case .chatNotFound: "chat_not_found"
         case .unsupportedProvider: "unsupported_provider"
@@ -67,6 +71,8 @@ nonisolated enum SuggestedRepliesError: LocalizedError, Sendable {
             self = .noActiveProvider
         case .missingAPIKey:
             self = .missingAPIKey
+        case .consentRequired:
+            self = .consentRequired
         case .unsupportedProvider, .unsupportedCapability:
             self = .unsupportedProvider
         }

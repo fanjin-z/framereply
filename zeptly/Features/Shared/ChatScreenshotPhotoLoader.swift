@@ -13,7 +13,7 @@ enum ChatScreenshotPhotoLoaderError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noReadableImages:
-            "The selected screenshot could not be read. Choose a PNG, JPEG, GIF, or WebP image."
+            "The selected screenshot could not be read. Choose a still PNG, JPEG, or HEIC image."
         }
     }
 }
