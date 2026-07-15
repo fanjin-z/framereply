@@ -101,7 +101,7 @@ final class SuggestedRepliesCoordinator {
 
     func cachedReplies(chatID: String) throws -> SuggestedRepliesOutcome? {
         guard let providerContext = try? aiService.activeContext(requiring: .suggestedReplies),
-            let chat = try repository.chat(id: chatID)
+            try repository.chat(id: chatID) != nil
         else {
             return nil
         }
@@ -119,7 +119,6 @@ final class SuggestedRepliesCoordinator {
             return nil
         }
         let inputFingerprint = fingerprint(
-            chatName: chat.name,
             messages: messages,
             chatContext: chatContext,
             persona: persona,
@@ -157,7 +156,7 @@ final class SuggestedRepliesCoordinator {
         } catch let error as AIServiceError {
             throw SuggestedRepliesError(error)
         }
-        guard let chat = try repository.chat(id: chatID) else {
+        guard try repository.chat(id: chatID) != nil else {
             throw SuggestedRepliesError.chatNotFound
         }
 
@@ -176,7 +175,6 @@ final class SuggestedRepliesCoordinator {
         let cache = try repository.suggestedReplyCache(chatID: chatID)
         let replyModel = providerContext.effectiveModel
         let inputFingerprint = fingerprint(
-            chatName: chat.name,
             messages: messages,
             chatContext: chatContext,
             persona: persona,
@@ -207,7 +205,7 @@ final class SuggestedRepliesCoordinator {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let strategyContext = previousConversationStrategy.flatMap { $0.isEmpty ? nil : $0 }
         let request = SuggestedReplyGenerationRequest(
-            chatName: chat.name,
+            task: oneUseInput == nil ? .standard : .drafting,
             chatMemories: chatContext.chatMemories.filter { $0.status == .active },
             currentInteractionGoal: chatContext.currentInteractionGoal,
             persona: persona,
@@ -280,8 +278,6 @@ final class SuggestedRepliesCoordinator {
                 conversationStrategy: generated.conversationStrategy,
                 strategyRationale: generated.strategyRationale,
                 inputFingerprint: inputFingerprint,
-                provider: providerContext.platform,
-                model: replyModel,
                 promptVersion: SuggestedReplyPrompt.version
             )
             return SuggestedRepliesOutcome(
@@ -293,7 +289,6 @@ final class SuggestedRepliesCoordinator {
         }
 
         let persistedFingerprint = fingerprint(
-            chatName: chat.name,
             messages: messages,
             chatContext: reconciledContext,
             persona: try repository.projectedPersonaPromptContext(
@@ -317,8 +312,6 @@ final class SuggestedRepliesCoordinator {
             conversationStrategy: generated.conversationStrategy,
             strategyRationale: generated.strategyRationale,
             inputFingerprint: persistedFingerprint,
-            provider: providerContext.platform,
-            model: replyModel,
             promptVersion: SuggestedReplyPrompt.version
         )
 
@@ -381,7 +374,6 @@ final class SuggestedRepliesCoordinator {
     }
 
     private func fingerprint(
-        chatName: String,
         messages: [ChatMessageRecord],
         chatContext: ChatContext,
         persona: PersonaPromptContext,
@@ -390,7 +382,6 @@ final class SuggestedRepliesCoordinator {
         model: ProviderModel
     ) -> String {
         let payload: [String: Any] = [
-            "chatName": chatName,
             "messages": messages.map(messageObject),
             "chatMemories": chatContext.chatMemories
                 .filter { $0.status == .active }
@@ -413,7 +404,7 @@ final class SuggestedRepliesCoordinator {
     ) throws -> Bool {
         guard let currentContext = try? aiService.activeContext(requiring: .suggestedReplies),
             currentContext == providerContext,
-            let chat = try repository.chat(id: chatID)
+            try repository.chat(id: chatID) != nil
         else {
             return false
         }
@@ -424,7 +415,6 @@ final class SuggestedRepliesCoordinator {
             chatID: chatID, personaID: persona.id, assignedAt: context.personaAssignedAt
         )
         return fingerprint(
-            chatName: chat.name,
             messages: messages,
             chatContext: context,
             persona: persona,
@@ -452,21 +442,17 @@ final class SuggestedRepliesCoordinator {
     private func memoryObject(_ memory: ChatMemory) -> [String: Any] {
         [
             "id": memory.id.uuidString.lowercased(),
-            "text": memory.text,
-            "origin": memory.origin.rawValue,
-            "certainty": memory.certainty.rawValue
+            "text": memory.text
         ]
     }
 
     private func personaObject(_ persona: PersonaPromptContext) -> [String: Any] {
         [
-            "id": persona.id.uuidString,
-            "name": persona.name,
             "instructions": persona.instructions,
             "observations": persona.observations.map {
                 [
                     "id": $0.id.uuidString, "text": $0.text,
-                    "origin": $0.origin.rawValue, "protected": $0.isUserProtected
+                    "protected": $0.isUserProtected
                 ] as [String: Any]
             }
         ]

@@ -185,7 +185,8 @@ final class ScreenshotImportCoordinator {
             )
             analysis = try ChatImportAnalysisDecoder.validate(
                 providerAnalysis,
-                candidateIDs: Set(candidates.map(\.id))
+                candidateIDs: Set(candidates.map(\.id)),
+                normalizeVisualOwnership: request.sharedTranscript == nil
             )
         } catch let failure as StructuredOutputFailure {
             let error = ProviderConnectionError.structuredOutput(
@@ -229,7 +230,7 @@ final class ScreenshotImportCoordinator {
         }
 
         eventReporter.record(.stageStarted(traceID: traceID, stage: .matching))
-        let matchDecision = ChatImportMatcher.decision(
+        let confirmedChatID = ChatImportMatcher.confirmedChatID(
             analysis: analysis,
             candidates: candidates
         )
@@ -238,11 +239,7 @@ final class ScreenshotImportCoordinator {
         do {
             let outcome = try repository.applyImport(
                 analysis: analysis,
-                confirmedChatID: matchDecision.confirmedChatID,
-                matchDecision: matchDecision,
-                provider: providerContext.platform,
-                model: providerContext.effectiveModel,
-                sourceApp: request.sharedTranscript == nil ? nil : "shared_text",
+                confirmedChatID: confirmedChatID,
                 traceID: traceID
             )
             eventReporter.record(

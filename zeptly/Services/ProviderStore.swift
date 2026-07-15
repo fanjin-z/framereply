@@ -23,7 +23,6 @@ final class ProviderStore: ObservableObject {
     private let keychain: any KeychainStoring
     private let registry: AIProviderRegistry
     private let providersKey = "zeptly.providerConnections.v2"
-    private let legacyProvidersKey = "zeptly.providerConnections.v1"
     private let activePlatformKey = "zeptly.activeProviderPlatform.v1"
 
     var activeProvider: ProviderConnection? {
@@ -53,29 +52,23 @@ final class ProviderStore: ObservableObject {
         self.userDefaults = userDefaults
         self.keychain = keychain
         self.registry = registry
-        let loadResult = Self.loadProviders(
+        let loadedProviders = Self.loadProviders(
             from: userDefaults,
             key: providersKey,
-            legacyKey: legacyProvidersKey,
             registry: registry
         )
-        providers = loadResult.providers
+        providers = loadedProviders
         activePlatform = Self.loadActivePlatform(
             from: userDefaults,
             key: activePlatformKey,
-            providers: loadResult.providers
+            providers: loadedProviders
         )
-        if loadResult.shouldSaveV2 {
-            saveProviders()
-            saveActivePlatform()
-        }
-        if loadResult.shouldRemoveLegacy {
-            userDefaults.removeObject(forKey: legacyProvidersKey)
-        }
+        saveProviders()
+        saveActivePlatform()
     }
 
     func connect(platform: ProviderPlatform, tier: ProviderTier, apiKey: String) async throws {
-        guard platform.isConnectable, registry.profile(for: platform, selectedTier: tier) != nil
+        guard registry.profile(for: platform, selectedTier: tier) != nil
         else {
             throw ProviderConnectionError.unsupportedProvider
         }
@@ -176,111 +169,18 @@ final class ProviderStore: ObservableObject {
         }
     }
 
-    private struct ProviderLoadResult {
-        let providers: [ProviderConnection]
-        let shouldSaveV2: Bool
-        let shouldRemoveLegacy: Bool
-    }
-
-    private struct LegacyProviderConnection: Decodable {
-        let id: UUID
-        let platform: ProviderPlatform
-        let model: String
-    }
-
     private static func loadProviders(
         from userDefaults: UserDefaults,
         key: String,
-        legacyKey: String,
         registry: AIProviderRegistry
-    ) -> ProviderLoadResult {
-        if let data = userDefaults.data(forKey: key) {
-            do {
-                let providers = try JSONDecoder().decode([ProviderConnection].self, from: data)
-                    .filter { provider in
-                        provider.platform.isConnectable
-                            && registry.profile(
-                                for: provider.platform,
-                                selectedTier: provider.tier
-                            ) != nil
-                    }
-                return ProviderLoadResult(
-                    providers: providers,
-                    shouldSaveV2: true,
-                    shouldRemoveLegacy: false
-                )
-            } catch {
-                return ProviderLoadResult(
-                    providers: [],
-                    shouldSaveV2: false,
-                    shouldRemoveLegacy: false
-                )
-            }
+    ) -> [ProviderConnection] {
+        guard let data = userDefaults.data(forKey: key),
+            let providers = try? JSONDecoder().decode([ProviderConnection].self, from: data)
+        else {
+            return []
         }
-
-        guard let legacyData = userDefaults.data(forKey: legacyKey) else {
-            return ProviderLoadResult(
-                providers: [],
-                shouldSaveV2: true,
-                shouldRemoveLegacy: false
-            )
-        }
-        do {
-            let legacyProviders = try JSONDecoder().decode(
-                [LegacyProviderConnection].self,
-                from: legacyData
-            )
-            let providers = legacyProviders.compactMap { legacy -> ProviderConnection? in
-                guard let tier = legacyTier(for: legacy.model, platform: legacy.platform),
-                    registry.profile(for: legacy.platform, selectedTier: tier) != nil
-                else {
-                    return nil
-                }
-                return ProviderConnection(id: legacy.id, platform: legacy.platform, tier: tier)
-            }
-            guard providers.count == legacyProviders.count else {
-                return ProviderLoadResult(
-                    providers: [],
-                    shouldSaveV2: false,
-                    shouldRemoveLegacy: false
-                )
-            }
-            return ProviderLoadResult(
-                providers: providers,
-                shouldSaveV2: true,
-                shouldRemoveLegacy: true
-            )
-        } catch {
-            return ProviderLoadResult(
-                providers: [],
-                shouldSaveV2: false,
-                shouldRemoveLegacy: false
-            )
-        }
-    }
-
-    private static func legacyTier(
-        for model: String,
-        platform: ProviderPlatform
-    ) -> ProviderTier? {
-        switch (platform, model) {
-        case (.openAI, "gpt-5.4-mini"):
-            .basic
-        case (.openAI, "gpt-5.4"):
-            .advanced
-        case (.openAI, "gpt-5.5"):
-            .best
-        case (.zaiInternational, "glm-4.6v-flash"),
-            (.zhipuChina, "glm-4.6v-flash"):
-            .basic
-        case (.zaiInternational, "glm-4.6v-flashx"),
-            (.zhipuChina, "glm-4.6v-flashx"):
-            .advanced
-        case (.zaiInternational, "glm-4.6v"),
-            (.zhipuChina, "glm-4.6v"):
-            .best
-        default:
-            nil
+        return providers.filter {
+            registry.profile(for: $0.platform, selectedTier: $0.tier) != nil
         }
     }
 

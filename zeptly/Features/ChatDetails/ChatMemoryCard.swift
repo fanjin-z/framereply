@@ -204,7 +204,6 @@ struct ChatMemoryCard: View {
                 text: trimmed,
                 origin: .user,
                 certainty: .userConfirmed,
-                sourceMessageIDs: [],
                 status: .active,
                 createdAt: memory.createdAt,
                 updatedAt: Date()

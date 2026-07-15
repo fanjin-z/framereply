@@ -10,8 +10,8 @@ final class ChatPersistenceTests: XCTestCase {
         let repository = ChatRepository(container: container)
         let operationID = UUID()
         let current = ChatImportRecord(
-            chatID: "chat", transcriptFingerprint: nil, provider: "test", model: "test",
-            confidence: 1, insertedMessageCount: 1, isDuplicate: false, requiresReview: false,
+            chatID: "chat", transcriptFingerprint: nil,
+            insertedMessageCount: 1, isDuplicate: false, requiresReview: false,
             operationID: operationID, draftingInputStateRaw: DraftingInputState.pending.rawValue
         )
         container.mainContext.insert(current)
@@ -125,9 +125,7 @@ final class ChatPersistenceTests: XCTestCase {
             try repository.seedIfNeeded()
             let outcome = try repository.applyImport(
                 analysis: provisionalAnalysis(),
-                confirmedChatID: nil,
-                provider: .openAI,
-                model: .gpt56Luna
+                confirmedChatID: nil
             )
             importedChatID = outcome.chatID
         }
@@ -172,15 +170,11 @@ final class ChatPersistenceTests: XCTestCase {
 
         let first = try repository.applyImport(
             analysis: analysis,
-            confirmedChatID: "sarah-jenkins",
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: "sarah-jenkins"
         )
         let second = try repository.applyImport(
             analysis: analysis,
-            confirmedChatID: "sarah-jenkins",
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: "sarah-jenkins"
         )
 
         XCTAssertEqual(first.insertedMessageCount, 1)
@@ -222,9 +216,7 @@ final class ChatPersistenceTests: XCTestCase {
 
         let outcome = try repository.applyImport(
             analysis: analysis,
-            confirmedChatID: nil,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: nil
         )
 
         XCTAssertTrue(outcome.reviewRequired)
@@ -243,9 +235,7 @@ final class ChatPersistenceTests: XCTestCase {
         try repository.seedIfNeeded()
         let outcome = try repository.applyImport(
             analysis: provisionalAnalysis(),
-            confirmedChatID: nil,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: nil
         )
 
         try repository.confirmProvisionalChat(chatID: outcome.chatID, name: "Alex Hiking")
@@ -275,9 +265,7 @@ final class ChatPersistenceTests: XCTestCase {
         try repository.seedIfNeeded()
         let outcome = try repository.applyImport(
             analysis: provisionalAnalysis(),
-            confirmedChatID: nil,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: nil
         )
         let importRecord = try XCTUnwrap(
             container.mainContext.fetch(FetchDescriptor<ChatImportRecord>()).first
@@ -299,8 +287,8 @@ final class ChatPersistenceTests: XCTestCase {
 
         chat = try XCTUnwrap(repository.chat(id: outcome.chatID))
         XCTAssertFalse(chat.isProvisional)
-        XCTAssertEqual(chat.chipTitle, "General")
-        XCTAssertEqual(chat.chipSymbol, "number")
+        XCTAssertEqual(Chat(record: chat).chipTitle, "General")
+        XCTAssertEqual(Chat(record: chat).chipSymbol, "number")
         XCTAssertEqual(chat.importReviewState?.meaningfulActionCount, 2)
         XCTAssertEqual(chat.importReviewState?.identityStatus, .dismissed)
         XCTAssertFalse(importRecord.requiresReview)
@@ -311,9 +299,7 @@ final class ChatPersistenceTests: XCTestCase {
         let repository = ChatRepository(container: container)
         let outcome = try repository.applyImport(
             analysis: provisionalAnalysis(),
-            confirmedChatID: nil,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: nil
         )
         let firstView = Date(timeIntervalSince1970: 1_000)
 
@@ -335,9 +321,7 @@ final class ChatPersistenceTests: XCTestCase {
         let repository = ChatRepository(container: container)
         let outcome = try repository.applyImport(
             analysis: provisionalAnalysis(),
-            confirmedChatID: nil,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: nil
         )
 
         try repository.recordImportReviewMeaningfulAction(chatID: outcome.chatID)
@@ -367,9 +351,7 @@ final class ChatPersistenceTests: XCTestCase {
         )
         let outcome = try repository.applyImport(
             analysis: analysis,
-            confirmedChatID: nil,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: nil
         )
 
         try repository.recordImportReviewExposure(chatID: outcome.chatID)
@@ -394,7 +376,7 @@ final class ChatPersistenceTests: XCTestCase {
 
         let renamed = try XCTUnwrap(repository.chat(id: "rename-me"))
         XCTAssertEqual(renamed.name, "Alex Hiking")
-        XCTAssertEqual(renamed.initials, "AH")
+        XCTAssertEqual(Chat(record: renamed).initials, "AH")
         XCTAssertGreaterThan(renamed.updatedAt, originalUpdatedAt)
 
         try repository.renameChat(id: "rename-me", name: " \n ")
@@ -441,9 +423,7 @@ final class ChatPersistenceTests: XCTestCase {
         let originalCount = try repository.messages(chatID: "target-chat").count
         let outcome = try repository.applyImport(
             analysis: provisionalAnalysis(),
-            confirmedChatID: nil,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: nil
         )
         container.mainContext.insert(
             ChatMemoryRecord(
@@ -469,12 +449,10 @@ final class ChatPersistenceTests: XCTestCase {
         let repository = ChatRepository(container: container)
         let chatID = "memory-chat"
         insertChat(id: chatID, name: "Memory", into: container)
-        let sourceID = UUID()
         let memory = ChatMemory(
             text: "Met at university.\nPlanning a reunion next spring.",
             origin: .ai,
-            certainty: .aiInferred,
-            sourceMessageIDs: [sourceID]
+            certainty: .aiInferred
         )
         container.mainContext.insert(ChatMemoryRecord(chatID: chatID, value: memory))
         try container.mainContext.save()
@@ -485,7 +463,7 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(stored.origin, .ai)
         XCTAssertEqual(stored.certainty, .aiInferred)
         XCTAssertEqual(stored.status, .active)
-        XCTAssertEqual(stored.sourceMessageIDs, [sourceID])
+        XCTAssertEqual(stored.updatedAt, memory.updatedAt)
     }
 
     func testDeleteChatRemovesRelatedDataAndLeavesOtherChatsUntouched() throws {
@@ -513,50 +491,7 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertNotNil(try repository.suggestedReplyCache(chatID: "keep-me"))
     }
 
-    func testImportStoresCurrentMatchDiagnostics() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let analysis = ChatImportAnalysis(
-            conversationTitle: "Weekend Hike",
-            messages: [
-                AnalyzedChatMessage(
-                    sender: .otherParticipant,
-                    senderName: "Alex",
-                    text: "Trail at eight?",
-                    timestampLabel: "8:00 PM"
-                )
-            ],
-            matchedChatID: nil,
-            matchConfidence: 0
-        )
-        let decision = ChatMatchDecision(
-            disposition: .review,
-            confirmedChatID: nil,
-            suggestedChatID: "alex",
-            aiConfidence: 0.4,
-            transcriptEvidence: .weak,
-            reason: .insufficientLocalEvidence
-        )
-
-        let outcome = try repository.applyImport(
-            analysis: analysis,
-            confirmedChatID: nil,
-            matchDecision: decision,
-            provider: .openAI,
-            model: .gpt56Luna
-        )
-
-        XCTAssertNotNil(try repository.chat(id: outcome.chatID))
-
-        let imports = try container.mainContext.fetch(FetchDescriptor<ChatImportRecord>())
-        let importRecord = try XCTUnwrap(imports.first)
-        XCTAssertEqual(importRecord.matchDisposition, ChatMatchDisposition.review.rawValue)
-        XCTAssertEqual(importRecord.matchReason, ChatMatchReason.insufficientLocalEvidence.rawValue)
-        XCTAssertEqual(importRecord.transcriptEvidence, TranscriptEvidenceLevel.weak.rawValue)
-        XCTAssertNil(importRecord.sourceApp)
-    }
-
-    func testUnknownSenderRequiresReviewAndCanBeResolvedWithoutPersistingQuote() throws {
+    func testUnknownSenderRequiresReviewAndCanBeResolved() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         insertChat(id: "known-chat", name: "Known Chat", into: container)
@@ -572,12 +507,7 @@ final class ChatPersistenceTests: XCTestCase {
                     outerAlignment: .fullWidth,
                     outerAuthorLabel: "Alex",
                     senderConfidence: 0.2,
-                    senderEvidence: .insufficient,
-                    quotedReply: AnalyzedQuotedReply(
-                        sender: .user,
-                        senderName: nil,
-                        text: "I live in Guangzhou"
-                    )
+                    senderEvidence: .insufficient
                 )
             ],
             matchedChatID: "known-chat",
@@ -587,9 +517,7 @@ final class ChatPersistenceTests: XCTestCase {
 
         let outcome = try repository.applyImport(
             analysis: analysis,
-            confirmedChatID: "known-chat",
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: "known-chat"
         )
         let stored = try XCTUnwrap(repository.messages(chatID: "known-chat").first)
         let importBefore = try XCTUnwrap(
@@ -600,10 +528,6 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertTrue(outcome.reviewRequired)
         XCTAssertEqual(stored.senderKind, "unknown")
         XCTAssertEqual(stored.text, "I remember")
-        XCTAssertFalse(
-            try repository.messages(chatID: "known-chat").contains {
-                $0.text == "I live in Guangzhou"
-            })
         XCTAssertTrue(importBefore.requiresReview)
 
         try repository.resolveUnknownSender(messageID: stored.id, as: .otherParticipant)
@@ -630,13 +554,7 @@ final class ChatPersistenceTests: XCTestCase {
             ChatRecord(
                 id: id,
                 name: name,
-                preview: message ?? "Imported conversation",
-                chipTitle: "General",
-                chipSymbol: "number",
-                avatarSymbol: nil,
-                initials: "TC",
-                appearanceStyle: 0,
-                isUnread: false
+                preview: message ?? "Imported conversation"
             )
         )
         if let message {
@@ -645,7 +563,6 @@ final class ChatPersistenceTests: XCTestCase {
                     chatID: id,
                     senderKind: "other_participant",
                     text: message,
-                    normalizedText: MessageTextNormalizer.normalize(message),
                     timeLabel: "10:50 AM",
                     sortIndex: 0
                 )
@@ -671,9 +588,6 @@ final class ChatPersistenceTests: XCTestCase {
             ChatImportRecord(
                 chatID: chatID,
                 transcriptFingerprint: "fingerprint-\(chatID)",
-                provider: "openAI",
-                model: "gpt-5.4-mini",
-                confidence: 0.9,
                 insertedMessageCount: 1,
                 isDuplicate: false,
                 requiresReview: false
@@ -683,8 +597,8 @@ final class ChatPersistenceTests: XCTestCase {
 
     private func makePendingImport(operationID: UUID) -> ChatImportRecord {
         ChatImportRecord(
-            chatID: "chat", transcriptFingerprint: nil, provider: "test", model: "test",
-            confidence: 1, insertedMessageCount: 1, isDuplicate: false, requiresReview: false,
+            chatID: "chat", transcriptFingerprint: nil,
+            insertedMessageCount: 1, isDuplicate: false, requiresReview: false,
             operationID: operationID, draftingInputStateRaw: DraftingInputState.pending.rawValue
         )
     }
@@ -698,8 +612,6 @@ final class ChatPersistenceTests: XCTestCase {
                 summarizedPrefixFingerprint: "fingerprint",
                 repliesJSON: "[\"One\",\"Two\"]",
                 inputFingerprint: "input",
-                provider: "openAI",
-                model: "gpt-5.4-mini",
                 promptVersion: SuggestedReplyPrompt.version
             )
         )

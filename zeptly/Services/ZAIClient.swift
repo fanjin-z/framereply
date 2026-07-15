@@ -43,7 +43,6 @@ struct ZAIClient: AIProviderAdapter {
     func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile? {
         let models = platform.models(for: selectedTier)
         return ProviderModelProfile(
-            selectedTier: selectedTier,
             screenshotAnalysisModel: models.analysis,
             transcriptAnalysisModel: models.replies,
             suggestedReplyModel: models.replies
@@ -94,135 +93,136 @@ struct ZAIClient: AIProviderAdapter {
         guard supportsModel else {
             throw ProviderConnectionError.unsupportedProvider
         }
+        let contract = ChatScreenshotPrompt.contract(for: analysisRequest)
         let images = try analysisRequest.imageDataList.map(ScreenshotImagePayload.init(data:))
         let candidateIDs = Set(analysisRequest.candidates.map(\.id))
         let maxTokens = 4_000
-        eventReporter.record(
-            .providerAttempt(
-                traceID: analysisRequest.traceID,
-                provider: region.providerID,
-                model: model.rawValue,
-                attempt: 1,
-                maxTokens: maxTokens
-            )
-        )
-
         let userContent: [[String: Any]] =
             images.map { image in
                 ["type": "image_url", "image_url": ["url": image.dataURL]]
             } + [
                 ["type": "text", "text": ChatScreenshotPrompt.input(for: analysisRequest)]
             ]
-        var body: [String: Any] = [
-            "model": model.rawValue,
-            "messages": [
-                [
-                    "role": "system",
-                    "content": ChatScreenshotPrompt.instructions(for: analysisRequest)
-                ],
-                [
-                    "role": "user",
-                    "content": userContent
-                ]
-            ],
-            "max_tokens": maxTokens,
-            "thinking": ["type": "disabled"],
-            "do_sample": false,
-            "stream": false
-        ]
-        if supportsJSONResponseFormat(model) {
-            body["response_format"] = ["type": "json_object"]
-        }
-        var request = authorizedRequest(apiKey: apiKey)
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let startedAt = Date()
-        let (data, response) = try await perform(request)
-        let duration = Int(Date().timeIntervalSince(startedAt) * 1_000)
-        let httpResponse = response as? HTTPURLResponse
-        do {
-            try validateHTTPResponse(response, data: data)
-        } catch {
-            recordResponse(
-                request: analysisRequest,
-                model: model,
-                attempt: 1,
-                duration: duration,
-                response: httpResponse,
-                finishReason: nil,
-                byteCount: data.count
-            )
-            throw error
-        }
-
-        let completion = try? decodeResponse(data)
-        let choice = completion?.choices.first
-        if analysisRequest.sharedTranscript == nil {
-            ChatImportDebugLogger.rawResponse(
-                traceID: analysisRequest.traceID,
-                provider: region.providerID,
-                model: model.rawValue,
-                attempt: 1,
-                finishReason: choice?.finishReason,
-                content: choice?.message.content
-            )
-        }
-        recordResponse(
-            request: analysisRequest,
-            model: model,
-            attempt: 1,
-            duration: duration,
-            response: httpResponse,
-            finishReason: choice?.finishReason,
-            byteCount: data.count
-        )
-
-        do {
-            guard let choice else {
-                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "response.choices")
-            }
-            let analysis = try ChatImportAnalysisDecoder.decode(
-                content: choice.message.content,
-                finishReason: choice.finishReason,
-                candidateIDs: candidateIDs
-            )
-            if analysisRequest.sharedTranscript == nil {
-                ChatImportDebugLogger.normalized(
-                    analysis,
+        var priorInvalidContent: String?
+        for attempt in 1...2 {
+            eventReporter.record(
+                .providerAttempt(
                     traceID: analysisRequest.traceID,
                     provider: region.providerID,
                     model: model.rawValue,
-                    attempt: 1
+                    attempt: attempt,
+                    maxTokens: maxTokens
+                )
+            )
+            var messages: [[String: Any]] = [
+                ["role": "system", "content": contract.instructions(for: .jsonObject)],
+                ["role": "user", "content": userContent]
+            ]
+            appendRepairTurn(to: &messages, priorContent: priorInvalidContent)
+            let body: [String: Any] = [
+                "model": model.rawValue,
+                "messages": messages,
+                "max_tokens": maxTokens,
+                "thinking": ["type": "disabled"],
+                "do_sample": false,
+                "stream": false,
+                "response_format": ["type": "json_object"]
+            ]
+            var request = authorizedRequest(apiKey: apiKey)
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+            let startedAt = Date()
+            let (data, response) = try await perform(request)
+            let duration = Int(Date().timeIntervalSince(startedAt) * 1_000)
+            let httpResponse = response as? HTTPURLResponse
+            do {
+                try validateHTTPResponse(response, data: data)
+            } catch {
+                recordResponse(
+                    request: analysisRequest, model: model, attempt: attempt,
+                    duration: duration, response: httpResponse, finishReason: nil,
+                    byteCount: data.count)
+                throw error
+            }
+
+            let completion = try decodeResponse(data)
+            let choice = completion.choices.first
+            if analysisRequest.sharedTranscript == nil {
+                ChatImportDebugLogger.rawResponse(
+                    traceID: analysisRequest.traceID,
+                    provider: region.providerID,
+                    model: model.rawValue,
+                    attempt: attempt,
+                    finishReason: choice?.finishReason,
+                    content: choice?.message.content
                 )
             }
-            return analysis
-        } catch let failure as StructuredOutputFailure {
-            ChatImportDebugLogger.structuredOutputFailure(
-                failure,
-                traceID: analysisRequest.traceID,
-                provider: region.providerID,
-                model: model.rawValue,
-                attempt: 1,
-                finishReason: choice?.finishReason,
-                content: choice?.message.content ?? String(data: data, encoding: .utf8)
-            )
-            eventReporter.record(
-                .structuredOutputFailure(
+            recordResponse(
+                request: analysisRequest, model: model, attempt: attempt,
+                duration: duration, response: httpResponse,
+                finishReason: choice?.finishReason, byteCount: data.count,
+                usage: completion.usage)
+
+            do {
+                guard let choice else {
+                    throw StructuredOutputFailure(
+                        kind: .schemaMismatch, codingPath: "response.choices")
+                }
+                let analysis = try ChatImportAnalysisDecoder.decode(
+                    content: choice.message.content,
+                    finishReason: choice.finishReason,
+                    isSharedTranscript: analysisRequest.sharedTranscript != nil,
+                    candidateIDs: candidateIDs
+                )
+                if analysisRequest.sharedTranscript == nil {
+                    ChatImportDebugLogger.normalized(
+                        analysis,
+                        traceID: analysisRequest.traceID,
+                        provider: region.providerID,
+                        model: model.rawValue,
+                        attempt: attempt
+                    )
+                }
+                recordContractValidation(
+                    contract, traceID: analysisRequest.traceID, attempt: attempt,
+                    category: "valid")
+                return analysis
+            } catch let failure as StructuredOutputFailure {
+                recordContractValidation(
+                    contract, traceID: analysisRequest.traceID, attempt: attempt,
+                    category: failure.kind.rawValue)
+                ChatImportDebugLogger.structuredOutputFailure(
+                    failure,
                     traceID: analysisRequest.traceID,
                     provider: region.providerID,
-                    attempt: 1,
-                    kind: failure.kind,
-                    codingPath: failure.codingPath
+                    model: model.rawValue,
+                    attempt: attempt,
+                    finishReason: choice?.finishReason,
+                    content: choice?.message.content ?? String(data: data, encoding: .utf8)
                 )
-            )
-            throw ProviderConnectionError.structuredOutput(
-                ProviderStructuredOutputError(
-                    provider: region.providerID,
-                    traceID: analysisRequest.traceID,
-                    failure: failure
+                eventReporter.record(
+                    .structuredOutputFailure(
+                        traceID: analysisRequest.traceID,
+                        provider: region.providerID,
+                        attempt: attempt,
+                        kind: failure.kind,
+                        codingPath: failure.codingPath
+                    )
                 )
-            )
+                if attempt == 1, shouldRepair(failure, finishReason: choice?.finishReason) {
+                    priorInvalidContent = choice?.message.content ?? "{}"
+                    continue
+                }
+                throw ProviderConnectionError.structuredOutput(
+                    ProviderStructuredOutputError(
+                        provider: region.providerID,
+                        traceID: analysisRequest.traceID,
+                        failure: failure
+                    )
+                )
+            }
         }
+        preconditionFailure("Z.AI structured-output retry loop exhausted unexpectedly")
     }
 
     func generateSuggestedReplies(
@@ -233,84 +233,104 @@ struct ZAIClient: AIProviderAdapter {
         guard Self.textModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
+        let contract = SuggestedReplyPrompt.contract(for: generationRequest.task)
 
         let maxTokens = 3_200
-        eventReporter.record(
-            .providerAttempt(
-                traceID: generationRequest.traceID,
-                provider: region.providerID,
-                model: model.rawValue,
-                attempt: 1,
-                maxTokens: maxTokens
-            )
-        )
-
-        var body: [String: Any] = [
-            "model": model.rawValue,
-            "messages": [
-                ["role": "system", "content": SuggestedReplyPrompt.instructions],
-                ["role": "user", "content": SuggestedReplyPrompt.input(for: generationRequest)]
-            ],
-            "max_tokens": maxTokens,
-            "thinking": ["type": "disabled"],
-            "do_sample": false,
-            "stream": false
-        ]
-        if supportsJSONResponseFormat(model) {
-            body["response_format"] = ["type": "json_object"]
-        }
-        var request = authorizedRequest(apiKey: apiKey)
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let startedAt = Date()
-        let (data, response) = try await perform(request)
-        let duration = Int(Date().timeIntervalSince(startedAt) * 1_000)
-        let httpResponse = response as? HTTPURLResponse
-        eventReporter.record(
-            .providerResponse(
-                traceID: generationRequest.traceID,
-                provider: region.providerID,
-                model: model.rawValue,
-                attempt: 1,
-                durationMilliseconds: duration,
-                httpStatus: httpResponse?.statusCode,
-                requestID: httpResponse?.value(forHTTPHeaderField: "x-request-id")
-                    ?? httpResponse?.value(forHTTPHeaderField: "request-id"),
-                finishReason: nil,
-                byteCount: data.count
-            )
-        )
-        try validateHTTPResponse(response, data: data)
-
-        let completion = try? decodeResponse(data)
-        let choice = completion?.choices.first
-        do {
-            guard let choice else {
-                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "response.choices")
-            }
-            return try SuggestedReplyResultDecoder.decode(
-                content: choice.message.content,
-                finishReason: choice.finishReason,
-                historySummaryFallback: summaryFallback(for: generationRequest)
-            )
-        } catch let failure as StructuredOutputFailure {
+        var priorInvalidContent: String?
+        for attempt in 1...2 {
             eventReporter.record(
-                .structuredOutputFailure(
+                .providerAttempt(
                     traceID: generationRequest.traceID,
                     provider: region.providerID,
-                    attempt: 1,
-                    kind: failure.kind,
-                    codingPath: failure.codingPath
+                    model: model.rawValue,
+                    attempt: attempt,
+                    maxTokens: maxTokens
                 )
             )
-            throw ProviderConnectionError.structuredOutput(
-                ProviderStructuredOutputError(
-                    provider: region.providerID,
+            var messages: [[String: Any]] = [
+                ["role": "system", "content": contract.instructions(for: .jsonObject)],
+                ["role": "user", "content": SuggestedReplyPrompt.input(for: generationRequest)]
+            ]
+            appendRepairTurn(to: &messages, priorContent: priorInvalidContent)
+            let body: [String: Any] = [
+                "model": model.rawValue,
+                "messages": messages,
+                "max_tokens": maxTokens,
+                "thinking": ["type": "disabled"],
+                "do_sample": false,
+                "stream": false,
+                "response_format": ["type": "json_object"]
+            ]
+            var request = authorizedRequest(apiKey: apiKey)
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+            let startedAt = Date()
+            let (data, response) = try await perform(request)
+            let duration = Int(Date().timeIntervalSince(startedAt) * 1_000)
+            let httpResponse = response as? HTTPURLResponse
+            try validateHTTPResponse(response, data: data)
+
+            let completion = try decodeResponse(data)
+            let choice = completion.choices.first
+            eventReporter.record(
+                .providerResponse(
                     traceID: generationRequest.traceID,
-                    failure: failure
+                    provider: region.providerID,
+                    model: model.rawValue,
+                    attempt: attempt,
+                    durationMilliseconds: duration,
+                    httpStatus: httpResponse?.statusCode,
+                    requestID: httpResponse?.value(forHTTPHeaderField: "x-request-id")
+                        ?? httpResponse?.value(forHTTPHeaderField: "request-id"),
+                    finishReason: choice?.finishReason,
+                    byteCount: data.count,
+                    inputTokens: completion.usage?.promptTokens,
+                    outputTokens: completion.usage?.completionTokens,
+                    cachedInputTokens: completion.usage?.promptTokenDetails?.cachedTokens
                 )
             )
+            do {
+                guard let choice else {
+                    throw StructuredOutputFailure(
+                        kind: .schemaMismatch, codingPath: "response.choices")
+                }
+                let result = try SuggestedReplyResultDecoder.decode(
+                    content: choice.message.content,
+                    finishReason: choice.finishReason,
+                    task: generationRequest.task,
+                    historySummaryFallback: summaryFallback(for: generationRequest)
+                )
+                recordContractValidation(
+                    contract, traceID: generationRequest.traceID, attempt: attempt,
+                    category: "valid")
+                return result
+            } catch let failure as StructuredOutputFailure {
+                recordContractValidation(
+                    contract, traceID: generationRequest.traceID, attempt: attempt,
+                    category: failure.kind.rawValue)
+                eventReporter.record(
+                    .structuredOutputFailure(
+                        traceID: generationRequest.traceID,
+                        provider: region.providerID,
+                        attempt: attempt,
+                        kind: failure.kind,
+                        codingPath: failure.codingPath
+                    )
+                )
+                if attempt == 1, shouldRepair(failure, finishReason: choice?.finishReason) {
+                    priorInvalidContent = choice?.message.content ?? "{}"
+                    continue
+                }
+                throw ProviderConnectionError.structuredOutput(
+                    ProviderStructuredOutputError(
+                        provider: region.providerID,
+                        traceID: generationRequest.traceID,
+                        failure: failure
+                    )
+                )
+            }
         }
+        preconditionFailure("Z.AI structured-output retry loop exhausted unexpectedly")
     }
 
     private func summaryFallback(for request: SuggestedReplyGenerationRequest) -> String? {
@@ -320,8 +340,43 @@ struct ZAIClient: AIProviderAdapter {
         return request.olderMessagesToSummarize.isEmpty ? "" : nil
     }
 
-    private func supportsJSONResponseFormat(_ model: ProviderModel) -> Bool {
-        Self.textModels.contains(model)
+    private func appendRepairTurn(
+        to messages: inout [[String: Any]],
+        priorContent: String?
+    ) {
+        guard let priorContent else { return }
+        messages.append(["role": "assistant", "content": priorContent])
+        messages.append([
+            "role": "user",
+            "content": "The previous object failed local contract validation. Return one corrected complete JSON object only, with exactly the required keys and value types."
+        ])
+    }
+
+    private func shouldRepair(
+        _ failure: StructuredOutputFailure,
+        finishReason: String?
+    ) -> Bool {
+        guard finishReason == nil || finishReason == "stop" else { return false }
+        switch failure.kind {
+        case .emptyResponse, .invalidJSON, .schemaMismatch, .invalidCandidateID,
+            .incompleteMessages:
+            return true
+        case .truncatedResponse:
+            return false
+        }
+    }
+
+    private func recordContractValidation(
+        _ contract: AIOutputContract,
+        traceID: ImportTraceID,
+        attempt: Int,
+        category: String
+    ) {
+        eventReporter.record(
+            .contractValidation(
+                traceID: traceID, provider: region.providerID, contract: contract.name,
+                version: contract.version, attempt: attempt, category: category)
+        )
     }
 
     private static let visionModels: Set<ProviderModel> = [
@@ -398,7 +453,8 @@ struct ZAIClient: AIProviderAdapter {
         duration: Int,
         response: HTTPURLResponse?,
         finishReason: String?,
-        byteCount: Int
+        byteCount: Int,
+        usage: ZAIUsage? = nil
     ) {
         eventReporter.record(
             .providerResponse(
@@ -411,7 +467,10 @@ struct ZAIClient: AIProviderAdapter {
                 requestID: response?.value(forHTTPHeaderField: "x-request-id")
                     ?? response?.value(forHTTPHeaderField: "request-id"),
                 finishReason: finishReason,
-                byteCount: byteCount
+                byteCount: byteCount,
+                inputTokens: usage?.promptTokens,
+                outputTokens: usage?.completionTokens,
+                cachedInputTokens: usage?.promptTokenDetails?.cachedTokens
             )
         )
     }
@@ -419,6 +478,27 @@ struct ZAIClient: AIProviderAdapter {
 
 private struct ZAIChatResponse: Decodable {
     let choices: [ZAIChoice]
+    let usage: ZAIUsage?
+}
+
+private struct ZAIUsage: Decodable {
+    let promptTokens: Int?
+    let completionTokens: Int?
+    let promptTokenDetails: ZAIPromptTokenDetails?
+
+    private enum CodingKeys: String, CodingKey {
+        case promptTokens = "prompt_tokens"
+        case completionTokens = "completion_tokens"
+        case promptTokenDetails = "prompt_tokens_details"
+    }
+}
+
+private struct ZAIPromptTokenDetails: Decodable {
+    let cachedTokens: Int?
+
+    private enum CodingKeys: String, CodingKey {
+        case cachedTokens = "cached_tokens"
+    }
 }
 
 private struct ZAIChoice: Decodable {

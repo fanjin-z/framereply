@@ -6,23 +6,29 @@
 import Foundation
 import SwiftUI
 
+extension ChatSelfAliasRecord {
+    var normalizedLabel: String {
+        ParticipantLabelNormalizer.key(displayLabel) ?? ""
+    }
+}
+
 extension Chat {
     init(record: ChatRecord) {
         self.init(
             id: record.id,
             name: record.name,
             preview: record.preview,
-            chipTitle: record.chipTitle,
-            chipSymbol: record.chipSymbol,
-            avatarSymbol: record.avatarSymbol,
-            initials: record.initials,
-            gradient: Self.gradient(for: record.appearanceStyle),
-            isUnread: record.isUnread,
+            chipTitle: record.isProvisional ? "Review Import" : "General",
+            chipSymbol: record.isProvisional ? "exclamationmark.bubble" : "number",
+            avatarSymbol: nil,
+            initials: Self.initials(for: record.name),
+            gradient: Self.gradient(for: record.id),
+            isUnread: false,
             isProvisional: record.isProvisional
         )
     }
 
-    private static func gradient(for style: Int) -> [Color] {
+    private static func gradient(for id: String) -> [Color] {
         let gradients: [[Color]] = [
             [RezplyColor.peach, RezplyColor.primaryContainer],
             [RezplyColor.deepNavy, RezplyColor.surfaceDim],
@@ -32,7 +38,14 @@ extension Chat {
             [RezplyColor.primaryContainer, RezplyColor.deepNavy],
             [RezplyColor.surfaceContainerHigh, RezplyColor.secondaryContainer]
         ]
-        return gradients[abs(style) % gradients.count]
+        let style = id.unicodeScalars.reduce(UInt(0)) { ($0 &* 31) &+ UInt($1.value) }
+        return gradients[Int(style % UInt(gradients.count))]
+    }
+
+    private static func initials(for name: String) -> String {
+        let components = name.split(whereSeparator: \Character.isWhitespace)
+        let value = components.prefix(2).compactMap(\.first).map(String.init).joined()
+        return value.isEmpty ? "IC" : value.uppercased()
     }
 }
 
@@ -79,39 +92,29 @@ extension PersonaRecord {
             id: id, name: name, summary: summary, symbolName: symbolName,
             accentKey: accentKey, instructions: instructions,
             learningEnabled: learningEnabled,
-            sampleCount: sampleCount, lastLearnedAt: lastLearnedAt
+            sampleCount: sampleCount
         )
     }
 }
 
 extension PersonaObservationRecord {
     var value: PersonaObservation {
-        let ids =
-            sourceMessageIDsJSON.data(using: .utf8)
-            .flatMap { try? JSONDecoder().decode([UUID].self, from: $0) } ?? []
         return PersonaObservation(
             id: id,
             text: text,
             origin: PersonaObservationOrigin(rawValue: origin) ?? .ai,
             isUserProtected: isUserProtected,
             status: PersonaObservationStatus(rawValue: status) ?? .active,
-            evidenceSource: PersonaObservationEvidenceSource(rawValue: evidenceSource) ?? .messages,
-            sourceMessageIDs: ids,
-            evidenceCount: evidenceCount,
-            supersededByID: supersededByID,
             createdAt: createdAt,
             updatedAt: updatedAt
         )
     }
 
     convenience init(personaID: UUID, value: PersonaObservation) {
-        let data = try? JSONEncoder().encode(value.sourceMessageIDs)
         self.init(
             id: value.id, personaID: personaID, text: value.text,
             origin: value.origin.rawValue, isUserProtected: value.isUserProtected,
-            status: value.status.rawValue, evidenceSource: value.evidenceSource.rawValue,
-            sourceMessageIDsJSON: data.flatMap { String(data: $0, encoding: .utf8) } ?? "[]",
-            evidenceCount: value.evidenceCount, supersededByID: value.supersededByID,
+            status: value.status.rawValue,
             createdAt: value.createdAt, updatedAt: value.updatedAt
         )
     }
@@ -119,21 +122,11 @@ extension PersonaObservationRecord {
 
 extension ChatMemoryRecord {
     var value: ChatMemory {
-        let sourceMessageIDs: [UUID]
-        if let data = sourceMessageIDsJSON.data(using: .utf8),
-            let decoded = try? JSONDecoder().decode([UUID].self, from: data)
-        {
-            sourceMessageIDs = decoded
-        } else {
-            sourceMessageIDs = []
-        }
-
         return ChatMemory(
             id: id,
             text: text,
             origin: ChatMemoryOrigin(rawValue: origin) ?? .user,
             certainty: ChatMemoryCertainty(rawValue: certainty) ?? .userConfirmed,
-            sourceMessageIDs: sourceMessageIDs,
             status: ChatMemoryStatus(rawValue: status) ?? .active,
             createdAt: createdAt,
             updatedAt: updatedAt
@@ -141,14 +134,12 @@ extension ChatMemoryRecord {
     }
 
     convenience init(chatID: String, value: ChatMemory) {
-        let sourceData = try? JSONEncoder().encode(value.sourceMessageIDs)
         self.init(
             id: value.id,
             chatID: chatID,
             text: value.text,
             origin: value.origin.rawValue,
             certainty: value.certainty.rawValue,
-            sourceMessageIDsJSON: sourceData.flatMap { String(data: $0, encoding: .utf8) } ?? "[]",
             status: value.status.rawValue,
             createdAt: value.createdAt,
             updatedAt: value.updatedAt
@@ -159,11 +150,6 @@ extension ChatMemoryRecord {
         text = value.text
         origin = value.origin.rawValue
         certainty = value.certainty.rawValue
-        sourceMessageIDsJSON =
-            (try? String(
-                data: JSONEncoder().encode(value.sourceMessageIDs),
-                encoding: .utf8
-            )) ?? "[]"
         status = value.status.rawValue
         createdAt = value.createdAt
         updatedAt = value.updatedAt

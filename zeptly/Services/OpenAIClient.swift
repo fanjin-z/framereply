@@ -24,7 +24,6 @@ struct OpenAIClient: AIProviderAdapter {
     func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile? {
         let models = platform.models(for: selectedTier)
         return ProviderModelProfile(
-            selectedTier: selectedTier,
             screenshotAnalysisModel: models.analysis,
             transcriptAnalysisModel: models.replies,
             suggestedReplyModel: models.replies
@@ -76,6 +75,7 @@ struct OpenAIClient: AIProviderAdapter {
         guard Self.supportedModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
+        let contract = ChatScreenshotPrompt.contract(for: analysisRequest)
         let images = try analysisRequest.imageDataList.map(ScreenshotImagePayload.init(data:))
         let provider = "openai"
         eventReporter.record(
@@ -96,7 +96,7 @@ struct OpenAIClient: AIProviderAdapter {
                 [
                     "type": "input_image",
                     "image_url": image.dataURL,
-                    "detail": model.openAIImageDetail
+                    "detail": "high"
                 ]
             } + [
                 [
@@ -107,7 +107,7 @@ struct OpenAIClient: AIProviderAdapter {
         request.httpBody = try JSONSerialization.data(
             withJSONObject: [
                 "model": model.rawValue,
-                "instructions": ChatScreenshotPrompt.instructions(for: analysisRequest),
+                "instructions": contract.instructions(for: .strictJSONSchema),
                 "input": [
                     [
                         "role": "user",
@@ -117,12 +117,13 @@ struct OpenAIClient: AIProviderAdapter {
                 "max_output_tokens": 4_000,
                 "reasoning": ["effort": "none"],
                 "store": false,
+                "prompt_cache_key": "\(contract.name)-v\(contract.version)-\(model.rawValue)",
                 "text": [
                     "format": [
                         "type": "json_schema",
-                        "name": "chat_import",
+                        "name": contract.name,
                         "strict": true,
-                        "schema": ChatScreenshotPrompt.jsonSchema
+                        "schema": contract.schema
                     ]
                 ]
             ]
@@ -145,7 +146,10 @@ struct OpenAIClient: AIProviderAdapter {
                     httpStatus: httpResponse?.statusCode,
                     requestID: requestID(from: httpResponse),
                     finishReason: nil,
-                    byteCount: data.count
+                    byteCount: data.count,
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    cachedInputTokens: nil
                 )
             )
             throw error
@@ -193,11 +197,39 @@ struct OpenAIClient: AIProviderAdapter {
                 httpStatus: httpResponse?.statusCode,
                 requestID: requestID(from: httpResponse),
                 finishReason: completion.status,
-                byteCount: data.count
+                byteCount: data.count,
+                inputTokens: completion.usage?.inputTokens,
+                outputTokens: completion.usage?.outputTokens,
+                cachedInputTokens: completion.usage?.inputTokenDetails?.cachedTokens
             )
         )
 
-        let forcedFinishReason = completion.status == "completed" ? nil : "length"
+        guard completion.status == "completed" else {
+            if completion.incompleteDetails?.reason == "content_filter" {
+                recordContractValidation(
+                    contract, traceID: analysisRequest.traceID, provider: provider,
+                    attempt: 1, category: "content_filter")
+                throw ProviderConnectionError.invalidResponse(
+                    "OpenAI filtered the import response for safety.")
+            }
+            recordContractValidation(
+                contract, traceID: analysisRequest.traceID, provider: provider,
+                attempt: 1, category: StructuredOutputFailureKind.truncatedResponse.rawValue)
+            throw ProviderConnectionError.structuredOutput(
+                ProviderStructuredOutputError(
+                    provider: provider,
+                    traceID: analysisRequest.traceID,
+                    failure: StructuredOutputFailure(
+                        kind: .truncatedResponse, codingPath: "response.status")
+                )
+            )
+        }
+        if completion.refusal != nil {
+            recordContractValidation(
+                contract, traceID: analysisRequest.traceID, provider: provider,
+                attempt: 1, category: "refusal")
+            throw ProviderConnectionError.invalidResponse("OpenAI refused the import request.")
+        }
         if analysisRequest.sharedTranscript == nil {
             ChatImportDebugLogger.rawResponse(
                 traceID: analysisRequest.traceID,
@@ -211,7 +243,8 @@ struct OpenAIClient: AIProviderAdapter {
         do {
             let analysis = try ChatImportAnalysisDecoder.decode(
                 content: completion.outputText,
-                finishReason: forcedFinishReason,
+                finishReason: nil,
+                isSharedTranscript: analysisRequest.sharedTranscript != nil,
                 candidateIDs: Set(analysisRequest.candidates.map(\.id))
             )
             if analysisRequest.sharedTranscript == nil {
@@ -223,8 +256,14 @@ struct OpenAIClient: AIProviderAdapter {
                     attempt: 1
                 )
             }
+            recordContractValidation(
+                contract, traceID: analysisRequest.traceID, provider: provider,
+                attempt: 1, category: "valid")
             return analysis
         } catch let failure as StructuredOutputFailure {
+            recordContractValidation(
+                contract, traceID: analysisRequest.traceID, provider: provider,
+                attempt: 1, category: failure.kind.rawValue)
             ChatImportDebugLogger.structuredOutputFailure(
                 failure,
                 traceID: analysisRequest.traceID,
@@ -261,6 +300,7 @@ struct OpenAIClient: AIProviderAdapter {
         guard Self.supportedModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
+        let contract = SuggestedReplyPrompt.contract(for: generationRequest.task)
         let maxTokens = 3_200
         eventReporter.record(
             .providerAttempt(
@@ -278,7 +318,7 @@ struct OpenAIClient: AIProviderAdapter {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: [
             "model": model.rawValue,
-            "instructions": SuggestedReplyPrompt.instructions,
+            "instructions": contract.instructions(for: .strictJSONSchema),
             "input": [
                 [
                     "role": "user",
@@ -293,13 +333,14 @@ struct OpenAIClient: AIProviderAdapter {
             "max_output_tokens": maxTokens,
             "reasoning": ["effort": "none"],
             "store": false,
+            "prompt_cache_key": "\(contract.name)-v\(contract.version)-\(model.rawValue)",
             "text": [
                 "verbosity": "low",
                 "format": [
                     "type": "json_schema",
-                    "name": "suggested_replies",
+                    "name": contract.name,
                     "strict": true,
-                    "schema": SuggestedReplyPrompt.jsonSchema
+                    "schema": contract.schema
                 ]
             ]
         ])
@@ -308,6 +349,35 @@ struct OpenAIClient: AIProviderAdapter {
         let (data, response) = try await perform(request)
         let duration = Int(Date().timeIntervalSince(startedAt) * 1_000)
         let httpResponse = response as? HTTPURLResponse
+        do {
+            try validateHTTPResponse(response, data: data)
+        } catch {
+            eventReporter.record(
+                .providerResponse(
+                    traceID: generationRequest.traceID,
+                    provider: "openai",
+                    model: model.rawValue,
+                    attempt: 1,
+                    durationMilliseconds: duration,
+                    httpStatus: httpResponse?.statusCode,
+                    requestID: requestID(from: httpResponse),
+                    finishReason: nil,
+                    byteCount: data.count,
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    cachedInputTokens: nil
+                )
+            )
+            throw error
+        }
+
+        let completion: OpenAIResponse
+        do {
+            completion = try JSONDecoder().decode(OpenAIResponse.self, from: data)
+        } catch {
+            throw ProviderConnectionError.invalidResponse(
+                "OpenAI returned an unexpected reply response.")
+        }
         eventReporter.record(
             .providerResponse(
                 traceID: generationRequest.traceID,
@@ -317,27 +387,46 @@ struct OpenAIClient: AIProviderAdapter {
                 durationMilliseconds: duration,
                 httpStatus: httpResponse?.statusCode,
                 requestID: requestID(from: httpResponse),
-                finishReason: nil,
-                byteCount: data.count
+                finishReason: completion.status,
+                byteCount: data.count,
+                inputTokens: completion.usage?.inputTokens,
+                outputTokens: completion.usage?.outputTokens,
+                cachedInputTokens: completion.usage?.inputTokenDetails?.cachedTokens
             )
         )
-        try validateHTTPResponse(response, data: data)
-
-        let completion: OpenAIResponse
-        do {
-            completion = try JSONDecoder().decode(OpenAIResponse.self, from: data)
-        } catch {
-            throw ProviderConnectionError.invalidResponse(
-                "OpenAI returned an unexpected reply response.")
-        }
 
         do {
-            return try SuggestedReplyResultDecoder.decode(
+            guard completion.status == "completed" else {
+                if completion.incompleteDetails?.reason == "content_filter" {
+                    recordContractValidation(
+                        contract, traceID: generationRequest.traceID, provider: "openai",
+                        attempt: 1, category: "content_filter")
+                    throw ProviderConnectionError.invalidResponse(
+                        "OpenAI filtered the reply response for safety.")
+                }
+                throw StructuredOutputFailure(
+                    kind: .truncatedResponse, codingPath: "response.status")
+            }
+            if completion.refusal != nil {
+                recordContractValidation(
+                    contract, traceID: generationRequest.traceID, provider: "openai",
+                    attempt: 1, category: "refusal")
+                throw ProviderConnectionError.invalidResponse("OpenAI refused the reply request.")
+            }
+            let result = try SuggestedReplyResultDecoder.decode(
                 content: completion.outputText,
-                finishReason: completion.status == "completed" ? nil : "length",
+                finishReason: nil,
+                task: generationRequest.task,
                 historySummaryFallback: summaryFallback(for: generationRequest)
             )
+            recordContractValidation(
+                contract, traceID: generationRequest.traceID, provider: "openai",
+                attempt: 1, category: "valid")
+            return result
         } catch let failure as StructuredOutputFailure {
+            recordContractValidation(
+                contract, traceID: generationRequest.traceID, provider: "openai",
+                attempt: 1, category: failure.kind.rawValue)
             eventReporter.record(
                 .structuredOutputFailure(
                     traceID: generationRequest.traceID,
@@ -412,6 +501,20 @@ struct OpenAIClient: AIProviderAdapter {
             ?? response?.value(forHTTPHeaderField: "request-id")
     }
 
+    private func recordContractValidation(
+        _ contract: AIOutputContract,
+        traceID: ImportTraceID,
+        provider: String,
+        attempt: Int,
+        category: String
+    ) {
+        eventReporter.record(
+            .contractValidation(
+                traceID: traceID, provider: provider, contract: contract.name,
+                version: contract.version, attempt: attempt, category: category)
+        )
+    }
+
     private func recordStructuredFailure(
         _ failure: StructuredOutputFailure,
         request: ChatScreenshotAnalysisRequest,
@@ -431,7 +534,10 @@ struct OpenAIClient: AIProviderAdapter {
                 httpStatus: response?.statusCode,
                 requestID: requestID(from: response),
                 finishReason: finishReason,
-                byteCount: responseByteCount
+                byteCount: responseByteCount,
+                inputTokens: nil,
+                outputTokens: nil,
+                cachedInputTokens: nil
             )
         )
         eventReporter.record(
@@ -443,19 +549,6 @@ struct OpenAIClient: AIProviderAdapter {
                 codingPath: failure.codingPath
             )
         )
-    }
-}
-
-extension ProviderModel {
-    fileprivate var openAIImageDetail: String {
-        switch self {
-        case .gpt56Luna:
-            "high"
-        case .gpt56Terra, .gpt56Sol:
-            "original"
-        default:
-            "high"
-        }
     }
 }
 
@@ -481,6 +574,16 @@ private struct OpenAIResponse: Decodable {
     let id: String
     let status: String
     let output: [OpenAIOutput]
+    let usage: OpenAIUsage?
+    let incompleteDetails: OpenAIIncompleteDetails?
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case status
+        case output
+        case usage
+        case incompleteDetails = "incomplete_details"
+    }
 
     var hasTextOutput: Bool {
         output.contains { item in
@@ -498,6 +601,37 @@ private struct OpenAIResponse: Decodable {
             .first(where: { $0.type == "message" })?
             .content.first(where: { $0.type == "output_text" })?
             .text
+    }
+
+    var refusal: String? {
+        output
+            .first(where: { $0.type == "message" })?
+            .content.first(where: { $0.type == "refusal" })?
+            .refusal
+    }
+}
+
+private struct OpenAIIncompleteDetails: Decodable {
+    let reason: String?
+}
+
+private struct OpenAIUsage: Decodable {
+    let inputTokens: Int?
+    let outputTokens: Int?
+    let inputTokenDetails: OpenAIInputTokenDetails?
+
+    private enum CodingKeys: String, CodingKey {
+        case inputTokens = "input_tokens"
+        case outputTokens = "output_tokens"
+        case inputTokenDetails = "input_tokens_details"
+    }
+}
+
+private struct OpenAIInputTokenDetails: Decodable {
+    let cachedTokens: Int?
+
+    private enum CodingKeys: String, CodingKey {
+        case cachedTokens = "cached_tokens"
     }
 }
 
@@ -520,6 +654,7 @@ private struct OpenAIOutput: Decodable {
 private struct OpenAIOutputContent: Decodable {
     let type: String
     let text: String?
+    let refusal: String?
 }
 
 private struct OpenAIErrorResponse: Decodable {

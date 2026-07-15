@@ -34,10 +34,6 @@ enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
         }
     }
 
-    var isConnectable: Bool {
-        true
-    }
-
     var supportedTiers: [ProviderTier] { ProviderTier.allCases }
     var defaultTier: ProviderTier { .advanced }
 
@@ -63,7 +59,7 @@ enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
     }
 }
 
-enum ProviderModel: String, Codable, CaseIterable, Identifiable {
+enum ProviderModel: String, Codable {
     case gpt56Luna = "gpt-5.6-luna"
     case gpt56Terra = "gpt-5.6-terra"
     case gpt56Sol = "gpt-5.6-sol"
@@ -73,8 +69,6 @@ enum ProviderModel: String, Codable, CaseIterable, Identifiable {
     case glm47FlashX = "glm-4.7-flashx"
     case glm47Flash = "glm-4.7-flash"
     case glm47 = "glm-4.7"
-
-    var id: String { rawValue }
 
 }
 

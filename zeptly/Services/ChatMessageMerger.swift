@@ -12,7 +12,6 @@ struct MergeMessage: Equatable {
     let text: String
     let normalizedText: String
     let timeLabel: String
-    let timestamp: Date?
 
     init(record: ChatMessageRecord) {
         existingID = record.id
@@ -23,9 +22,8 @@ struct MergeMessage: Equatable {
         }
         senderName = record.senderName
         text = record.text
-        normalizedText = record.normalizedText
+        normalizedText = MessageTextNormalizer.normalize(record.text)
         timeLabel = record.timeLabel
-        timestamp = record.timestamp
     }
 
     init(analyzed: AnalyzedChatMessage) {
@@ -35,7 +33,6 @@ struct MergeMessage: Equatable {
         text = analyzed.text.trimmingCharacters(in: .whitespacesAndNewlines)
         normalizedText = MessageTextNormalizer.normalize(analyzed.text)
         timeLabel = analyzed.timestampLabel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        timestamp = nil
     }
 }
 

@@ -70,7 +70,18 @@ nonisolated enum ImportEvent: Equatable, Sendable {
         httpStatus: Int?,
         requestID: String?,
         finishReason: String?,
-        byteCount: Int
+        byteCount: Int,
+        inputTokens: Int?,
+        outputTokens: Int?,
+        cachedInputTokens: Int?
+    )
+    case contractValidation(
+        traceID: ImportTraceID,
+        provider: String,
+        contract: String,
+        version: Int,
+        attempt: Int,
+        category: String
     )
     case structuredOutputFailure(
         traceID: ImportTraceID,
@@ -111,9 +122,15 @@ nonisolated struct OSLogImportEventReporter: ImportEventReporting {
             )
         case .providerResponse(
             let traceID, let provider, let model, let attempt, let duration, let status,
-            let requestID, let finishReason, let byteCount):
+            let requestID, let finishReason, let byteCount, let inputTokens, let outputTokens,
+            let cachedInputTokens):
             logger.info(
-                "trace=\(traceID.diagnosticID, privacy: .public) stage=provider event=response provider=\(provider, privacy: .public) model=\(model, privacy: .public) attempt=\(attempt) duration_ms=\(duration) status=\(status ?? 0) request_id=\(requestID ?? "none", privacy: .public) finish_reason=\(finishReason ?? "none", privacy: .public) bytes=\(byteCount)"
+                "trace=\(traceID.diagnosticID, privacy: .public) stage=provider event=response provider=\(provider, privacy: .public) model=\(model, privacy: .public) attempt=\(attempt) duration_ms=\(duration) status=\(status ?? 0) request_id=\(requestID ?? "none", privacy: .public) finish_reason=\(finishReason ?? "none", privacy: .public) bytes=\(byteCount) input_tokens=\(inputTokens ?? 0) output_tokens=\(outputTokens ?? 0) cached_input_tokens=\(cachedInputTokens ?? 0)"
+            )
+        case .contractValidation(
+            let traceID, let provider, let contract, let version, let attempt, let category):
+            logger.info(
+                "trace=\(traceID.diagnosticID, privacy: .public) stage=provider event=contract_validation provider=\(provider, privacy: .public) contract=\(contract, privacy: .public) version=\(version) attempt=\(attempt) category=\(category, privacy: .public)"
             )
         case .structuredOutputFailure(
             let traceID, let provider, let attempt, let kind, let codingPath):

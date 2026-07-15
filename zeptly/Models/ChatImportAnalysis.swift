@@ -76,10 +76,6 @@ nonisolated struct ChatImportAnalysisRequest: Equatable, Sendable {
         return imageDataList
     }
 
-    var imageData: Data {
-        imageDataList.first ?? Data()
-    }
-
     var sharedTranscript: SharedTranscriptInput? {
         guard case .sharedTranscript(let transcript) = payload else { return nil }
         return transcript
@@ -117,6 +113,7 @@ nonisolated struct ChatImportAnalysisRequest: Equatable, Sendable {
 typealias ChatScreenshotAnalysisRequest = ChatImportAnalysisRequest
 
 nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
+    let extractionStatus: ChatExtractionStatus
     let conversationTitle: String?
     let messages: [AnalyzedChatMessage]
     let matchedChatID: String?
@@ -127,6 +124,7 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case conversationTitle
+        case extractionStatus
         case messages
         case matchedChatID
         case matchConfidence
@@ -136,6 +134,7 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
     }
 
     init(
+        extractionStatus: ChatExtractionStatus = .ok,
         conversationTitle: String?,
         messages: [AnalyzedChatMessage],
         matchedChatID: String?,
@@ -144,6 +143,7 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
         titleSource: ChatTitleSource = .header,
         ownershipConvention: MessageOwnershipConvention = .unobservable
     ) {
+        self.extractionStatus = extractionStatus
         self.conversationTitle = conversationTitle
         self.messages = messages
         self.matchedChatID = matchedChatID
@@ -153,48 +153,11 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
         self.ownershipConvention = ownershipConvention
     }
 
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
+}
 
-        // Transcript messages remain strict. Conversation identity metadata degrades
-        // conservatively when a JSON-mode provider omits or misspells a value.
-        conversationTitle = try? container.decode(String.self, forKey: .conversationTitle)
-        messages = try container.decode([AnalyzedChatMessage].self, forKey: .messages)
-        matchedChatID = try? container.decode(String.self, forKey: .matchedChatID)
-        matchConfidence = (try? container.decode(Double.self, forKey: .matchConfidence)) ?? 0
-        conversationKind =
-            (try? container.decode(ChatConversationKind.self, forKey: .conversationKind))
-            ?? .unknown
-        titleSource =
-            (try? container.decode(ChatTitleSource.self, forKey: .titleSource))
-            ?? .unavailable
-        ownershipConvention = try container.decode(
-            MessageOwnershipConvention.self,
-            forKey: .ownershipConvention
-        )
-    }
-
-    func validated(candidateIDs: Set<String>) throws -> ChatImportAnalysis {
-        guard !messages.isEmpty,
-            messages.allSatisfy({ !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            ),
-            (0...1).contains(matchConfidence)
-        else {
-            throw ProviderConnectionError.invalidResponse(
-                "The provider returned incomplete chat data.")
-        }
-
-        if let matchedChatID, !candidateIDs.contains(matchedChatID) {
-            throw ProviderConnectionError.invalidResponse(
-                "The provider returned an unknown chat match.")
-        }
-        if matchedChatID == nil, matchConfidence != 0 {
-            throw ProviderConnectionError.invalidResponse(
-                "The provider returned confidence without a chat match.")
-        }
-
-        return self
-    }
+nonisolated enum ChatExtractionStatus: String, Codable, Equatable, Sendable {
+    case ok
+    case noMessages = "no_messages"
 }
 
 nonisolated enum ChatConversationKind: String, Codable, Equatable, Sendable {
@@ -218,7 +181,6 @@ nonisolated struct AnalyzedChatMessage: Codable, Equatable, Sendable {
     let outerAuthorLabel: String?
     let senderConfidence: Double
     let senderEvidence: MessageSenderEvidence
-    let quotedReply: AnalyzedQuotedReply?
 
     init(
         sender: AnalyzedMessageSender,
@@ -228,8 +190,7 @@ nonisolated struct AnalyzedChatMessage: Codable, Equatable, Sendable {
         outerAlignment: MessageAlignment = .unknown,
         outerAuthorLabel: String? = nil,
         senderConfidence: Double = 0,
-        senderEvidence: MessageSenderEvidence = .insufficient,
-        quotedReply: AnalyzedQuotedReply? = nil
+        senderEvidence: MessageSenderEvidence = .insufficient
     ) {
         self.sender = sender
         self.senderName = senderName
@@ -239,7 +200,6 @@ nonisolated struct AnalyzedChatMessage: Codable, Equatable, Sendable {
         self.outerAuthorLabel = outerAuthorLabel
         self.senderConfidence = senderConfidence
         self.senderEvidence = senderEvidence
-        self.quotedReply = quotedReply
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -251,7 +211,6 @@ nonisolated struct AnalyzedChatMessage: Codable, Equatable, Sendable {
         case outerAuthorLabel
         case senderConfidence
         case senderEvidence
-        case quotedReply
     }
 
     init(from decoder: Decoder) throws {
@@ -264,7 +223,6 @@ nonisolated struct AnalyzedChatMessage: Codable, Equatable, Sendable {
         outerAuthorLabel = try container.decodeIfPresent(String.self, forKey: .outerAuthorLabel)
         senderConfidence = try container.decode(Double.self, forKey: .senderConfidence)
         senderEvidence = try container.decode(MessageSenderEvidence.self, forKey: .senderEvidence)
-        quotedReply = try container.decodeIfPresent(AnalyzedQuotedReply.self, forKey: .quotedReply)
     }
 }
 
@@ -309,10 +267,4 @@ nonisolated struct MessageOwnershipConvention: Codable, Equatable, Sendable {
         screenshotOwnerAlignment: .unknown,
         screenshotOwnerAuthorLabel: nil
     )
-}
-
-nonisolated struct AnalyzedQuotedReply: Codable, Equatable, Sendable {
-    let sender: AnalyzedMessageSender
-    let senderName: String?
-    let text: String
 }

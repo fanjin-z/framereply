@@ -285,7 +285,6 @@ final class ChatRepository {
         }
 
         chat.name = cleanedDisplayName
-        chat.initials = initials(for: cleanedDisplayName)
         chat.updatedAt = Date()
         record.participantAliases = aliases
 
@@ -295,81 +294,6 @@ final class ChatRepository {
             context.rollback()
             throw error
         }
-    }
-
-    @discardableResult
-    func addParticipantAlias(
-        chatID: String,
-        label: String
-    ) throws -> Bool {
-        guard let chat = try chat(id: chatID) else {
-            throw ChatParticipantNameError.chatUnavailable
-        }
-        guard chat.conversationKind == .direct else {
-            throw ChatParticipantNameError.directChatRequired
-        }
-        guard let displayLabel = ChatParticipantAlias.displayLabel(label),
-            isRetainableParticipantLabel(displayLabel),
-            ChatParticipantAlias.normalizedKey(displayLabel)
-                != ChatParticipantAlias.normalizedKey(chat.name)
-        else {
-            return false
-        }
-
-        let record = try chatContextForMutation(chatID: chatID)
-        var aliases = record.participantAliases
-        let key = ChatParticipantAlias.normalizedKey(displayLabel)
-        guard
-            !aliases.contains(where: { ChatParticipantAlias.normalizedKey($0.displayLabel) == key })
-        else {
-            return false
-        }
-        aliases.append(ChatParticipantAlias(displayLabel: displayLabel))
-        record.participantAliases = aliases
-
-        do {
-            try context.save()
-            return true
-        } catch {
-            context.rollback()
-            throw error
-        }
-    }
-
-    @discardableResult
-    func removeParticipantAlias(chatID: String, aliasID: UUID) throws -> Bool {
-        guard let chat = try chat(id: chatID) else {
-            throw ChatParticipantNameError.chatUnavailable
-        }
-        guard chat.conversationKind == .direct else {
-            throw ChatParticipantNameError.directChatRequired
-        }
-        guard let record = try chatContext(chatID: chatID) else { return false }
-        let aliases = record.participantAliases
-        let remaining = aliases.filter { $0.id != aliasID }
-        guard remaining.count != aliases.count else { return false }
-        record.participantAliases = remaining
-
-        do {
-            try context.save()
-            return true
-        } catch {
-            context.rollback()
-            throw error
-        }
-    }
-
-    func promoteParticipantAlias(chatID: String, aliasID: UUID) throws {
-        guard let alias = try participantAliases(chatID: chatID).first(where: { $0.id == aliasID })
-        else {
-            return
-        }
-        let remaining = try participantAliases(chatID: chatID).filter { $0.id != aliasID }
-        try updateParticipantNames(
-            chatID: chatID,
-            displayName: alias.displayLabel,
-            aliases: remaining
-        )
     }
 
     func suggestedReplyCache(chatID: String) throws -> SuggestedReplyCacheRecord? {
@@ -415,8 +339,7 @@ final class ChatRepository {
     ) throws -> DraftingInputConsumption {
         guard let record = try importRecord(id: importID) else { return .missing }
         guard record.operationID == operationID else { return .operationMismatch }
-        guard let rawState = record.draftingInputStateRaw,
-            let state = DraftingInputState(rawValue: rawState)
+        guard let state = DraftingInputState(rawValue: record.draftingInputStateRaw)
         else {
             return .operationMismatch
         }
@@ -533,8 +456,6 @@ final class ChatRepository {
         conversationStrategy: String,
         strategyRationale: String,
         inputFingerprint: String,
-        provider: ProviderPlatform,
-        model: ProviderModel,
         promptVersion: Int
     ) throws {
         do {
@@ -551,8 +472,7 @@ final class ChatRepository {
             try reconcilePersonaObservations(
                 personaID: personaID,
                 changes: personaObservationChanges,
-                allowedMessageIDs: learningMessageIDs,
-                evidenceSource: .messages
+                allowedMessageIDs: learningMessageIDs
             )
             let now = Date()
             for messageID in learningMessageIDs {
@@ -566,13 +486,11 @@ final class ChatRepository {
                 if !exists {
                     context.insert(
                         PersonaLearningReceiptRecord(
-                            personaID: personaID, chatID: chatID, messageID: messageID,
-                            analyzedAt: now))
+                            personaID: personaID, chatID: chatID, messageID: messageID))
                 }
             }
             if !learningMessageIDs.isEmpty, let persona = try persona(id: personaID) {
                 persona.sampleCount += learningMessageIDs.count
-                persona.lastLearnedAt = now
                 persona.updatedAt = now
             }
 
@@ -589,8 +507,6 @@ final class ChatRepository {
                     summarizedPrefixFingerprint: "",
                     repliesJSON: "[]",
                     inputFingerprint: "",
-                    provider: provider.rawValue,
-                    model: model.rawValue,
                     promptVersion: promptVersion
                 )
                 context.insert(cache)
@@ -602,8 +518,6 @@ final class ChatRepository {
             cache.conversationStrategy = conversationStrategy
             cache.strategyRationale = strategyRationale
             cache.inputFingerprint = inputFingerprint
-            cache.provider = provider.rawValue
-            cache.model = model.rawValue
             cache.promptVersion = promptVersion
             cache.generatedAt = Date()
             try context.save()
@@ -621,8 +535,6 @@ final class ChatRepository {
         conversationStrategy: String,
         strategyRationale: String,
         inputFingerprint: String,
-        provider: ProviderPlatform,
-        model: ProviderModel,
         promptVersion: Int
     ) throws {
         do {
@@ -639,8 +551,6 @@ final class ChatRepository {
                     summarizedPrefixFingerprint: "",
                     repliesJSON: "[]",
                     inputFingerprint: "",
-                    provider: provider.rawValue,
-                    model: model.rawValue,
                     promptVersion: promptVersion
                 )
                 context.insert(cache)
@@ -650,8 +560,6 @@ final class ChatRepository {
             cache.conversationStrategy = conversationStrategy
             cache.strategyRationale = strategyRationale
             cache.inputFingerprint = inputFingerprint
-            cache.provider = provider.rawValue
-            cache.model = model.rawValue
             cache.promptVersion = promptVersion
             cache.generatedAt = Date()
             try context.save()
@@ -664,8 +572,7 @@ final class ChatRepository {
     private func reconcilePersonaObservations(
         personaID: UUID,
         changes: [PersonaObservationChange],
-        allowedMessageIDs: Set<UUID>,
-        evidenceSource: PersonaObservationEvidenceSource
+        allowedMessageIDs: Set<UUID>
     ) throws {
         var records = try personaObservations(personaID: personaID)
         for change in changes {
@@ -683,8 +590,7 @@ final class ChatRepository {
                 else { continue }
                 let value = PersonaRepository.makeObservation(
                     text: text, origin: .ai, isUserProtected: false,
-                    evidenceSource: evidenceSource, sourceMessageIDs: change.sourceMessageIDs,
-                    evidenceCount: change.sourceMessageIDs.count, now: now
+                    now: now
                 )
                 let record = PersonaObservationRecord(personaID: personaID, value: value)
                 context.insert(record)
@@ -700,12 +606,10 @@ final class ChatRepository {
                 else { continue }
                 let value = PersonaRepository.makeObservation(
                     text: text, origin: .ai, isUserProtected: false,
-                    evidenceSource: evidenceSource, sourceMessageIDs: change.sourceMessageIDs,
-                    evidenceCount: change.sourceMessageIDs.count, now: now
+                    now: now
                 )
                 let replacement = PersonaObservationRecord(personaID: personaID, value: value)
                 current.status = PersonaObservationStatus.superseded.rawValue
-                current.supersededByID = replacement.id
                 current.updatedAt = now
                 context.insert(replacement)
                 records.append(replacement)
@@ -732,12 +636,10 @@ final class ChatRepository {
             try reconcilePersonaObservations(
                 personaID: personaID,
                 changes: changes,
-                allowedMessageIDs: sampleMessageIDs,
-                evidenceSource: .examples
+                allowedMessageIDs: sampleMessageIDs
             )
             if let persona = try persona(id: personaID) {
                 persona.sampleCount += sampleCount
-                persona.lastLearnedAt = Date()
                 persona.updatedAt = Date()
             }
             try context.save()
@@ -772,8 +674,7 @@ final class ChatRepository {
             values.append(
                 PersonaRepository.makeObservation(
                     text: text, origin: .ai, isUserProtected: false,
-                    evidenceSource: .messages, sourceMessageIDs: change.sourceMessageIDs,
-                    evidenceCount: change.sourceMessageIDs.count, now: now
+                    now: now
                 ))
         case .update:
             guard let target = change.targetObservationID,
@@ -788,11 +689,9 @@ final class ChatRepository {
             else { return }
             let replacement = PersonaRepository.makeObservation(
                 text: text, origin: .ai, isUserProtected: false,
-                evidenceSource: .messages, sourceMessageIDs: change.sourceMessageIDs,
-                evidenceCount: change.sourceMessageIDs.count, now: now
+                now: now
             )
             values[index].status = .superseded
-            values[index].supersededByID = replacement.id
             values[index].updatedAt = now
             values.append(replacement)
         case .archive:
@@ -831,13 +730,6 @@ final class ChatRepository {
         text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    func deleteSuggestedReplyCache(chatID: String) throws {
-        if let record = try suggestedReplyCache(chatID: chatID) {
-            context.delete(record)
-            try context.save()
-        }
-    }
-
     func renameChat(id: String, name: String) throws {
         guard let chat = try chat(id: id) else {
             return
@@ -858,7 +750,6 @@ final class ChatRepository {
         }
 
         chat.name = trimmedName
-        chat.initials = initials(for: trimmedName)
         chat.updatedAt = Date()
 
         do {
@@ -952,10 +843,6 @@ final class ChatRepository {
     func applyImport(
         analysis: ChatImportAnalysis,
         confirmedChatID: String?,
-        matchDecision: ChatMatchDecision? = nil,
-        provider: ProviderPlatform,
-        model: ProviderModel,
-        sourceApp: String? = nil,
         traceID: ImportTraceID = ImportTraceID()
     ) throws -> ScreenshotImportOutcome {
         var matchedExisting = false
@@ -996,9 +883,7 @@ final class ChatRepository {
                         senderKind: persistedSenderKind(message.senderKind),
                         senderName: message.senderName,
                         text: message.text,
-                        normalizedText: message.normalizedText,
                         timeLabel: message.timeLabel,
-                        timestamp: message.timestamp,
                         sortIndex: sortIndex
                     )
                 )
@@ -1029,20 +914,9 @@ final class ChatRepository {
         let importRecord = ChatImportRecord(
             chatID: targetChat.id,
             transcriptFingerprint: fingerprint,
-            provider: provider.rawValue,
-            model: model.rawValue,
-            confidence: analysis.matchConfidence,
             insertedMessageCount: mergeResult.insertedMessageCount,
             isDuplicate: isDuplicate,
             requiresReview: requiresReview,
-            matchDisposition: matchDecision?.disposition.rawValue
-                ?? (matchedExisting
-                    ? ChatMatchDisposition.confirmed.rawValue
-                    : ChatMatchDisposition.review.rawValue),
-            suggestedChatID: matchDecision?.suggestedChatID,
-            matchReason: matchDecision?.reason.rawValue,
-            transcriptEvidence: matchDecision?.transcriptEvidence.rawValue,
-            sourceApp: sourceApp,
             diagnosticID: traceID.diagnosticID,
             matchedExisting: matchedExisting,
             operationID: traceID.value,
@@ -1051,7 +925,6 @@ final class ChatRepository {
         context.insert(importRecord)
 
         if matchedExisting,
-            matchDecision?.disposition == .confirmed,
             let observedLabel = observedDirectParticipantLabel(
                 analysis: analysis,
                 conversationKind: targetChat.conversationKind
@@ -1101,13 +974,10 @@ final class ChatRepository {
                 )
             }
             chat.name = cleanedName
-            chat.initials = initials(for: cleanedName)
         }
         var state = chat.importReviewState ?? ChatImportReviewState(identityStatus: .needsReview)
         state.identityStatus = .confirmed
         chat.importReviewState = state
-        chat.chipTitle = "General"
-        chat.chipSymbol = "number"
         chat.updatedAt = Date()
         try refreshImportReviewState(chatID: chatID)
         try context.save()
@@ -1237,7 +1107,6 @@ final class ChatRepository {
                 let otherLabel = resolvedOtherLabel
             {
                 chat.name = otherLabel
-                chat.initials = initials(for: otherLabel)
                 renamedChat = true
             }
 
@@ -1338,9 +1207,7 @@ final class ChatRepository {
                         senderKind: persistedSenderKind(message.senderKind),
                         senderName: message.senderName,
                         text: message.text,
-                        normalizedText: message.normalizedText,
                         timeLabel: message.timeLabel,
-                        timestamp: message.timestamp,
                         sortIndex: sortIndex
                     )
                 )
@@ -1391,8 +1258,6 @@ final class ChatRepository {
             importRecord.requiresReview = mergeResult.messages.contains {
                 $0.senderKind == "unknown"
             }
-            importRecord.matchDisposition = ChatMatchDisposition.confirmed.rawValue
-            importRecord.matchReason = "manual_review_merge"
         }
 
         var existingAliasKeys = Set(targetAliases.map(\.normalizedLabel))
@@ -1418,38 +1283,6 @@ final class ChatRepository {
             context.rollback()
             throw error
         }
-    }
-
-    private func makeMessageRecord(_ message: ChatMessage, chatID: String, sortIndex: Int)
-        -> ChatMessageRecord
-    {
-        let senderKind: String
-        let senderName: String?
-        switch message.sender {
-        case .user:
-            senderKind = "user"
-            senderName = nil
-        case .otherParticipant:
-            senderKind = "other_participant"
-            senderName = nil
-        case .groupParticipant(let name):
-            senderKind = "group_participant"
-            senderName = name
-        case .unknown:
-            senderKind = "unknown"
-            senderName = nil
-        }
-
-        return ChatMessageRecord(
-            id: message.id,
-            chatID: chatID,
-            senderKind: senderKind,
-            senderName: senderName,
-            text: message.text,
-            normalizedText: MessageTextNormalizer.normalize(message.text),
-            timeLabel: message.timeLabel,
-            sortIndex: sortIndex
-        )
     }
 
     private func makeChatContextRecord(_ chatContext: ChatContext, chatID: String)
@@ -1489,18 +1322,10 @@ final class ChatRepository {
                 }
                 return value
             }.first ?? "Imported Chat"
-        let chatInitials = initials(for: name)
-
         return ChatRecord(
             id: UUID().uuidString.lowercased(),
             name: name,
             preview: analysis.messages.last?.text ?? "Imported conversation",
-            chipTitle: "Review Import",
-            chipSymbol: "exclamationmark.bubble",
-            avatarSymbol: nil,
-            initials: chatInitials.isEmpty ? "IC" : chatInitials,
-            appearanceStyle: (try? chats().count) ?? 0,
-            isUnread: false,
             conversationKind: analysis.conversationKind,
             isProvisional: true
         )
@@ -1508,16 +1333,6 @@ final class ChatRepository {
 
     private func persistedSenderKind(_ comparisonKey: String) -> String {
         comparisonKey.hasPrefix("group_participant:") ? "group_participant" : comparisonKey
-    }
-
-    private func initials(for name: String) -> String {
-        name
-            .split(whereSeparator: \Character.isWhitespace)
-            .prefix(2)
-            .compactMap(\.first)
-            .map(String.init)
-            .joined()
-            .uppercased()
     }
 
     private func sanitizedParticipantAliases(
@@ -1678,8 +1493,7 @@ final class ChatRepository {
                 outerAlignment: message.outerAlignment,
                 outerAuthorLabel: message.outerAuthorLabel,
                 senderConfidence: message.senderConfidence,
-                senderEvidence: message.senderEvidence,
-                quotedReply: message.quotedReply
+                senderEvidence: message.senderEvidence
             )
         }
     }
@@ -1699,7 +1513,6 @@ final class ChatRepository {
         context.insert(
             ChatSelfAliasRecord(
                 chatID: chatID,
-                normalizedLabel: normalizedLabel,
                 displayLabel: displayLabel
             )
         )
@@ -1735,8 +1548,6 @@ final class ChatRepository {
 
         state.identityStatus = .dismissed
         chat.importReviewState = state
-        chat.chipTitle = "General"
-        chat.chipSymbol = "number"
         chat.updatedAt = now
         try refreshImportReviewState(chatID: chat.id)
         return true

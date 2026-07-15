@@ -43,7 +43,7 @@ struct AddProviderCard: View {
 
     private var isConnectDisabled: Bool {
         status.isTesting
-            || selectedPlatform?.isConnectable != true
+            || selectedPlatform == nil
             || selectedTier == nil
             || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -174,11 +174,8 @@ struct AddProviderCard: View {
                         selectedPlatform = platform
                         selectedTier = platform.defaultTier
                     } label: {
-                        Text(
-                            platform.isConnectable
-                                ? platform.displayName : "\(platform.displayName) - Coming soon")
+                        Text(platform.displayName)
                     }
-                    .disabled(platform.isConnectable == false)
                 }
             } label: {
                 HStack {

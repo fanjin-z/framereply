@@ -14,7 +14,7 @@ enum TranscriptFingerprinter {
                 [
                     message.senderKind,
                     ChatImportMatcher.normalizedTimestamp(message.timeLabel),
-                    message.normalizedText
+                    MessageTextNormalizer.normalize(message.text)
                 ].joined(separator: "\u{1F}")
             }).joined(separator: "\u{1E}")
 

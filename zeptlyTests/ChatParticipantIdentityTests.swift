@@ -10,10 +10,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
         let repository = ChatRepository(container: container)
         let importOutcome = try repository.applyImport(
             analysis: copiedTranscriptAnalysis(),
-            confirmedChatID: nil,
-            provider: .openAI,
-            model: .gpt56Luna,
-            sourceApp: "shared_text"
+            confirmedChatID: nil
         )
 
         XCTAssertEqual(try repository.chat(id: importOutcome.chatID)?.name, "Imported Chat")
@@ -58,9 +55,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
         let repository = ChatRepository(container: container)
         let importOutcome = try repository.applyImport(
             analysis: copiedTranscriptAnalysis(),
-            confirmedChatID: nil,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: nil
         )
 
         let outcome = try repository.resolveUnknownSenderLabels(
@@ -78,9 +73,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
         let repository = ChatRepository(container: container)
         let first = try repository.applyImport(
             analysis: copiedTranscriptAnalysis(),
-            confirmedChatID: nil,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: nil
         )
         try repository.resolveUnknownSenderLabels(chatID: first.chatID, selfLabel: "Test User")
 
@@ -91,9 +84,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
         )
         _ = try repository.applyImport(
             analysis: laterAnalysis,
-            confirmedChatID: first.chatID,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: first.chatID
         )
 
         let laterMessages = try repository.messages(chatID: first.chatID).filter {
@@ -112,12 +103,6 @@ final class ChatParticipantIdentityTests: XCTestCase {
             id: "other-chat",
             name: "Other Chat",
             preview: "",
-            chipTitle: "General",
-            chipSymbol: "number",
-            avatarSymbol: nil,
-            initials: "OC",
-            appearanceStyle: 0,
-            isUnread: false,
             conversationKind: .direct
         )
         container.mainContext.insert(otherChat)
@@ -128,9 +113,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
                 otherText: "This should stay unresolved.",
                 matchedChatID: "other-chat"
             ),
-            confirmedChatID: "other-chat",
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: "other-chat"
         )
 
         XCTAssertEqual(
@@ -157,9 +140,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
         )
         let importOutcome = try repository.applyImport(
             analysis: analysis,
-            confirmedChatID: nil,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: nil
         )
 
         let outcome = try repository.resolveUnknownSenderLabels(
@@ -188,19 +169,12 @@ final class ChatParticipantIdentityTests: XCTestCase {
             id: "target-chat",
             name: "Sample Contact",
             preview: "",
-            chipTitle: "General",
-            chipSymbol: "number",
-            avatarSymbol: nil,
-            initials: "ML",
-            appearanceStyle: 0,
-            isUnread: false,
             conversationKind: .direct
         )
         container.mainContext.insert(target)
         container.mainContext.insert(
             ChatSelfAliasRecord(
                 chatID: target.id,
-                normalizedLabel: "Test User",
                 displayLabel: "Test User"
             )
         )
@@ -212,9 +186,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
                 otherText: "This message belongs to the other participant.",
                 matchedChatID: nil
             ),
-            confirmedChatID: nil,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: nil
         )
         try repository.mergeProvisionalChat(provisional.chatID, into: target.id)
 
@@ -240,17 +212,15 @@ final class ChatParticipantIdentityTests: XCTestCase {
             id: "merge-target",
             name: "Sarah Jenkins",
             preview: "",
-            chipTitle: "General",
-            chipSymbol: "number",
-            avatarSymbol: nil,
-            initials: "SJ",
-            appearanceStyle: 0,
-            isUnread: false,
             conversationKind: .direct
         )
         container.mainContext.insert(target)
         try container.mainContext.save()
-        try repository.addParticipantAlias(chatID: target.id, label: "Sarah J.")
+        try repository.updateParticipantNames(
+            chatID: target.id,
+            displayName: target.name,
+            aliases: [ChatParticipantAlias(displayLabel: "Sarah J.")]
+        )
 
         let provisional = try repository.applyImport(
             analysis: ChatImportAnalysis(
@@ -268,13 +238,12 @@ final class ChatParticipantIdentityTests: XCTestCase {
                 conversationKind: .direct,
                 titleSource: .header
             ),
-            confirmedChatID: nil,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: nil
         )
-        try repository.addParticipantAlias(
+        try repository.updateParticipantNames(
             chatID: provisional.chatID,
-            label: "Sarah Chen"
+            displayName: "@sarah_work",
+            aliases: [ChatParticipantAlias(displayLabel: "Sarah Chen")]
         )
 
         try repository.mergeProvisionalChat(provisional.chatID, into: target.id)
@@ -296,9 +265,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
                 otherText: "Two",
                 matchedChatID: nil
             ),
-            confirmedChatID: nil,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: nil
         )
 
         try repository.resolveUnknownSenderLabels(
@@ -315,7 +282,6 @@ final class ChatParticipantIdentityTests: XCTestCase {
         container.mainContext.insert(
             ChatSelfAliasRecord(
                 chatID: first.chatID,
-                normalizedLabel: "Café User",
                 displayLabel: "Café User"
             )
         )
@@ -324,39 +290,32 @@ final class ChatParticipantIdentityTests: XCTestCase {
         XCTAssertTrue(try repository.selfAliases(chatID: first.chatID).isEmpty)
     }
 
-    func testParticipantAliasJSONRoundTripsAndLegacyRecordDefaultsEmpty() throws {
-        let legacy = ChatContextRecord(
-            chatID: "legacy-chat",
+    func testParticipantAliasJSONRoundTripsAndDefaultsEmpty() throws {
+        let record = ChatContextRecord(
+            chatID: "chat",
             currentInteractionGoal: "",
             personaID: UUID()
         )
-        XCTAssertNil(legacy.participantAliasesJSON)
-        XCTAssertTrue(legacy.participantAliases.isEmpty)
+        XCTAssertEqual(record.participantAliasesJSON, "[]")
+        XCTAssertTrue(record.participantAliases.isEmpty)
 
         let alias = ChatParticipantAlias(
             id: UUID(),
-            displayLabel: "@alex_92",
-            createdAt: Date(timeIntervalSince1970: 123)
+            displayLabel: "@alex_92"
         )
-        legacy.participantAliases = [alias]
+        record.participantAliases = [alias]
 
-        XCTAssertNotNil(legacy.participantAliasesJSON)
-        XCTAssertEqual(legacy.participantAliases, [alias])
+        XCTAssertFalse(record.participantAliasesJSON.isEmpty)
+        XCTAssertEqual(record.participantAliases, [alias])
     }
 
-    func testParticipantNamesRoundTripDeduplicateRenamePromoteAndRemove() throws {
+    func testParticipantNamesRoundTripDeduplicateAndRename() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let chat = ChatRecord(
             id: "participant-names",
             name: "Sarah Jenkins",
             preview: "",
-            chipTitle: "General",
-            chipSymbol: "number",
-            avatarSymbol: nil,
-            initials: "SJ",
-            appearanceStyle: 0,
-            isUnread: false,
             conversationKind: .direct
         )
         container.mainContext.insert(chat)
@@ -372,70 +331,35 @@ final class ChatParticipantIdentityTests: XCTestCase {
             XCTAssertEqual(error as? ChatParticipantNameError, .emptyDisplayName)
         }
 
-        XCTAssertTrue(try repository.participantAliases(chatID: chat.id).isEmpty)
-        XCTAssertTrue(
-            try repository.addParticipantAlias(
-                chatID: chat.id,
-                label: "  Café   Sarah "
-            )
-        )
-        XCTAssertFalse(
-            try repository.addParticipantAlias(
-                chatID: chat.id,
-                label: "cafe sarah"
-            )
-        )
-
         try repository.updateParticipantNames(
             chatID: chat.id,
             displayName: "Sarah Chen",
-            aliases: try repository.participantAliases(chatID: chat.id) + [
+            aliases: [
+                ChatParticipantAlias(displayLabel: "  Café   Sarah "),
+                ChatParticipantAlias(displayLabel: "cafe sarah"),
                 ChatParticipantAlias(displayLabel: "Imported Chat")
             ]
         )
 
         XCTAssertEqual(try repository.chat(id: chat.id)?.name, "Sarah Chen")
-        var aliases = try repository.participantAliases(chatID: chat.id)
+        let aliases = try repository.participantAliases(chatID: chat.id)
         XCTAssertEqual(Set(aliases.map(\.normalizedLabel)), ["cafe sarah", "sarah jenkins"])
         XCTAssertEqual(
             aliases.first(where: { $0.normalizedLabel == "cafe sarah" })?.displayLabel,
             "Café Sarah"
         )
 
-        let promoted = try XCTUnwrap(
-            aliases.first(where: { $0.normalizedLabel == "cafe sarah" })
-        )
-        try repository.promoteParticipantAlias(chatID: chat.id, aliasID: promoted.id)
-
-        XCTAssertEqual(try repository.chat(id: chat.id)?.name, "Café Sarah")
-        aliases = try repository.participantAliases(chatID: chat.id)
-        XCTAssertTrue(aliases.contains(where: { $0.normalizedLabel == "sarah chen" }))
-        let removable = try XCTUnwrap(
-            aliases.first(where: { $0.normalizedLabel == "sarah jenkins" })
-        )
-        XCTAssertTrue(
-            try repository.removeParticipantAlias(chatID: chat.id, aliasID: removable.id)
-        )
-        XCTAssertFalse(
-            try repository.participantAliases(chatID: chat.id)
-                .contains(where: { $0.id == removable.id })
-        )
-        XCTAssertNotNil(try repository.chatContext(chatID: chat.id)?.participantAliasesJSON)
+        XCTAssertFalse(try XCTUnwrap(repository.chatContext(chatID: chat.id))
+            .participantAliasesJSON.isEmpty)
     }
 
-    func testConfirmedExistingImportLearnsChangedNameButReviewDoesNot() throws {
+    func testConfirmedExistingImportLearnsChangedName() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let chat = ChatRecord(
             id: "known-participant",
             name: "Old Name",
             preview: "",
-            chipTitle: "General",
-            chipSymbol: "number",
-            avatarSymbol: nil,
-            initials: "ON",
-            appearanceStyle: 0,
-            isUnread: false,
             conversationKind: .direct
         )
         container.mainContext.insert(chat)
@@ -456,20 +380,9 @@ final class ChatParticipantIdentityTests: XCTestCase {
             conversationKind: .direct,
             titleSource: .header
         )
-        let confirmedDecision = ChatMatchDecision(
-            disposition: .confirmed,
-            confirmedChatID: chat.id,
-            suggestedChatID: chat.id,
-            aiConfidence: 0.98,
-            transcriptEvidence: .strong,
-            reason: .confirmedTranscript
-        )
         _ = try repository.applyImport(
             analysis: confirmedAnalysis,
-            confirmedChatID: chat.id,
-            matchDecision: confirmedDecision,
-            provider: .openAI,
-            model: .gpt56Luna
+            confirmedChatID: chat.id
         )
 
         XCTAssertEqual(
@@ -477,34 +390,6 @@ final class ChatParticipantIdentityTests: XCTestCase {
             ["new name"]
         )
 
-        let reviewAnalysis = ChatImportAnalysis(
-            conversationTitle: "Untrusted Name",
-            messages: [],
-            matchedChatID: chat.id,
-            matchConfidence: 0.7,
-            conversationKind: .direct,
-            titleSource: .header
-        )
-        let reviewDecision = ChatMatchDecision(
-            disposition: .review,
-            confirmedChatID: nil,
-            suggestedChatID: chat.id,
-            aiConfidence: 0.7,
-            transcriptEvidence: .none,
-            reason: .lowAIConfidence
-        )
-        _ = try repository.applyImport(
-            analysis: reviewAnalysis,
-            confirmedChatID: chat.id,
-            matchDecision: reviewDecision,
-            provider: .openAI,
-            model: .gpt56Luna
-        )
-
-        XCTAssertFalse(
-            try repository.participantAliases(chatID: chat.id)
-                .contains(where: { $0.normalizedLabel == "untrusted name" })
-        )
     }
 
     private func copiedTranscriptAnalysis() -> ChatImportAnalysis {

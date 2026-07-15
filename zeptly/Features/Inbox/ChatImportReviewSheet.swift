@@ -447,6 +447,8 @@ private struct ImportReviewCard: View {
 
     @State private var name: String
 
+    private var presentation: Chat { Chat(record: chat) }
+
     init(
         chat: ChatRecord,
         mergeCandidates: [ChatRecord],
@@ -466,8 +468,8 @@ private struct ImportReviewCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 10) {
                 AvatarMark(
-                    initials: chat.initials,
-                    symbolName: chat.avatarSymbol,
+                    initials: presentation.initials,
+                    symbolName: presentation.avatarSymbol,
                     colors: [RezplyColor.peach, RezplyColor.primaryContainer],
                     size: 34
                 )

@@ -41,8 +41,14 @@ nonisolated enum SuggestedReplySummaryMode: String, Codable, Equatable, Sendable
     case rebuild
 }
 
+nonisolated enum SuggestedReplyTask: String, Equatable, Sendable {
+    case standard
+    case drafting
+    case personaStyleLearning
+}
+
 nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
-    let chatName: String
+    let task: SuggestedReplyTask
     let chatMemories: [ChatMemory]
     let currentInteractionGoal: String
     let persona: PersonaPromptContext
@@ -56,7 +62,7 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
     let traceID: ImportTraceID
 
     init(
-        chatName: String,
+        task: SuggestedReplyTask,
         chatMemories: [ChatMemory],
         currentInteractionGoal: String,
         persona: PersonaPromptContext,
@@ -69,7 +75,7 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
         previousConversationStrategy: String? = nil,
         traceID: ImportTraceID
     ) {
-        self.chatName = chatName
+        self.task = task
         self.chatMemories = chatMemories
         self.currentInteractionGoal = currentInteractionGoal
         self.persona = persona
@@ -121,10 +127,13 @@ nonisolated enum SuggestedReplyResultDecoder {
     static func decode(
         content: String?,
         finishReason: String?,
+        task: SuggestedReplyTask,
         historySummaryFallback: String? = nil
     ) throws -> SuggestedReplyGenerationResult {
-        if finishReason == "length" {
-            throw StructuredOutputFailure(kind: .truncatedResponse, codingPath: nil)
+        if let finishReason, finishReason != "stop" {
+            let kind: StructuredOutputFailureKind = finishReason == "length"
+                ? .truncatedResponse : .schemaMismatch
+            throw StructuredOutputFailure(kind: kind, codingPath: "finish_reason")
         }
         let cleaned = clean(content)
         guard let data = cleaned.data(using: .utf8), !cleaned.isEmpty else {
@@ -138,59 +147,78 @@ nonisolated enum SuggestedReplyResultDecoder {
         }
         guard !object.isEmpty else { throw schema("root") }
 
-        let summaryValue = ["historySummary", "history_summary", "summary"].lazy.compactMap {
-            object[$0]
-        }.first
+        let expectedKeys: Set<String>
+        switch task {
+        case .standard:
+            expectedKeys = [
+                "historySummary", "replies", "conversationStrategy", "strategyRationale",
+                "memoryChanges", "personaObservationChanges"
+            ]
+        case .drafting:
+            expectedKeys = ["replies", "conversationStrategy", "strategyRationale"]
+        case .personaStyleLearning:
+            expectedKeys = ["personaObservationChanges"]
+        }
+        guard Set(object.keys) == expectedKeys else { throw schema("root") }
+
         let summary: String
-        if summaryValue is NSNull {
-            guard let historySummaryFallback else { throw schema("historySummary") }
-            summary = historySummaryFallback
-        } else if let value = summaryValue as? String {
-            summary = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if task == .standard {
+            let summaryValue = object["historySummary"]
+            if summaryValue is NSNull {
+                guard let historySummaryFallback else { throw schema("historySummary") }
+                summary = historySummaryFallback
+            } else if let value = summaryValue as? String {
+                summary = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                throw schema("historySummary")
+            }
+            guard summary.count <= 2_000 else { throw schema("historySummary") }
         } else {
-            throw schema("historySummary")
-        }
-        guard summary.count <= 2_000 else { throw schema("historySummary") }
-
-        let repliesValue =
-            object["replies"] ?? object["suggestedReplies"] ?? object["suggested_replies"]
-        var replies = replyTexts(from: repliesValue)
-        if replies.isEmpty, let first = object["reply1"] as? String,
-            let second = object["reply2"] as? String
-        {
-            replies = [first, second]
-        }
-        replies = replies.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-        guard replies.count == 2,
-            replies.allSatisfy({ !$0.isEmpty && $0.count <= 500 }),
-            Set(replies.map { $0.lowercased() }).count == 2
-        else { throw schema("replies") }
-
-        let conversationStrategy = try requiredString(
-            from: object["conversationStrategy"],
-            path: "conversationStrategy",
-            maxLength: 500
-        )
-        let strategyRationale = try requiredString(
-            from: object["strategyRationale"],
-            path: "strategyRationale",
-            maxLength: 700
-        )
-
-        guard let memoryObjects = object["memoryChanges"] as? [[String: Any]],
-            memoryObjects.count <= 8
-        else {
-            throw schema("memoryChanges")
-        }
-        let memories = try memoryObjects.enumerated().map {
-            try decodeMemoryChange($0.element, index: $0.offset)
+            summary = historySummaryFallback ?? ""
         }
 
-        guard let observationObjects = object["personaObservationChanges"] as? [[String: Any]],
-            observationObjects.count <= PersonaLimits.maximumActiveObservations
-        else { throw schema("personaObservationChanges") }
-        let observations = try observationObjects.enumerated().map {
-            try decodeObservationChange($0.element, index: $0.offset)
+        let replies: [String]
+        let conversationStrategy: String
+        let strategyRationale: String
+        if task == .standard || task == .drafting {
+            guard let values = object["replies"] as? [String] else { throw schema("replies") }
+            replies = values.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            guard replies.count == 2,
+                replies.allSatisfy({ !$0.isEmpty && $0.count <= 500 }),
+                Set(replies.map { $0.lowercased() }).count == 2
+            else { throw schema("replies") }
+            conversationStrategy = try requiredString(
+                from: object["conversationStrategy"], path: "conversationStrategy", maxLength: 500)
+            strategyRationale = try requiredString(
+                from: object["strategyRationale"], path: "strategyRationale", maxLength: 700)
+        } else {
+            replies = []
+            conversationStrategy = ""
+            strategyRationale = ""
+        }
+
+        let memories: [ChatMemoryChange]
+        if task == .standard {
+            guard let values = object["memoryChanges"] as? [[String: Any]], values.count <= 8 else {
+                throw schema("memoryChanges")
+            }
+            memories = try values.enumerated().map {
+                try decodeMemoryChange($0.element, index: $0.offset)
+            }
+        } else {
+            memories = []
+        }
+
+        let observations: [PersonaObservationChange]
+        if task == .standard || task == .personaStyleLearning {
+            guard let values = object["personaObservationChanges"] as? [[String: Any]],
+                values.count <= PersonaLimits.maximumActiveObservations
+            else { throw schema("personaObservationChanges") }
+            observations = try values.enumerated().map {
+                try decodeObservationChange($0.element, index: $0.offset)
+            }
+        } else {
+            observations = []
         }
 
         return SuggestedReplyGenerationResult(
@@ -261,26 +289,7 @@ nonisolated enum SuggestedReplyResultDecoder {
     }
 
     private static func clean(_ content: String?) -> String {
-        var value = content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if value.hasPrefix("```"), let newline = value.firstIndex(of: "\n") {
-            value = String(value[value.index(after: newline)...])
-            if let fence = value.range(of: "```", options: .backwards) {
-                value = String(value[..<fence.lowerBound])
-            }
-        }
-        if let first = value.firstIndex(of: "{"), let last = value.lastIndex(of: "}"), first <= last
-        {
-            value = String(value[first...last])
-        }
-        return value.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private static func replyTexts(from value: Any?) -> [String] {
-        if let strings = value as? [String] { return strings }
-        guard let objects = value as? [[String: Any]] else { return [] }
-        return objects.compactMap { object in
-            ["text", "reply", "content"].compactMap { object[$0] as? String }.first
-        }
+        content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
     private static func uuid(from value: Any?) -> UUID? {

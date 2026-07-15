@@ -1,30 +1,37 @@
 import Foundation
 
-nonisolated enum AIProviderCapability: String, CaseIterable, Hashable, Sendable {
+enum StructuredOutputCapability: Equatable {
+    case strictJSONSchema
+    case jsonObject
+}
+
+struct AIOutputContract {
+    let name: String
+    let version: Int
+    let instructions: String
+    let schema: [String: Any]
+
+    func instructions(for capability: StructuredOutputCapability) -> String {
+        guard capability == .jsonObject,
+            let data = try? JSONSerialization.data(withJSONObject: schema, options: [.sortedKeys]),
+            let compactSchema = String(data: data, encoding: .utf8)
+        else {
+            return instructions
+        }
+        return "\(instructions)\nReturn JSON matching this exact schema: \(compactSchema)"
+    }
+}
+
+nonisolated enum AIProviderCapability: Sendable {
     case screenshotAnalysis
     case transcriptAnalysis
     case suggestedReplies
 }
 
 nonisolated struct ProviderModelProfile: Equatable, Sendable {
-    let selectedTier: ProviderTier
     let screenshotAnalysisModel: ProviderModel?
     let transcriptAnalysisModel: ProviderModel?
     let suggestedReplyModel: ProviderModel?
-
-    var capabilities: Set<AIProviderCapability> {
-        var result: Set<AIProviderCapability> = []
-        if screenshotAnalysisModel != nil {
-            result.insert(.screenshotAnalysis)
-        }
-        if transcriptAnalysisModel != nil {
-            result.insert(.transcriptAnalysis)
-        }
-        if suggestedReplyModel != nil {
-            result.insert(.suggestedReplies)
-        }
-        return result
-    }
 
     func model(for capability: AIProviderCapability) -> ProviderModel? {
         switch capability {
@@ -76,7 +83,6 @@ struct AIProviderRegistry {
 
 nonisolated struct AIProviderExecutionContext: Equatable, Sendable {
     let platform: ProviderPlatform
-    let profile: ProviderModelProfile
     let capability: AIProviderCapability
     let effectiveModel: ProviderModel
 }
@@ -185,7 +191,6 @@ final class AIService: AIServiceProviding {
         }
         return AIProviderExecutionContext(
             platform: connection.platform,
-            profile: profile,
             capability: capability,
             effectiveModel: effectiveModel
         )

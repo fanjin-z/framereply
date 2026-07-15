@@ -273,7 +273,7 @@ struct CreatePersonaView: View {
             $0.personaID == id && $0.status == PersonaObservationStatus.active.rawValue
         }.map {
             PersonaRepository.makeObservation(
-                text: $0.text, origin: .seed, isUserProtected: false, evidenceSource: .seed
+                text: $0.text, origin: .seed, isUserProtected: false
             )
         }
     }
@@ -291,7 +291,7 @@ struct CreatePersonaView: View {
         return texts.prefix(PersonaLimits.maximumActiveObservations).map { text in
             existing[text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()]
                 ?? PersonaRepository.makeObservation(
-                    text: text, origin: .seed, isUserProtected: false, evidenceSource: .seed
+                    text: text, origin: .seed, isUserProtected: false
                 )
         }
     }
@@ -322,8 +322,7 @@ struct CreatePersonaView: View {
                 else { continue }
                 draftObservations.append(
                     PersonaRepository.makeObservation(
-                        text: text, origin: .ai, isUserProtected: false, evidenceSource: .examples,
-                        evidenceCount: change.sourceMessageIDs.count
+                        text: text, origin: .ai, isUserProtected: false
                     )
                 )
             case .update:
@@ -333,8 +332,7 @@ struct CreatePersonaView: View {
                     })
                 else { continue }
                 draftObservations[index] = PersonaRepository.makeObservation(
-                    text: text, origin: .ai, isUserProtected: false, evidenceSource: .examples,
-                    evidenceCount: change.sourceMessageIDs.count
+                    text: text, origin: .ai, isUserProtected: false
                 )
             case .archive:
                 guard let id = change.targetObservationID else { continue }

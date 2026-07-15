@@ -9,10 +9,13 @@ nonisolated enum ChatImportAnalysisDecoder {
     static func decode(
         content: String?,
         finishReason: String?,
+        isSharedTranscript: Bool,
         candidateIDs: Set<String>
     ) throws -> ChatImportAnalysis {
-        if finishReason == "length" {
-            throw StructuredOutputFailure(kind: .truncatedResponse, codingPath: nil)
+        if let finishReason, finishReason != "stop" {
+            let kind: StructuredOutputFailureKind = finishReason == "length"
+                ? .truncatedResponse : .schemaMismatch
+            throw StructuredOutputFailure(kind: kind, codingPath: "finish_reason")
         }
 
         let cleaned = clean(content)
@@ -29,11 +32,16 @@ nonisolated enum ChatImportAnalysisDecoder {
         } catch {
             throw StructuredOutputFailure(kind: .invalidJSON, codingPath: nil)
         }
-        try validateVisualContract(jsonObject)
+        try validateContract(jsonObject, isSharedTranscript: isSharedTranscript)
 
         let analysis: ChatImportAnalysis
         do {
-            analysis = try JSONDecoder().decode(ChatImportAnalysis.self, from: data)
+            if isSharedTranscript {
+                let shared = try JSONDecoder().decode(SharedTranscriptAnalysis.self, from: data)
+                analysis = shared.analysis
+            } else {
+                analysis = try JSONDecoder().decode(ChatImportAnalysis.self, from: data)
+            }
         } catch let error as DecodingError {
             throw StructuredOutputFailure(
                 kind: .schemaMismatch,
@@ -43,23 +51,31 @@ nonisolated enum ChatImportAnalysisDecoder {
             throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: nil)
         }
 
-        return try validate(analysis, candidateIDs: candidateIDs)
+        return try validate(
+            analysis,
+            candidateIDs: candidateIDs,
+            normalizeVisualOwnership: !isSharedTranscript
+        )
     }
 
     static func validate(
-        _ analysis: ChatImportAnalysis,
-        candidateIDs: Set<String>
+        _ input: ChatImportAnalysis,
+        candidateIDs: Set<String>,
+        normalizeVisualOwnership: Bool = true
     ) throws -> ChatImportAnalysis {
-        let normalization = normalize(analysis)
-        let analysis = normalization.analysis
-        ChatImportDebugLogger.normalization(notes: normalization.notes)
+        let analysis: ChatImportAnalysis
+        if normalizeVisualOwnership {
+            let normalization = normalize(input)
+            analysis = normalization.analysis
+            ChatImportDebugLogger.normalization(notes: normalization.notes)
+        } else {
+            analysis = input
+        }
 
-        guard !analysis.messages.isEmpty,
+        guard (analysis.extractionStatus == .ok) == !analysis.messages.isEmpty,
             analysis.messages.allSatisfy({
                 !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     && (0...1).contains($0.senderConfidence)
-                    && ($0.quotedReply?.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        != true)
             })
         else {
             throw StructuredOutputFailure(kind: .incompleteMessages, codingPath: "messages")
@@ -102,13 +118,13 @@ nonisolated enum ChatImportAnalysisDecoder {
                 outerAlignment: message.outerAlignment,
                 outerAuthorLabel: message.outerAuthorLabel,
                 senderConfidence: message.senderConfidence,
-                senderEvidence: message.senderEvidence,
-                quotedReply: message.quotedReply
+                senderEvidence: message.senderEvidence
             )
         }
 
         return ChatImportNormalizationResult(
             analysis: ChatImportAnalysis(
+                extractionStatus: analysis.extractionStatus,
                 conversationTitle: title,
                 messages: messages,
                 matchedChatID: analysis.matchedChatID,
@@ -141,27 +157,40 @@ nonisolated enum ChatImportAnalysisDecoder {
         return title
     }
 
-    private static func validateVisualContract(_ object: Any) throws {
-        guard let root = object as? [String: Any],
-            let convention = root["ownershipConvention"] as? [String: Any]
-        else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "ownershipConvention")
+    private static func validateContract(_ object: Any, isSharedTranscript: Bool) throws {
+        guard let root = object as? [String: Any] else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "root")
         }
-        for key in ["mode", "screenshotOwnerAlignment", "screenshotOwnerAuthorLabel"]
-        where convention.keys.contains(key) == false {
-            throw StructuredOutputFailure(
-                kind: .schemaMismatch, codingPath: "ownershipConvention.\(key)")
+        let common: Set<String> = [
+            "extractionStatus", "conversationTitle", "conversationKind", "titleSource",
+            "messages", "matchedChatID", "matchConfidence"
+        ]
+        let expectedRoot = isSharedTranscript ? common : common.union(["ownershipConvention"])
+        guard Set(root.keys) == expectedRoot else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "root")
+        }
+        if !isSharedTranscript {
+            guard let convention = root["ownershipConvention"] as? [String: Any],
+                Set(convention.keys) == [
+                    "mode", "screenshotOwnerAlignment", "screenshotOwnerAuthorLabel"
+                ]
+            else {
+                throw StructuredOutputFailure(
+                    kind: .schemaMismatch, codingPath: "ownershipConvention")
+            }
         }
         guard let messages = root["messages"] as? [[String: Any]] else {
             throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "messages")
         }
-        let required = [
-            "outerAlignment", "outerAuthorLabel", "senderConfidence", "senderEvidence"
-        ]
+        let required: Set<String> = isSharedTranscript
+            ? ["sender", "senderName", "text", "timestampLabel", "senderConfidence", "senderEvidence"]
+            : [
+                "sender", "senderName", "text", "timestampLabel", "outerAlignment",
+                "outerAuthorLabel", "senderConfidence", "senderEvidence"
+            ]
         for (index, message) in messages.enumerated() {
-            for key in required where message.keys.contains(key) == false {
-                throw StructuredOutputFailure(
-                    kind: .schemaMismatch, codingPath: "messages[\(index)].\(key)")
+            guard Set(message.keys) == required else {
+                throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "messages[\(index)]")
             }
         }
     }
@@ -237,89 +266,7 @@ nonisolated enum ChatImportAnalysisDecoder {
     }
 
     private static func clean(_ content: String?) -> String {
-        guard var text = content?.trimmingCharacters(in: .whitespacesAndNewlines) else {
-            return ""
-        }
-        while text.first == "\u{FEFF}" {
-            text.removeFirst()
-            text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        if text.hasPrefix("```"), text.hasSuffix("```"),
-            let firstNewline = text.firstIndex(of: "\n")
-        {
-            let bodyStart = text.index(after: firstNewline)
-            let closingFence = text.index(text.endIndex, offsetBy: -3)
-            if bodyStart <= closingFence {
-                text = String(text[bodyStart..<closingFence])
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-        }
-
-        if isJSONObject(text) {
-            return text
-        }
-        return singleEmbeddedJSONObject(in: text) ?? text
-    }
-
-    /// Some providers occasionally wrap an otherwise valid object in a short explanation or
-    /// Markdown fence even when asked for JSON. Recover only when there is exactly one complete,
-    /// independently valid object. Never attempt to repair malformed JSON.
-    private static func singleEmbeddedJSONObject(in text: String) -> String? {
-        var candidates: [String] = []
-        var objectStart: String.Index?
-        var depth = 0
-        var isInsideString = false
-        var isEscaping = false
-        var index = text.startIndex
-
-        while index < text.endIndex {
-            let character = text[index]
-
-            if objectStart == nil {
-                if character == "{" {
-                    objectStart = index
-                    depth = 1
-                    isInsideString = false
-                    isEscaping = false
-                }
-            } else if isInsideString {
-                if isEscaping {
-                    isEscaping = false
-                } else if character == "\\" {
-                    isEscaping = true
-                } else if character == "\"" {
-                    isInsideString = false
-                }
-            } else if character == "\"" {
-                isInsideString = true
-            } else if character == "{" {
-                depth += 1
-            } else if character == "}" {
-                depth -= 1
-                if depth == 0, let start = objectStart {
-                    let end = text.index(after: index)
-                    let candidate = String(text[start..<end])
-                    if isJSONObject(candidate) {
-                        candidates.append(candidate)
-                    }
-                    objectStart = nil
-                }
-            }
-
-            index = text.index(after: index)
-        }
-
-        return candidates.count == 1 ? candidates[0] : nil
-    }
-
-    private static func isJSONObject(_ text: String) -> Bool {
-        guard let data = text.data(using: .utf8),
-            let value = try? JSONSerialization.jsonObject(with: data)
-        else {
-            return false
-        }
-        return value is [String: Any]
+        content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
     private static func codingPath(for error: DecodingError) -> String? {
@@ -353,4 +300,47 @@ nonisolated enum ChatImportAnalysisDecoder {
 nonisolated struct ChatImportNormalizationResult: Equatable, Sendable {
     let analysis: ChatImportAnalysis
     let notes: [String]
+}
+
+nonisolated private struct SharedTranscriptAnalysis: Decodable {
+    let extractionStatus: ChatExtractionStatus
+    let conversationTitle: String?
+    let conversationKind: ChatConversationKind
+    let titleSource: ChatTitleSource
+    let messages: [SharedTranscriptMessage]
+    let matchedChatID: String?
+    let matchConfidence: Double
+
+    var analysis: ChatImportAnalysis {
+        ChatImportAnalysis(
+            extractionStatus: extractionStatus,
+            conversationTitle: conversationTitle,
+            messages: messages.map(\.analyzed),
+            matchedChatID: matchedChatID,
+            matchConfidence: matchConfidence,
+            conversationKind: conversationKind,
+            titleSource: titleSource,
+            ownershipConvention: .unobservable
+        )
+    }
+}
+
+nonisolated private struct SharedTranscriptMessage: Decodable {
+    let sender: AnalyzedMessageSender
+    let senderName: String?
+    let text: String
+    let timestampLabel: String?
+    let senderConfidence: Double
+    let senderEvidence: MessageSenderEvidence
+
+    var analyzed: AnalyzedChatMessage {
+        AnalyzedChatMessage(
+            sender: sender,
+            senderName: senderName,
+            text: text,
+            timestampLabel: timestampLabel,
+            senderConfidence: senderConfidence,
+            senderEvidence: senderEvidence
+        )
+    }
 }

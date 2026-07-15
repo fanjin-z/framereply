@@ -13,13 +13,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             ChatRecord(
                 id: "sarah-jenkins",
                 name: "Sarah Jenkins",
-                preview: "Existing conversation",
-                chipTitle: "General",
-                chipSymbol: "number",
-                avatarSymbol: nil,
-                initials: "SJ",
-                appearanceStyle: 0,
-                isUnread: false
+                preview: "Existing conversation"
             )
         )
         let analysis = ChatImportAnalysis(
@@ -84,7 +78,6 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         XCTAssertEqual(outcome.diagnosticID, "12345678")
         XCTAssertEqual(outcome.insertedMessageCount, 3)
         XCTAssertFalse(outcome.reviewRequired)
-        XCTAssertEqual(aiService.receivedImageData, imageData)
         XCTAssertEqual(aiService.receivedImageDataList, [imageData])
         XCTAssertEqual(aiService.receivedContext?.effectiveModel, .gpt56Luna)
         let messages = try repository.messages(chatID: "sarah-jenkins")
@@ -203,7 +196,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             try repository.messages(chatID: outcome.chatID).map(\.text),
             ["Can we meet tomorrow?"]
         )
-        XCTAssertEqual(try repository.importRecord(id: outcome.importID)?.sourceApp, "shared_text")
+        XCTAssertNotNil(try repository.importRecord(id: outcome.importID))
     }
 
     @MainActor
@@ -215,13 +208,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             ChatRecord(
                 id: "cross-source-chat",
                 name: "Alice",
-                preview: "Existing conversation",
-                chipTitle: "General",
-                chipSymbol: "number",
-                avatarSymbol: nil,
-                initials: "A",
-                appearanceStyle: 0,
-                isUnread: false
+                preview: "Existing conversation"
             )
         )
 
@@ -278,10 +265,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             try repository.messages(chatID: "cross-source-chat").map(\.text),
             ["Are you free tomorrow?", "Yes, after six."]
         )
-        XCTAssertEqual(
-            try repository.importRecord(id: textOutcome.importID)?.sourceApp,
-            "shared_text"
-        )
+        XCTAssertNotNil(try repository.importRecord(id: textOutcome.importID))
     }
 
     @MainActor
@@ -360,19 +344,12 @@ private final class CoordinatorEventReporter: ImportEventReporting, @unchecked S
 @MainActor
 private final class StubAnalysisService: AIServiceProviding {
     var analysis: ChatImportAnalysis
-    private(set) var receivedImageData: Data?
     private(set) var receivedImageDataList: [Data] = []
     private(set) var receivedTranscriptItems: [String] = []
     private(set) var receivedContext: AIProviderExecutionContext?
 
     private let context = AIProviderExecutionContext(
         platform: .openAI,
-        profile: ProviderModelProfile(
-            selectedTier: .basic,
-            screenshotAnalysisModel: .gpt56Luna,
-            transcriptAnalysisModel: .gpt56Terra,
-            suggestedReplyModel: .gpt56Luna
-        ),
         capability: .screenshotAnalysis,
         effectiveModel: .gpt56Luna
     )
@@ -384,14 +361,13 @@ private final class StubAnalysisService: AIServiceProviding {
     func activeContext(
         requiring capability: AIProviderCapability
     ) throws -> AIProviderExecutionContext {
-        guard let model = context.profile.model(for: capability),
-            capability == .screenshotAnalysis || capability == .transcriptAnalysis
+        guard capability == .screenshotAnalysis || capability == .transcriptAnalysis
         else {
             throw AIServiceError.unsupportedCapability
         }
+        let model: ProviderModel = capability == .transcriptAnalysis ? .gpt56Terra : .gpt56Luna
         return AIProviderExecutionContext(
             platform: context.platform,
-            profile: context.profile,
             capability: capability,
             effectiveModel: model
         )
@@ -401,7 +377,6 @@ private final class StubAnalysisService: AIServiceProviding {
         _ request: ChatScreenshotAnalysisRequest,
         using context: AIProviderExecutionContext
     ) async throws -> ChatImportAnalysis {
-        receivedImageData = request.imageData
         receivedImageDataList = request.imageDataList
         receivedTranscriptItems = request.sharedTranscript?.items ?? []
         receivedContext = context

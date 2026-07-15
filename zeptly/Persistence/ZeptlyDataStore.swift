@@ -33,7 +33,7 @@ enum ZeptlyDataStore {
         let configuration: ModelConfiguration
         if let url {
             configuration = ModelConfiguration(
-                "ZeptlyChatsV2",
+                "ZeptlyChatsV3",
                 schema: schema,
                 url: url,
                 allowsSave: true,
@@ -42,16 +42,16 @@ enum ZeptlyDataStore {
         } else {
             if inMemory {
                 configuration = ModelConfiguration(
-                    "ZeptlyChatsV2",
+                    "ZeptlyChatsV3",
                     schema: schema,
                     isStoredInMemoryOnly: true,
                     cloudKitDatabase: .none
                 )
             } else {
                 configuration = ModelConfiguration(
-                    "ZeptlyChatsV2",
+                    "ZeptlyChatsV3",
                     schema: schema,
-                    url: URL.applicationSupportDirectory.appending(path: "ZeptlyChatsV2.store"),
+                    url: URL.applicationSupportDirectory.appending(path: "ZeptlyChatsV3.store"),
                     allowsSave: true,
                     cloudKitDatabase: .none
                 )

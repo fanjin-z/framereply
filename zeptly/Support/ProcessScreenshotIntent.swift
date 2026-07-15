@@ -202,7 +202,7 @@ nonisolated struct ScreenshotImportEntity: AppEntity {
         chatID = record.chatID
         self.chatName = chatName
         diagnosticID = record.diagnosticID ?? "UNKNOWN"
-        matchedExisting = record.matchedExisting ?? false
+        matchedExisting = record.matchedExisting
         reviewRequired = record.requiresReview
         duplicate = record.isDuplicate
         insertedMessageCount = record.insertedMessageCount
@@ -230,13 +230,12 @@ nonisolated struct ScreenshotImportEntityQuery: EntityQuery {
             let repository = ChatRepository(context: ModelContext(ZeptlyDataStore.shared))
             return try identifiers.compactMap { identifier in
                 guard let record = try repository.importRecord(id: identifier),
-                    let operationID = record.operationID,
                     let chat = try repository.chat(id: record.chatID)
                 else {
                     return nil
                 }
                 return ScreenshotImportEntity(
-                    record: record, chatName: chat.name, operationID: operationID)
+                    record: record, chatName: chat.name, operationID: record.operationID)
             }
         }
     }

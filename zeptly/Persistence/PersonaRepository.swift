@@ -37,7 +37,7 @@ final class PersonaRepository {
                 context.insert(
                     observationRecord(
                         personaID: personaID, text: text, origin: .seed,
-                        isUserProtected: false, evidenceSource: .seed
+                        isUserProtected: false
                     ))
             }
         }
@@ -135,8 +135,7 @@ final class PersonaRepository {
     func duplicate(_ source: PersonaRecord) throws -> PersonaRecord {
         let copied = try observations(personaID: source.id).map {
             Self.makeObservation(
-                text: $0.text, origin: .seed, isUserProtected: false,
-                evidenceSource: .seed
+                text: $0.text, origin: .seed, isUserProtected: false
             )
         }
         return try create(
@@ -156,7 +155,7 @@ final class PersonaRepository {
         context.insert(
             observationRecord(
                 personaID: personaID, text: value, origin: .user,
-                isUserProtected: true, evidenceSource: .user
+                isUserProtected: true
             ))
         try touch(personaID: personaID)
         try context.save()
@@ -168,8 +167,6 @@ final class PersonaRepository {
         record.text = value
         record.origin = PersonaObservationOrigin.user.rawValue
         record.isUserProtected = true
-        record.evidenceSource = PersonaObservationEvidenceSource.user.rawValue
-        record.sourceMessageIDsJSON = "[]"
         record.updatedAt = Date()
         try touch(personaID: record.personaID)
         try context.save()
@@ -191,7 +188,6 @@ final class PersonaRepository {
         }
         if let persona = try persona(id: personaID) {
             persona.sampleCount = 0
-            persona.lastLearnedAt = nil
             persona.updatedAt = Date()
         }
         try context.save()
@@ -201,17 +197,6 @@ final class PersonaRepository {
         try context.fetchCount(
             FetchDescriptor<ChatContextRecord>(
                 predicate: #Predicate { $0.personaID == personaID }))
-    }
-
-    func assign(personaID: UUID, to contextRecord: ChatContextRecord, at date: Date = Date())
-        throws
-    {
-        guard try persona(id: personaID) != nil, contextRecord.personaID != personaID else {
-            return
-        }
-        contextRecord.personaID = personaID
-        contextRecord.personaAssignedAt = date
-        try context.save()
     }
 
     func setLearningEnabled(_ enabled: Bool, for record: PersonaRecord, at date: Date = Date())
@@ -291,29 +276,23 @@ final class PersonaRepository {
         text: String,
         origin: PersonaObservationOrigin,
         isUserProtected: Bool,
-        evidenceSource: PersonaObservationEvidenceSource,
-        sourceMessageIDs: [UUID] = [],
-        evidenceCount: Int = 0,
         now: Date = Date()
     ) -> PersonaObservation {
         PersonaObservation(
             id: UUID(), text: text.trimmingCharacters(in: .whitespacesAndNewlines),
             origin: origin, isUserProtected: isUserProtected, status: .active,
-            evidenceSource: evidenceSource, sourceMessageIDs: sourceMessageIDs,
-            evidenceCount: evidenceCount, supersededByID: nil,
             createdAt: now, updatedAt: now
         )
     }
 
     private func observationRecord(
         personaID: UUID, text: String, origin: PersonaObservationOrigin,
-        isUserProtected: Bool, evidenceSource: PersonaObservationEvidenceSource
+        isUserProtected: Bool
     ) -> PersonaObservationRecord {
         PersonaObservationRecord(
             personaID: personaID,
             value: Self.makeObservation(
-                text: text, origin: origin, isUserProtected: isUserProtected,
-                evidenceSource: evidenceSource
+                text: text, origin: origin, isUserProtected: isUserProtected
             ))
     }
 

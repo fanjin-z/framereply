@@ -8,16 +8,13 @@ import Foundation
 nonisolated struct ChatParticipantAlias: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     var displayLabel: String
-    var createdAt: Date
 
     init(
         id: UUID = UUID(),
-        displayLabel: String,
-        createdAt: Date = Date()
+        displayLabel: String
     ) {
         self.id = id
         self.displayLabel = displayLabel
-        self.createdAt = createdAt
     }
 
     var normalizedLabel: String {
@@ -63,7 +60,6 @@ nonisolated struct ChatMemory: Identifiable, Codable, Equatable, Sendable {
     var text: String
     var origin: ChatMemoryOrigin
     var certainty: ChatMemoryCertainty
-    var sourceMessageIDs: [UUID]
     var status: ChatMemoryStatus
     var createdAt: Date
     var updatedAt: Date
@@ -73,7 +69,6 @@ nonisolated struct ChatMemory: Identifiable, Codable, Equatable, Sendable {
         text: String,
         origin: ChatMemoryOrigin = .user,
         certainty: ChatMemoryCertainty = .userConfirmed,
-        sourceMessageIDs: [UUID] = [],
         status: ChatMemoryStatus = .active,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
@@ -82,7 +77,6 @@ nonisolated struct ChatMemory: Identifiable, Codable, Equatable, Sendable {
         self.text = text
         self.origin = origin
         self.certainty = certainty
-        self.sourceMessageIDs = sourceMessageIDs
         self.status = status
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -138,7 +132,6 @@ nonisolated enum ChatMemoryReconciler {
                         text: text,
                         origin: .ai,
                         certainty: .aiInferred,
-                        sourceMessageIDs: evidence,
                         status: .active,
                         createdAt: now,
                         updatedAt: now
@@ -161,37 +154,20 @@ nonisolated enum ChatMemoryReconciler {
                     excluding: targetID
                 ) {
                     result[targetIndex].status = .superseded
-                    result[targetIndex].sourceMessageIDs = merged(
-                        result[targetIndex].sourceMessageIDs,
-                        evidence
-                    )
                     result[targetIndex].updatedAt = now
-                    result[duplicateIndex].sourceMessageIDs = merged(
-                        result[duplicateIndex].sourceMessageIDs,
-                        evidence
-                    )
                     result[duplicateIndex].updatedAt = now
                 } else if result[targetIndex].origin == .ai {
                     result[targetIndex].text = text
                     result[targetIndex].certainty = .aiInferred
-                    result[targetIndex].sourceMessageIDs = merged(
-                        result[targetIndex].sourceMessageIDs,
-                        evidence
-                    )
                     result[targetIndex].updatedAt = now
                 } else {
                     result[targetIndex].status = .superseded
-                    result[targetIndex].sourceMessageIDs = merged(
-                        result[targetIndex].sourceMessageIDs,
-                        evidence
-                    )
                     result[targetIndex].updatedAt = now
                     result.append(
                         ChatMemory(
                             text: text,
                             origin: .ai,
                             certainty: .aiInferred,
-                            sourceMessageIDs: evidence,
                             status: .active,
                             createdAt: now,
                             updatedAt: now
@@ -208,10 +184,6 @@ nonisolated enum ChatMemoryReconciler {
                     continue
                 }
                 result[targetIndex].status = .archived
-                result[targetIndex].sourceMessageIDs = merged(
-                    result[targetIndex].sourceMessageIDs,
-                    evidence
-                )
                 result[targetIndex].updatedAt = now
             }
         }
@@ -244,8 +216,4 @@ nonisolated enum ChatMemoryReconciler {
             .joined(separator: " ")
     }
 
-    private static func merged(_ lhs: [UUID], _ rhs: [UUID]) -> [UUID] {
-        var seen = Set<UUID>()
-        return (lhs + rhs).filter { seen.insert($0).inserted }
-    }
 }

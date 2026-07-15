@@ -50,7 +50,7 @@ final class AIProviderGatewayTests: XCTestCase {
 
     private func makeReplyRequest() -> SuggestedReplyGenerationRequest {
         SuggestedReplyGenerationRequest(
-            chatName: "Sarah",
+            task: .standard,
             chatMemories: [],
             currentInteractionGoal: "Reply",
             persona: PersonaPromptContext(
@@ -79,8 +79,7 @@ private final class GatewayProviderConfiguration: ProviderConfigurationProviding
     }
 }
 
-@MainActor
-private final class RecordingProviderAdapter: AIProviderAdapter {
+private final class RecordingProviderAdapter: @MainActor AIProviderAdapter {
     let platform = ProviderPlatform.zaiInternational
     private(set) var validatedModels: [ProviderModel] = []
     private(set) var analysisModels: [ProviderModel] = []
@@ -90,7 +89,6 @@ private final class RecordingProviderAdapter: AIProviderAdapter {
     func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile? {
         guard selectedTier == .advanced else { return nil }
         return ProviderModelProfile(
-            selectedTier: selectedTier,
             screenshotAnalysisModel: .glm46VFlashX,
             transcriptAnalysisModel: .glm47FlashX,
             suggestedReplyModel: .glm47FlashX

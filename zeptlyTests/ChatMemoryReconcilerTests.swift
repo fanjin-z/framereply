@@ -60,7 +60,6 @@ final class ChatMemoryReconcilerTests: XCTestCase {
         let updatedAI = try XCTUnwrap(result.first { $0.id == aiID })
         XCTAssertEqual(updatedAI.text, "Prefers coffee")
         XCTAssertEqual(updatedAI.status, .active)
-        XCTAssertEqual(updatedAI.sourceMessageIDs, [evidenceID])
 
         let supersededUser = try XCTUnwrap(result.first { $0.id == userID })
         XCTAssertEqual(supersededUser.status, .superseded)

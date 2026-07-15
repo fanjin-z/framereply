@@ -17,7 +17,7 @@ nonisolated enum ParticipantLabelNormalizer {
     }
 
     static func key(_ value: String?) -> String? {
-        displayLabel(value)
+        ChatParticipantAlias.normalizedKey(value)
     }
 }
 

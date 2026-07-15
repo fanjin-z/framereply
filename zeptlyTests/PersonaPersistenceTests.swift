@@ -72,7 +72,7 @@ final class PersonaPersistenceTests: XCTestCase {
         try repository.seedPersonasIfNeeded()
         let observation = PersonaRepository.makeObservation(
             text: "Uses short sentences.", origin: .user,
-            isUserProtected: true, evidenceSource: .user
+            isUserProtected: true
         )
         let created = try repository.create(
             name: "Weekend", summary: "Casual", instructions: "Sound natural.",
@@ -86,7 +86,7 @@ final class PersonaPersistenceTests: XCTestCase {
         XCTAssertEqual(copied.text, "Uses short sentences.")
         XCTAssertEqual(copied.origin, PersonaObservationOrigin.seed.rawValue)
         XCTAssertFalse(copied.isUserProtected)
-        XCTAssertEqual(copied.sourceMessageIDsJSON, "[]")
+        XCTAssertEqual(copied.status, PersonaObservationStatus.active.rawValue)
     }
 
     func testDeletingDefaultRequiresAndAppliesReplacement() throws {
@@ -244,24 +244,22 @@ final class PersonaPersistenceTests: XCTestCase {
         let first = UUID().uuidString
         let second = UUID().uuidString
         let valid = """
-            {"historySummary":"","replies":["One","Two"],
-             "conversationStrategy":"Reply briefly while preserving the style sample.",
-             "strategyRationale":"This fixture validates persona evidence decoding.",
-             "memoryChanges":[],
-             "personaObservationChanges":[{"action":"add","targetObservationID":null,
+            {"personaObservationChanges":[{"action":"add","targetObservationID":null,
              "text":"Uses short sentences.","evidenceMessageIDs":["\(first)","\(second)"]}]}
             """
-        let result = try SuggestedReplyResultDecoder.decode(content: valid, finishReason: "stop")
+        let result = try SuggestedReplyResultDecoder.decode(
+            content: valid, finishReason: "stop", task: .personaStyleLearning)
         XCTAssertEqual(result.personaObservationChanges.first?.text, "Uses short sentences.")
 
         let invalid = valid.replacingOccurrences(of: "\"\(second)\"", with: "\"\(first)\"")
         XCTAssertThrowsError(
-            try SuggestedReplyResultDecoder.decode(content: invalid, finishReason: "stop"))
+            try SuggestedReplyResultDecoder.decode(
+                content: invalid, finishReason: "stop", task: .personaStyleLearning))
     }
 
     private func message(chatID: String, sender: String, createdAt: Date) -> ChatMessageRecord {
         ChatMessageRecord(
-            chatID: chatID, senderKind: sender, text: "Example", normalizedText: "example",
+            chatID: chatID, senderKind: sender, text: "Example",
             timeLabel: "", sortIndex: 0, createdAt: createdAt
         )
     }

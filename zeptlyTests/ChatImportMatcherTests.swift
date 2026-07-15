@@ -77,13 +77,12 @@ final class ChatImportMatcherTests: XCTestCase {
                 ]
             )
         }
-        let repeatedDecision = ChatImportMatcher.decision(
+        let repeatedMatch = ChatImportMatcher.confirmedChatID(
             analysis: repeatedAnalysis,
             candidates: repeatedCandidates
         )
 
-        XCTAssertNil(repeatedDecision.confirmedChatID)
-        XCTAssertNotEqual(repeatedDecision.transcriptEvidence, .strong)
+        XCTAssertNil(repeatedMatch)
     }
 
     func testDifferentObservedNamesRejectRepeatedOutgoingOpener() {
@@ -105,10 +104,9 @@ final class ChatImportMatcherTests: XCTestCase {
             recentMessages: [ChatCandidateMessage(sender: "user", text: opener, timeLabel: "")]
         )
 
-        let decision = ChatImportMatcher.decision(analysis: analysis, candidates: [inna])
+        let match = ChatImportMatcher.confirmedChatID(analysis: analysis, candidates: [inna])
 
-        XCTAssertNil(decision.confirmedChatID)
-        XCTAssertEqual(decision.reason, .displayNameConflict)
+        XCTAssertNil(match)
     }
 
     func testUniqueParticipantAliasConfirmsSelectedChat() {
@@ -125,13 +123,12 @@ final class ChatImportMatcherTests: XCTestCase {
             recentMessages: []
         )
 
-        let decision = ChatImportMatcher.decision(
+        let match = ChatImportMatcher.confirmedChatID(
             analysis: analysis,
             candidates: [candidate]
         )
 
-        XCTAssertEqual(decision.confirmedChatID, candidate.id)
-        XCTAssertEqual(decision.reason, .confirmedParticipantAlias)
+        XCTAssertEqual(match, candidate.id)
     }
 
     func testDuplicateParticipantAliasStillRequiresDiscriminator() {
@@ -149,13 +146,12 @@ final class ChatImportMatcherTests: XCTestCase {
             )
         }
 
-        let decision = ChatImportMatcher.decision(
+        let match = ChatImportMatcher.confirmedChatID(
             analysis: analysis,
             candidates: candidates
         )
 
-        XCTAssertNil(decision.confirmedChatID)
-        XCTAssertEqual(decision.reason, .duplicateDisplayName)
+        XCTAssertNil(match)
     }
 
     func testStrongTranscriptCanConfirmPreviouslyUnseenChangedName() {
@@ -187,13 +183,12 @@ final class ChatImportMatcherTests: XCTestCase {
             ]
         )
 
-        let decision = ChatImportMatcher.decision(
+        let match = ChatImportMatcher.confirmedChatID(
             analysis: analysis,
             candidates: [candidate]
         )
 
-        XCTAssertEqual(decision.confirmedChatID, candidate.id)
-        XCTAssertEqual(decision.reason, .confirmedTranscript)
+        XCTAssertEqual(match, candidate.id)
     }
 
     private func makeAnalysis(

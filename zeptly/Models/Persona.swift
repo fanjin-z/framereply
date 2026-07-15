@@ -13,23 +13,12 @@ nonisolated enum PersonaObservationStatus: String, Codable, Sendable {
     case archived
 }
 
-nonisolated enum PersonaObservationEvidenceSource: String, Codable, Sendable {
-    case seed
-    case messages
-    case examples
-    case user
-}
-
 nonisolated struct PersonaObservation: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     var text: String
     var origin: PersonaObservationOrigin
     var isUserProtected: Bool
     var status: PersonaObservationStatus
-    var evidenceSource: PersonaObservationEvidenceSource
-    var sourceMessageIDs: [UUID]
-    var evidenceCount: Int
-    var supersededByID: UUID?
     var createdAt: Date
     var updatedAt: Date
 }
@@ -51,7 +40,6 @@ struct Persona: Identifiable, Equatable {
     var instructions: String
     var learningEnabled: Bool
     var sampleCount: Int
-    var lastLearnedAt: Date?
 
     var accent: Color {
         switch accentKey {

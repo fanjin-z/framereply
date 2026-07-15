@@ -218,52 +218,6 @@ final class ProviderStoreTests: XCTestCase {
         XCTAssertEqual(defaults.string(forKey: ProviderStoreTestKey.activePlatform), "zhipuChina")
     }
 
-    @MainActor
-    func testLegacyProviderModelsMigrateToStableTiers() throws {
-        let (defaults, suiteName) = makeDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let cases: [(ProviderPlatform, String, ProviderTier)] = [
-            (.openAI, "gpt-5.4-mini", .basic),
-            (.openAI, "gpt-5.4", .advanced),
-            (.openAI, "gpt-5.5", .best),
-            (.zaiInternational, "glm-4.6v-flash", .basic),
-            (.zaiInternational, "glm-4.6v-flashx", .advanced),
-            (.zhipuChina, "glm-4.6v", .best)
-        ]
-        let fixtures = cases.map { item in
-            LegacyProviderFixture(id: UUID(), platform: item.0, model: item.1)
-        }
-        defaults.set(
-            try JSONEncoder().encode(fixtures),
-            forKey: ProviderStoreTestKey.legacyProviders
-        )
-        defaults.set("openAI", forKey: ProviderStoreTestKey.activePlatform)
-
-        let store = ProviderStore(userDefaults: defaults)
-
-        XCTAssertEqual(store.providers.count, fixtures.count)
-        for (fixture, item) in zip(fixtures, cases) {
-            XCTAssertEqual(store.providers.first(where: { $0.id == fixture.id })?.tier, item.2)
-        }
-        XCTAssertEqual(store.activePlatform, .openAI)
-        XCTAssertNil(defaults.data(forKey: ProviderStoreTestKey.legacyProviders))
-        XCTAssertNotNil(defaults.data(forKey: ProviderStoreTestKey.providers))
-    }
-
-    @MainActor
-    func testMalformedLegacyPayloadIsRetainedWithoutWritingV2() {
-        let (defaults, suiteName) = makeDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let malformed = Data("{".utf8)
-        defaults.set(malformed, forKey: ProviderStoreTestKey.legacyProviders)
-
-        let store = ProviderStore(userDefaults: defaults)
-
-        XCTAssertTrue(store.providers.isEmpty)
-        XCTAssertEqual(defaults.data(forKey: ProviderStoreTestKey.legacyProviders), malformed)
-        XCTAssertNil(defaults.data(forKey: ProviderStoreTestKey.providers))
-    }
-
     private func makeDefaults() -> (UserDefaults, String) {
         let suiteName = "ProviderStoreTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -301,14 +255,7 @@ final class ProviderStoreTests: XCTestCase {
 
 private enum ProviderStoreTestKey {
     static let providers = "zeptly.providerConnections.v2"
-    static let legacyProviders = "zeptly.providerConnections.v1"
     static let activePlatform = "zeptly.activeProviderPlatform.v1"
-}
-
-private struct LegacyProviderFixture: Codable {
-    let id: UUID
-    let platform: ProviderPlatform
-    let model: String
 }
 
 private final class TestKeychainStore: KeychainStoring {

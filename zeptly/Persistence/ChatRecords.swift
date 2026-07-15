@@ -49,18 +49,11 @@ nonisolated struct ChatImportReviewState: Codable, Equatable {
 
 @Model
 final class ChatRecord {
-    var id: String
+    @Attribute(.unique) var id: String
     var name: String
     var preview: String
-    var chipTitle: String
-    var chipSymbol: String
-    var avatarSymbol: String?
-    var initials: String
-    var appearanceStyle: Int
-    var isUnread: Bool
     var conversationKindRaw: String
     var importReviewStateJSON: String?
-    var createdAt: Date
     var updatedAt: Date
 
     var importReviewState: ChatImportReviewState? {
@@ -89,27 +82,14 @@ final class ChatRecord {
         id: String,
         name: String,
         preview: String,
-        chipTitle: String,
-        chipSymbol: String,
-        avatarSymbol: String?,
-        initials: String,
-        appearanceStyle: Int,
-        isUnread: Bool,
         conversationKind: ChatConversationKind = .unknown,
         isProvisional: Bool = false,
         importReviewStateJSON: String? = nil,
-        createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
         self.id = id
         self.name = name
         self.preview = preview
-        self.chipTitle = chipTitle
-        self.chipSymbol = chipSymbol
-        self.avatarSymbol = avatarSymbol
-        self.initials = initials
-        self.appearanceStyle = appearanceStyle
-        self.isUnread = isUnread
         self.conversationKindRaw = conversationKind.rawValue
         if let importReviewStateJSON {
             self.importReviewStateJSON = importReviewStateJSON
@@ -121,7 +101,6 @@ final class ChatRecord {
         } else {
             self.importReviewStateJSON = nil
         }
-        self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
 }
@@ -130,20 +109,17 @@ final class ChatRecord {
 final class ChatSelfAliasRecord {
     var id: UUID
     var chatID: String
-    var normalizedLabel: String
     var displayLabel: String
     var createdAt: Date
 
     init(
         id: UUID = UUID(),
         chatID: String,
-        normalizedLabel: String,
         displayLabel: String,
         createdAt: Date = Date()
     ) {
         self.id = id
         self.chatID = chatID
-        self.normalizedLabel = normalizedLabel
         self.displayLabel = displayLabel
         self.createdAt = createdAt
     }
@@ -156,9 +132,7 @@ final class ChatMessageRecord {
     var senderKind: String
     var senderName: String?
     var text: String
-    var normalizedText: String
     var timeLabel: String
-    var timestamp: Date?
     var sortIndex: Int
     var createdAt: Date
 
@@ -168,9 +142,7 @@ final class ChatMessageRecord {
         senderKind: String,
         senderName: String? = nil,
         text: String,
-        normalizedText: String,
         timeLabel: String,
-        timestamp: Date? = nil,
         sortIndex: Int,
         createdAt: Date = Date()
     ) {
@@ -179,9 +151,7 @@ final class ChatMessageRecord {
         self.senderKind = senderKind
         self.senderName = senderName
         self.text = text
-        self.normalizedText = normalizedText
         self.timeLabel = timeLabel
-        self.timestamp = timestamp
         self.sortIndex = sortIndex
         self.createdAt = createdAt
     }
@@ -189,37 +159,33 @@ final class ChatMessageRecord {
 
 @Model
 final class ChatContextRecord {
-    var id: UUID
-    var chatID: String
+    @Attribute(.unique) var chatID: String
     var currentInteractionGoal: String
     var personaID: UUID
     var personaAssignedAt: Date
-    // Optional so existing stores can lightweight-migrate safely.
-    var participantAliasesJSON: String?
+    var participantAliasesJSON: String
 
     var participantAliases: [ChatParticipantAlias] {
         get {
-            guard let data = participantAliasesJSON?.data(using: .utf8) else { return [] }
+            guard let data = participantAliasesJSON.data(using: .utf8) else { return [] }
             return (try? JSONDecoder().decode([ChatParticipantAlias].self, from: data)) ?? []
         }
         set {
             guard !newValue.isEmpty, let data = try? JSONEncoder().encode(newValue) else {
-                participantAliasesJSON = nil
+                participantAliasesJSON = "[]"
                 return
             }
-            participantAliasesJSON = String(data: data, encoding: .utf8)
+            participantAliasesJSON = String(data: data, encoding: .utf8) ?? "[]"
         }
     }
 
     init(
-        id: UUID = UUID(),
         chatID: String,
         currentInteractionGoal: String,
         personaID: UUID,
         personaAssignedAt: Date = Date(),
-        participantAliasesJSON: String? = nil
+        participantAliasesJSON: String = "[]"
     ) {
-        self.id = id
         self.chatID = chatID
         self.currentInteractionGoal = currentInteractionGoal
         self.personaID = personaID
@@ -240,7 +206,6 @@ final class PersonaRecord {
     var learningEnabled: Bool
     var learningEnabledAt: Date
     var sampleCount: Int
-    var lastLearnedAt: Date?
     var createdAt: Date
     var updatedAt: Date
 
@@ -248,7 +213,7 @@ final class PersonaRecord {
         id: UUID = UUID(), name: String, summary: String, symbolName: String,
         accentKey: String, instructions: String,
         learningEnabled: Bool = true, learningEnabledAt: Date = Date(),
-        sampleCount: Int = 0, lastLearnedAt: Date? = nil,
+        sampleCount: Int = 0,
         createdAt: Date = Date(), updatedAt: Date = Date()
     ) {
         self.id = id
@@ -260,7 +225,6 @@ final class PersonaRecord {
         self.learningEnabled = learningEnabled
         self.learningEnabledAt = learningEnabledAt
         self.sampleCount = sampleCount
-        self.lastLearnedAt = lastLearnedAt
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -268,16 +232,12 @@ final class PersonaRecord {
 
 @Model
 final class PersonaObservationRecord {
-    @Attribute(.unique) var id: UUID
+    var id: UUID
     var personaID: UUID
     var text: String
     var origin: String
     var isUserProtected: Bool
     var status: String
-    var evidenceSource: String
-    var sourceMessageIDsJSON: String
-    var evidenceCount: Int
-    var supersededByID: UUID?
     var createdAt: Date
     var updatedAt: Date
 
@@ -285,8 +245,6 @@ final class PersonaObservationRecord {
         id: UUID = UUID(), personaID: UUID, text: String,
         origin: String, isUserProtected: Bool = false,
         status: String = PersonaObservationStatus.active.rawValue,
-        evidenceSource: String, sourceMessageIDsJSON: String = "[]",
-        evidenceCount: Int = 0, supersededByID: UUID? = nil,
         createdAt: Date = Date(), updatedAt: Date = Date()
     ) {
         self.id = id
@@ -295,10 +253,6 @@ final class PersonaObservationRecord {
         self.origin = origin
         self.isUserProtected = isUserProtected
         self.status = status
-        self.evidenceSource = evidenceSource
-        self.sourceMessageIDsJSON = sourceMessageIDsJSON
-        self.evidenceCount = evidenceCount
-        self.supersededByID = supersededByID
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -310,14 +264,12 @@ final class PersonaLearningReceiptRecord {
     var personaID: UUID
     var chatID: String
     var messageID: UUID
-    var analyzedAt: Date
 
-    init(personaID: UUID, chatID: String, messageID: UUID, analyzedAt: Date = Date()) {
+    init(personaID: UUID, chatID: String, messageID: UUID) {
         self.key = "\(personaID.uuidString.lowercased())|\(messageID.uuidString.lowercased())"
         self.personaID = personaID
         self.chatID = chatID
         self.messageID = messageID
-        self.analyzedAt = analyzedAt
     }
 }
 
@@ -328,7 +280,6 @@ final class ChatMemoryRecord {
     var text: String
     var origin: String
     var certainty: String
-    var sourceMessageIDsJSON: String
     var status: String
     var createdAt: Date
     var updatedAt: Date
@@ -339,7 +290,6 @@ final class ChatMemoryRecord {
         text: String,
         origin: String,
         certainty: String,
-        sourceMessageIDsJSON: String = "[]",
         status: String,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
@@ -349,7 +299,6 @@ final class ChatMemoryRecord {
         self.text = text
         self.origin = origin
         self.certainty = certainty
-        self.sourceMessageIDsJSON = sourceMessageIDsJSON
         self.status = status
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -366,8 +315,6 @@ final class SuggestedReplyCacheRecord {
     var conversationStrategy: String
     var strategyRationale: String
     var inputFingerprint: String
-    var provider: String
-    var model: String
     var promptVersion: Int
     var generatedAt: Date
 
@@ -380,8 +327,6 @@ final class SuggestedReplyCacheRecord {
         conversationStrategy: String = "",
         strategyRationale: String = "",
         inputFingerprint: String,
-        provider: String,
-        model: String,
         promptVersion: Int,
         generatedAt: Date = Date()
     ) {
@@ -393,8 +338,6 @@ final class SuggestedReplyCacheRecord {
         self.conversationStrategy = conversationStrategy
         self.strategyRationale = strategyRationale
         self.inputFingerprint = inputFingerprint
-        self.provider = provider
-        self.model = model
         self.promptVersion = promptVersion
         self.generatedAt = generatedAt
     }
@@ -405,24 +348,14 @@ final class ChatImportRecord {
     var id: UUID
     var chatID: String
     var transcriptFingerprint: String?
-    var provider: String
-    var model: String
-    var confidence: Double
     var createdAt: Date
     var insertedMessageCount: Int
     var isDuplicate: Bool
     var requiresReview: Bool
-    var matchDisposition: String?
-    var suggestedChatID: String?
-    var matchReason: String?
-    var transcriptEvidence: String?
-    var sourceApp: String?
     var diagnosticID: String?
-    var matchedExisting: Bool?
-    /// Correlates the Analyze and Generate Shortcut actions. Optional for
-    /// lightweight migration of imports created by older app versions.
-    var operationID: UUID?
-    var draftingInputStateRaw: String?
+    var matchedExisting: Bool
+    var operationID: UUID
+    var draftingInputStateRaw: String
     /// One-use text supplied from the screenshot Shortcut. It is never promoted
     /// to chat history, chat memory, or persona learning.
     var draftingInput: String?
@@ -432,40 +365,24 @@ final class ChatImportRecord {
         id: UUID = UUID(),
         chatID: String,
         transcriptFingerprint: String?,
-        provider: String,
-        model: String,
-        confidence: Double,
         createdAt: Date = Date(),
         insertedMessageCount: Int,
         isDuplicate: Bool,
         requiresReview: Bool,
-        matchDisposition: String? = nil,
-        suggestedChatID: String? = nil,
-        matchReason: String? = nil,
-        transcriptEvidence: String? = nil,
-        sourceApp: String? = nil,
         diagnosticID: String? = nil,
-        matchedExisting: Bool? = nil,
-        operationID: UUID? = nil,
-        draftingInputStateRaw: String? = nil,
+        matchedExisting: Bool = false,
+        operationID: UUID = UUID(),
+        draftingInputStateRaw: String = DraftingInputState.pending.rawValue,
         draftingInput: String? = nil,
         draftingInputCreatedAt: Date? = nil
     ) {
         self.id = id
         self.chatID = chatID
         self.transcriptFingerprint = transcriptFingerprint
-        self.provider = provider
-        self.model = model
-        self.confidence = confidence
         self.createdAt = createdAt
         self.insertedMessageCount = insertedMessageCount
         self.isDuplicate = isDuplicate
         self.requiresReview = requiresReview
-        self.matchDisposition = matchDisposition
-        self.suggestedChatID = suggestedChatID
-        self.matchReason = matchReason
-        self.transcriptEvidence = transcriptEvidence
-        self.sourceApp = sourceApp
         self.diagnosticID = diagnosticID
         self.matchedExisting = matchedExisting
         self.operationID = operationID

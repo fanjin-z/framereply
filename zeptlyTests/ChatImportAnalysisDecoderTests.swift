@@ -4,222 +4,118 @@ import XCTest
 @testable import zeptly
 
 final class ChatImportAnalysisDecoderTests: XCTestCase {
-    func testDecodesExactAndFencedJSON() throws {
-        let exact = validJSON()
-        XCTAssertEqual(try decode(exact).messages.first?.text, "Hello")
-        XCTAssertEqual(
-            try decode("\u{FEFF}  ```json\n\(exact)\n```  ").messages.first?.text, "Hello")
-        XCTAssertEqual(
-            try decode("Here is the result:\n```json\n\(exact)\n```\nDone.").messages.first?.text,
-            "Hello"
-        )
-    }
-
-    func testClassifiesInvalidResponses() {
-        let missingMessages = validJSON().replacingOccurrences(
-            of: #""messages""#,
-            with: #""missingMessages""#
-        )
-        let wrongSender = validJSON().replacingOccurrences(
-            of: #""sender":"other_participant""#,
-            with: #""sender":42"#
-        )
-        let unknownCandidate = validJSON().replacingOccurrences(
-            of: #""matchedChatID":null"#,
-            with: #""matchedChatID":"unknown""#
-        )
-        let incompleteMessage = validJSON().replacingOccurrences(
-            of: #""text":"Hello""#,
-            with: #""text":"   ""#
-        )
-        let cases: [(String?, String?, StructuredOutputFailureKind, String?)] = [
-            (nil, "stop", .emptyResponse, nil),
-            (validJSON(), "length", .truncatedResponse, nil),
-            ("{not json", "stop", .invalidJSON, nil),
-            ("prefix \(validJSON()) suffix \(validJSON())", "stop", .invalidJSON, nil),
-            (missingMessages, "stop", .schemaMismatch, "messages"),
-            (wrongSender, "stop", .schemaMismatch, "messages[0].sender"),
-            (unknownCandidate, "stop", .invalidCandidateID, "matchedChatID"),
-            (incompleteMessage, "stop", .incompleteMessages, "messages")
-        ]
-
-        for (content, finishReason, kind, path) in cases {
-            assertFailure(content, finishReason: finishReason, kind: kind, path: path)
-        }
-    }
-
-    func testRejectsLegacyOutputWithoutVisualContract() {
-        let legacyJSON =
-            #"{"conversationTitle":"Alex","messages":[{"sender":"other_participant","senderName":"Alex","text":"Hello","timestampLabel":null}]}"#
-        assertFailure(
-            legacyJSON,
-            kind: .schemaMismatch,
-            path: "ownershipConvention"
-        )
-    }
-
-    func testMissingQuotedReplyDecodesAsNil() throws {
-        let json = validJSON()
-            .replacingOccurrences(of: #","quotedReply":null"#, with: "")
-
-        let result = try decode(json)
-
-        XCTAssertNil(result.messages.first?.quotedReply)
+    func testDecodesExactScreenshotContract() throws {
+        let result = try decode(validScreenshotJSON())
+        XCTAssertEqual(result.extractionStatus, .ok)
         XCTAssertEqual(result.messages.first?.text, "Hello")
+        XCTAssertEqual(result.messages.first?.sender, .otherParticipant)
     }
 
-    func testUnknownIdentityMetadataStillDegradesConservatively() throws {
-        let unknownMetadataJSON = validJSON()
-            .replacingOccurrences(
-                of: #""conversationKind":"direct""#, with: #""conversationKind":"one_to_one""#
-            )
-            .replacingOccurrences(of: #""titleSource":"header""#, with: #""titleSource":"guessed""#)
-        let unknownMetadata = try decode(unknownMetadataJSON)
-
-        XCTAssertEqual(unknownMetadata.messages.first?.text, "Hello")
-        XCTAssertEqual(unknownMetadata.conversationKind, .unknown)
-        XCTAssertEqual(unknownMetadata.titleSource, .unavailable)
+    func testRejectsWrappersAliasesExtraKeysAndRemovedQuoteShape() {
+        let exact = validScreenshotJSON()
+        assertFailure("```json\n\(exact)\n```", kind: .invalidJSON)
+        assertFailure("Here is the result: \(exact)", kind: .invalidJSON)
+        assertFailure(
+            exact.replacingOccurrences(
+                of: "\"conversationTitle\"", with: "\"conversation_title\""),
+            kind: .schemaMismatch, path: "root")
+        assertFailure(
+            exact.replacingOccurrences(
+                of: "\"matchConfidence\":0", with: "\"extra\":true,\"matchConfidence\":0"),
+            kind: .schemaMismatch, path: "root")
+        assertFailure(
+            exact.replacingOccurrences(
+                of: "\"senderEvidence\":\"alignment_convention\"",
+                with: "\"quotedReply\":null,\"senderEvidence\":\"alignment_convention\""),
+            kind: .schemaMismatch, path: "messages[0]")
     }
 
-    func testRejectsNavigationCountAsConversationTitle() throws {
-        let result = try decode(
-            validJSON().replacingOccurrences(
-                of: #""conversationTitle":"Alex""#,
-                with: #""conversationTitle":"19""#
-            )
-        )
-
-        XCTAssertNil(result.conversationTitle)
-        XCTAssertEqual(result.titleSource, .unavailable)
+    func testClassifiesMalformedTruncatedAndInvalidCandidateResponses() {
+        assertFailure(nil, kind: .emptyResponse)
+        assertFailure(
+            validScreenshotJSON(), finishReason: "length",
+            kind: .truncatedResponse, path: "finish_reason")
+        assertFailure("{not json", kind: .invalidJSON)
+        assertFailure(
+            validScreenshotJSON().replacingOccurrences(
+                of: "\"matchedChatID\":null",
+                with: "\"matchedChatID\":\"unknown\""),
+            kind: .invalidCandidateID, path: "matchedChatID")
     }
 
-    func testSeparatesQuotedReplyFromOuterMessageAndCorrectsSenderFromOuterAlignment() throws {
-        let json = validJSON(
-            sender: "user",
-            text: "I remember",
-            quotedReply: #"{"sender":"user","senderName":null,"text":"I live in Guangzhou"}"#
-        )
-
-        let result = try decode(json)
-
-        XCTAssertEqual(result.messages.count, 1)
-        XCTAssertEqual(result.messages[0].sender, .otherParticipant)
-        XCTAssertEqual(result.messages[0].text, "I remember")
-        XCTAssertEqual(result.messages[0].quotedReply?.text, "I live in Guangzhou")
-    }
-
-    func testUnreliableOwnershipEvidenceBecomesUnknown() throws {
-        let json = validJSON(
-            sender: "user",
-            senderEvidence: "message_status_indicator",
-            outerAlignment: "left"
-        )
-
-        XCTAssertEqual(try decode(json).messages.first?.sender, .unknown)
-
-        let unobservable = validJSON()
-            .replacingOccurrences(
-                of: #""mode":"opposed_alignment""#, with: #""mode":"unobservable""#
-            )
-            .replacingOccurrences(
-                of: #""screenshotOwnerAlignment":"right""#,
-                with: #""screenshotOwnerAlignment":"unknown""#)
-        XCTAssertEqual(try decode(unobservable).messages.first?.sender, .unknown)
-    }
-
-    func testObservableOwnershipEvidenceIdentifiesTheUser() throws {
-        let cases = [
-            ("message_status_indicator", "left", "left"),
-            ("message_status_indicator", "right", "right"),
-            ("alignment_convention", "right", "right")
-        ]
-
-        for (evidence, alignment, ownerAlignment) in cases {
-            let json = validJSON(
-                sender: "user",
-                senderEvidence: evidence,
-                outerAlignment: alignment
-            ).replacingOccurrences(
-                of: #""screenshotOwnerAlignment":"right""#,
-                with: "\"screenshotOwnerAlignment\":\"\(ownerAlignment)\""
-            )
-            XCTAssertEqual(try decode(json).messages.first?.sender, .user)
-        }
-    }
-
-    func testAuthorIdentityLayoutUsesLiteralOwnerLabel() throws {
-        let json = validJSON(sender: "user", outerAlignment: "full_width")
-            .replacingOccurrences(
-                of: #""mode":"opposed_alignment""#, with: #""mode":"author_identity""#
-            )
-            .replacingOccurrences(
-                of: #""screenshotOwnerAlignment":"right""#,
-                with: #""screenshotOwnerAlignment":"unknown""#
-            )
-            .replacingOccurrences(
-                of: #""screenshotOwnerAuthorLabel":null"#,
-                with: #""screenshotOwnerAuthorLabel":"Me""#
-            )
-            .replacingOccurrences(
-                of: #""outerAuthorLabel":null"#, with: #""outerAuthorLabel":"Me""#)
-
-        XCTAssertEqual(try decode(json).messages.first?.sender, .user)
-    }
-
-    func testAuthoredBlockquoteRemainsInOuterText() throws {
-        let result = try decode(validJSON(text: #"> earlier words\nMy response"#))
-
-        XCTAssertEqual(result.messages.first?.text, "> earlier words\nMy response")
-        XCTAssertNil(result.messages.first?.quotedReply)
-    }
-
-    func testRejectsMatchConfidenceWithoutMatchedChatID() {
-        let json = validJSON().replacingOccurrences(
-            of: #""matchConfidence":0.0"#,
-            with: #""matchConfidence":0.9"#
-        )
-
-        assertFailure(json, kind: .schemaMismatch, path: "matchConfidence")
-    }
-
-    func testTandemRegressionKeepsEightOuterMessagesAndOneNestedReply() throws {
-        let json = """
-            {"conversationTitle":"Inna","conversationKind":"direct","titleSource":"header","ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"user","senderName":null,"text":"你好，很高兴认识你","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"你的中文看起来不错! 你学中文多久了?","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"Я сейчас учу русский. Хочу найти человека для практики","timestampLabel":null,"outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"other_participant","senderName":"Inna","text":"已经3年，在中国住了1.5年","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":{"sender":"user","senderName":null,"text":"你的中文看起来不错! 你学中文多久了?"}},{"sender":"user","senderName":null,"text":"你现在是在莫斯科吗？还是偶尔也会去中国？","timestampLabel":"Seen 1 hour ago","outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.98,"senderEvidence":"message_status_indicator","quotedReply":null},{"sender":"other_participant","senderName":"Inna","text":"我刚刚回来了","timestampLabel":"3:53 PM","outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"other_participant","senderName":"Inna","text":"现在在莫斯科","timestampLabel":"3:53 PM","outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention","quotedReply":null},{"sender":"user","senderName":null,"text":"你在中国上学吗？还是来旅游？","timestampLabel":"Delivered","outerAlignment":"right","outerAuthorLabel":null,"senderConfidence":0.98,"senderEvidence":"message_status_indicator","quotedReply":null}],"matchedChatID":null,"matchConfidence":0.0}
-            """
-
-        let result = try decode(json)
-
-        XCTAssertEqual(result.ownershipConvention.screenshotOwnerAlignment, .right)
-        XCTAssertEqual(result.messages.count, 8)
+    func testExtractionStatusMustMatchMessageEmptiness() throws {
         XCTAssertEqual(
-            result.messages.map(\.sender),
-            [
-                .user, .user, .user, .otherParticipant, .user, .otherParticipant,
-                .otherParticipant, .user
-            ]
-        )
-        XCTAssertEqual(result.messages[3].text, "已经3年，在中国住了1.5年")
-        XCTAssertEqual(result.messages[3].quotedReply?.text, "你的中文看起来不错! 你学中文多久了?")
-        XCTAssertTrue(result.messages.allSatisfy { $0.outerAuthorLabel == nil })
-        XCTAssertEqual(
-            result.messages.filter { $0.senderEvidence == .messageStatusIndicator }.map(\.sender),
-            [.user, .user]
-        )
+            try decode(noMessagesJSON()).extractionStatus,
+            .noMessages)
+        assertFailure(
+            noMessagesJSON().replacingOccurrences(
+                of: "\"no_messages\"", with: "\"ok\""),
+            kind: .incompleteMessages, path: "messages")
+        assertFailure(
+            validScreenshotJSON().replacingOccurrences(
+                of: "\"ok\"", with: "\"no_messages\""),
+            kind: .incompleteMessages, path: "messages")
     }
 
-    private func decode(_ content: String, finishReason: String? = "stop") throws
+    func testVisualOwnershipNormalizationPreservesSenderSafeguards() throws {
+        let contradictory = validScreenshotJSON()
+            .replacingOccurrences(
+                of: "\"sender\":\"other_participant\"", with: "\"sender\":\"user\"")
+            .replacingOccurrences(
+                of: "\"senderEvidence\":\"alignment_convention\"",
+                with: "\"senderEvidence\":\"message_status_indicator\"")
+        XCTAssertEqual(try decode(contradictory).messages.first?.sender, .unknown)
+
+        let user = validScreenshotJSON()
+            .replacingOccurrences(
+                of: "\"sender\":\"other_participant\"", with: "\"sender\":\"user\"")
+            .replacingOccurrences(
+                of: "\"outerAlignment\":\"left\"", with: "\"outerAlignment\":\"right\"")
+        XCTAssertEqual(try decode(user).messages.first?.sender, .user)
+    }
+
+    func testSharedTranscriptAcceptsOnlyTextContract() throws {
+        let result = try ChatImportAnalysisDecoder.decode(
+            content: validSharedJSON(), finishReason: "stop",
+            isSharedTranscript: true, candidateIDs: [])
+        XCTAssertEqual(result.messages.first?.senderName, "Alice")
+        XCTAssertEqual(result.ownershipConvention, .unobservable)
+        XCTAssertEqual(result.messages.first?.outerAlignment, .unknown)
+
+        assertFailure(
+            validSharedJSON().replacingOccurrences(
+                of: "\"senderEvidence\":\"author_label\"",
+                with: "\"outerAlignment\":\"left\",\"senderEvidence\":\"author_label\""),
+            isSharedTranscript: true, kind: .schemaMismatch,
+            path: "messages[0]")
+    }
+
+    func testMatchConfidenceRequiresAnExactCandidateID() {
+        assertFailure(
+            validScreenshotJSON().replacingOccurrences(
+                of: "\"matchConfidence\":0", with: "\"matchConfidence\":0.9"),
+            kind: .schemaMismatch, path: "matchConfidence")
+
+        let known = validScreenshotJSON()
+            .replacingOccurrences(
+                of: "\"matchedChatID\":null", with: "\"matchedChatID\":\"known\"")
+            .replacingOccurrences(
+                of: "\"matchConfidence\":0", with: "\"matchConfidence\":0.95")
+        XCTAssertNoThrow(try decode(known))
+    }
+
+    private func decode(_ content: String?, finishReason: String? = "stop") throws
         -> ChatImportAnalysis
     {
         try ChatImportAnalysisDecoder.decode(
-            content: content,
-            finishReason: finishReason,
-            candidateIDs: ["known"]
-        )
+            content: content, finishReason: finishReason,
+            isSharedTranscript: false, candidateIDs: ["known"])
     }
 
     private func assertFailure(
         _ content: String?,
         finishReason: String? = "stop",
+        isSharedTranscript: Bool = false,
         kind: StructuredOutputFailureKind,
         path: String? = nil,
         file: StaticString = #filePath,
@@ -227,10 +123,8 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
     ) {
         do {
             _ = try ChatImportAnalysisDecoder.decode(
-                content: content,
-                finishReason: finishReason,
-                candidateIDs: ["known"]
-            )
+                content: content, finishReason: finishReason,
+                isSharedTranscript: isSharedTranscript, candidateIDs: ["known"])
             XCTFail("Expected \(kind)", file: file, line: line)
         } catch let failure as StructuredOutputFailure {
             XCTAssertEqual(failure.kind, kind, file: file, line: line)
@@ -240,15 +134,21 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         }
     }
 
-    private func validJSON(
-        sender: String = "other_participant",
-        text: String = "Hello",
-        quotedReply: String = "null",
-        senderEvidence: String = "alignment_convention",
-        outerAlignment: String = "left"
-    ) -> String {
+    private func validScreenshotJSON() -> String {
         """
-        {"conversationTitle":"Alex","conversationKind":"direct","titleSource":"header","ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"\(sender)","senderName":"Alex","text":"\(text)","timestampLabel":null,"outerAlignment":"\(outerAlignment)","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"\(senderEvidence)","quotedReply":\(quotedReply)}],"matchedChatID":null,"matchConfidence":0.0}
+        {"extractionStatus":"ok","conversationTitle":"Alex","conversationKind":"direct","titleSource":"header","ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"other_participant","senderName":"Alex","text":"Hello","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention"}],"matchedChatID":null,"matchConfidence":0}
+        """
+    }
+
+    private func noMessagesJSON() -> String {
+        """
+        {"extractionStatus":"no_messages","conversationTitle":null,"conversationKind":"unknown","titleSource":"unavailable","ownershipConvention":{"mode":"unobservable","screenshotOwnerAlignment":"unknown","screenshotOwnerAuthorLabel":null},"messages":[],"matchedChatID":null,"matchConfidence":0}
+        """
+    }
+
+    private func validSharedJSON() -> String {
+        """
+        {"extractionStatus":"ok","conversationTitle":null,"conversationKind":"unknown","titleSource":"unavailable","messages":[{"sender":"unknown","senderName":"Alice","text":"Hello","timestampLabel":"9:42 PM","senderConfidence":0.5,"senderEvidence":"author_label"}],"matchedChatID":null,"matchConfidence":0}
         """
     }
 }

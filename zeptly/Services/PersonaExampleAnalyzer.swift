@@ -32,7 +32,7 @@ final class PersonaExampleAnalyzer {
             )
         }
         let request = SuggestedReplyGenerationRequest(
-            chatName: "Writing samples",
+            task: .personaStyleLearning,
             chatMemories: [],
             currentInteractionGoal:
                 "Analyze the supplied writing examples. Replies are incidental.",
@@ -41,7 +41,7 @@ final class PersonaExampleAnalyzer {
             existingHistorySummary: "",
             summaryMode: .unchanged,
             olderMessagesToSummarize: [],
-            recentMessages: messages,
+            recentMessages: [],
             traceID: ImportTraceID()
         )
         let result = try await aiService.generateSuggestedReplies(request, using: provider)

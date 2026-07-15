@@ -92,8 +92,6 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                 conversationStrategy: "Previous strategy",
                 strategyRationale: "Previous rationale",
                 inputFingerprint: "old-fingerprint",
-                provider: ProviderPlatform.zaiInternational.rawValue,
-                model: ProviderModel.glm47FlashX.rawValue,
                 promptVersion: SuggestedReplyPrompt.version
             )
         )
@@ -357,7 +355,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let activeMemories = try repository.chatContextValue(chatID: chatID).chatMemories
             .filter { $0.status == .active }
         XCTAssertEqual(activeMemories.map(\.text), ["Asked about partner hotels in Beijing"])
-        XCTAssertEqual(activeMemories.first?.sourceMessageIDs, [otherParticipantMessage.id])
+        XCTAssertEqual(activeMemories.first?.origin, .ai)
     }
 
     @MainActor
@@ -372,19 +370,12 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let service = StubReplyService()
         let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
         _ = try await coordinator.generate(chatID: chatID)
-        XCTAssertEqual(
-            (try repository.suggestedReplyCache(chatID: chatID))?.provider,
-            ProviderPlatform.zaiInternational.rawValue
-        )
+        XCTAssertNotNil(try repository.suggestedReplyCache(chatID: chatID))
 
         service.context = .zhipuDefaultReplies
         _ = try await coordinator.generate(chatID: chatID)
 
         XCTAssertEqual(service.requests.count, 2)
-        XCTAssertEqual(
-            (try repository.suggestedReplyCache(chatID: chatID))?.provider,
-            ProviderPlatform.zhipuChina.rawValue
-        )
         XCTAssertEqual(service.models, [.glm47FlashX, .glm47FlashX])
     }
 
@@ -393,13 +384,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         ChatRecord(
             id: id,
             name: "Sarah",
-            preview: "Preview",
-            chipTitle: "General",
-            chipSymbol: "number",
-            avatarSymbol: nil,
-            initials: "S",
-            appearanceStyle: 0,
-            isUnread: false
+            preview: "Preview"
         )
     }
 
@@ -410,7 +395,6 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
             senderKind: index.isMultiple(of: 2) ? "user" : "other_participant",
             senderName: index.isMultiple(of: 2) ? nil : "Sarah",
             text: "Message \(index)",
-            normalizedText: "message \(index)",
             timeLabel: "",
             sortIndex: index
         )
@@ -427,10 +411,10 @@ private final class StubReplyService: AIServiceProviding {
     private let handler: Handler?
 
     init(
-        context: AIProviderExecutionContext = .zaiDefaultReplies,
+        context: AIProviderExecutionContext? = nil,
         handler: Handler? = nil
     ) {
-        self.context = context
+        self.context = context ?? .zaiDefaultReplies
         self.handler = handler
     }
 
@@ -478,12 +462,6 @@ extension AIProviderExecutionContext {
     fileprivate static var zaiDefaultReplies: AIProviderExecutionContext {
         AIProviderExecutionContext(
             platform: .zaiInternational,
-            profile: ProviderModelProfile(
-                selectedTier: .advanced,
-                screenshotAnalysisModel: .glm46VFlashX,
-                transcriptAnalysisModel: .glm47FlashX,
-                suggestedReplyModel: .glm47FlashX
-            ),
             capability: .suggestedReplies,
             effectiveModel: .glm47FlashX
         )
@@ -492,12 +470,6 @@ extension AIProviderExecutionContext {
     fileprivate static var zhipuDefaultReplies: AIProviderExecutionContext {
         AIProviderExecutionContext(
             platform: .zhipuChina,
-            profile: ProviderModelProfile(
-                selectedTier: .advanced,
-                screenshotAnalysisModel: .glm46VFlashX,
-                transcriptAnalysisModel: .glm47FlashX,
-                suggestedReplyModel: .glm47FlashX
-            ),
             capability: .suggestedReplies,
             effectiveModel: .glm47FlashX
         )
