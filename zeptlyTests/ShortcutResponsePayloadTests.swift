@@ -29,9 +29,7 @@ final class ShortcutResponsePayloadTests: XCTestCase {
         XCTAssertEqual(object["matchedExisting"] as? Bool, true)
         XCTAssertEqual(object["insertedMessageCount"] as? Int, 2)
         XCTAssertNil(object["suggestedReplies"])
-    }
 
-    func testReplyFailurePreservesSuccessfulImport() {
         let response = ShortcutResponseBuilder.success(
             outcome(matchedExisting: true, reviewRequired: false, duplicate: false, count: 2),
             replyErrorCode: "provider_rate_limited"

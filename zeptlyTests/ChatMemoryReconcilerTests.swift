@@ -72,7 +72,7 @@ final class ChatMemoryReconcilerTests: XCTestCase {
         XCTAssertNotNil(result.first { $0.text == "Vegetarian" && $0.status == .active })
     }
 
-    func testRejectsUnknownEvidenceTargetsAndDuplicateAdds() {
+    func testRejectsInvalidEvidenceTargetsAndDuplicateAdds() {
         let allowedID = UUID()
         let memory = ChatMemory(text: "Vegetarian")
         let result = ChatMemoryReconciler.reconcile(
@@ -101,12 +101,10 @@ final class ChatMemoryReconcilerTests: XCTestCase {
         )
 
         XCTAssertEqual(result, [memory])
-    }
 
-    func testRejectsOperationWhenAnyEvidenceIsNotOtherParticipantAuthored() {
         let otherParticipantID = UUID()
         let disallowedID = UUID()
-        let result = ChatMemoryReconciler.reconcile(
+        let mixedEvidenceResult = ChatMemoryReconciler.reconcile(
             memories: [],
             changes: [
                 ChatMemoryChange(
@@ -119,6 +117,6 @@ final class ChatMemoryReconcilerTests: XCTestCase {
             allowedOtherParticipantSourceMessageIDs: [otherParticipantID]
         )
 
-        XCTAssertTrue(result.isEmpty)
+        XCTAssertTrue(mixedEvidenceResult.isEmpty)
     }
 }

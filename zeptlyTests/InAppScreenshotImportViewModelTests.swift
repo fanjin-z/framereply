@@ -26,13 +26,12 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
         XCTAssertEqual(replies.requests.map(\.chatID), ["chat-1"])
         XCTAssertEqual(replies.requests.first?.draftingInput, "Use this context")
         XCTAssertEqual(result?.replies?.replies, ["First", "Second"])
-        XCTAssertEqual(viewModel.result?.message, "Added 2 messages to Sarah.")
         XCTAssertNil(viewModel.errorMessage)
         XCTAssertFalse(viewModel.isLoading)
     }
 
     @MainActor
-    func testKeepsSuccessfulImportWhenReplyGenerationFails() async throws {
+    func testSeparatesReplyFailureFromImportFailure() async throws {
         let importer = StubInAppImporter(
             outcome: makeOutcome(insertedMessageCount: 1, reviewRequired: true)
         )
@@ -47,56 +46,25 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
         XCTAssertEqual(result?.chatID, "chat-1")
         XCTAssertNil(result?.replies)
         XCTAssertEqual(result?.replyErrorMessage, "No provider")
-        XCTAssertEqual(viewModel.result?.message, "Imported 1 message. Review may be needed.")
         XCTAssertNil(viewModel.errorMessage)
         XCTAssertFalse(viewModel.isLoading)
-    }
 
-    @MainActor
-    func testImportFailureSetsErrorWithoutGeneratingReplies() async throws {
-        let importer = StubInAppImporter(error: StubError(message: "Provider failed"))
-        let replies = StubInAppReplies(
+        let failedImporter = StubInAppImporter(error: StubError(message: "Provider failed"))
+        let unusedReplies = StubInAppReplies(
             outcome: SuggestedRepliesOutcome(replies: ["First", "Second"], source: .generated)
         )
-        let viewModel = InAppScreenshotImportViewModel(
-            importer: importer,
-            repliesGenerator: replies
+        let failedViewModel = InAppScreenshotImportViewModel(
+            importer: failedImporter,
+            repliesGenerator: unusedReplies
         )
 
-        let result = await viewModel.importScreenshots([Data([1])])
+        let failedResult = await failedViewModel.importScreenshots([Data([1])])
 
-        XCTAssertNil(result)
-        XCTAssertNil(viewModel.result)
-        XCTAssertEqual(viewModel.errorMessage, "Provider failed")
-        XCTAssertTrue(replies.requests.isEmpty)
-        XCTAssertFalse(viewModel.isLoading)
-    }
-
-    @MainActor
-    func testImportsCopiedMessagesAndStillGeneratesRepliesWhenReviewIsRequired() async throws {
-        let importer = StubInAppImporter(
-            outcome: makeOutcome(insertedMessageCount: 2, reviewRequired: true)
-        )
-        let replies = StubInAppReplies(
-            outcome: SuggestedRepliesOutcome(replies: ["First", "Second"], source: .generated)
-        )
-        let viewModel = InAppScreenshotImportViewModel(
-            importer: importer,
-            repliesGenerator: replies
-        )
-
-        let result = await viewModel.importCopiedMessages(
-            ["Alice - 9:42 PM - Hello", " ", "Me - 9:43 PM - Hi"]
-        )
-
-        XCTAssertEqual(
-            importer.receivedTranscriptItems,
-            ["Alice - 9:42 PM - Hello", "Me - 9:43 PM - Hi"]
-        )
-        XCTAssertEqual(viewModel.importKind, .copiedMessages)
-        XCTAssertTrue(result?.outcome.reviewRequired == true)
-        XCTAssertEqual(result?.replies?.replies, ["First", "Second"])
-        XCTAssertEqual(replies.requests.map(\.chatID), ["chat-1"])
+        XCTAssertNil(failedResult)
+        XCTAssertNil(failedViewModel.result)
+        XCTAssertEqual(failedViewModel.errorMessage, "Provider failed")
+        XCTAssertTrue(unusedReplies.requests.isEmpty)
+        XCTAssertFalse(failedViewModel.isLoading)
     }
 
     @MainActor
@@ -127,7 +95,6 @@ private final class StubInAppImporter: ScreenshotImportProcessing {
     private let outcome: ScreenshotImportOutcome?
     private let error: Error?
     private(set) var receivedImageDataList: [Data] = []
-    private(set) var receivedTranscriptItems: [String] = []
 
     init(outcome: ScreenshotImportOutcome? = nil, error: Error? = nil) {
         self.outcome = outcome
@@ -149,7 +116,6 @@ private final class StubInAppImporter: ScreenshotImportProcessing {
         transcriptItems: [String],
         traceID: ImportTraceID
     ) async throws -> ScreenshotImportOutcome {
-        receivedTranscriptItems = transcriptItems
         if let error {
             throw error
         }

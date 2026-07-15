@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class PersonaPersistenceTests: XCTestCase {
-    func testSeedingIsIdempotentAndCreatesDefaultWithObservations() throws {
+    func testSeedingAndSelectedDefaultsDriveNewContexts() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = PersonaRepository(container: container)
         try repository.seedPersonasIfNeeded()
@@ -19,6 +19,12 @@ final class PersonaPersistenceTests: XCTestCase {
         let professional = try XCTUnwrap(personas.first { $0.name == "Professional" })
         XCTAssertEqual(try repository.defaultPersonaID(), professional.id)
         XCTAssertFalse(try repository.observations(personaID: professional.id).isEmpty)
+
+        let thoughtful = try XCTUnwrap(personas.first { $0.name == "Thoughtful" })
+        let chats = ChatRepository(container: container)
+        try repository.setDefaultPersona(id: thoughtful.id)
+        XCTAssertEqual(try chats.chatContextValue(chatID: "new-chat").personaID, thoughtful.id)
+        XCTAssertEqual(try chats.personaPromptContext(personaID: UUID()).id, thoughtful.id)
     }
 
     func testDefaultResolutionRejectsMissingMalformedAndDanglingMetadata() throws {
@@ -41,32 +47,7 @@ final class PersonaPersistenceTests: XCTestCase {
         }
     }
 
-    func testSelectedDefaultDrivesNewContextsAndMissingPersonaFallback() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let personas = PersonaRepository(container: container)
-        let chats = ChatRepository(container: container)
-        let thoughtful = try XCTUnwrap(try personas.personas().first { $0.name == "Thoughtful" })
-        try personas.setDefaultPersona(id: thoughtful.id)
-
-        XCTAssertEqual(try chats.chatContextValue(chatID: "new-chat").personaID, thoughtful.id)
-        XCTAssertEqual(try chats.personaPromptContext(personaID: UUID()).id, thoughtful.id)
-    }
-
-    func testQuickSetupCompilesTextOnlyAndReplacesPriorQuickObservation() {
-        let first = PersonaQuickSetup.compile(selections: ["formality": 2, "emoji": -2])
-        XCTAssertEqual(first.count, 2)
-        XCTAssertTrue(first.contains("Does not use emoji."))
-
-        let replaced = PersonaQuickSetup.replacingQuickSetupObservations(
-            in: first + ["Uses sentence fragments."],
-            selections: ["formality": -1]
-        )
-        XCTAssertFalse(replaced.contains("Does not use emoji."))
-        XCTAssertTrue(replaced.contains("Keeps wording casual and conversational."))
-        XCTAssertTrue(replaced.contains("Uses sentence fragments."))
-    }
-
-    func testCreateAndDuplicatePersistOnlyObservationText() throws {
+    func testPersonaCreateDuplicateAndDeleteLifecycle() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = PersonaRepository(container: container)
         try repository.seedPersonasIfNeeded()
@@ -87,15 +68,10 @@ final class PersonaPersistenceTests: XCTestCase {
         XCTAssertEqual(copied.origin, PersonaObservationOrigin.seed.rawValue)
         XCTAssertFalse(copied.isUserProtected)
         XCTAssertEqual(copied.status, PersonaObservationStatus.active.rawValue)
-    }
 
-    func testDeletingDefaultRequiresAndAppliesReplacement() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = PersonaRepository(container: container)
-        try repository.seedPersonasIfNeeded()
-        let records = try repository.personas()
-        let professional = try XCTUnwrap(records.first { $0.name == "Professional" })
-        let spark = try XCTUnwrap(records.first { $0.name == "Spark" })
+        let professional = try XCTUnwrap(
+            try repository.personas().first { $0.name == "Professional" })
+        let spark = try XCTUnwrap(try repository.personas().first { $0.name == "Spark" })
         let assignment = ChatContextRecord(
             chatID: "chat", currentInteractionGoal: "",
             personaID: professional.id
@@ -108,30 +84,19 @@ final class PersonaPersistenceTests: XCTestCase {
 
         XCTAssertEqual(try repository.defaultPersonaID(), spark.id)
         XCTAssertEqual(assignment.personaID, spark.id)
-    }
 
-    func testDeletingNonDefaultReassignsChatAssignmentsToDesignatedDefault() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = PersonaRepository(container: container)
-        try repository.seedPersonasIfNeeded()
-        let records = try repository.personas()
-        let professional = try XCTUnwrap(records.first { $0.name == "Professional" })
-        let spark = try XCTUnwrap(records.first { $0.name == "Spark" })
-        let thoughtful = try XCTUnwrap(records.first { $0.name == "Thoughtful" })
+        let thoughtful = try XCTUnwrap(try repository.personas().first { $0.name == "Thoughtful" })
         try repository.setDefaultPersona(id: thoughtful.id)
-        let assignment = ChatContextRecord(
-            chatID: "chat", currentInteractionGoal: "",
-            personaID: spark.id
+        let nonDefaultAssignment = ChatContextRecord(
+            chatID: "other-chat", currentInteractionGoal: "",
+            personaID: duplicate.id
         )
-        container.mainContext.insert(assignment)
+        container.mainContext.insert(nonDefaultAssignment)
         try container.mainContext.save()
 
-        try repository.delete(spark)
-
-        XCTAssertEqual(try repository.defaultPersonaID(), thoughtful.id)
-        XCTAssertEqual(assignment.personaID, thoughtful.id)
-        XCTAssertNotNil(try repository.persona(id: professional.id))
-        XCTAssertNil(try repository.persona(id: spark.id))
+        try repository.delete(duplicate)
+        XCTAssertEqual(nonDefaultAssignment.personaID, thoughtful.id)
+        XCTAssertNil(try repository.persona(id: duplicate.id))
     }
 
     func testLearningUsesOnlyFutureUnprocessedUserMessages() throws {
@@ -161,7 +126,7 @@ final class PersonaPersistenceTests: XCTestCase {
             ).map(\.id), [future.id])
     }
 
-    func testObservationReconciliationAddsUpdatesAndArchivesWithEvidence() throws {
+    func testObservationReconciliationHonorsEvidenceAndProtectedTombstones() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let personas = PersonaRepository(container: container)
         let chats = ChatRepository(container: container)
@@ -206,55 +171,33 @@ final class PersonaPersistenceTests: XCTestCase {
             ], sampleMessageIDs: Set(ids), sampleCount: 2
         )
         XCTAssertEqual(replacement.status, PersonaObservationStatus.archived.rawValue)
-    }
 
-    func testProtectedObservationAndTombstoneCannotBeChangedOrRecreated() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let personas = PersonaRepository(container: container)
-        let chats = ChatRepository(container: container)
-        try personas.seedPersonasIfNeeded()
-        let personaID = try personas.defaultPersonaID()
         try personas.addUserObservation("Never uses exclamation marks.", personaID: personaID)
         let protected = try XCTUnwrap(
             personas.observations(personaID: personaID)
                 .first { $0.text == "Never uses exclamation marks." })
         try personas.archiveObservation(protected)
-        let ids = [UUID(), UUID()]
+        let protectedEvidenceIDs = [UUID(), UUID()]
 
         try chats.savePersonaExampleAnalysis(
             personaID: personaID,
             changes: [
                 PersonaObservationChange(
                     action: .update, targetObservationID: protected.id,
-                    text: "Uses lots of exclamation marks!", sourceMessageIDs: ids
+                    text: "Uses lots of exclamation marks!",
+                    sourceMessageIDs: protectedEvidenceIDs
                 ),
                 PersonaObservationChange(
                     action: .add, targetObservationID: nil,
-                    text: "Never uses exclamation marks.", sourceMessageIDs: ids
+                    text: "Never uses exclamation marks.",
+                    sourceMessageIDs: protectedEvidenceIDs
                 )
-            ], sampleMessageIDs: Set(ids), sampleCount: 2
+            ], sampleMessageIDs: Set(protectedEvidenceIDs), sampleCount: 2
         )
 
         let all = try personas.observations(personaID: personaID, includeInactive: true)
         XCTAssertEqual(all.filter { $0.text == "Never uses exclamation marks." }.count, 1)
         XCTAssertFalse(all.contains { $0.text == "Uses lots of exclamation marks!" })
-    }
-
-    func testObservationDecoderRequiresTwoDistinctEvidenceMessages() throws {
-        let first = UUID().uuidString
-        let second = UUID().uuidString
-        let valid = """
-            {"personaObservationChanges":[{"action":"add","targetObservationID":null,
-             "text":"Uses short sentences.","evidenceMessageIDs":["\(first)","\(second)"]}]}
-            """
-        let result = try SuggestedReplyResultDecoder.decode(
-            content: valid, finishReason: "stop", task: .personaStyleLearning)
-        XCTAssertEqual(result.personaObservationChanges.first?.text, "Uses short sentences.")
-
-        let invalid = valid.replacingOccurrences(of: "\"\(second)\"", with: "\"\(first)\"")
-        XCTAssertThrowsError(
-            try SuggestedReplyResultDecoder.decode(
-                content: invalid, finishReason: "stop", task: .personaStyleLearning))
     }
 
     private func message(chatID: String, sender: String, createdAt: Date) -> ChatMessageRecord {

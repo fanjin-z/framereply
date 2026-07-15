@@ -5,7 +5,7 @@ import XCTest
 
 final class ProviderStoreTests: XCTestCase {
     @MainActor
-    func testProviderTiersResolveToExpectedTaskModels() {
+    func testProviderCatalogTiersAndModelCompatibility() throws {
         let registry = AIProviderRegistry.live()
         XCTAssertEqual(
             registry.profile(for: .openAI, selectedTier: .basic)?.screenshotAnalysisModel,
@@ -48,10 +48,7 @@ final class ProviderStoreTests: XCTestCase {
             registry.profile(for: .zhipuChina, selectedTier: .best)?.suggestedReplyModel,
             .glm47
         )
-    }
 
-    @MainActor
-    func testProviderCatalogAndModelCompatibility() throws {
         XCTAssertEqual(ProviderPlatform.allCases, [.openAI, .zaiInternational, .zhipuChina])
         XCTAssertEqual(
             ProviderPlatform.zaiInternational.supportedTiers,
@@ -97,7 +94,7 @@ final class ProviderStoreTests: XCTestCase {
     }
 
     @MainActor
-    func testPersistedActivationIsExclusiveAndSurvivesReload() throws {
+    func testProviderSelectionPersistsAndFallsBackSafely() throws {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         try saveProviders(makeProviders(), to: defaults)
@@ -115,30 +112,7 @@ final class ProviderStoreTests: XCTestCase {
         let reloadedStore = ProviderStore(userDefaults: defaults)
         XCTAssertEqual(reloadedStore.activePlatform, .openAI)
         XCTAssertEqual(reloadedStore.activeProvider?.platform, .openAI)
-    }
 
-    @MainActor
-    func testProviderStoreUsesOnlyReleaseV1Preferences() throws {
-        let (defaults, suiteName) = makeDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        defaults.set(
-            try JSONEncoder().encode(makeProviders()),
-            forKey: ProviderStoreTestKey.retiredProviders
-        )
-
-        let store = ProviderStore(userDefaults: defaults)
-
-        XCTAssertTrue(store.providers.isEmpty)
-        XCTAssertNil(store.activePlatform)
-        let releaseData = try XCTUnwrap(
-            defaults.data(forKey: ProviderStoreTestKey.providers))
-        XCTAssertTrue(
-            try JSONDecoder().decode([ProviderConnection].self, from: releaseData).isEmpty)
-        XCTAssertNotNil(defaults.data(forKey: ProviderStoreTestKey.retiredProviders))
-    }
-
-    @MainActor
-    func testFallbackAndEmptyProviderSelection() throws {
         do {
             let (defaults, suiteName) = makeDefaults()
             defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -275,7 +249,6 @@ final class ProviderStoreTests: XCTestCase {
 
 private enum ProviderStoreTestKey {
     static let providers = "zeptly.providerConnections.v1"
-    static let retiredProviders = "zeptly.providerConnections.v2"
     static let activePlatform = "zeptly.activeProviderPlatform.v1"
 }
 

@@ -10,7 +10,7 @@ final class ProviderValidatorTests: XCTestCase {
     }
 
     @MainActor
-    func testZAIUsesOneSelectedModelProbe() async throws {
+    func testProvidersUseOneSelectedModelProbe() async throws {
         URLProtocolStub.stub(
             statusCode: 200,
             body: #"{"choices":[{"index":0,"message":{"content":"OK"},"finish_reason":"stop"}]}"#
@@ -22,24 +22,22 @@ final class ProviderValidatorTests: XCTestCase {
         )
 
         XCTAssertEqual(URLProtocolStub.requests.count, 1)
-        let request = try XCTUnwrap(URLProtocolStub.requests.first)
-        XCTAssertEqual(request.url?.path, "/api/paas/v4/chat/completions")
-        XCTAssertFalse(request.url?.path.contains("balance") == true)
-        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer zai-key")
+        let zaiRequest = try XCTUnwrap(URLProtocolStub.requests.first)
+        XCTAssertEqual(zaiRequest.url?.path, "/api/paas/v4/chat/completions")
+        XCTAssertFalse(zaiRequest.url?.path.contains("balance") == true)
+        XCTAssertEqual(zaiRequest.value(forHTTPHeaderField: "Authorization"), "Bearer zai-key")
 
-        let body = try jsonBody(request)
-        XCTAssertEqual(body["model"] as? String, "glm-4.6v-flashx")
-        XCTAssertEqual(body["max_tokens"] as? Int, 64)
-        XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
-        XCTAssertEqual(body["do_sample"] as? Bool, false)
-        let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
+        let zaiBody = try jsonBody(zaiRequest)
+        XCTAssertEqual(zaiBody["model"] as? String, "glm-4.6v-flashx")
+        XCTAssertEqual(zaiBody["max_tokens"] as? Int, 64)
+        XCTAssertEqual((zaiBody["thinking"] as? [String: Any])?["type"] as? String, "disabled")
+        XCTAssertEqual(zaiBody["do_sample"] as? Bool, false)
+        let messages = try XCTUnwrap(zaiBody["messages"] as? [[String: Any]])
         let content = try XCTUnwrap(messages.first?["content"] as? [[String: Any]])
         XCTAssertEqual(content.first?["type"] as? String, "text")
         XCTAssertEqual(content.first?["text"] as? String, "Reply exactly: OK.")
-    }
 
-    @MainActor
-    func testOpenAIUsesOneSelectedModelProbe() async throws {
+        URLProtocolStub.reset()
         URLProtocolStub.stub(
             statusCode: 200,
             body:
@@ -52,15 +50,21 @@ final class ProviderValidatorTests: XCTestCase {
         )
 
         XCTAssertEqual(URLProtocolStub.requests.count, 1)
-        let request = try XCTUnwrap(URLProtocolStub.requests.first)
-        XCTAssertEqual(request.url?.path, "/v1/responses")
-        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer open-key")
+        let openAIRequest = try XCTUnwrap(URLProtocolStub.requests.first)
+        XCTAssertEqual(openAIRequest.url?.path, "/v1/responses")
+        XCTAssertEqual(
+            openAIRequest.value(forHTTPHeaderField: "Authorization"),
+            "Bearer open-key"
+        )
 
-        let body = try jsonBody(request)
-        XCTAssertEqual(body["model"] as? String, "gpt-5.6-luna")
-        XCTAssertEqual(body["input"] as? String, "Reply exactly: OK.")
-        XCTAssertEqual(body["max_output_tokens"] as? Int, 16)
-        XCTAssertEqual((body["reasoning"] as? [String: Any])?["effort"] as? String, "none")
+        let openAIBody = try jsonBody(openAIRequest)
+        XCTAssertEqual(openAIBody["model"] as? String, "gpt-5.6-luna")
+        XCTAssertEqual(openAIBody["input"] as? String, "Reply exactly: OK.")
+        XCTAssertEqual(openAIBody["max_output_tokens"] as? Int, 16)
+        XCTAssertEqual(
+            (openAIBody["reasoning"] as? [String: Any])?["effort"] as? String,
+            "none"
+        )
     }
 
     @MainActor
@@ -109,10 +113,7 @@ final class ProviderValidatorTests: XCTestCase {
         await assertHTTPError(
             .providerUnavailable, statusCode: 500, validator: OpenAIClient(session: makeSession()),
             model: .gpt56Luna)
-    }
 
-    @MainActor
-    func testZAIRetainsInvalidRequestMetadataAndMapsShortcutCode() async {
         URLProtocolStub.stub(
             statusCode: 400,
             body:

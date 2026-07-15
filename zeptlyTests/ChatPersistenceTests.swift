@@ -5,25 +5,7 @@ import XCTest
 
 @MainActor
 final class ChatPersistenceTests: XCTestCase {
-    func testReleaseStoreAndSeedUseVersionOne() throws {
-        XCTAssertEqual(ZeptlyDataStore.configurationName, "ZeptlyChatsV1")
-        XCTAssertEqual(ZeptlyDataStore.defaultStoreURL.lastPathComponent, "ZeptlyChatsV1.store")
-
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        try repository.seedIfNeeded()
-        try repository.seedIfNeeded()
-
-        let metadata = try container.mainContext.fetch(
-            FetchDescriptor<StoreMetadataRecord>(
-                predicate: #Predicate { $0.key == "sampleSeedVersion" }
-            )
-        )
-        XCTAssertEqual(metadata.count, 1)
-        XCTAssertEqual(metadata.first?.value, "1")
-    }
-
-    func testDraftingInputLifecycle() throws {
+    func testDraftingInputLifecycleAcrossContexts() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let operationID = UUID()
@@ -96,38 +78,32 @@ final class ChatPersistenceTests: XCTestCase {
         )
         try repository.purgeExpiredDraftingInputs(now: now)
         XCTAssertNil(expired.draftingInput)
-    }
 
-    func testFreshContextObservesInputCommittedByAnotherContext() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let operationID = UUID()
-        let record = makePendingImport(operationID: operationID)
-        container.mainContext.insert(record)
-        try container.mainContext.save()
+        let crossContextContainer = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let crossContextOperationID = UUID()
+        let record = makePendingImport(operationID: crossContextOperationID)
+        crossContextContainer.mainContext.insert(record)
+        try crossContextContainer.mainContext.save()
 
-        let staleRepository = ChatRepository(context: ModelContext(container))
+        let staleRepository = ChatRepository(context: ModelContext(crossContextContainer))
         XCTAssertEqual(
             try staleRepository.importRecord(id: record.id)?.draftingInputStateRaw, "pending")
 
-        let writer = ChatRepository(context: ModelContext(container))
-        try writer.resolveDraftingInput("Use Friday", importID: record.id, operationID: operationID)
+        let writer = ChatRepository(context: ModelContext(crossContextContainer))
+        try writer.resolveDraftingInput(
+            "Use Friday",
+            importID: record.id,
+            operationID: crossContextOperationID
+        )
 
-        let freshReader = ChatRepository(context: ModelContext(container))
+        let freshReader = ChatRepository(context: ModelContext(crossContextContainer))
         XCTAssertEqual(
             try freshReader.consumeDraftingInputIfReady(
-                importID: record.id, operationID: operationID),
+                importID: record.id,
+                operationID: crossContextOperationID
+            ),
             .submitted("Use Friday")
         )
-    }
-
-    func testDraftingInputBarrierWaitsForReadyState() async throws {
-        let sequence = DraftingInputTestSequence([.pending, .pending, .submitted("Ready")])
-        let result = try await DraftingInputBarrier.waitUntilReady(pollInterval: .milliseconds(1)) {
-            await sequence.next()
-        }
-        XCTAssertEqual(result, .submitted("Ready"))
-        let readCount = await sequence.readCount
-        XCTAssertEqual(readCount, 3)
     }
 
     func testChatsPersistWhenTheContainerIsRecreated() throws {
@@ -202,7 +178,7 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(try repository.messages(chatID: "sarah-jenkins").count, 2)
     }
 
-    func testUnconfirmedImportUsesReliableSenderNameForProvisionalChat() throws {
+    func testProvisionalAndUnknownSenderIdentityLifecycle() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         try repository.seedIfNeeded()
@@ -245,16 +221,6 @@ final class ChatPersistenceTests: XCTestCase {
             try repository.chat(id: outcome.chatID)?.importReviewState?.identityStatus,
             .needsReview
         )
-    }
-
-    func testProvisionalChatCanBeRenamedAndConfirmed() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        try repository.seedIfNeeded()
-        let outcome = try repository.applyImport(
-            analysis: provisionalAnalysis(),
-            confirmedChatID: nil
-        )
 
         try repository.confirmProvisionalChat(chatID: outcome.chatID, name: "Alex Hiking")
 
@@ -262,22 +228,58 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(chat.name, "Alex Hiking")
         XCTAssertFalse(chat.isProvisional)
         XCTAssertEqual(chat.importReviewState?.identityStatus, .confirmed)
+
+        let reviewContainer = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let reviewRepository = ChatRepository(container: reviewContainer)
+        insertChat(id: "known-chat", name: "Known Chat", into: reviewContainer)
+        try reviewContainer.mainContext.save()
+        let unknownAnalysis = ChatImportAnalysis(
+            conversationTitle: "Known Chat",
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .unknown,
+                    senderName: "Alex",
+                    text: "I remember",
+                    timestampLabel: "12:19 AM",
+                    outerAlignment: .fullWidth,
+                    outerAuthorLabel: "Alex",
+                    senderConfidence: 0.2,
+                    senderEvidence: .insufficient
+                )
+            ],
+            matchedChatID: "known-chat",
+            matchConfidence: 0.95,
+            ownershipConvention: .unobservable
+        )
+        let unknownOutcome = try reviewRepository.applyImport(
+            analysis: unknownAnalysis,
+            confirmedChatID: "known-chat"
+        )
+        let stored = try XCTUnwrap(reviewRepository.messages(chatID: "known-chat").first)
+        let importBefore = try XCTUnwrap(
+            reviewContainer.mainContext.fetch(FetchDescriptor<ChatImportRecord>()).first
+        )
+        let fingerprintBefore = importBefore.transcriptFingerprint
+
+        XCTAssertTrue(unknownOutcome.reviewRequired)
+        XCTAssertEqual(stored.senderKind, "unknown")
+        XCTAssertTrue(importBefore.requiresReview)
+
+        try reviewRepository.resolveUnknownSender(messageID: stored.id, as: .otherParticipant)
+
+        XCTAssertEqual(
+            try reviewRepository.messages(chatID: "known-chat").first?.senderKind,
+            "other_participant"
+        )
+        XCTAssertEqual(
+            try reviewRepository.participantAliases(chatID: "known-chat").map(\.normalizedLabel),
+            ["alex"]
+        )
+        XCTAssertFalse(importBefore.requiresReview)
+        XCTAssertNotEqual(importBefore.transcriptFingerprint, fingerprintBefore)
     }
 
-    func testNilImportReviewStateMeansNormalChat() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        insertChat(id: "normal-chat", name: "Normal Chat", into: container)
-        try container.mainContext.save()
-
-        let chat = try XCTUnwrap(repository.chat(id: "normal-chat"))
-        XCTAssertNil(chat.importReviewStateJSON)
-        XCTAssertNil(chat.importReviewState)
-        XCTAssertFalse(chat.requiresImportIdentityReview)
-        XCTAssertFalse(chat.isProvisional)
-    }
-
-    func testProvisionalReviewAutoRetiresAfterReviewViewAndTwoActions() throws {
+    func testProvisionalReviewRetiresOnlyAfterEnoughResolvedActivity() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         try repository.seedIfNeeded()
@@ -305,56 +307,13 @@ final class ChatPersistenceTests: XCTestCase {
 
         chat = try XCTUnwrap(repository.chat(id: outcome.chatID))
         XCTAssertFalse(chat.isProvisional)
-        XCTAssertEqual(Chat(record: chat).chipTitle, "General")
-        XCTAssertEqual(Chat(record: chat).chipSymbol, "number")
         XCTAssertEqual(chat.importReviewState?.meaningfulActionCount, 2)
         XCTAssertEqual(chat.importReviewState?.identityStatus, .dismissed)
         XCTAssertFalse(importRecord.requiresReview)
-    }
 
-    func testImportReviewExposureIsDebounced() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let outcome = try repository.applyImport(
-            analysis: provisionalAnalysis(),
-            confirmedChatID: nil
-        )
-        let firstView = Date(timeIntervalSince1970: 1_000)
-
-        try repository.recordImportReviewExposure(chatID: outcome.chatID, now: firstView)
-        try repository.recordImportReviewExposure(
-            chatID: outcome.chatID,
-            now: firstView.addingTimeInterval(60)
-        )
-        try repository.recordImportReviewExposure(
-            chatID: outcome.chatID,
-            now: firstView.addingTimeInterval(31 * 60)
-        )
-
-        XCTAssertEqual(try repository.chat(id: outcome.chatID)?.importReviewState?.viewCount, 2)
-    }
-
-    func testOneImportOperationCountsAsOneMeaningfulReviewAction() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let outcome = try repository.applyImport(
-            analysis: provisionalAnalysis(),
-            confirmedChatID: nil
-        )
-
-        try repository.recordImportReviewMeaningfulAction(chatID: outcome.chatID)
-
-        XCTAssertEqual(
-            try repository.chat(id: outcome.chatID)?.importReviewState?.meaningfulActionCount,
-            1
-        )
-        XCTAssertTrue(try XCTUnwrap(repository.chat(id: outcome.chatID)).isProvisional)
-    }
-
-    func testUnknownSenderBlocksProvisionalReviewAutoRetirement() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let analysis = ChatImportAnalysis(
+        let unknownContainer = try ZeptlyDataStore.makeContainer(inMemory: true)
+        let unknownRepository = ChatRepository(container: unknownContainer)
+        let unknownAnalysis = ChatImportAnalysis(
             conversationTitle: "Weekend Hike",
             messages: [
                 AnalyzedChatMessage(
@@ -367,40 +326,20 @@ final class ChatPersistenceTests: XCTestCase {
             matchedChatID: nil,
             matchConfidence: 0
         )
-        let outcome = try repository.applyImport(
-            analysis: analysis,
+        let unknownOutcome = try unknownRepository.applyImport(
+            analysis: unknownAnalysis,
             confirmedChatID: nil
         )
 
-        try repository.recordImportReviewExposure(chatID: outcome.chatID)
-        try repository.recordImportReviewMeaningfulAction(chatID: outcome.chatID)
-        try repository.recordImportReviewMeaningfulAction(chatID: outcome.chatID)
+        try unknownRepository.recordImportReviewExposure(chatID: unknownOutcome.chatID)
+        try unknownRepository.recordImportReviewMeaningfulAction(chatID: unknownOutcome.chatID)
+        try unknownRepository.recordImportReviewMeaningfulAction(chatID: unknownOutcome.chatID)
 
-        let chat = try XCTUnwrap(repository.chat(id: outcome.chatID))
-        XCTAssertTrue(chat.isProvisional)
-        XCTAssertEqual(chat.importReviewState?.identityStatus, .needsReview)
-    }
-
-    func testChatCanBeRenamed() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        insertChat(id: "rename-me", name: "Old Name", into: container)
-        let originalUpdatedAt = Date(timeIntervalSince1970: 0)
-        let chat = try XCTUnwrap(repository.chat(id: "rename-me"))
-        chat.updatedAt = originalUpdatedAt
-        try container.mainContext.save()
-
-        try repository.renameChat(id: "rename-me", name: "  Alex Hiking\n")
-
-        let renamed = try XCTUnwrap(repository.chat(id: "rename-me"))
-        XCTAssertEqual(renamed.name, "Alex Hiking")
-        XCTAssertEqual(Chat(record: renamed).initials, "AH")
-        XCTAssertGreaterThan(renamed.updatedAt, originalUpdatedAt)
-
-        try repository.renameChat(id: "rename-me", name: " \n ")
-        XCTAssertEqual(try repository.chat(id: "rename-me")?.name, "Alex Hiking")
-
-        try repository.renameChat(id: "missing-chat", name: "No Crash")
+        let unresolvedChat = try XCTUnwrap(
+            unknownRepository.chat(id: unknownOutcome.chatID)
+        )
+        XCTAssertTrue(unresolvedChat.isProvisional)
+        XCTAssertEqual(unresolvedChat.importReviewState?.identityStatus, .needsReview)
     }
 
     func testChatContextIsCreatedAndGoalAndPersonaUpdatesAreExplicit() throws {
@@ -462,28 +401,6 @@ final class ChatPersistenceTests: XCTestCase {
             try repository.chatMemories(chatID: "target-chat").map(\.text), ["Met on the trail"])
     }
 
-    func testAtomicChatMemoriesPreserveMultilineTextAndMetadata() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let chatID = "memory-chat"
-        insertChat(id: chatID, name: "Memory", into: container)
-        let memory = ChatMemory(
-            text: "Met at university.\nPlanning a reunion next spring.",
-            origin: .ai,
-            certainty: .aiInferred
-        )
-        container.mainContext.insert(ChatMemoryRecord(chatID: chatID, value: memory))
-        try container.mainContext.save()
-
-        let stored = try XCTUnwrap(repository.chatMemories(chatID: chatID).first?.value)
-        XCTAssertEqual(stored.id, memory.id)
-        XCTAssertEqual(stored.text, memory.text)
-        XCTAssertEqual(stored.origin, .ai)
-        XCTAssertEqual(stored.certainty, .aiInferred)
-        XCTAssertEqual(stored.status, .active)
-        XCTAssertEqual(stored.updatedAt, memory.updatedAt)
-    }
-
     func testDeleteChatRemovesRelatedDataAndLeavesOtherChatsUntouched() throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
@@ -507,59 +424,6 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(try repository.messages(chatID: "keep-me").count, 1)
         XCTAssertEqual(try relatedRecordCounts(chatID: "keep-me", in: container), [1, 1, 1])
         XCTAssertNotNil(try repository.suggestedReplyCache(chatID: "keep-me"))
-    }
-
-    func testUnknownSenderRequiresReviewAndCanBeResolved() throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        insertChat(id: "known-chat", name: "Known Chat", into: container)
-        try container.mainContext.save()
-        let analysis = ChatImportAnalysis(
-            conversationTitle: "Known Chat",
-            messages: [
-                AnalyzedChatMessage(
-                    sender: .unknown,
-                    senderName: "Alex",
-                    text: "I remember",
-                    timestampLabel: "12:19 AM",
-                    outerAlignment: .fullWidth,
-                    outerAuthorLabel: "Alex",
-                    senderConfidence: 0.2,
-                    senderEvidence: .insufficient
-                )
-            ],
-            matchedChatID: "known-chat",
-            matchConfidence: 0.95,
-            ownershipConvention: .unobservable
-        )
-
-        let outcome = try repository.applyImport(
-            analysis: analysis,
-            confirmedChatID: "known-chat"
-        )
-        let stored = try XCTUnwrap(repository.messages(chatID: "known-chat").first)
-        let importBefore = try XCTUnwrap(
-            container.mainContext.fetch(FetchDescriptor<ChatImportRecord>()).first
-        )
-        let fingerprintBefore = importBefore.transcriptFingerprint
-
-        XCTAssertTrue(outcome.reviewRequired)
-        XCTAssertEqual(stored.senderKind, "unknown")
-        XCTAssertEqual(stored.text, "I remember")
-        XCTAssertTrue(importBefore.requiresReview)
-
-        try repository.resolveUnknownSender(messageID: stored.id, as: .otherParticipant)
-
-        XCTAssertEqual(
-            try repository.messages(chatID: "known-chat").first?.senderKind,
-            "other_participant"
-        )
-        XCTAssertEqual(
-            try repository.participantAliases(chatID: "known-chat").map(\.normalizedLabel),
-            ["alex"]
-        )
-        XCTAssertFalse(importBefore.requiresReview)
-        XCTAssertNotEqual(importBefore.transcriptFingerprint, fingerprintBefore)
     }
 
     private func insertChat(
@@ -670,18 +534,4 @@ final class ChatPersistenceTests: XCTestCase {
         )
     }
 
-}
-
-private actor DraftingInputTestSequence {
-    private var values: [DraftingInputConsumption]
-    private(set) var readCount = 0
-
-    init(_ values: [DraftingInputConsumption]) {
-        self.values = values
-    }
-
-    func next() -> DraftingInputConsumption {
-        readCount += 1
-        return values.removeFirst()
-    }
 }

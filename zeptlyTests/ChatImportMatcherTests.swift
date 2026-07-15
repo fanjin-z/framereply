@@ -4,7 +4,7 @@ import XCTest
 
 @MainActor
 final class ChatImportMatcherTests: XCTestCase {
-    func testNameAndConfidenceMatchingPolicy() {
+    func testNameConfidenceAndAliasMatchingPolicy() {
         let cases: [(String, String, Double, String?)] = [
             ("high-confidence local name", "Sarah Jenkins", 0.9, "sarah-jenkins"),
             ("no local name evidence", "Someone Else", 0.99, nil),
@@ -22,9 +22,48 @@ final class ChatImportMatcherTests: XCTestCase {
                 name
             )
         }
+
+        let aliasAnalysis = makeAnalysis(
+            title: "@sarah_work",
+            confidence: 0.96,
+            matchedChatID: "sarah-jenkins",
+            titleSource: .participantLabel
+        )
+        let aliasCandidate = ChatMatchCandidate(
+            id: "sarah-jenkins",
+            name: "Sarah Jenkins",
+            participantAliases: ["@Sarah_Work"],
+            recentMessages: []
+        )
+        XCTAssertEqual(
+            ChatImportMatcher.confirmedChatID(
+                analysis: aliasAnalysis,
+                candidates: [aliasCandidate]
+            ),
+            aliasCandidate.id
+        )
+
+        let ambiguousCandidates = ["alex-one", "alex-two"].map {
+            ChatMatchCandidate(
+                id: $0,
+                name: $0,
+                participantAliases: ["Alex"],
+                recentMessages: []
+            )
+        }
+        XCTAssertNil(
+            ChatImportMatcher.confirmedChatID(
+                analysis: makeAnalysis(
+                    title: "Alex",
+                    confidence: 0.98,
+                    matchedChatID: "alex-one"
+                ),
+                candidates: ambiguousCandidates
+            )
+        )
     }
 
-    func testTranscriptEvidenceRequiresDistinctiveLocalSignals() {
+    func testTranscriptEvidenceRequiresDistinctiveSignalsAndCanSurviveNameChanges() {
         let messages = [
             AnalyzedChatMessage(
                 sender: .otherParticipant, senderName: nil, text: "First", timestampLabel: nil),
@@ -83,11 +122,9 @@ final class ChatImportMatcherTests: XCTestCase {
         )
 
         XCTAssertNil(repeatedMatch)
-    }
 
-    func testDifferentObservedNamesRejectRepeatedOutgoingOpener() {
         let opener = "Hello, I am from China and I am learning Russian."
-        let analysis = ChatImportAnalysis(
+        let differentNameAnalysis = ChatImportAnalysis(
             conversationTitle: "Kristina",
             messages: [
                 AnalyzedChatMessage(
@@ -104,59 +141,15 @@ final class ChatImportMatcherTests: XCTestCase {
             recentMessages: [ChatCandidateMessage(sender: "user", text: opener, timeLabel: "")]
         )
 
-        let match = ChatImportMatcher.confirmedChatID(analysis: analysis, candidates: [inna])
-
-        XCTAssertNil(match)
-    }
-
-    func testUniqueParticipantAliasConfirmsSelectedChat() {
-        let analysis = makeAnalysis(
-            title: "@sarah_work",
-            confidence: 0.96,
-            matchedChatID: "sarah-jenkins",
-            titleSource: .participantLabel
-        )
-        let candidate = ChatMatchCandidate(
-            id: "sarah-jenkins",
-            name: "Sarah Jenkins",
-            participantAliases: ["@Sarah_Work"],
-            recentMessages: []
+        let differentNameMatch = ChatImportMatcher.confirmedChatID(
+            analysis: differentNameAnalysis,
+            candidates: [inna]
         )
 
-        let match = ChatImportMatcher.confirmedChatID(
-            analysis: analysis,
-            candidates: [candidate]
-        )
+        XCTAssertNil(differentNameMatch)
 
-        XCTAssertEqual(match, candidate.id)
-    }
-
-    func testDuplicateParticipantAliasStillRequiresDiscriminator() {
-        let analysis = makeAnalysis(
-            title: "Alex",
-            confidence: 0.98,
-            matchedChatID: "alex-one"
-        )
-        let candidates = ["alex-one", "alex-two"].map {
-            ChatMatchCandidate(
-                id: $0,
-                name: $0,
-                participantAliases: ["Alex"],
-                recentMessages: []
-            )
-        }
-
-        let match = ChatImportMatcher.confirmedChatID(
-            analysis: analysis,
-            candidates: candidates
-        )
-
-        XCTAssertNil(match)
-    }
-
-    func testStrongTranscriptCanConfirmPreviouslyUnseenChangedName() {
         let incoming = "The reservation code is ZXQ-9182."
-        let analysis = ChatImportAnalysis(
+        let changedNameAnalysis = ChatImportAnalysis(
             conversationTitle: "New Profile Name",
             messages: [
                 AnalyzedChatMessage(
@@ -171,7 +164,7 @@ final class ChatImportMatcherTests: XCTestCase {
             conversationKind: .direct,
             titleSource: .header
         )
-        let candidate = ChatMatchCandidate(
+        let changedNameCandidate = ChatMatchCandidate(
             id: "old-name",
             name: "Old Name",
             recentMessages: [
@@ -183,12 +176,12 @@ final class ChatImportMatcherTests: XCTestCase {
             ]
         )
 
-        let match = ChatImportMatcher.confirmedChatID(
-            analysis: analysis,
-            candidates: [candidate]
+        let changedNameMatch = ChatImportMatcher.confirmedChatID(
+            analysis: changedNameAnalysis,
+            candidates: [changedNameCandidate]
         )
 
-        XCTAssertEqual(match, candidate.id)
+        XCTAssertEqual(changedNameMatch, changedNameCandidate.id)
     }
 
     private func makeAnalysis(

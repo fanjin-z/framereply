@@ -5,76 +5,7 @@ import XCTest
 
 final class SuggestedRepliesCoordinatorTests: XCTestCase {
     @MainActor
-    func testOneUseDraftCachesRepliesForSubsequentAppLoad() async throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let chatID = "drafting-input-chat"
-        container.mainContext.insert(makeChat(id: chatID))
-        container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
-        try container.mainContext.save()
-        let service = StubReplyService()
-        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
-
-        let result = try await coordinator.generate(
-            chatID: chatID,
-            draftingInput: "  Tell her Friday works, but make it warmer.  "
-        )
-
-        XCTAssertEqual(result.source, .generated)
-        XCTAssertEqual(service.requests.count, 1)
-        XCTAssertEqual(
-            service.requests[0].draftingInput, "Tell her Friday works, but make it warmer.")
-        XCTAssertTrue(
-            SuggestedReplyPrompt.input(for: service.requests[0]).contains("Tell her Friday works"))
-
-        let cache = try XCTUnwrap(repository.suggestedReplyCache(chatID: chatID))
-        XCTAssertEqual(cache.replies, result.replies)
-        XCTAssertEqual(cache.conversationStrategy, result.conversationStrategy)
-        XCTAssertEqual(cache.strategyRationale, result.strategyRationale)
-        XCTAssertEqual(cache.historySummary, "")
-        XCTAssertEqual(cache.summarizedMessageCount, 0)
-        XCTAssertEqual(cache.summarizedPrefixFingerprint, "")
-
-        let appLoad = try XCTUnwrap(coordinator.cachedReplies(chatID: chatID))
-        XCTAssertEqual(appLoad.source, .cached)
-        XCTAssertEqual(appLoad.replies, result.replies)
-        XCTAssertEqual(appLoad.conversationStrategy, result.conversationStrategy)
-        XCTAssertEqual(appLoad.strategyRationale, result.strategyRationale)
-        XCTAssertEqual(service.requests.count, 1)
-    }
-
-    @MainActor
-    func testCacheOnlyLoadDoesNotGenerateWhenCacheIsMissingOrStale() async throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let chatID = "cache-only-chat"
-        container.mainContext.insert(makeChat(id: chatID))
-        container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
-        try container.mainContext.save()
-        let service = StubReplyService()
-        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
-        let viewModel = SuggestedRepliesViewModel(chatID: chatID, coordinator: coordinator)
-
-        viewModel.loadCached()
-        XCTAssertTrue(viewModel.replies.isEmpty)
-        XCTAssertEqual(service.requests.count, 0)
-
-        _ = try await coordinator.generate(chatID: chatID, draftingInput: "Use this")
-        viewModel.loadCached()
-        XCTAssertEqual(viewModel.replies.map(\.text), ["Reply 1A", "Reply 1B"])
-        XCTAssertEqual(viewModel.conversationStrategy, "Strategy 1")
-        XCTAssertEqual(viewModel.strategyRationale, "Rationale 1")
-        XCTAssertEqual(service.requests.count, 1)
-
-        container.mainContext.insert(makeMessage(chatID: chatID, index: 1))
-        try container.mainContext.save()
-        viewModel.loadCached()
-        XCTAssertTrue(viewModel.replies.isEmpty)
-        XCTAssertEqual(service.requests.count, 1)
-    }
-
-    @MainActor
-    func testOneUseDraftPreservesExistingSummaryAndDoesNotApplyAnalysisOutput() async throws {
+    func testOneUseDraftCachesRepliesWithoutApplyingAnalysisOutput() async throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let defaultPersonaID = try PersonaRepository(container: container).defaultPersonaID()
@@ -116,7 +47,10 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         }
         let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
 
-        _ = try await coordinator.generate(chatID: chatID, draftingInput: "Use this once")
+        let result = try await coordinator.generate(
+            chatID: chatID,
+            draftingInput: "  Use this once  "
+        )
 
         XCTAssertEqual(service.requests.first?.draftingInput, "Use this once")
         XCTAssertEqual(service.requests.first?.previousConversationStrategy, "Previous strategy")
@@ -139,10 +73,14 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
             try repository.personaObservations(personaID: defaultPersonaID).contains {
                 $0.origin == PersonaObservationOrigin.ai.rawValue
             })
+        let cached = try XCTUnwrap(coordinator.cachedReplies(chatID: chatID))
+        XCTAssertEqual(cached.source, .cached)
+        XCTAssertEqual(cached.replies, result.replies)
+        XCTAssertEqual(service.requests.count, 1)
     }
 
     @MainActor
-    func testChangingActiveMemoryInvalidatesCachedRepliesWhileArchivedMemoryDoesNot() async throws {
+    func testCacheValidityTracksMessagesActiveMemoryAndProvider() async throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let chatID = "memory-cache-chat"
@@ -162,9 +100,13 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
 
         let client = StubReplyService()
         let coordinator = SuggestedRepliesCoordinator(aiService: client, repository: repository)
+        XCTAssertNil(try coordinator.cachedReplies(chatID: chatID))
+        XCTAssertEqual(client.requests.count, 0)
+
         _ = try await coordinator.generate(chatID: chatID)
         _ = try await coordinator.generate(chatID: chatID)
         XCTAssertEqual(client.requests.count, 1)
+        XCTAssertEqual(try coordinator.cachedReplies(chatID: chatID)?.source, .cached)
 
         archived.text = "Older office"
         try container.mainContext.save()
@@ -176,6 +118,16 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         _ = try await coordinator.generate(chatID: chatID)
         XCTAssertEqual(client.requests.count, 2)
         XCTAssertEqual(client.requests.last?.chatMemories.map(\.text), ["Likes coffee"])
+
+        container.mainContext.insert(makeMessage(chatID: chatID, index: 1))
+        try container.mainContext.save()
+        XCTAssertNil(try coordinator.cachedReplies(chatID: chatID))
+        _ = try await coordinator.generate(chatID: chatID)
+        XCTAssertEqual(client.requests.count, 3)
+
+        client.context = .zhipuDefaultReplies
+        _ = try await coordinator.generate(chatID: chatID)
+        XCTAssertEqual(client.requests.count, 4)
     }
 
     @MainActor
@@ -356,27 +308,6 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
             .filter { $0.status == .active }
         XCTAssertEqual(activeMemories.map(\.text), ["Asked about partner hotels in Beijing"])
         XCTAssertEqual(activeMemories.first?.origin, .ai)
-    }
-
-    @MainActor
-    func testSwitchingProviderInvalidatesReplyCacheWithoutChangingCoordinator() async throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let chatID = "provider-switch-chat"
-        container.mainContext.insert(makeChat(id: chatID))
-        container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
-        try container.mainContext.save()
-
-        let service = StubReplyService()
-        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
-        _ = try await coordinator.generate(chatID: chatID)
-        XCTAssertNotNil(try repository.suggestedReplyCache(chatID: chatID))
-
-        service.context = .zhipuDefaultReplies
-        _ = try await coordinator.generate(chatID: chatID)
-
-        XCTAssertEqual(service.requests.count, 2)
-        XCTAssertEqual(service.models, [.glm47FlashX, .glm47FlashX])
     }
 
     @MainActor

@@ -11,7 +11,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(result.messages.first?.sender, .otherParticipant)
     }
 
-    func testRejectsWrappersAliasesExtraKeysAndRemovedQuoteShape() {
+    func testRejectsInvalidStructuredOutputAndCandidateMatches() throws {
         let exact = validScreenshotJSON()
         assertFailure("```json\n\(exact)\n```", kind: .invalidJSON)
         assertFailure("Here is the result: \(exact)", kind: .invalidJSON)
@@ -28,9 +28,6 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
                 of: "\"senderEvidence\":\"alignment_convention\"",
                 with: "\"quotedReply\":null,\"senderEvidence\":\"alignment_convention\""),
             kind: .schemaMismatch, path: "messages[0]")
-    }
-
-    func testClassifiesMalformedTruncatedAndInvalidCandidateResponses() {
         assertFailure(nil, kind: .emptyResponse)
         assertFailure(
             validScreenshotJSON(), finishReason: "length",
@@ -41,9 +38,6 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
                 of: "\"matchedChatID\":null",
                 with: "\"matchedChatID\":\"unknown\""),
             kind: .invalidCandidateID, path: "matchedChatID")
-    }
-
-    func testExtractionStatusMustMatchMessageEmptiness() throws {
         XCTAssertEqual(
             try decode(noMessagesJSON()).extractionStatus,
             .noMessages)
@@ -55,12 +49,27 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
             validScreenshotJSON().replacingOccurrences(
                 of: "\"ok\"", with: "\"no_messages\""),
             kind: .incompleteMessages, path: "messages")
+
+        assertFailure(
+            exact.replacingOccurrences(
+                of: "\"matchConfidence\":0", with: "\"matchConfidence\":0.9"),
+            kind: .schemaMismatch, path: "matchConfidence")
+
+        let known =
+            exact
+            .replacingOccurrences(
+                of: "\"matchedChatID\":null", with: "\"matchedChatID\":\"known\""
+            )
+            .replacingOccurrences(
+                of: "\"matchConfidence\":0", with: "\"matchConfidence\":0.95")
+        XCTAssertNoThrow(try decode(known))
     }
 
     func testVisualOwnershipNormalizationPreservesSenderSafeguards() throws {
         let contradictory = validScreenshotJSON()
             .replacingOccurrences(
-                of: "\"sender\":\"other_participant\"", with: "\"sender\":\"user\"")
+                of: "\"sender\":\"other_participant\"", with: "\"sender\":\"user\""
+            )
             .replacingOccurrences(
                 of: "\"senderEvidence\":\"alignment_convention\"",
                 with: "\"senderEvidence\":\"message_status_indicator\"")
@@ -68,7 +77,8 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
 
         let user = validScreenshotJSON()
             .replacingOccurrences(
-                of: "\"sender\":\"other_participant\"", with: "\"sender\":\"user\"")
+                of: "\"sender\":\"other_participant\"", with: "\"sender\":\"user\""
+            )
             .replacingOccurrences(
                 of: "\"outerAlignment\":\"left\"", with: "\"outerAlignment\":\"right\"")
         XCTAssertEqual(try decode(user).messages.first?.sender, .user)
@@ -88,20 +98,6 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
                 with: "\"outerAlignment\":\"left\",\"senderEvidence\":\"author_label\""),
             isSharedTranscript: true, kind: .schemaMismatch,
             path: "messages[0]")
-    }
-
-    func testMatchConfidenceRequiresAnExactCandidateID() {
-        assertFailure(
-            validScreenshotJSON().replacingOccurrences(
-                of: "\"matchConfidence\":0", with: "\"matchConfidence\":0.9"),
-            kind: .schemaMismatch, path: "matchConfidence")
-
-        let known = validScreenshotJSON()
-            .replacingOccurrences(
-                of: "\"matchedChatID\":null", with: "\"matchedChatID\":\"known\"")
-            .replacingOccurrences(
-                of: "\"matchConfidence\":0", with: "\"matchConfidence\":0.95")
-        XCTAssertNoThrow(try decode(known))
     }
 
     private func decode(_ content: String?, finishReason: String? = "stop") throws

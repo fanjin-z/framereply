@@ -5,7 +5,7 @@ import XCTest
 
 final class ScreenshotImportCoordinatorTests: XCTestCase {
     @MainActor
-    func testCoordinatorSendsTransientImageToAnalysisAndPersistsTranscriptOnly() async throws {
+    func testCoordinatorSendsTransientImagesToAnalysisAndPersistsTranscriptOnly() async throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         try repository.seedIfNeeded()
@@ -67,9 +67,12 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         let traceID = ImportTraceID(
             value: UUID(uuidString: "12345678-0000-0000-0000-000000000000")!
         )
-        let imageData = Data([0x89, 0x50, 0x4E, 0x47, 0x01, 0x02, 0x03])
+        let imageDataList = [
+            Data([0x89, 0x50, 0x4E, 0x47, 0x01, 0x02, 0x03]),
+            Data([0xFF, 0xD8, 0xFF, 0xE0, 0x02])
+        ]
         let outcome = try await coordinator.process(
-            imageData: imageData,
+            imageDataList: imageDataList,
             traceID: traceID
         )
 
@@ -78,7 +81,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         XCTAssertEqual(outcome.diagnosticID, "12345678")
         XCTAssertEqual(outcome.insertedMessageCount, 3)
         XCTAssertFalse(outcome.reviewRequired)
-        XCTAssertEqual(aiService.receivedImageDataList, [imageData])
+        XCTAssertEqual(aiService.receivedImageDataList, imageDataList)
         XCTAssertEqual(aiService.receivedContext?.effectiveModel, .gpt56Luna)
         let messages = try repository.messages(chatID: "sarah-jenkins")
         XCTAssertTrue(
@@ -101,106 +104,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func testCoordinatorProcessesMultipleImagesInOneAnalysisRequest() async throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        try repository.seedIfNeeded()
-        let analysis = ChatImportAnalysis(
-            conversationTitle: "Sarah Jenkins",
-            messages: [
-                AnalyzedChatMessage(
-                    sender: .otherParticipant,
-                    senderName: "Sarah Jenkins",
-                    text: "Can we meet tomorrow?",
-                    timestampLabel: "10:42 AM",
-                    outerAlignment: .left,
-                    senderConfidence: 0.95,
-                    senderEvidence: .alignmentConvention
-                )
-            ],
-            matchedChatID: nil,
-            matchConfidence: 0,
-            ownershipConvention: MessageOwnershipConvention(
-                mode: .opposedAlignment,
-                screenshotOwnerAlignment: .right,
-                screenshotOwnerAuthorLabel: nil
-            )
-        )
-        let aiService = StubAnalysisService(analysis: analysis)
-        let coordinator = ScreenshotImportCoordinator(
-            aiService: aiService,
-            repository: repository
-        )
-        let images = [
-            Data([0x89, 0x50, 0x4E, 0x47, 0x01]),
-            Data([0xFF, 0xD8, 0xFF, 0xE0, 0x02])
-        ]
-
-        let outcome = try await coordinator.process(imageDataList: images)
-
-        XCTAssertEqual(aiService.receivedImageDataList, images)
-        XCTAssertEqual(outcome.insertedMessageCount, 1)
-        XCTAssertTrue(outcome.reviewRequired)
-        XCTAssertEqual(
-            try repository.messages(chatID: outcome.chatID).map(\.text),
-            ["Can we meet tomorrow?"]
-        )
-    }
-
-    @MainActor
-    func testCoordinatorProcessesCopiedMessagesAndRecordsSharedTextSource() async throws {
-        let container = try ZeptlyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        try repository.seedIfNeeded()
-        let analysis = ChatImportAnalysis(
-            conversationTitle: nil,
-            messages: [
-                AnalyzedChatMessage(
-                    sender: .unknown,
-                    senderName: "Alice",
-                    text: "Can we meet tomorrow?",
-                    timestampLabel: "07/13/26, 9:42 PM",
-                    outerAlignment: .unknown,
-                    outerAuthorLabel: "Alice",
-                    senderConfidence: 0,
-                    senderEvidence: .insufficient
-                )
-            ],
-            matchedChatID: nil,
-            matchConfidence: 0,
-            conversationKind: .direct,
-            titleSource: .unavailable,
-            ownershipConvention: .unobservable
-        )
-        let aiService = StubAnalysisService(analysis: analysis)
-        let coordinator = ScreenshotImportCoordinator(
-            aiService: aiService,
-            repository: repository
-        )
-        let transcriptItems = [
-            "[07/13/26, 9:42 PM] Alice: Can we meet tomorrow?",
-            "  "
-        ]
-
-        let outcome = try await coordinator.process(transcriptItems: transcriptItems)
-
-        XCTAssertEqual(
-            aiService.receivedTranscriptItems,
-            ["[07/13/26, 9:42 PM] Alice: Can we meet tomorrow?"]
-        )
-        XCTAssertTrue(aiService.receivedImageDataList.isEmpty)
-        XCTAssertEqual(aiService.receivedContext?.capability, .transcriptAnalysis)
-        XCTAssertEqual(aiService.receivedContext?.effectiveModel, .gpt56Terra)
-        XCTAssertTrue(outcome.reviewRequired)
-        XCTAssertEqual(
-            try repository.messages(chatID: outcome.chatID).map(\.text),
-            ["Can we meet tomorrow?"]
-        )
-        XCTAssertNotNil(try repository.importRecord(id: outcome.importID))
-    }
-
-    @MainActor
-    func testScreenshotThenCopiedTextOnlyAddsGenuinelyNewMessages() async throws {
+    func testCopiedTextUsesTranscriptAnalysisAndAddsOnlyGenuinelyNewMessages() async throws {
         let container = try ZeptlyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         try repository.seedIfNeeded()
@@ -261,6 +165,15 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
 
         XCTAssertEqual(screenshotOutcome.insertedMessageCount, 1)
         XCTAssertEqual(textOutcome.insertedMessageCount, 1)
+        XCTAssertEqual(
+            aiService.receivedTranscriptItems,
+            [
+                "[07/13/26, 9:42 PM] Alice: Are you free tomorrow?",
+                "[07/13/26, 9:43 PM] Me: Yes, after six."
+            ]
+        )
+        XCTAssertEqual(aiService.receivedContext?.capability, .transcriptAnalysis)
+        XCTAssertEqual(aiService.receivedContext?.effectiveModel, .gpt56Terra)
         XCTAssertEqual(
             try repository.messages(chatID: "cross-source-chat").map(\.text),
             ["Are you free tomorrow?", "Yes, after six."]

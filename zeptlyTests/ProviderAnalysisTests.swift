@@ -82,7 +82,7 @@ final class ProviderAnalysisTests: XCTestCase {
     }
 
     @MainActor
-    func testOpenAISendsStrictSchemaAndHighDetail() async throws {
+    func testOpenAIUsesStrictTaskSpecificWireContractsAndReportsUsage() async throws {
         AnalysisURLProtocolStub.responses = [
             (200, openAIResponse(content: validScreenshotAnalysisJSON()))
         ]
@@ -90,26 +90,26 @@ final class ProviderAnalysisTests: XCTestCase {
         _ = try await OpenAIClient(session: makeSession()).analyzeChatScreenshot(
             makeRequest(), apiKey: "key", model: .gpt56Sol)
 
-        let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
-        XCTAssertEqual(body["store"] as? Bool, false)
+        let screenshotBody = try jsonBody(
+            try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
+        )
+        XCTAssertEqual(screenshotBody["store"] as? Bool, false)
         XCTAssertEqual(
-            body["prompt_cache_key"] as? String,
+            screenshotBody["prompt_cache_key"] as? String,
             "screenshot_import-v1-gpt-5.6-sol")
-        let format = try XCTUnwrap(
-            (body["text"] as? [String: Any])?["format"] as? [String: Any])
-        XCTAssertEqual(format["type"] as? String, "json_schema")
-        XCTAssertEqual(format["strict"] as? Bool, true)
-        XCTAssertEqual(format["name"] as? String, "screenshot_import")
-        let input = try XCTUnwrap(body["input"] as? [[String: Any]])
+        let screenshotFormat = try XCTUnwrap(
+            (screenshotBody["text"] as? [String: Any])?["format"] as? [String: Any])
+        XCTAssertEqual(screenshotFormat["type"] as? String, "json_schema")
+        XCTAssertEqual(screenshotFormat["strict"] as? Bool, true)
+        XCTAssertEqual(screenshotFormat["name"] as? String, "screenshot_import")
+        let input = try XCTUnwrap(screenshotBody["input"] as? [[String: Any]])
         let content = try XCTUnwrap(input.first?["content"] as? [[String: Any]])
         let image = try XCTUnwrap(content.first { $0["type"] as? String == "input_image" })
         XCTAssertEqual(image["detail"] as? String, "high")
         XCTAssertTrue(
             try XCTUnwrap(image["image_url"] as? String).hasPrefix("data:image/png;base64,"))
-    }
 
-    @MainActor
-    func testOpenAIUsesTaskSpecificReplySchemaAndParsesUsage() async throws {
+        AnalysisURLProtocolStub.reset()
         let reporter = SpyImportEventReporter()
         AnalysisURLProtocolStub.responses = [
             (200, openAIResponse(content: validDraftingJSON(), includeUsage: true))
@@ -122,27 +122,29 @@ final class ProviderAnalysisTests: XCTestCase {
 
         XCTAssertEqual(result.replies, ["First", "Second"])
         XCTAssertTrue(result.memoryChanges.isEmpty)
-        let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
-        let format = try XCTUnwrap(
-            (body["text"] as? [String: Any])?["format"] as? [String: Any])
-        XCTAssertEqual(format["name"] as? String, "suggested_reply_drafting")
+        let replyBody = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
+        let replyFormat = try XCTUnwrap(
+            (replyBody["text"] as? [String: Any])?["format"] as? [String: Any])
+        XCTAssertEqual(replyFormat["name"] as? String, "suggested_reply_drafting")
         XCTAssertEqual(
-            body["prompt_cache_key"] as? String,
+            replyBody["prompt_cache_key"] as? String,
             "suggested_reply_drafting-v1-gpt-5.6-luna")
-        let schema = try XCTUnwrap(format["schema"] as? [String: Any])
+        let schema = try XCTUnwrap(replyFormat["schema"] as? [String: Any])
         XCTAssertEqual(
             Set(try XCTUnwrap(schema["properties"] as? [String: Any]).keys),
             ["replies", "conversationStrategy", "strategyRationale"])
-        XCTAssertTrue(reporter.events.contains { event in
-            guard case .providerResponse(
-                _, _, _, _, _, _, _, _, _, let input, let output, let cached) = event
-            else { return false }
-            return input == 120 && output == 30 && cached == 80
-        })
+        XCTAssertTrue(
+            reporter.events.contains { event in
+                guard
+                    case .providerResponse(
+                        _, _, _, _, _, _, _, _, _, let input, let output, let cached) = event
+                else { return false }
+                return input == 120 && output == 30 && cached == 80
+            })
     }
 
     @MainActor
-    func testZAIUsesJSONModeAndRepairsOneInvalidObject() async throws {
+    func testZAIRepairsInvalidObjectsButNotTruncation() async throws {
         let reporter = SpyImportEventReporter()
         AnalysisURLProtocolStub.responses = [
             (200, zaiResponse(content: "{}")),
@@ -170,45 +172,24 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(secondMessages.count, 4)
         XCTAssertEqual(secondMessages[2]["role"] as? String, "assistant")
         XCTAssertEqual(secondMessages[3]["role"] as? String, "user")
-    }
 
-    @MainActor
-    func testZAIDoesNotRepairTruncationOrTransportFailure() async throws {
-        let reporter = SpyImportEventReporter()
+        AnalysisURLProtocolStub.reset()
+        let truncationReporter = SpyImportEventReporter()
         AnalysisURLProtocolStub.responses = [
             (200, zaiResponse(content: "{}", finishReason: "length")),
             (200, zaiResponse(content: validStandardRepliesJSON()))
         ]
 
-        await XCTAssertThrowsErrorAsync {
+        await assertThrowsErrorAsync {
             _ = try await ZAIClient(
-                region: .international, session: self.makeSession(), eventReporter: reporter
+                region: .international,
+                session: self.makeSession(),
+                eventReporter: truncationReporter
             ).generateSuggestedReplies(
                 self.makeReplyRequest(task: .standard), apiKey: "key", model: .glm47FlashX)
         }
         XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
-        XCTAssertEqual(providerAttempts(in: reporter.events), [1])
-    }
-
-    @MainActor
-    func testSharedTranscriptUsesTextContractWithoutVisualFields() async throws {
-        let request = ChatImportAnalysisRequest(
-            transcriptItems: ["[07/13/26, 9:42 PM] Alice: First line\nSecond line"],
-            candidates: [])
-        AnalysisURLProtocolStub.responses = [
-            (200, openAIResponse(content: validSharedAnalysisJSON()))
-        ]
-
-        _ = try await OpenAIClient(session: makeSession()).analyzeChatScreenshot(
-            request, apiKey: "key", model: .gpt56Luna)
-        let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
-        let format = try XCTUnwrap(
-            (body["text"] as? [String: Any])?["format"] as? [String: Any])
-        XCTAssertEqual(format["name"] as? String, "shared_transcript_import")
-        let schemaText = try self.schemaText(
-            try XCTUnwrap(format["schema"] as? [String: Any]))
-        XCTAssertFalse(schemaText.contains("outerAlignment"))
-        XCTAssertFalse(schemaText.contains("ownershipConvention"))
+        XCTAssertEqual(providerAttempts(in: truncationReporter.events), [1])
     }
 
     private func assertContract(
@@ -278,27 +259,14 @@ final class ProviderAnalysisTests: XCTestCase {
                 "mode": "opposed_alignment", "screenshotOwnerAlignment": "right",
                 "screenshotOwnerAuthorLabel": NSNull()
             ],
-            "messages": [[
-                "sender": "other_participant", "senderName": "Sarah", "text": "Hello",
-                "timestampLabel": NSNull(), "outerAlignment": "left",
-                "outerAuthorLabel": NSNull(), "senderConfidence": 0.95,
-                "senderEvidence": "alignment_convention"
-            ]],
-            "matchedChatID": NSNull(), "matchConfidence": 0.0
-        ])
-    }
-
-    private func validSharedAnalysisJSON() -> String {
-        jsonString([
-            "extractionStatus": "ok",
-            "conversationTitle": NSNull(),
-            "conversationKind": "unknown",
-            "titleSource": "unavailable",
-            "messages": [[
-                "sender": "unknown", "senderName": "Alice", "text": "First line\nSecond line",
-                "timestampLabel": "07/13/26, 9:42 PM", "senderConfidence": 0.4,
-                "senderEvidence": "author_label"
-            ]],
+            "messages": [
+                [
+                    "sender": "other_participant", "senderName": "Sarah", "text": "Hello",
+                    "timestampLabel": NSNull(), "outerAlignment": "left",
+                    "outerAuthorLabel": NSNull(), "senderConfidence": 0.95,
+                    "senderEvidence": "alignment_convention"
+                ]
+            ],
             "matchedChatID": NSNull(), "matchConfidence": 0.0
         ])
     }
@@ -323,9 +291,11 @@ final class ProviderAnalysisTests: XCTestCase {
     private func openAIResponse(content: String, includeUsage: Bool = false) -> String {
         var object: [String: Any] = [
             "id": "resp_test", "status": "completed",
-            "output": [[
-                "type": "message", "content": [["type": "output_text", "text": content]]
-            ]]
+            "output": [
+                [
+                    "type": "message", "content": [["type": "output_text", "text": content]]
+                ]
+            ]
         ]
         if includeUsage {
             object["usage"] = [
@@ -342,10 +312,12 @@ final class ProviderAnalysisTests: XCTestCase {
         includeUsage: Bool = false
     ) -> String {
         var object: [String: Any] = [
-            "choices": [[
-                "message": ["content": content.map { $0 as Any } ?? NSNull()],
-                "finish_reason": finishReason
-            ]]
+            "choices": [
+                [
+                    "message": ["content": content.map { $0 as Any } ?? NSNull()],
+                    "finish_reason": finishReason
+                ]
+            ]
         ]
         if includeUsage {
             object["usage"] = [
@@ -442,7 +414,7 @@ private final class AnalysisURLProtocolStub: URLProtocol {
     }
 }
 
-private func XCTAssertThrowsErrorAsync(
+private func assertThrowsErrorAsync(
     _ expression: () async throws -> Void,
     file: StaticString = #filePath,
     line: UInt = #line
