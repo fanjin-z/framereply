@@ -16,6 +16,8 @@ Never commit API keys, signing files, provisioning profiles, real conversations,
 
 Keep changes focused, format Swift with the repository configuration, add tests for behavior changes, and explain privacy or data-flow changes explicitly. Do not add signing, distribution, or secret-bearing GitHub Actions workflows.
 
+Update the contributor documentation when changing chat-matching policy, durable learning rules, provider data flow, or the Shortcut handoff contract. Keep architecture documentation focused on concepts and invariants rather than individual implementation files.
+
 ## Conduct
 
 Be respectful, constructive, and privacy-conscious. Harassment, discrimination, disclosure of another person's private data, and abusive behavior are not accepted. Maintainers may remove content or participation that violates these expectations.

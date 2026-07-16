@@ -29,6 +29,10 @@ xcodebuild build \
   CODE_SIGNING_ALLOWED=NO
 ```
 
+## Architecture
+
+Start with the contributor [architecture overview](docs/architecture.md), then read [AI workflows](docs/ai-workflows.md) for chat reconciliation and reply-generation design.
+
 ## Privacy and provider access
 
 Zeptly has no proxy server, advertising, analytics, or tracking. API keys are stored in the device Keychain. Chats, extracted messages, personas, context, and generated replies are stored in the app's protected local database and excluded from device backups.

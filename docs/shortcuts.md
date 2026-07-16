@@ -2,6 +2,33 @@
 
 Zeptly publishes two personal shortcuts from a team-controlled Apple account. Keep their public links in `ShortcutInstallationCatalog` and verify both links on a device that has not previously installed them before every release. Missing links leave installation unavailable but must not prevent the app from opening.
 
+## Workflow Handoff
+
+```mermaid
+sequenceDiagram
+    participant Shortcut
+    participant Analyze as Analyze Action
+    participant Store as Local Store
+    participant Generate as Generate Action
+
+    Shortcut->>Analyze: Images or copied text
+    par Analyze conversation
+        Analyze->>Store: Save import with operation ID
+    and Collect optional input
+        Analyze-->>Shortcut: Ask to add context or skip
+        Shortcut-->>Analyze: Context or skip
+    end
+    Analyze->>Store: Commit one-use input state
+    Analyze-->>Shortcut: Analyzed chat entity
+    Shortcut->>Generate: Analyzed chat entity
+    Generate->>Store: Verify operation ID and consume input once
+    Generate-->>Shortcut: Replies or reply-specific failure
+```
+
+The operation ID prevents data from different Shortcut runs from being mixed. Submitted context is consumed once and expires after 15 minutes; it never becomes chat history, memory, or persona learning.
+
+Import and reply generation are separate outcomes. A saved import remains successful when reply generation is unavailable or fails.
+
 ## Zeptly Images
 
 Configure **Zeptly Images** to show in the Share Sheet and accept **Images** only. Set its no-input behavior to **Continue**.
