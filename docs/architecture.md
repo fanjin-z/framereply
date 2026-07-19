@@ -18,7 +18,7 @@ flowchart TB
     Store -->|Observed state| Entry
 ```
 
-Zeptly is a local-first app with two entry points: its SwiftUI interface and Apple Shortcuts. Both use the same workflows for importing conversations and generating replies.
+FrameReply is a local-first app with two entry points: its SwiftUI interface and Apple Shortcuts. Both use the same workflows for importing conversations and generating replies.
 
 AI output is always a **proposal**. Local code validates identity, evidence, freshness, and persistence rules before the output can change stored data.
 
@@ -39,7 +39,7 @@ The project uses one application target organized by responsibility. These bound
 
 ```mermaid
 flowchart LR
-    App[Zeptly]
+    App[FrameReply]
     SwiftData[(SwiftData)]
     Keychain[(Keychain)]
     Defaults[(UserDefaults)]
@@ -54,7 +54,7 @@ flowchart LR
 
 - Chats and generated state stay in the protected local database and are excluded from device backups.
 - API keys are device-only Keychain items. Provider selection and versioned consent contain no conversation content.
-- Zeptly has no proxy server. Approved task input goes directly to the selected provider.
+- FrameReply has no proxy server. Approved task input goes directly to the selected provider.
 - Screenshot images are normalized before upload and are not retained after processing. Extracted messages may be stored locally.
 
 ## Core workflows

@@ -1,6 +1,6 @@
 # Code of Conduct
 
-Zeptly follows the [Contributor Covenant 3.0](https://www.contributor-covenant.org/version/3/0/code_of_conduct/).
+FrameReply follows the [Contributor Covenant 3.0](https://www.contributor-covenant.org/version/3/0/code_of_conduct/).
 
 ## Our commitment
 

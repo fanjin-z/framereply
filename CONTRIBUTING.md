@@ -1,4 +1,4 @@
-# Contributing to Zeptly
+# Contributing to FrameReply
 
 Thank you for contributing. By submitting a contribution, you agree that it is provided under the Apache License 2.0.
 
@@ -6,7 +6,7 @@ Thank you for contributing. By submitting a contribution, you agree that it is p
 
 1. Use Xcode 26.6 or a compatible newer version.
 2. Copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig` and add your own Team ID only when building for a device.
-3. Build the shared `zeptly` scheme in Xcode, or run the unsigned simulator `xcodebuild` command in the README.
+3. Build the shared `FrameReply` scheme in Xcode, or run the unsigned simulator `xcodebuild` command in the README.
 4. Run the shared scheme's tests before opening a pull request.
 5. Install pre-commit and run `pre-commit install` if you contribute regularly.
 

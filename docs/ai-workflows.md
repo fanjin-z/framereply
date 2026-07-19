@@ -53,7 +53,7 @@ Sender roles are relative to the person importing the conversation. Visible alig
 
 ### Accepting a proposed chat match
 
-The provider may propose an existing chat and a confidence score. Zeptly accepts it automatically only when the proposed identifier is valid, confidence meets the current `0.85` threshold, and deterministic identity evidence also supports it.
+The provider may propose an existing chat and a confidence score. FrameReply accepts it automatically only when the proposed identifier is valid, confidence meets the current `0.85` threshold, and deterministic identity evidence also supports it.
 
 | Local evidence | Decision |
 | --- | --- |

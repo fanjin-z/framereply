@@ -21,14 +21,14 @@ The current audit did not find a standard secret signature, but this check must 
 - Publish both team-owned Shortcuts, insert their verified iCloud URLs in `ShortcutInstallationCatalog`, and test installation from a device that has never installed them.
 - Complete App Store privacy labels using the manifest as a conservative baseline: Name, User ID, Photos or Videos, Emails or Text Messages, Other User Content, and Product Interaction; App Functionality; linked to the provider account; no tracking.
 - Complete the age-rating questionnaire accurately. Do not override to 18+ unless the calculated content rating, a future custom EULA, or a selected-provider requirement applicable to every user makes that necessary.
-- Confirm that the App Store storefront selection, provider disclosures, and privacy labels match the intended distribution. Provider availability inside Zeptly is not inferred from the user's storefront or location.
+- Confirm that the App Store storefront selection, provider disclosures, and privacy labels match the intended distribution. Provider availability inside FrameReply is not inferred from the user's storefront or location.
 - Confirm the app uses no non-exempt or non-Apple cryptography before relying on `ITSAppUsesNonExemptEncryption = NO`.
 - Use synthetic identities and conversations in every screenshot and review fixture.
 
 ## Manual archive and review
 
 1. Copy `Config/Local.xcconfig.example` to the ignored `Config/Local.xcconfig` and set the distribution Team ID.
-2. Select the shared `zeptly` scheme and a generic iOS device in Xcode.
+2. Select the shared `FrameReply` scheme and a generic iOS device in Xcode.
 3. Run tests and Analyze, then choose **Product → Archive**.
 4. In Organizer, run **Validate App** and inspect the privacy report, entitlements, icon, display name, bundle ID, versions, and export-compliance result.
 5. Distribute to internal TestFlight first. Test fresh installs on physical iPhone and iPad, all supported orientations, VoiceOver, large Dynamic Type, offline/IPv6 networking, consent/revocation, deletion, and both Shortcuts.
@@ -37,7 +37,7 @@ The current audit did not find a standard secret signature, but this check must 
 
 ## App Review notes template
 
-Explain that Zeptly is a free companion to user-owned provider accounts, contains no purchase or credit-funding links, and sends content directly to the selected provider only after explicit consent. Provide exact navigation steps for provider setup, screenshot/text import, reply generation, consent revocation, full deletion, and Shortcut installation.
+Explain that FrameReply is a free companion to user-owned provider accounts, contains no purchase or credit-funding links, and sends content directly to the selected provider only after explicit consent. Provide exact navigation steps for provider setup, screenshot/text import, reply generation, consent revocation, full deletion, and Shortcut installation.
 
 Place one temporary, budget-capped provider key in App Review Notes only. Never place it in the app, repository, screenshots, or build settings. Revoke it as soon as review completes.
 
