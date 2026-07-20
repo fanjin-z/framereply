@@ -6,107 +6,171 @@ struct ChatImportSourceSheet: View {
     let onPaste: ([String]) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Add recent conversation messages from screenshots or copied text.")
-                    .font(.system(size: 15, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+        ZStack {
+            EtherealBackground()
 
-                PhotosPicker(
-                    selection: $screenshotSelection,
-                    maxSelectionCount: 8,
-                    matching: .images
-                ) {
-                    ImportSourceRow(
-                        title: "Choose Screenshots",
-                        detail: "Select up to eight chat screenshots.",
-                        symbolName: "photo.on.rectangle.angled"
-                    )
-                }
-                .buttonStyle(.plain)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    header
 
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "doc.on.clipboard")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(FrameReplyColor.primary)
-                            .frame(width: 28)
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Paste Copied Messages")
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
-                                .foregroundStyle(FrameReplyColor.onSurface)
-                            Text("Preserves all text items supplied by the clipboard.")
-                                .font(.system(size: 12, design: .rounded))
-                                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                    VStack(spacing: 0) {
+                        ImportSourceRow(
+                            title: "Chat screenshots",
+                            detail: "Select up to 8 images",
+                            symbolName: "photo.on.rectangle.angled"
+                        ) {
+                            PhotosPicker(
+                                selection: $screenshotSelection,
+                                maxSelectionCount: 8,
+                                matching: .images
+                            ) {
+                                Label("Choose", systemImage: "photo")
+                            }
+                            .buttonStyle(.bordered)
+                            .buttonSizing(.flexible)
+                            .buttonBorderShape(.capsule)
+                            .controlSize(.large)
+                            .tint(FrameReplyColor.primary)
+                            .frame(height: 44)
+                            .accessibilityLabel("Choose Screenshots")
+                            .accessibilityHint(
+                                "Opens the photo library to select up to eight chat screenshots."
+                            )
+                            .accessibilityIdentifier("choose-screenshots")
                         }
 
-                        Spacer(minLength: 8)
+                        Divider()
+                            .overlay(FrameReplyColor.outlineVariant.opacity(0.42))
+                            .padding(.leading, 74)
 
-                        PasteButton(payloadType: String.self) { items in
-                            dismiss()
-                            onPaste(items)
+                        ImportSourceRow(
+                            title: "Copied text",
+                            detail: "Import text from your clipboard",
+                            symbolName: "doc.on.clipboard"
+                        ) {
+                            PasteButton(payloadType: String.self) { items in
+                                dismiss()
+                                onPaste(items)
+                            }
+                            .buttonStyle(.bordered)
+                            .buttonSizing(.flexible)
+                            .buttonBorderShape(.capsule)
+                            .controlSize(.large)
+                            .tint(FrameReplyColor.primary)
+                            .frame(height: 44)
+                            .accessibilityLabel("Paste Copied Text")
+                            .accessibilityHint(
+                                "Imports all compatible text items from the clipboard."
+                            )
+                            .accessibilityIdentifier("paste-copied-messages")
                         }
-                        .labelStyle(.iconOnly)
                     }
-                    .padding(16)
-                    .glassPanel(cornerRadius: 20)
+                    .glassPanel(cornerRadius: 22)
                 }
-
-                Text(
-                    "Copied text is sent to your selected provider for analysis. FrameReply stores the imported messages in its protected local database, but does not retain a separate copy of the source transcript."
-                )
-                .font(.system(size: 12, design: .rounded))
-                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-
-                Spacer()
+                .padding(24)
+                .frame(maxWidth: 720, alignment: .leading)
+                .frame(maxWidth: .infinity)
             }
-            .padding(24)
-            .background(EtherealBackground())
-            .navigationTitle("Add Messages")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-            }
+            .scrollIndicators(.hidden)
         }
-        .presentationDetents([.medium])
+        .presentationDetents(sheetDetents)
+        .presentationDragIndicator(.visible)
     }
-}
 
-private struct ImportSourceRow: View {
-    let title: LocalizedStringResource
-    let detail: LocalizedStringResource
-    let symbolName: String
+    private var sheetDetents: Set<PresentationDetent> {
+        if dynamicTypeSize.isAccessibilitySize {
+            return [.medium, .large]
+        }
+        return [.height(360), .medium]
+    }
 
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: symbolName)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(FrameReplyColor.primary)
-                .frame(width: 28)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+    private var header: some View {
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Add Messages")
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurface)
-                Text(detail)
-                    .font(.system(size: 12, design: .rounded))
+
+                Text("Import recent conversation messages.")
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: 8)
 
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(FrameReplyColor.outline)
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(FrameReplyColor.primary)
+                    .frame(width: 38, height: 38)
+                    .background {
+                        Circle()
+                            .fill(Color.white.opacity(0.72))
+                    }
+            }
+            .buttonStyle(SoftPressButtonStyle())
+            .accessibilityLabel("Close")
+            .accessibilityHint("Closes Add Messages.")
+            .accessibilityIdentifier("close-add-messages")
         }
-        .padding(16)
-        .glassPanel(cornerRadius: 20)
+    }
+}
+
+private struct ImportSourceRow<Action: View>: View {
+    let title: LocalizedStringResource
+    let detail: LocalizedStringResource
+    let symbolName: String
+    private let action: Action
+
+    init(
+        title: LocalizedStringResource,
+        detail: LocalizedStringResource,
+        symbolName: String,
+        @ViewBuilder action: () -> Action
+    ) {
+        self.title = title
+        self.detail = detail
+        self.symbolName = symbolName
+        self.action = action()
+    }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(FrameReplyColor.secondaryContainer.opacity(0.58))
+
+                Image(systemName: symbolName)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(FrameReplyColor.primary)
+            }
+            .frame(width: 44, height: 44)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(FrameReplyColor.onSurface)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(detail)
+                    .font(.system(size: 12, design: .rounded))
+                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .layoutPriority(1)
+
+            Spacer(minLength: 6)
+
+            action
+                .fixedSize(horizontal: true, vertical: false)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, minHeight: 80, alignment: .leading)
     }
 }

@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 
 final class FrameReplyReleaseUITests: XCTestCase {
@@ -52,6 +53,87 @@ final class FrameReplyReleaseUITests: XCTestCase {
         XCTAssertTrue(app.buttons["connect-provider"].exists)
         app.buttons["close-add-provider"].tap()
         XCTAssertTrue(app.buttons["add-provider"].exists)
+    }
+
+    func testAddMessagesSheetUsesCompactImportList() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let addMessages = app.buttons["add-messages"].firstMatch
+        XCTAssertTrue(addMessages.waitForExistence(timeout: 8))
+        addMessages.tap()
+
+        let screenshots = app.buttons["choose-screenshots"]
+        let paste = app.buttons["paste-copied-messages"]
+        XCTAssertTrue(screenshots.waitForExistence(timeout: 3))
+        XCTAssertTrue(paste.waitForExistence(timeout: 3))
+        XCTAssertTrue(screenshots.isHittable)
+        XCTAssertTrue(paste.isHittable)
+        XCTAssertLessThan(screenshots.frame.maxY, paste.frame.minY)
+        XCTAssertEqual(screenshots.frame.maxX, paste.frame.maxX, accuracy: 2)
+        XCTAssertGreaterThanOrEqual(screenshots.frame.height, 44)
+        // PasteButton reports its visible system capsule, while its 44-point layout slot
+        // supplies the surrounding hit area.
+        XCTAssertGreaterThanOrEqual(paste.frame.height, 32)
+        XCTAssertEqual(app.buttons.matching(identifier: "paste-copied-messages").count, 1)
+        XCTAssertTrue(app.staticTexts["Chat screenshots"].exists)
+        XCTAssertTrue(app.staticTexts["Copied text"].exists)
+        let clipboardDetail = app.staticTexts["Import text from your clipboard"]
+        XCTAssertTrue(clipboardDetail.exists)
+        XCTAssertGreaterThanOrEqual(paste.frame.midY, app.staticTexts["Copied text"].frame.minY)
+        XCTAssertLessThanOrEqual(paste.frame.midY, clipboardDetail.frame.maxY)
+        XCTAssertTrue(app.buttons["close-add-messages"].exists)
+        let redundantCopy = app.staticTexts.matching(
+            NSPredicate(
+                format: "label == %@",
+                "Copied text is sent to your selected provider for analysis. FrameReply stores the imported messages in its protected local database, but does not retain a separate copy of the source transcript."
+            )
+        ).firstMatch
+        XCTAssertFalse(
+            redundantCopy.exists
+        )
+
+        UIPasteboard.general.string = "Alex: Are we still meeting tomorrow?"
+        XCTAssertTrue(paste.isEnabled)
+        paste.tap()
+        XCTAssertTrue(paste.waitForNonExistence(timeout: 3))
+    }
+
+    func testChooseScreenshotsPresentsPhotoPicker() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let addMessages = app.buttons["add-messages"].firstMatch
+        XCTAssertTrue(addMessages.waitForExistence(timeout: 8))
+        addMessages.tap()
+
+        let screenshots = app.buttons["choose-screenshots"]
+        XCTAssertTrue(screenshots.waitForExistence(timeout: 3))
+        screenshots.tap()
+        XCTAssertTrue(app.buttons["Cancel"].firstMatch.waitForExistence(timeout: 5))
+    }
+
+    func testAddMessagesSheetSupportsLargeDynamicType() throws {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "-UIPreferredContentSizeCategoryName",
+            "UICTContentSizeCategoryAccessibilityExtraExtraExtraLarge"
+        ]
+        app.launch()
+
+        let addMessages = app.buttons["add-messages"].firstMatch
+        XCTAssertTrue(addMessages.waitForExistence(timeout: 8))
+        addMessages.tap()
+
+        let screenshots = app.buttons["choose-screenshots"]
+        let paste = app.buttons["paste-copied-messages"]
+        XCTAssertTrue(screenshots.waitForExistence(timeout: 3))
+        XCTAssertTrue(screenshots.isHittable)
+        XCTAssertTrue(paste.waitForExistence(timeout: 3))
+        if !paste.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(paste.isHittable)
     }
 
     func testPrivacyScreenSupportsLargeDynamicType() throws {

@@ -85,9 +85,6 @@
     "Add Provider" : {
 
     },
-    "Add recent conversation messages from screenshots or copied text." : {
-
-    },
     "Add Reply Note" : {
 
     },
@@ -199,6 +196,9 @@
     "Chat name" : {
 
     },
+    "Chat screenshots" : {
+
+    },
     "Chat Text" : {
 
     },
@@ -253,6 +253,9 @@
     "Chats using it will switch to your default persona." : {
 
     },
+    "Choose" : {
+
+    },
     "Choose %@ as me, %lld messages" : {
       "localizations" : {
         "en" : {
@@ -296,6 +299,9 @@
     "Close chat history" : {
 
     },
+    "Closes Add Messages." : {
+
+    },
     "Connect" : {
 
     },
@@ -314,7 +320,7 @@
     "Copied" : {
 
     },
-    "Copied text is sent to your selected provider for analysis. FrameReply stores the imported messages in its protected local database, but does not retain a separate copy of the source transcript." : {
+    "Copied text" : {
 
     },
     "Copy" : {
@@ -1062,6 +1068,12 @@
     "Highest-quality interpretation and writing at the highest cost" : {
 
     },
+    "Import recent conversation messages." : {
+
+    },
+    "Import text from your clipboard" : {
+
+    },
     "Import your first chat" : {
 
     },
@@ -1129,6 +1141,9 @@
 
     },
     "Importing…" : {
+
+    },
+    "Imports all compatible text items from the clipboard." : {
 
     },
     "Imports one to eight images from the same chat while you optionally add context or draft a reply. The images aren't saved." : {
@@ -1257,6 +1272,9 @@
     "Opening FrameReply…" : {
 
     },
+    "Opens the photo library to select up to eight chat screenshots." : {
+
+    },
     "Optional context or a rough reply used once for this generation." : {
 
     },
@@ -1275,7 +1293,7 @@
     "Paste 3–10 messages you wrote, one per line." : {
 
     },
-    "Paste Copied Messages" : {
+    "Paste Copied Text" : {
 
     },
     "Performance" : {
@@ -1638,9 +1656,6 @@
     "Policies & Support" : {
 
     },
-    "Preserves all text items supplied by the clipboard." : {
-
-    },
     "Privacy & Data" : {
 
     },
@@ -1794,7 +1809,7 @@
     "Select provider" : {
 
     },
-    "Select up to eight chat screenshots." : {
+    "Select up to 8 images" : {
 
     },
     "Selected" : {
