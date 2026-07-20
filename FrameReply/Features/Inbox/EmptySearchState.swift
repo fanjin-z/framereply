@@ -6,9 +6,9 @@
 import SwiftUI
 
 struct EmptySearchState: View {
-    var title = "No chats found"
+    var title: LocalizedStringResource = "No chats found"
     var systemImage = "bubble.left.and.text.bubble.right"
-    var actionTitle: String?
+    var actionTitle: LocalizedStringResource?
     var isLoading = false
     var onAction: (() -> Void)?
 
@@ -21,8 +21,12 @@ struct EmptySearchState: View {
 
             if let actionTitle, let onAction {
                 Button(action: onAction) {
-                    Label(actionTitle, systemImage: "photo.on.rectangle.angled")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                    Label {
+                        Text(actionTitle)
+                    } icon: {
+                        Image(systemName: "photo.on.rectangle.angled")
+                    }
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isLoading)

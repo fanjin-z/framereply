@@ -99,7 +99,8 @@ final class PrivacySecurityTests: XCTestCase {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let context = container.mainContext
         context.insert(
-            ChatRecord(id: "private-chat", name: "Synthetic User", preview: "Synthetic preview")
+            ChatRecord(
+                id: "private-chat", title: "Synthetic User", previewText: "Synthetic preview")
         )
         context.insert(
             ChatMessageRecord(

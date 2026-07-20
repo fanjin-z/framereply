@@ -215,7 +215,7 @@ final class ChatPersistenceTests: XCTestCase {
 
         XCTAssertTrue(outcome.reviewRequired)
         XCTAssertFalse(outcome.matchedExisting)
-        XCTAssertEqual(try repository.chat(id: outcome.chatID)?.name, "Alex")
+        XCTAssertEqual(try repository.chat(id: outcome.chatID)?.title, "Alex")
         XCTAssertEqual(try repository.chat(id: outcome.chatID)?.isProvisional, true)
         XCTAssertEqual(
             try repository.chat(id: outcome.chatID)?.importReviewState?.identityStatus,
@@ -225,7 +225,7 @@ final class ChatPersistenceTests: XCTestCase {
         try repository.confirmProvisionalChat(chatID: outcome.chatID, name: "Alex Hiking")
 
         let chat = try XCTUnwrap(repository.chat(id: outcome.chatID))
-        XCTAssertEqual(chat.name, "Alex Hiking")
+        XCTAssertEqual(chat.title, "Alex Hiking")
         XCTAssertFalse(chat.isProvisional)
         XCTAssertEqual(chat.importReviewState?.identityStatus, .confirmed)
 
@@ -435,8 +435,8 @@ final class ChatPersistenceTests: XCTestCase {
         container.mainContext.insert(
             ChatRecord(
                 id: id,
-                name: name,
-                preview: message ?? "Imported conversation"
+                title: name,
+                previewText: message ?? "Imported conversation"
             )
         )
         if let message {
@@ -489,6 +489,7 @@ final class ChatPersistenceTests: XCTestCase {
         container.mainContext.insert(
             SuggestedReplyCacheRecord(
                 chatID: chatID,
+                presentationLanguageIdentifier: "en",
                 historySummary: "Summary",
                 summarizedMessageCount: 0,
                 summarizedPrefixFingerprint: "fingerprint",

@@ -99,6 +99,9 @@ enum ChatImportMatcher {
 
 extension ChatMatchCandidate {
     fileprivate var identityLabelKeys: Set<String> {
-        Set(([name] + participantAliases).map(MessageTextNormalizer.normalize))
+        Set(
+            ([title].compactMap { $0 } + participantAliases)
+                .map(MessageTextNormalizer.normalize)
+        )
     }
 }

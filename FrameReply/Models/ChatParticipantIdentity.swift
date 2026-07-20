@@ -96,7 +96,7 @@ enum SenderLabelResolutionError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .labelUnavailable:
-            "That sender label is no longer available. Reopen the review and try again."
+            String(localized: AppStrings.Errors.Chat.senderLabelUnavailable)
         }
     }
 }

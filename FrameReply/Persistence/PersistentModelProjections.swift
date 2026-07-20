@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import OSLog
 import SwiftUI
 
 extension ChatSelfAliasRecord {
@@ -12,16 +13,43 @@ extension ChatSelfAliasRecord {
     }
 }
 
+extension ChatRecord {
+    func displayTitle(locale: Locale = .current) -> String {
+        title ?? AppStrings.resolve(AppStrings.Chat.titleFallback, locale: locale)
+    }
+
+    func displayPreview(locale: Locale = .current) -> String {
+        previewText ?? AppStrings.resolve(AppStrings.Chat.previewFallback, locale: locale)
+    }
+}
+
+nonisolated enum ChatPresentation {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "FrameReply",
+        category: "ChatPresentation"
+    )
+
+    static func title(for record: ChatRecord?, locale: Locale = .current) -> String {
+        guard let record else {
+            logger.error("Missing chat record while resolving a presentation title")
+            return AppStrings.resolve(AppStrings.Chat.titleFallback, locale: locale)
+        }
+        return record.displayTitle(locale: locale)
+    }
+}
+
 extension Chat {
     init(record: ChatRecord) {
+        let name = record.displayTitle()
+        let preview = record.displayPreview()
         self.init(
             id: record.id,
-            name: record.name,
-            preview: record.preview,
+            name: name,
+            preview: preview,
             chipTitle: record.isProvisional ? "Review Import" : "General",
             chipSymbol: record.isProvisional ? "exclamationmark.bubble" : "number",
             avatarSymbol: nil,
-            initials: Self.initials(for: record.name),
+            initials: Self.initials(for: name),
             gradient: Self.gradient(for: record.id),
             isUnread: false,
             isProvisional: record.isProvisional
@@ -89,8 +117,8 @@ extension ChatContextRecord {
 extension PersonaRecord {
     var value: Persona {
         Persona(
-            id: id, name: name, summary: summary, symbolName: symbolName,
-            accentKey: accentKey, instructions: instructions,
+            id: id, name: resolvedName(), summary: resolvedSummary(), symbolName: symbolName,
+            accentKey: accentKey, instructions: resolvedInstructions(),
             learningEnabled: learningEnabled,
             sampleCount: sampleCount
         )
@@ -101,7 +129,8 @@ extension PersonaObservationRecord {
     var value: PersonaObservation {
         return PersonaObservation(
             id: id,
-            text: text,
+            text: promptText,
+            templateID: templateID,
             origin: PersonaObservationOrigin(rawValue: origin) ?? .ai,
             isUserProtected: isUserProtected,
             status: PersonaObservationStatus(rawValue: status) ?? .active,
@@ -112,7 +141,8 @@ extension PersonaObservationRecord {
 
     convenience init(personaID: UUID, value: PersonaObservation) {
         self.init(
-            id: value.id, personaID: personaID, text: value.text,
+            id: value.id, personaID: personaID, text: value.templateID == nil ? value.text : "",
+            templateIDRaw: value.templateID?.rawValue,
             origin: value.origin.rawValue, isUserProtected: value.isUserProtected,
             status: value.status.rawValue,
             createdAt: value.createdAt, updatedAt: value.updatedAt

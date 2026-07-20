@@ -7,7 +7,7 @@ import SwiftUI
 
 struct ChatContextField: View {
     @Binding var text: String
-    let placeholder: String
+    let placeholder: LocalizedStringResource
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -28,7 +28,7 @@ struct ChatContextField: View {
                 .minimumScaleFactor(0.78)
                 .padding(.horizontal, 16)
         }
-        .frame(height: 48)
+        .frame(minHeight: 48)
         .background {
             Capsule(style: .continuous)
                 .fill(FrameReplyColor.secondaryContainer.opacity(0.28))

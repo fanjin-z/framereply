@@ -6,11 +6,19 @@
 import SwiftUI
 
 enum AppTab: String, CaseIterable, Identifiable {
-    case inbox = "Inbox"
-    case personas = "Personas"
-    case settings = "Settings"
+    case inbox
+    case personas
+    case settings
 
     var id: String { rawValue }
+
+    var title: LocalizedStringResource {
+        switch self {
+        case .inbox: "Inbox"
+        case .personas: "Personas"
+        case .settings: "Settings"
+        }
+    }
 
     var index: Int {
         Self.allCases.firstIndex(of: self) ?? 0

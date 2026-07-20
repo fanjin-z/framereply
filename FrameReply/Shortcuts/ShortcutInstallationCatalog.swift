@@ -5,8 +5,14 @@
 
 import Foundation
 
-nonisolated struct ShortcutInstallationDefinition: Equatable, Sendable {
-    let title: String
+nonisolated enum ShortcutInstallationID: String, Sendable {
+    case images
+    case text
+}
+
+nonisolated struct ShortcutInstallationDefinition: Sendable {
+    let id: ShortcutInstallationID
+    let title: LocalizedStringResource
     let canonicalURLString: String
 
     var installationURL: URL? {
@@ -17,12 +23,14 @@ nonisolated struct ShortcutInstallationDefinition: Equatable, Sendable {
 nonisolated enum ShortcutInstallationCatalog {
     // Add team-owned iCloud share URLs after both shortcuts are published and verified.
     static let images = ShortcutInstallationDefinition(
-        title: "FrameReply Images",
+        id: .images,
+        title: AppStrings.Shortcut.imagesInstallationTitle,
         canonicalURLString: ""
     )
 
     static let text = ShortcutInstallationDefinition(
-        title: "FrameReply Text",
+        id: .text,
+        title: AppStrings.Shortcut.textInstallationTitle,
         canonicalURLString: ""
     )
 

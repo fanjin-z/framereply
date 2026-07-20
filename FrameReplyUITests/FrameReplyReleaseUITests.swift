@@ -9,16 +9,17 @@ final class FrameReplyReleaseUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        XCTAssertTrue(app.buttons["Inbox"].waitForExistence(timeout: 8))
-        XCTAssertTrue(app.buttons["Personas"].exists)
-        XCTAssertTrue(app.buttons["Settings"].exists)
-        XCTAssertTrue(app.buttons["Add messages"].exists)
+        XCTAssertTrue(app.buttons["app-tab-inbox"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["app-tab-personas"].exists)
+        XCTAssertTrue(app.buttons["app-tab-settings"].exists)
+        XCTAssertTrue(app.buttons["add-messages"].exists)
 
-        app.buttons["Settings"].tap()
+        app.buttons["app-tab-settings"].tap()
         let privacyAndData = app.buttons["privacy-and-data"]
         XCTAssertTrue(privacyAndData.waitForExistence(timeout: 3))
         privacyAndData.tap()
-        XCTAssertTrue(app.navigationBars["Privacy & Data"].waitForExistence(timeout: 3))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["privacy-and-data-screen"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.descendants(matching: .any)["privacy-policy-link"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["terms-link"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["support-link"].exists)
@@ -28,26 +29,26 @@ final class FrameReplyReleaseUITests: XCTestCase {
     func testProviderConsentCanBeCancelledWithoutSaving() throws {
         let app = XCUIApplication()
         app.launch()
-        app.buttons["Settings"].tap()
-        app.buttons["Add model provider"].tap()
+        app.buttons["app-tab-settings"].tap()
+        app.buttons["add-provider"].tap()
 
-        XCTAssertTrue(app.buttons["Select provider"].waitForExistence(timeout: 3))
-        app.buttons["Select provider"].tap()
-        app.buttons["OpenAI"].tap()
+        XCTAssertTrue(app.buttons["select-provider"].waitForExistence(timeout: 3))
+        app.buttons["select-provider"].tap()
+        app.buttons["provider-choice-openAI"].tap()
 
-        let apiKey = app.secureTextFields["Enter API key"]
+        let apiKey = app.secureTextFields["provider-api-key"]
         XCTAssertTrue(apiKey.waitForExistence(timeout: 3))
         apiKey.tap()
         apiKey.typeText("synthetic-key")
 
-        app.buttons["Connect"].tap()
+        app.buttons["connect-provider"].tap()
         XCTAssertTrue(app.alerts["Share chat content with OpenAI?"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["Allow & Connect"].exists)
-        app.buttons["Not Now"].tap()
+        XCTAssertTrue(app.buttons["provider-consent-allow"].firstMatch.exists)
+        app.buttons["provider-consent-cancel"].firstMatch.tap()
 
-        XCTAssertTrue(app.buttons["Connect"].exists)
-        app.buttons["Close"].tap()
-        XCTAssertTrue(app.buttons["Add model provider"].exists)
+        XCTAssertTrue(app.buttons["connect-provider"].exists)
+        app.buttons["close-add-provider"].tap()
+        XCTAssertTrue(app.buttons["add-provider"].exists)
     }
 
     func testPrivacyScreenSupportsLargeDynamicType() throws {
@@ -57,12 +58,13 @@ final class FrameReplyReleaseUITests: XCTestCase {
             "UICTContentSizeCategoryAccessibilityExtraExtraExtraLarge"
         ]
         app.launch()
-        app.buttons["Settings"].tap()
+        app.buttons["app-tab-settings"].tap()
 
         let privacyAndData = app.buttons["privacy-and-data"]
         XCTAssertTrue(privacyAndData.waitForExistence(timeout: 3))
         privacyAndData.tap()
-        XCTAssertTrue(app.navigationBars["Privacy & Data"].waitForExistence(timeout: 3))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["privacy-and-data-screen"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.descendants(matching: .any)["delete-all-local-data"].exists)
     }
 }

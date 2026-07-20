@@ -14,13 +14,17 @@ final class PersonaPersistenceTests: XCTestCase {
 
         let personas = try repository.personas()
         XCTAssertEqual(personas.map(\.name), ["Professional", "Spark", "Thoughtful"])
+        XCTAssertEqual(
+            personas.compactMap(\.builtInID),
+            [.professional, .spark, .thoughtful]
+        )
         XCTAssertEqual(personas.map(\.id), originalIDs)
         XCTAssertEqual(Set(personas.map(\.id)).count, 3)
-        let professional = try XCTUnwrap(personas.first { $0.name == "Professional" })
+        let professional = try XCTUnwrap(personas.first { $0.builtInID == .professional })
         XCTAssertEqual(try repository.defaultPersonaID(), professional.id)
         XCTAssertFalse(try repository.observations(personaID: professional.id).isEmpty)
 
-        let thoughtful = try XCTUnwrap(personas.first { $0.name == "Thoughtful" })
+        let thoughtful = try XCTUnwrap(personas.first { $0.builtInID == .thoughtful })
         let chats = ChatRepository(container: container)
         try repository.setDefaultPersona(id: thoughtful.id)
         XCTAssertEqual(try chats.chatContextValue(chatID: "new-chat").personaID, thoughtful.id)
@@ -70,8 +74,9 @@ final class PersonaPersistenceTests: XCTestCase {
         XCTAssertEqual(copied.status, PersonaObservationStatus.active.rawValue)
 
         let professional = try XCTUnwrap(
-            try repository.personas().first { $0.name == "Professional" })
-        let spark = try XCTUnwrap(try repository.personas().first { $0.name == "Spark" })
+            try repository.personas().first { $0.builtInID == .professional })
+        let spark = try XCTUnwrap(
+            try repository.personas().first { $0.builtInID == .spark })
         let assignment = ChatContextRecord(
             chatID: "chat", currentInteractionGoal: "",
             personaID: professional.id
@@ -85,7 +90,8 @@ final class PersonaPersistenceTests: XCTestCase {
         XCTAssertEqual(try repository.defaultPersonaID(), spark.id)
         XCTAssertEqual(assignment.personaID, spark.id)
 
-        let thoughtful = try XCTUnwrap(try repository.personas().first { $0.name == "Thoughtful" })
+        let thoughtful = try XCTUnwrap(
+            try repository.personas().first { $0.builtInID == .thoughtful })
         try repository.setDefaultPersona(id: thoughtful.id)
         let nonDefaultAssignment = ChatContextRecord(
             chatID: "other-chat", currentInteractionGoal: "",

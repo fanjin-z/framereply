@@ -65,7 +65,7 @@ struct ReplyBriefCard: View {
                                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                         }
                         .padding(.horizontal, 16)
-                        .frame(height: 48)
+                        .frame(minHeight: 48)
                         .background {
                             Capsule(style: .continuous)
                                 .fill(FrameReplyColor.secondaryContainer.opacity(0.28))

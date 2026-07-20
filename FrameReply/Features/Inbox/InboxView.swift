@@ -47,7 +47,7 @@ struct InboxView: View {
         return allChats.filter { chat in
             chat.name.localizedCaseInsensitiveContains(searchText)
                 || chat.preview.localizedCaseInsensitiveContains(searchText)
-                || chat.chipTitle.localizedCaseInsensitiveContains(searchText)
+                || String(localized: chat.chipTitle).localizedCaseInsensitiveContains(searchText)
         }
     }
 
@@ -149,7 +149,7 @@ struct InboxView: View {
         .alert("Could Not Delete Chat", isPresented: deleteErrorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(deleteErrorMessage ?? "Try again.")
+            Text(verbatim: deleteErrorMessage ?? String(localized: AppStrings.Common.tryAgain))
         }
         .onChange(of: selectedScreenshotItems) { _, items in
             if !items.isEmpty {
@@ -273,7 +273,7 @@ private struct InboxImportReviewNudge: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
                     .padding(.horizontal, 14)
-                    .frame(height: 34)
+                    .frame(minHeight: 34)
                     .background {
                         Capsule(style: .continuous)
                             .fill(FrameReplyColor.primary)
@@ -343,6 +343,7 @@ private struct InboxSearchImportRow: View {
             .buttonStyle(.plain)
             .disabled(isImporting)
             .accessibilityLabel("Add messages")
+            .accessibilityIdentifier("add-messages")
         }
     }
 }
@@ -371,14 +372,18 @@ private struct EmptyImportPrompt: View {
                             .font(.system(size: 15, weight: .bold))
                     }
 
-                    Text(isLoading ? "Importing Messages" : "Add Messages")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.76)
+                    Text(
+                        isLoading
+                            ? LocalizedStringResource("Importing Messages")
+                            : LocalizedStringResource("Add Messages")
+                    )
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 18)
-                .frame(height: 46)
+                .frame(minHeight: 46)
                 .background {
                     Capsule(style: .continuous)
                         .fill(FrameReplyColor.primary)
@@ -397,6 +402,7 @@ private struct EmptyImportPrompt: View {
         .padding(.vertical, 34)
         .glassPanel(cornerRadius: 26)
         .accessibilityLabel("Add messages")
+        .accessibilityIdentifier("add-messages")
     }
 }
 

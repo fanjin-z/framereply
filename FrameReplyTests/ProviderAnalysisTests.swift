@@ -11,7 +11,7 @@ final class ProviderAnalysisTests: XCTestCase {
 
     func testFiveContractsHaveExactClosedRootKeys() throws {
         XCTAssertEqual(ChatScreenshotPrompt.version, 1)
-        XCTAssertEqual(SuggestedReplyPrompt.version, 1)
+        XCTAssertEqual(SuggestedReplyPrompt.version, 2)
 
         let screenshot = ChatScreenshotPrompt.contract(for: makeRequest())
         let shared = ChatScreenshotPrompt.contract(
@@ -128,7 +128,7 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(replyFormat["name"] as? String, "suggested_reply_drafting")
         XCTAssertEqual(
             replyBody["prompt_cache_key"] as? String,
-            "suggested_reply_drafting-v1-gpt-5.6-luna")
+            "suggested_reply_drafting-v2-gpt-5.6-luna-en")
         let schema = try XCTUnwrap(replyFormat["schema"] as? [String: Any])
         XCTAssertEqual(
             Set(try XCTUnwrap(schema["properties"] as? [String: Any]).keys),
@@ -246,6 +246,7 @@ final class ProviderAnalysisTests: XCTestCase {
             ],
             draftingInput: task == .drafting ? "Make it warmer" : nil,
             previousConversationStrategy: "Confirm the plan.",
+            presentationLanguageIdentifier: "en",
             traceID: ImportTraceID())
     }
 

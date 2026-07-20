@@ -8,11 +8,11 @@ nonisolated struct ProviderDataConsentDisclosure: Equatable, Sendable {
     var destinationDescription: String {
         switch provider {
         case .openAI:
-            "OpenAI in the United States or another region selected by OpenAI"
+            String(localized: AppStrings.Provider.openAIDestination)
         case .zaiInternational:
-            "Z.ai International, which generally processes API data in Singapore"
+            String(localized: AppStrings.Provider.zaiInternationalDestination)
         case .zhipuChina:
-            "Zhipu AI in mainland China"
+            String(localized: AppStrings.Provider.zhipuChinaDestination)
         }
     }
 
@@ -28,15 +28,15 @@ nonisolated struct ProviderDataConsentDisclosure: Equatable, Sendable {
     }
 
     var permissionTitle: String {
-        "Share chat content with \(provider.displayName)?"
+        String(localized: AppStrings.Provider.consentTitle(providerName: provider.displayName))
     }
 
     var permissionMessage: String {
-        "FrameReply will send the messages, images, names, and drafts you select directly to \(provider.displayName), a third-party AI provider, to analyze chats and create replies."
+        String(localized: AppStrings.Provider.consentMessage(providerName: provider.displayName))
     }
 
     var summary: String {
-        "FrameReply sends selected screenshots or message text, participant names, chat context, and drafts to \(destinationDescription) to analyze conversations and generate replies. Your provider may retain request data under its policy and may charge your provider account. FrameReply does not operate a proxy server."
+        String(localized: AppStrings.Provider.consentSummary(destination: destinationDescription))
     }
 }
 

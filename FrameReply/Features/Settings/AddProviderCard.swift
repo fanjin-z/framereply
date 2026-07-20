@@ -72,6 +72,7 @@ struct AddProviderCard: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close")
+                .accessibilityIdentifier("close-add-provider")
                 .disabled(status.isTesting)
             }
 
@@ -97,6 +98,7 @@ struct AddProviderCard: View {
                         .autocorrectionDisabled()
                         .textContentType(.password)
                         .submitLabel(.done)
+                        .accessibilityIdentifier("provider-api-key")
                         .onSubmit { KeyboardDismissal.dismiss() }
 
                         Button {
@@ -108,10 +110,14 @@ struct AddProviderCard: View {
                                 .frame(width: 30, height: 30)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(isAPIKeyVisible ? "Hide API key" : "Show API key")
+                        .accessibilityLabel(
+                            isAPIKeyVisible
+                                ? LocalizedStringResource("Hide API key")
+                                : LocalizedStringResource("Show API key")
+                        )
                     }
                     .padding(.horizontal, 18)
-                    .frame(height: 46)
+                    .frame(minHeight: 46)
                     .background {
                         RoundedRectangle(cornerRadius: 0)
                             .fill(Color.white.opacity(0.56))
@@ -153,18 +159,23 @@ struct AddProviderCard: View {
                         } else {
                             Image(systemName: "square.and.arrow.down")
                         }
-                        Text(status.isTesting ? "Connecting..." : "Connect")
+                        Text(
+                            status.isTesting
+                                ? LocalizedStringResource("Connecting...")
+                                : LocalizedStringResource("Connect")
+                        )
                     }
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 28)
-                    .frame(height: 44)
+                    .frame(minHeight: 44)
                     .background {
                         Capsule(style: .continuous)
                             .fill(FrameReplyColor.primary)
                     }
                 }
                 .buttonStyle(SoftPressButtonStyle())
+                .accessibilityIdentifier("connect-provider")
                 .disabled(isConnectDisabled)
                 .opacity(isConnectDisabled ? 0.56 : 1)
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -188,6 +199,7 @@ struct AddProviderCard: View {
                     } label: {
                         Text(platform.displayName)
                     }
+                    .accessibilityIdentifier("provider-choice-\(platform.rawValue)")
                 }
             } label: {
                 HStack {
@@ -195,10 +207,17 @@ struct AddProviderCard: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(FrameReplyColor.primary)
 
-                    Text(selectedPlatform?.displayName ?? "Select provider")
-                        .font(.system(size: 16, weight: .regular, design: .rounded))
-                        .foregroundStyle(
-                            selectedPlatform == nil ? FrameReplyColor.outline : FrameReplyColor.onSurface)
+                    Group {
+                        if let selectedPlatform {
+                            Text(verbatim: selectedPlatform.displayName)
+                        } else {
+                            Text("Select provider")
+                        }
+                    }
+                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                    .foregroundStyle(
+                        selectedPlatform == nil
+                            ? FrameReplyColor.outline : FrameReplyColor.onSurface)
 
                     Spacer()
 
@@ -207,13 +226,14 @@ struct AddProviderCard: View {
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 }
                 .padding(.horizontal, 18)
-                .frame(height: 46)
+                .frame(minHeight: 46)
                 .background {
                     RoundedRectangle(cornerRadius: 0)
                         .fill(Color.white.opacity(0.56))
                 }
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("select-provider")
         }
     }
 
@@ -243,10 +263,17 @@ struct AddProviderCard: View {
                         .foregroundStyle(FrameReplyColor.primary)
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(selectedTier?.displayName ?? "Select performance")
-                            .font(.system(size: 16, weight: .regular, design: .rounded))
-                            .foregroundStyle(
-                                selectedTier == nil ? FrameReplyColor.outline : FrameReplyColor.onSurface)
+                        Group {
+                            if let selectedTier {
+                                Text(selectedTier.localizedDisplayName)
+                            } else {
+                                Text("Select performance")
+                            }
+                        }
+                        .font(.system(size: 16, weight: .regular, design: .rounded))
+                        .foregroundStyle(
+                            selectedTier == nil
+                                ? FrameReplyColor.outline : FrameReplyColor.onSurface)
 
                         if let selectedPlatform, let selectedTier {
                             Text(selectedPlatform.modelSummary(for: selectedTier))
@@ -263,7 +290,7 @@ struct AddProviderCard: View {
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 }
                 .padding(.horizontal, 18)
-                .frame(height: 50)
+                .frame(minHeight: 50)
                 .background {
                     RoundedRectangle(cornerRadius: 0)
                         .fill(Color.white.opacity(selectedPlatform == nil ? 0.34 : 0.56))

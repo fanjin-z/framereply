@@ -18,21 +18,18 @@ struct EdgeSwipeTabPager<Content: View>: View {
         GeometryReader { proxy in
             let pageWidth = proxy.size.width
 
-            ZStack(alignment: .leading) {
-                HStack(spacing: 0) {
-                    ForEach(AppTab.allCases) { tab in
-                        content(tab, selectedTab == tab)
-                            .frame(width: pageWidth, height: proxy.size.height)
-                            .accessibilityHidden(selectedTab != tab)
-                    }
+            let tabs = AppTab.allCases
+            let selectedIndex = tabs.firstIndex(of: selectedTab) ?? 0
+
+            ZStack {
+                ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
+                    content(tab, selectedTab == tab)
+                        .frame(width: pageWidth, height: proxy.size.height)
+                        .accessibilityHidden(selectedTab != tab)
+                        .offset(
+                            x: CGFloat(index - selectedIndex) * pageWidth + dragOffset
+                        )
                 }
-                .frame(
-                    width: pageWidth * CGFloat(AppTab.allCases.count),
-                    alignment: .leading
-                )
-                .offset(
-                    x: -CGFloat(selectedTab.index) * pageWidth + dragOffset
-                )
             }
             .frame(
                 width: pageWidth,
@@ -78,6 +75,7 @@ struct EdgeSwipeTabPager<Content: View>: View {
                 }
             }
     }
+
 }
 
 enum TabSwipeDirection: Equatable {
@@ -108,13 +106,8 @@ enum TabSwipeNavigation {
             return nil
         }
 
-        if startX <= edgeActivationWidth, translation.width > 0 {
-            return .previous
-        }
-
-        if startX >= pageWidth - edgeActivationWidth, translation.width < 0 {
-            return .next
-        }
+        if startX <= edgeActivationWidth, translation.width > 0 { return .previous }
+        if startX >= pageWidth - edgeActivationWidth, translation.width < 0 { return .next }
 
         return nil
     }
@@ -137,14 +130,14 @@ enum TabSwipeNavigation {
 
         if adjacentTab(from: tab, direction: direction) != nil {
             let distance = min(abs(translation.width), pageWidth)
-            return direction == .previous ? distance : -distance
+            return physicalSign(for: direction) * distance
         }
 
         let resistedDistance = min(
             abs(translation.width) * boundaryResistance,
             maximumBoundaryOffset
         )
-        return direction == .previous ? resistedDistance : -resistedDistance
+        return physicalSign(for: direction) * resistedDistance
     }
 
     static func destination(
@@ -168,7 +161,7 @@ enum TabSwipeNavigation {
             pageWidth * completionFraction,
             maximumCompletionDistance
         )
-        let directionSign: CGFloat = direction == .previous ? 1 : -1
+        let directionSign = physicalSign(for: direction)
         let translationInDirection = translation.width * directionSign
         let predictionInDirection = predictedEndTranslation.width * directionSign
 
@@ -189,5 +182,9 @@ enum TabSwipeNavigation {
         case .next:
             tab.next
         }
+    }
+
+    private static func physicalSign(for direction: TabSwipeDirection) -> CGFloat {
+        direction == .previous ? 1 : -1
     }
 }

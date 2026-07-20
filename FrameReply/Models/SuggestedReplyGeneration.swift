@@ -59,6 +59,7 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
     let recentMessages: [SuggestedReplyPromptMessage]
     let draftingInput: String?
     let previousConversationStrategy: String?
+    let presentationLanguageIdentifier: String
     let traceID: ImportTraceID
 
     init(
@@ -73,6 +74,7 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
         recentMessages: [SuggestedReplyPromptMessage],
         draftingInput: String? = nil,
         previousConversationStrategy: String? = nil,
+        presentationLanguageIdentifier: String,
         traceID: ImportTraceID
     ) {
         self.task = task
@@ -86,6 +88,7 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
         self.recentMessages = recentMessages
         self.draftingInput = draftingInput
         self.previousConversationStrategy = previousConversationStrategy
+        self.presentationLanguageIdentifier = presentationLanguageIdentifier
         self.traceID = traceID
     }
 }

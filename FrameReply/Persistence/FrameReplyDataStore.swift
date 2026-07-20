@@ -3,7 +3,7 @@ import SwiftData
 
 @MainActor
 enum FrameReplyDataStore {
-    static let configurationName = "FrameReplyChatsV1"
+    static let configurationName = "FrameReplyChatsV2"
     static let defaultStoreURL = URL.applicationSupportDirectory.appending(
         path: "\(configurationName).store"
     )
@@ -43,6 +43,7 @@ enum FrameReplyDataStore {
         if let preparedContainer {
             return preparedContainer
         }
+        discardPreLocalizationDevelopmentStore()
         let container = try makeContainer()
         try protectPersistentStoreFiles()
         preparedContainer = container
@@ -142,5 +143,18 @@ enum FrameReplyDataStore {
             URL(fileURLWithPath: defaultStoreURL.path + "-wal"),
             URL(fileURLWithPath: defaultStoreURL.path + "-shm")
         ]
+    }
+
+    /// The app has not shipped yet, so the localization schema intentionally
+    /// starts from a clean store instead of carrying migration compatibility.
+    private static func discardPreLocalizationDevelopmentStore() {
+        let oldURL = URL.applicationSupportDirectory.appending(path: "FrameReplyChatsV1.store")
+        for url in [
+            oldURL,
+            URL(fileURLWithPath: oldURL.path + "-wal"),
+            URL(fileURLWithPath: oldURL.path + "-shm")
+        ] where FileManager.default.fileExists(atPath: url.path) {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
 }

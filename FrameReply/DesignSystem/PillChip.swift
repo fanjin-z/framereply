@@ -6,7 +6,7 @@
 import SwiftUI
 
 struct PillChip: View {
-    let title: String
+    let title: LocalizedStringResource
     var symbolName: String?
     var tint: Color = FrameReplyColor.primary
 
@@ -19,8 +19,7 @@ struct PillChip: View {
             Text(title)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .tracking(0.3)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .foregroundStyle(tint.opacity(0.9))
         .padding(.horizontal, 10)

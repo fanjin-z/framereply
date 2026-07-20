@@ -24,19 +24,19 @@ final class PersonaRepository {
     func seedPersonasIfNeeded() throws {
         guard try metadata(Self.seededKey) == nil else { return }
         var initialDefaultID: UUID?
-        for seed in Self.seeds {
+        for builtInID in BuiltInPersonaID.allCases {
+            let definition = BuiltInPersonaDefinition.definition(for: builtInID)
             let personaID = UUID()
             initialDefaultID = initialDefaultID ?? personaID
-            let record = PersonaRecord(
-                id: personaID, name: seed.name, summary: seed.summary,
-                symbolName: seed.symbolName, accentKey: seed.accentKey,
-                instructions: seed.instructions
-            )
+            let record = PersonaRecord(id: personaID, builtInID: builtInID)
             context.insert(record)
-            for text in seed.observations {
+            for templateID in definition.observationIDs {
                 context.insert(
-                    observationRecord(
-                        personaID: personaID, text: text, origin: .seed,
+                    PersonaObservationRecord(
+                        personaID: personaID,
+                        text: "",
+                        templateIDRaw: templateID.rawValue,
+                        origin: PersonaObservationOrigin.seed.rawValue,
                         isUserProtected: false
                     ))
             }
@@ -135,12 +135,14 @@ final class PersonaRepository {
     func duplicate(_ source: PersonaRecord) throws -> PersonaRecord {
         let copied = try observations(personaID: source.id).map {
             Self.makeObservation(
-                text: $0.text, origin: .seed, isUserProtected: false
+                text: $0.localizedText, origin: .seed, isUserProtected: false
             )
         }
+        let sourceName = source.resolvedName()
         return try create(
-            name: "\(source.name) Copy", summary: source.summary,
-            instructions: source.instructions, observations: copied,
+            name: String(localized: AppStrings.Persona.copyName(sourceName)),
+            summary: source.resolvedSummary(),
+            instructions: source.resolvedInstructions(), observations: copied,
             symbolName: source.symbolName, accentKey: source.accentKey
         )
     }
@@ -165,6 +167,7 @@ final class PersonaRepository {
         let value = cleaned(text)
         guard !value.isEmpty else { return }
         record.text = value
+        record.templateIDRaw = nil
         record.origin = PersonaObservationOrigin.user.rawValue
         record.isUserProtected = true
         record.updatedAt = Date()
@@ -264,8 +267,8 @@ final class PersonaRepository {
                 return $0.createdAt < $1.createdAt
             }
         return PersonaPromptContext(
-            id: record.id, name: record.name,
-            instructions: record.instructions, observations: active,
+            id: record.id, name: record.resolvedName(),
+            instructions: record.promptInstructions, observations: active,
             protectedTombstones: values.filter {
                 $0.status == .archived && $0.isUserProtected
             }
@@ -325,54 +328,4 @@ final class PersonaRepository {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private struct Seed {
-        let name: String
-        let summary: String
-        let symbolName: String
-        let accentKey: String
-        let instructions: String
-        let observations: [String]
-    }
-
-    private static let seeds: [Seed] = [
-        .init(
-            name: "Professional",
-            summary: "Concise, polished replies for work and formal conversations.",
-            symbolName: "briefcase", accentKey: "primary",
-            instructions:
-                "Write clear, structured messages for professional and formal conversations. Be decisive and avoid filler.",
-            observations: [
-                "Uses polished, complete phrasing while remaining conversational.",
-                "Keeps replies concise and omits nonessential detail.",
-                "States the main point clearly and directly.",
-                "Does not use emoji."
-            ]
-        ),
-        .init(
-            name: "Spark",
-            summary: "Playful, confident, genuine dating messages that read the room.",
-            symbolName: "sparkles", accentKey: "peach",
-            instructions:
-                "Write genuine dating messages that read the room. Match the other person's emotional intensity and never force flirtation or over-escalate.",
-            observations: [
-                "Keeps wording casual and conversational.",
-                "Shows clear warmth and considerate acknowledgment.",
-                "Keeps replies concise and omits nonessential detail.",
-                "Allows light playfulness when it fits naturally."
-            ]
-        ),
-        .init(
-            name: "Thoughtful",
-            summary: "Warm, empathetic replies for friends, family, and delicate moments.",
-            symbolName: "heart.text.square", accentKey: "secondary",
-            instructions:
-                "Write tactful messages for friends, family, and delicate moments. Acknowledge emotion without inventing feelings or becoming overly sentimental.",
-            observations: [
-                "Shows clear warmth and considerate acknowledgment.",
-                "Balances clarity with tact.",
-                "Uses the amount of detail naturally required by the message.",
-                "Uses an occasional emoji only when it fits the conversation."
-            ]
-        )
-    ]
 }

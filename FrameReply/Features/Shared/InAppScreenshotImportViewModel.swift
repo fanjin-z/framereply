@@ -10,19 +10,30 @@ struct InAppScreenshotImportResult: Equatable {
     let outcome: ScreenshotImportOutcome
     let replies: SuggestedRepliesOutcome?
     let replyErrorMessage: String?
+    let localization: LocalizationContext
 
     var chatID: String { outcome.chatID }
 
     var message: String {
         let count = outcome.insertedMessageCount
-        let noun = count == 1 ? "message" : "messages"
+        let chatTitle =
+            outcome.chatTitle
+            ?? AppStrings.resolve(AppStrings.Chat.importedFallback, locale: localization.locale)
         if outcome.duplicate {
-            return "No new messages found in \(outcome.chatName)."
+            return AppStrings.resolve(
+                AppStrings.Import.noNewMessages(chatTitle: chatTitle),
+                locale: localization.locale
+            )
         }
         if outcome.reviewRequired {
-            return "Imported \(count) \(noun). Review may be needed."
+            return AppStrings.resolve(
+                AppStrings.Import.reviewRequired(count: count), locale: localization.locale
+            )
         }
-        return "Added \(count) \(noun) to \(outcome.chatName)."
+        return AppStrings.resolve(
+            AppStrings.Import.addedMessages(count: count, chatTitle: chatTitle),
+            locale: localization.locale
+        )
     }
 }
 
@@ -61,6 +72,7 @@ protocol InAppSuggestedRepliesGenerating {
         chatID: String,
         draftingInput: String?,
         force: Bool,
+        localization: LocalizationContext,
         traceID: ImportTraceID
     ) async throws -> SuggestedRepliesOutcome
 }
@@ -76,6 +88,7 @@ final class InAppScreenshotImportViewModel: ObservableObject {
 
     private let importer: any ScreenshotImportProcessing
     private let repliesGenerator: any InAppSuggestedRepliesGenerating
+    private let localization: LocalizationContext
     private var loadID = 0
 
     convenience init() {
@@ -97,10 +110,12 @@ final class InAppScreenshotImportViewModel: ObservableObject {
 
     init(
         importer: any ScreenshotImportProcessing,
-        repliesGenerator: any InAppSuggestedRepliesGenerating
+        repliesGenerator: any InAppSuggestedRepliesGenerating,
+        localization: LocalizationContext = .current
     ) {
         self.importer = importer
         self.repliesGenerator = repliesGenerator
+        self.localization = localization
     }
 
     @discardableResult
@@ -111,7 +126,7 @@ final class InAppScreenshotImportViewModel: ObservableObject {
         let images = imageDataList.filter { !$0.isEmpty }
         guard !images.isEmpty else {
             result = nil
-            errorMessage = "Select at least one screenshot."
+            errorMessage = ScreenshotImportError.noImage.localizedDescription
             return nil
         }
 
@@ -170,6 +185,7 @@ final class InAppScreenshotImportViewModel: ObservableObject {
                     chatID: outcome.chatID,
                     draftingInput: draftingInput,
                     force: true,
+                    localization: localization,
                     traceID: traceID
                 )
                 replyErrorMessage = nil
@@ -186,7 +202,8 @@ final class InAppScreenshotImportViewModel: ObservableObject {
             let result = InAppScreenshotImportResult(
                 outcome: outcome,
                 replies: replies,
-                replyErrorMessage: replyErrorMessage
+                replyErrorMessage: replyErrorMessage,
+                localization: localization
             )
             self.result = result
             return result

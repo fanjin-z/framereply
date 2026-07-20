@@ -27,7 +27,7 @@ struct SearchField: View {
                 .focused($isFocused)
         }
         .padding(.horizontal, 16)
-        .frame(height: 46)
+        .frame(minHeight: 46)
         .background {
             Capsule(style: .continuous)
                 .fill(Color.white.opacity(0.82))
@@ -35,7 +35,8 @@ struct SearchField: View {
                     Capsule(style: .continuous)
                         .stroke(FrameReplyColor.outline.opacity(0.9), lineWidth: 1.4)
                 }
-                .shadow(color: FrameReplyColor.primaryContainer.opacity(0.08), radius: 20, x: 0, y: 10)
+                .shadow(
+                    color: FrameReplyColor.primaryContainer.opacity(0.08), radius: 20, x: 0, y: 10)
         }
         .onChange(of: isActive) { _, isActive in
             if isActive == false {

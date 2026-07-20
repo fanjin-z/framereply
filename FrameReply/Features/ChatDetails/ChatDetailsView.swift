@@ -82,7 +82,11 @@ struct ChatDetailsView: View {
                                 .foregroundStyle(FrameReplyColor.onSurface)
                                 .lineLimit(2)
 
-                            Button(isDirectChat ? "Edit Names" : "Rename Chat") {
+                            Button(
+                                isDirectChat
+                                    ? LocalizedStringResource("Edit Names")
+                                    : LocalizedStringResource("Rename Chat")
+                            ) {
                                 if isDirectChat {
                                     isEditNamesPresented = true
                                 } else {
@@ -120,17 +124,21 @@ struct ChatDetailsView: View {
                                         )
                                         .foregroundStyle(FrameReplyColor.onSurface)
                                         .padding(.horizontal, 12)
-                                        .frame(height: 34)
+                                        .frame(minHeight: 34)
                                         .background {
                                             Capsule(style: .continuous)
-                                                .fill(FrameReplyColor.secondaryContainer.opacity(0.48))
+                                                .fill(
+                                                    FrameReplyColor.secondaryContainer.opacity(0.48)
+                                                )
                                         }
                                 }
                             }
 
-                            Text("FrameReply uses these names only for future imports into this chat.")
-                                .font(.system(size: 13, design: .rounded))
-                                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                            Text(
+                                "FrameReply uses these names only for future imports into this chat."
+                            )
+                            .font(.system(size: 13, design: .rounded))
+                            .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
                             Button("Forget imported identity", role: .destructive) {
                                 isForgetIdentityConfirmationPresented = true
@@ -153,7 +161,7 @@ struct ChatDetailsView: View {
                         Label("Delete Chat", systemImage: "trash")
                             .font(.system(size: 15, weight: .bold, design: .rounded))
                             .frame(maxWidth: .infinity)
-                            .frame(height: 50)
+                            .frame(minHeight: 50)
                     }
                     .buttonStyle(.bordered)
                     .tint(.red)
@@ -207,7 +215,7 @@ struct ChatDetailsView: View {
         .alert("Could Not Update Chat", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(errorMessage ?? "Try again.")
+            Text(verbatim: errorMessage ?? String(localized: AppStrings.Common.tryAgain))
         }
     }
 
@@ -350,7 +358,7 @@ private struct EditParticipantNamesSheet: View {
             .alert("Could Not Update Names", isPresented: errorBinding) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(errorMessage ?? "Try again.")
+                Text(verbatim: errorMessage ?? String(localized: AppStrings.Common.tryAgain))
             }
         }
     }
@@ -359,7 +367,6 @@ private struct EditParticipantNamesSheet: View {
         guard let label = ChatParticipantAlias.displayLabel(newAlias),
             let key = ChatParticipantAlias.normalizedKey(label),
             key != ChatParticipantAlias.normalizedKey(displayName),
-            key != ChatParticipantAlias.normalizedKey("Imported Chat"),
             !aliases.contains(where: { $0.normalizedLabel == key })
         else {
             newAlias = ""
@@ -375,7 +382,6 @@ private struct EditParticipantNamesSheet: View {
         aliases.removeAll { $0.id == alias.id }
         if let formerLabel = ChatParticipantAlias.displayLabel(formerDisplayName),
             let formerKey = ChatParticipantAlias.normalizedKey(formerLabel),
-            formerKey != ChatParticipantAlias.normalizedKey("Imported Chat"),
             formerKey != ChatParticipantAlias.normalizedKey(displayName),
             !aliases.contains(where: { $0.normalizedLabel == formerKey })
         {

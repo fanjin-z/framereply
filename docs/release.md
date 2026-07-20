@@ -27,6 +27,19 @@ The current audit did not find a standard secret signature, but this check must 
 
 ## Manual archive and review
 
+### Per-language release checklist
+
+English is the only current App Store localization. For every future language, verify these as separate deliverables:
+
+- App binary strings, plural rules, Dynamic Type, VoiceOver, and the primary flows on device.
+- App Intents, Shortcuts parameter copy, prompts, dialogs, and returned presentation-language metadata.
+- App Store name, subtitle, description, keywords, release notes, screenshots, and previews in App Store Connect.
+- Privacy policy, terms, support, and age-suitability pages remain the canonical reviewed English documents unless qualified legal translation review is complete. App Store metadata localizations use the same English URLs.
+- When the first non-English interface ships, add localized in-app copy explaining that the linked legal and support documents are available in English.
+- Translator review using screenshots and context comments, followed by Double-Length and Bounded-String pseudolanguage QA.
+
+App Store metadata localization is managed independently from the binary String Catalog and must not be inferred from it.
+
 1. Copy `Config/Local.xcconfig.example` to the ignored `Config/Local.xcconfig` and set the distribution Team ID.
 2. Select the shared `FrameReply` scheme and a generic iOS device in Xcode.
 3. Run tests and Analyze, then choose **Product → Archive**.

@@ -6,7 +6,7 @@
 import SwiftUI
 
 struct PickerField: View {
-    let title: String
+    let title: LocalizedStringResource
     @Binding var selection: String
     let options: [String]
 
@@ -24,7 +24,7 @@ struct PickerField: View {
                 }
             } label: {
                 HStack {
-                    Text(selection)
+                    Text(verbatim: selection)
                         .font(.system(size: 16, weight: .regular, design: .rounded))
                         .foregroundStyle(FrameReplyColor.onSurface)
                         .lineLimit(1)
@@ -37,7 +37,7 @@ struct PickerField: View {
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 }
                 .padding(.horizontal, 18)
-                .frame(height: 50)
+                .frame(minHeight: 50)
                 .background {
                     RoundedRectangle(cornerRadius: 0)
                         .fill(Color.white.opacity(0.56))

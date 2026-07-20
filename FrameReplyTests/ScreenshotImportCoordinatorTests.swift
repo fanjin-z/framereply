@@ -13,8 +13,8 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         container.mainContext.insert(
             ChatRecord(
                 id: "sarah-jenkins",
-                name: "Sarah Jenkins",
-                preview: "Existing conversation"
+                title: "Sarah Jenkins",
+                previewText: "Existing conversation"
             )
         )
         let analysis = ChatImportAnalysis(
@@ -75,7 +75,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         )
 
         XCTAssertEqual(outcome.chatID, "sarah-jenkins")
-        XCTAssertEqual(outcome.chatName, "Sarah Jenkins")
+        XCTAssertEqual(outcome.chatTitle, "Sarah Jenkins")
         XCTAssertEqual(outcome.diagnosticID, "12345678")
         XCTAssertEqual(outcome.insertedMessageCount, 3)
         XCTAssertFalse(outcome.reviewRequired)
@@ -114,8 +114,8 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         container.mainContext.insert(
             ChatRecord(
                 id: "cross-source-chat",
-                name: "Alice",
-                preview: "Existing conversation"
+                title: "Alice",
+                previewText: "Existing conversation"
             )
         )
 

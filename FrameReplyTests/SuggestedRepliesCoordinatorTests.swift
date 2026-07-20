@@ -16,6 +16,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         container.mainContext.insert(
             SuggestedReplyCacheRecord(
                 chatID: chatID,
+                presentationLanguageIdentifier: "en",
                 historySummary: "Existing summary",
                 summarizedMessageCount: 7,
                 summarizedPrefixFingerprint: "existing-prefix",
@@ -314,8 +315,8 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
     private func makeChat(id: String) -> ChatRecord {
         ChatRecord(
             id: id,
-            name: "Sarah",
-            preview: "Preview"
+            title: "Sarah",
+            previewText: "Preview"
         )
     }
 

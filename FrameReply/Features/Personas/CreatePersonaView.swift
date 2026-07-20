@@ -87,7 +87,7 @@ struct CreatePersonaView: View {
                 .pickerStyle(.menu)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 14)
-                .frame(height: 48)
+                .frame(minHeight: 48)
                 .background(fieldBackground)
                 .onChange(of: basePersonaID) { _, value in selectBase(value) }
             }
@@ -192,12 +192,16 @@ struct CreatePersonaView: View {
             } label: {
                 HStack(spacing: 8) {
                     if isCreating { ProgressView().tint(.white) }
-                    Text(isCreating ? "Creating…" : "Create Persona")
+                    Text(
+                        isCreating
+                            ? LocalizedStringResource("Creating…")
+                            : LocalizedStringResource("Create Persona")
+                    )
                 }
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 52)
+                .frame(minHeight: 52)
                 .background(Capsule().fill(FrameReplyColor.primary))
             }
             .buttonStyle(SoftPressButtonStyle())
@@ -272,28 +276,17 @@ struct CreatePersonaView: View {
         draftObservations = storedObservations.filter {
             $0.personaID == id && $0.status == PersonaObservationStatus.active.rawValue
         }.map {
-            PersonaRepository.makeObservation(
-                text: $0.text, origin: .seed, isUserProtected: false
-            )
+            $0.value
         }
     }
 
     private func observationsIncludingStyle() -> [PersonaObservation] {
-        let texts = PersonaQuickSetup.replacingQuickSetupObservations(
-            in: draftObservations.map(\.text), selections: selections
+        Array(
+            PersonaQuickSetup.replacingQuickSetupObservations(
+                in: draftObservations,
+                selections: selections
+            ).prefix(PersonaLimits.maximumActiveObservations)
         )
-        let existing = Dictionary(
-            draftObservations.map {
-                ($0.text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), $0)
-            },
-            uniquingKeysWith: { current, _ in current }
-        )
-        return texts.prefix(PersonaLimits.maximumActiveObservations).map { text in
-            existing[text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()]
-                ?? PersonaRepository.makeObservation(
-                    text: text, origin: .seed, isUserProtected: false
-                )
-        }
     }
 
     private func analyzeExamplesForCreation() async throws {

@@ -30,34 +30,36 @@ struct FloatingBottomNavigation: View {
                         .font(.system(size: 23, weight: .medium))
                         .frame(height: 24)
 
-                        Text(tab.rawValue)
+                        Text(tab.title)
                             .font(.system(size: 11, weight: .semibold, design: .rounded))
                             .tracking(0.4)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .foregroundStyle(
                         selectedTab == tab ? FrameReplyColor.primary : Color.black.opacity(0.78)
                     )
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: 44)
-                    .frame(height: 50)
+                    .frame(minHeight: 50)
                     .background {
                         if selectedTab == tab {
                             Capsule(style: .continuous)
                                 .fill(FrameReplyColor.primaryContainer.opacity(0.8))
                                 .shadow(
-                                    color: FrameReplyColor.primaryContainer.opacity(0.4), radius: 15,
+                                    color: FrameReplyColor.primaryContainer.opacity(0.4),
+                                    radius: 15,
                                     x: 0, y: 8)
                         }
                     }
                 }
                 .buttonStyle(SoftPressButtonStyle())
+                .accessibilityIdentifier("app-tab-\(tab.rawValue)")
             }
         }
         .padding(.horizontal, 10)
         .frame(maxWidth: 560)
-        .frame(height: 66)
+        .frame(minHeight: 66)
         .glassPanel(cornerRadius: 34)
     }
 }

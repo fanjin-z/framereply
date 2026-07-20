@@ -18,6 +18,21 @@ Keep changes focused, format Swift with the repository configuration, add tests 
 
 Update the contributor documentation when changing chat-matching policy, durable learning rules, provider data flow, or the Shortcut handoff contract. Keep architecture documentation focused on concepts and invariants rather than individual implementation files.
 
+## Localization
+
+English is currently the source and only shipped language. All app-owned user-facing copy belongs in `FrameReply/Localizable.xcstrings`.
+
+- Write complete sentences; never concatenate translated fragments.
+- Use `LocalizedStringResource` for reusable app-owned labels and render imported, user-authored, provider-brand, and AI reply content explicitly as verbatim text.
+- Put reused, programmatic, fallback, error, plural, and interpolated copy in `AppStrings`. Raw semantic catalog keys belong only in that namespace; ordinary one-off SwiftUI literals remain compiler-extracted.
+- Keep static App Intents metadata as literals or direct `LocalizedStringResource` initializers at the declaration site; Apple's metadata exporter does not accept indirection through `AppStrings`.
+- Add translator comments for ambiguous actions, privacy/consent language, placeholders, interpolated values, and accessibility copy.
+- Use String Catalog plural variants for counts.
+- Keep protocol tokens, JSON keys, IDs, URLs, model names, logs, diagnostics, and internal prompts out of the catalog.
+- Never persist or compare a localized fallback as identity or state.
+
+Run `scripts/check-localization.sh` before submitting a localization-related change. Typed `AppStrings` references protect Swift call sites; the script separately protects catalog integrity and requires every language registered in the Xcode project to be complete and reviewed. When source strings change, build the app so Xcode emits current `.stringsdata`, then sync the catalog with `xcstringstool`.
+
 ## Conduct
 
 Be respectful, constructive, and privacy-conscious. Harassment, discrimination, disclosure of another person's private data, and abusive behavior are not accepted. Maintainers may remove content or participation that violates these expectations.

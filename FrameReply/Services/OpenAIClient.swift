@@ -333,7 +333,8 @@ struct OpenAIClient: AIProviderAdapter {
             "max_output_tokens": maxTokens,
             "reasoning": ["effort": "none"],
             "store": false,
-            "prompt_cache_key": "\(contract.name)-v\(contract.version)-\(model.rawValue)",
+            "prompt_cache_key":
+                "\(contract.name)-v\(contract.version)-\(model.rawValue)-\(generationRequest.presentationLanguageIdentifier)",
             "text": [
                 "verbosity": "low",
                 "format": [

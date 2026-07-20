@@ -37,19 +37,19 @@ nonisolated enum SuggestedRepliesError: LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .noActiveProvider:
-            "Connect and select a model provider to generate replies."
+            String(localized: AppStrings.Errors.Replies.noProvider)
         case .missingAPIKey:
-            "The selected provider API key is unavailable. Reconnect it in Settings."
+            String(localized: AppStrings.Errors.AI.missingKey)
         case .consentRequired:
-            "Allow provider sharing in Settings → Privacy & Data first."
+            String(localized: AppStrings.Errors.Replies.consentRequired)
         case .noMessages:
-            "Import at least one chat message before generating replies."
+            String(localized: AppStrings.Errors.Replies.noMessages)
         case .chatNotFound:
-            "This chat is no longer available."
+            String(localized: AppStrings.Errors.Replies.chatNotFound)
         case .unsupportedProvider:
-            "The selected provider cannot generate suggested replies."
+            String(localized: AppStrings.Errors.Replies.unsupportedProvider)
         case .invalidProviderResponse:
-            "The provider could not generate replies in the expected format. Try again."
+            String(localized: AppStrings.Errors.Replies.invalidResponse)
         }
     }
 
@@ -105,7 +105,10 @@ final class SuggestedRepliesCoordinator {
         self.repository = repository
     }
 
-    func cachedReplies(chatID: String) throws -> SuggestedRepliesOutcome? {
+    func cachedReplies(
+        chatID: String,
+        localization: LocalizationContext = .current
+    ) throws -> SuggestedRepliesOutcome? {
         guard let providerContext = try? aiService.activeContext(requiring: .suggestedReplies),
             try repository.chat(id: chatID) != nil
         else {
@@ -121,7 +124,12 @@ final class SuggestedRepliesCoordinator {
             personaID: persona.id,
             assignedAt: chatContext.personaAssignedAt
         )
-        guard let cache = try repository.suggestedReplyCache(chatID: chatID) else {
+        guard
+            let cache = try repository.suggestedReplyCache(
+                chatID: chatID,
+                presentationLanguageIdentifier: localization.languageIdentifier
+            )
+        else {
             return nil
         }
         let inputFingerprint = fingerprint(
@@ -130,7 +138,8 @@ final class SuggestedRepliesCoordinator {
             persona: persona,
             learningMessageIDs: learningMessages.map(\.id),
             provider: providerContext.platform,
-            model: providerContext.effectiveModel
+            model: providerContext.effectiveModel,
+            presentationLanguageIdentifier: localization.languageIdentifier
         )
         guard cache.inputFingerprint == inputFingerprint,
             cache.promptVersion == SuggestedReplyPrompt.version,
@@ -150,6 +159,7 @@ final class SuggestedRepliesCoordinator {
         chatID: String,
         draftingInput: String? = nil,
         force: Bool = false,
+        localization: LocalizationContext = .current,
         traceID: ImportTraceID = ImportTraceID()
     ) async throws -> SuggestedRepliesOutcome {
         let draftingInput = draftingInput?
@@ -178,7 +188,10 @@ final class SuggestedRepliesCoordinator {
             personaID: persona.id,
             assignedAt: chatContext.personaAssignedAt
         )
-        let cache = try repository.suggestedReplyCache(chatID: chatID)
+        let cache = try repository.suggestedReplyCache(
+            chatID: chatID,
+            presentationLanguageIdentifier: localization.languageIdentifier
+        )
         let replyModel = providerContext.effectiveModel
         let inputFingerprint = fingerprint(
             messages: messages,
@@ -186,7 +199,8 @@ final class SuggestedRepliesCoordinator {
             persona: persona,
             learningMessageIDs: learningMessages.map(\.id),
             provider: providerContext.platform,
-            model: replyModel
+            model: replyModel,
+            presentationLanguageIdentifier: localization.languageIdentifier
         )
 
         if oneUseInput == nil, !force,
@@ -222,6 +236,7 @@ final class SuggestedRepliesCoordinator {
             recentMessages: recentMessages.map(promptMessage),
             draftingInput: oneUseInput,
             previousConversationStrategy: strategyContext,
+            presentationLanguageIdentifier: localization.languageIdentifier,
             traceID: traceID
         )
 
@@ -244,7 +259,8 @@ final class SuggestedRepliesCoordinator {
             try inputIsCurrent(
                 chatID: chatID,
                 expectedFingerprint: inputFingerprint,
-                providerContext: providerContext
+                providerContext: providerContext,
+                presentationLanguageIdentifier: localization.languageIdentifier
             )
         else {
             throw CancellationError()
@@ -280,6 +296,7 @@ final class SuggestedRepliesCoordinator {
         if oneUseInput != nil {
             try repository.saveSuggestedRepliesOnly(
                 chatID: chatID,
+                presentationLanguageIdentifier: localization.languageIdentifier,
                 replies: generated.replies,
                 conversationStrategy: generated.conversationStrategy,
                 strategyRationale: generated.strategyRationale,
@@ -302,11 +319,13 @@ final class SuggestedRepliesCoordinator {
             ),
             learningMessageIDs: [],
             provider: providerContext.platform,
-            model: replyModel
+            model: replyModel,
+            presentationLanguageIdentifier: localization.languageIdentifier
         )
 
         try repository.saveSuggestedReplyGeneration(
             chatID: chatID,
+            presentationLanguageIdentifier: localization.languageIdentifier,
             chatMemories: reconciledContext.chatMemories,
             personaID: persona.id,
             personaObservationChanges: validObservationChanges,
@@ -385,7 +404,8 @@ final class SuggestedRepliesCoordinator {
         persona: PersonaPromptContext,
         learningMessageIDs: [UUID],
         provider: ProviderPlatform,
-        model: ProviderModel
+        model: ProviderModel,
+        presentationLanguageIdentifier: String
     ) -> String {
         let payload: [String: Any] = [
             "messages": messages.map(messageObject),
@@ -398,6 +418,7 @@ final class SuggestedRepliesCoordinator {
             "personaLearningMessageIDs": learningMessageIDs.map(\.uuidString),
             "provider": provider.rawValue,
             "model": model.rawValue,
+            "presentationLanguageIdentifier": presentationLanguageIdentifier,
             "promptVersion": SuggestedReplyPrompt.version
         ]
         return digest(payload)
@@ -406,7 +427,8 @@ final class SuggestedRepliesCoordinator {
     private func inputIsCurrent(
         chatID: String,
         expectedFingerprint: String,
-        providerContext: AIProviderExecutionContext
+        providerContext: AIProviderExecutionContext,
+        presentationLanguageIdentifier: String
     ) throws -> Bool {
         guard let currentContext = try? aiService.activeContext(requiring: .suggestedReplies),
             currentContext == providerContext,
@@ -426,7 +448,8 @@ final class SuggestedRepliesCoordinator {
             persona: persona,
             learningMessageIDs: learningMessages.map(\.id),
             provider: providerContext.platform,
-            model: providerContext.effectiveModel
+            model: providerContext.effectiveModel,
+            presentationLanguageIdentifier: presentationLanguageIdentifier
         ) == expectedFingerprint
     }
 

@@ -9,7 +9,7 @@ struct Chat: Identifiable {
     let id: String
     let name: String
     let preview: String
-    let chipTitle: String
+    let chipTitle: LocalizedStringResource
     let chipSymbol: String
     let avatarSymbol: String?
     let initials: String

@@ -7,10 +7,14 @@ import SwiftUI
 
 struct SectionHeader<Trailing: View>: View {
     let symbolName: String
-    let title: String
+    let title: LocalizedStringResource
     @ViewBuilder let trailing: Trailing
 
-    init(symbolName: String, title: String, @ViewBuilder trailing: () -> Trailing) {
+    init(
+        symbolName: String,
+        title: LocalizedStringResource,
+        @ViewBuilder trailing: () -> Trailing
+    ) {
         self.symbolName = symbolName
         self.title = title
         self.trailing = trailing()
@@ -26,8 +30,7 @@ struct SectionHeader<Trailing: View>: View {
             Text(title)
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(FrameReplyColor.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
+                .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: 12)
 
@@ -37,7 +40,7 @@ struct SectionHeader<Trailing: View>: View {
 }
 
 extension SectionHeader where Trailing == EmptyView {
-    init(symbolName: String, title: String) {
+    init(symbolName: String, title: LocalizedStringResource) {
         self.init(symbolName: symbolName, title: title) {
             EmptyView()
         }

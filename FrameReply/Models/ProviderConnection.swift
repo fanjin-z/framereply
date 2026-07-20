@@ -89,7 +89,7 @@ enum ProviderTier: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
-    var displayName: String {
+    var localizedDisplayName: LocalizedStringResource {
         switch self {
         case .basic: "Basic"
         case .advanced: "Advanced"
@@ -97,7 +97,11 @@ enum ProviderTier: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var detail: String {
+    var displayName: String {
+        String(localized: localizedDisplayName)
+    }
+
+    var localizedDetail: LocalizedStringResource {
         switch self {
         case .basic:
             "Lowest cost; may be less reliable with subtle or complex context"
@@ -106,6 +110,10 @@ enum ProviderTier: String, Codable, CaseIterable, Identifiable, Sendable {
         case .best:
             "Highest-quality interpretation and writing at the highest cost"
         }
+    }
+
+    var detail: String {
+        String(localized: localizedDetail)
     }
 }
 

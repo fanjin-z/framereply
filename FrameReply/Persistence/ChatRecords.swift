@@ -50,8 +50,8 @@ nonisolated struct ChatImportReviewState: Codable, Equatable {
 @Model
 final class ChatRecord {
     @Attribute(.unique) var id: String
-    var name: String
-    var preview: String
+    var title: String?
+    var previewText: String?
     var conversationKindRaw: String
     var importReviewStateJSON: String?
     var updatedAt: Date
@@ -80,16 +80,16 @@ final class ChatRecord {
 
     init(
         id: String,
-        name: String,
-        preview: String,
+        title: String?,
+        previewText: String?,
         conversationKind: ChatConversationKind = .unknown,
         isProvisional: Bool = false,
         importReviewStateJSON: String? = nil,
         updatedAt: Date = Date()
     ) {
         self.id = id
-        self.name = name
-        self.preview = preview
+        self.title = title
+        self.previewText = previewText
         self.conversationKindRaw = conversationKind.rawValue
         if let importReviewStateJSON {
             self.importReviewStateJSON = importReviewStateJSON
@@ -198,16 +198,36 @@ final class ChatContextRecord {
 @Model
 final class PersonaRecord {
     @Attribute(.unique) var id: UUID
-    var name: String
-    var summary: String
+    var builtInIDRaw: String?
+    var nameOverride: String?
+    var summaryOverride: String?
     var symbolName: String
     var accentKey: String
-    var instructions: String
+    var instructionsOverride: String?
     var learningEnabled: Bool
     var learningEnabledAt: Date
     var sampleCount: Int
     var createdAt: Date
     var updatedAt: Date
+
+    var builtInID: BuiltInPersonaID? {
+        builtInIDRaw.flatMap(BuiltInPersonaID.init(rawValue:))
+    }
+
+    var name: String {
+        get { resolvedName() }
+        set { nameOverride = newValue }
+    }
+
+    var summary: String {
+        get { resolvedSummary() }
+        set { summaryOverride = newValue }
+    }
+
+    var instructions: String {
+        get { resolvedInstructions() }
+        set { instructionsOverride = newValue }
+    }
 
     init(
         id: UUID = UUID(), name: String, summary: String, symbolName: String,
@@ -217,16 +237,61 @@ final class PersonaRecord {
         createdAt: Date = Date(), updatedAt: Date = Date()
     ) {
         self.id = id
-        self.name = name
-        self.summary = summary
+        self.builtInIDRaw = nil
+        self.nameOverride = name
+        self.summaryOverride = summary
         self.symbolName = symbolName
         self.accentKey = accentKey
-        self.instructions = instructions
+        self.instructionsOverride = instructions
         self.learningEnabled = learningEnabled
         self.learningEnabledAt = learningEnabledAt
         self.sampleCount = sampleCount
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+
+    init(
+        id: UUID = UUID(), builtInID: BuiltInPersonaID,
+        learningEnabled: Bool = true, learningEnabledAt: Date = Date(),
+        sampleCount: Int = 0, createdAt: Date = Date(), updatedAt: Date = Date()
+    ) {
+        let definition = BuiltInPersonaDefinition.definition(for: builtInID)
+        self.id = id
+        self.builtInIDRaw = builtInID.rawValue
+        self.nameOverride = nil
+        self.summaryOverride = nil
+        self.symbolName = definition.symbolName
+        self.accentKey = definition.accentKey
+        self.instructionsOverride = nil
+        self.learningEnabled = learningEnabled
+        self.learningEnabledAt = learningEnabledAt
+        self.sampleCount = sampleCount
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    func resolvedName(locale: Locale = .current) -> String {
+        nameOverride ?? builtInID.map {
+            BuiltInPersonaDefinition.definition(for: $0).localizedName(locale: locale)
+        } ?? ""
+    }
+
+    func resolvedSummary(locale: Locale = .current) -> String {
+        summaryOverride ?? builtInID.map {
+            BuiltInPersonaDefinition.definition(for: $0).localizedSummary(locale: locale)
+        } ?? ""
+    }
+
+    func resolvedInstructions(locale: Locale = .current) -> String {
+        instructionsOverride ?? builtInID.map {
+            BuiltInPersonaDefinition.definition(for: $0).localizedInstructions(locale: locale)
+        } ?? ""
+    }
+
+    var promptInstructions: String {
+        instructionsOverride ?? builtInID.map {
+            BuiltInPersonaDefinition.definition(for: $0).canonicalInstructions
+        } ?? ""
     }
 }
 
@@ -235,6 +300,7 @@ final class PersonaObservationRecord {
     var id: UUID
     var personaID: UUID
     var text: String
+    var templateIDRaw: String?
     var origin: String
     var isUserProtected: Bool
     var status: String
@@ -243,6 +309,7 @@ final class PersonaObservationRecord {
 
     init(
         id: UUID = UUID(), personaID: UUID, text: String,
+        templateIDRaw: String? = nil,
         origin: String, isUserProtected: Bool = false,
         status: String = PersonaObservationStatus.active.rawValue,
         createdAt: Date = Date(), updatedAt: Date = Date()
@@ -250,12 +317,20 @@ final class PersonaObservationRecord {
         self.id = id
         self.personaID = personaID
         self.text = text
+        self.templateIDRaw = templateIDRaw
         self.origin = origin
         self.isUserProtected = isUserProtected
         self.status = status
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
+
+    var templateID: BuiltInObservationID? {
+        templateIDRaw.flatMap(BuiltInObservationID.init(rawValue:))
+    }
+
+    var localizedText: String { templateID?.localizedText() ?? text }
+    var promptText: String { templateID?.canonicalPromptText ?? text }
 }
 
 @Model
@@ -307,7 +382,9 @@ final class ChatMemoryRecord {
 
 @Model
 final class SuggestedReplyCacheRecord {
-    @Attribute(.unique) var chatID: String
+    @Attribute(.unique) var key: String
+    var chatID: String
+    var presentationLanguageIdentifier: String
     var historySummary: String
     var summarizedMessageCount: Int
     var summarizedPrefixFingerprint: String
@@ -320,6 +397,7 @@ final class SuggestedReplyCacheRecord {
 
     init(
         chatID: String,
+        presentationLanguageIdentifier: String,
         historySummary: String,
         summarizedMessageCount: Int,
         summarizedPrefixFingerprint: String,
@@ -330,7 +408,10 @@ final class SuggestedReplyCacheRecord {
         promptVersion: Int,
         generatedAt: Date = Date()
     ) {
+        self.key = Self.makeKey(
+            chatID: chatID, presentationLanguageIdentifier: presentationLanguageIdentifier)
         self.chatID = chatID
+        self.presentationLanguageIdentifier = presentationLanguageIdentifier
         self.historySummary = historySummary
         self.summarizedMessageCount = summarizedMessageCount
         self.summarizedPrefixFingerprint = summarizedPrefixFingerprint
@@ -340,6 +421,10 @@ final class SuggestedReplyCacheRecord {
         self.inputFingerprint = inputFingerprint
         self.promptVersion = promptVersion
         self.generatedAt = generatedAt
+    }
+
+    static func makeKey(chatID: String, presentationLanguageIdentifier: String) -> String {
+        "\(chatID)|\(presentationLanguageIdentifier.lowercased())"
     }
 }
 

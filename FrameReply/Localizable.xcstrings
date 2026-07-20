@@ -1,0 +1,2085 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%@" : {
+
+    },
+    "%@ Reference %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ Reference %2$@."
+          }
+        }
+      }
+    },
+    "%@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$@"
+          }
+        }
+      }
+    },
+    "%lld" : {
+
+    },
+    "%lld chats" : {
+
+    },
+    "%lld messages" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld message"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld messages"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld/10 messages" : {
+
+    },
+    "AI-generated — review before sending" : {
+
+    },
+    "API Key" : {
+
+    },
+    "Add" : {
+
+    },
+    "Add Context or Draft" : {
+
+    },
+    "Add Messages" : {
+
+    },
+    "Add Provider" : {
+
+    },
+    "Add Reply Note" : {
+
+    },
+    "Add an observation" : {
+
+    },
+    "Add messages" : {
+
+    },
+    "Add model provider" : {
+
+    },
+    "Add optional context or a rough draft while FrameReply analyzes the chat images?" : {
+
+    },
+    "Add optional context or a rough draft while FrameReply analyzes the chat text?" : {
+
+    },
+    "Add recent conversation messages from screenshots or copied text." : {
+
+    },
+    "Add what happened offline, what you want to accomplish, or anything the screenshot might miss..." : {
+
+    },
+    "Advanced" : {
+
+    },
+    "Age Suitability" : {
+
+    },
+    "All imports are reviewed." : {
+
+    },
+    "Allow" : {
+
+    },
+    "Allow & Connect" : {
+
+    },
+    "Also known as" : {
+
+    },
+    "Analyze ${chatImages}" : {
+
+    },
+    "Analyze ${copiedMessages}" : {
+
+    },
+    "Analyze Chat Images" : {
+
+    },
+    "Analyze Chat Text" : {
+
+    },
+    "Analyze Examples" : {
+
+    },
+    "Analyzed Chat" : {
+
+    },
+    "Analyzed chat input" : {
+
+    },
+    "Analyzing chat images… Add context or draft what you want to say. Tap Done when finished. Cancel stops the shortcut." : {
+
+    },
+    "Analyzing chat images… Add optional context or a draft. Tap Done empty to skip; Cancel stops the shortcut." : {
+
+    },
+    "Analyzing chat text… Add context or draft what you want to say. Tap Done when finished." : {
+
+    },
+    "Analyzing chat text… Add optional context or a draft. Tap Done empty to skip." : {
+
+    },
+    "Analyzing…" : {
+
+    },
+    "Auto-saved" : {
+
+    },
+    "Automatic learning has not analyzed messages yet." : {
+
+    },
+    "Back" : {
+
+    },
+    "Back to chat assistant" : {
+
+    },
+    "Back to inbox" : {
+
+    },
+    "Balanced" : {
+
+    },
+    "Basic" : {
+
+    },
+    "Basics" : {
+
+    },
+    "Before You Start" : {
+
+    },
+    "Best" : {
+
+    },
+    "Blank persona" : {
+
+    },
+    "Cancel" : {
+
+    },
+    "Casual" : {
+
+    },
+    "Chat Details" : {
+
+    },
+    "Chat History" : {
+
+    },
+    "Chat Images" : {
+
+    },
+    "Chat Text" : {
+
+    },
+    "Chat name" : {
+
+    },
+    "Chats using it will switch to your default persona." : {
+
+    },
+    "Chats, personas, and generated replies are stored locally. FrameReply has no proxy server, analytics, advertising, or tracking." : {
+
+    },
+    "Choose %@ as me, %lld messages" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Choose %1$@ as me, %2$lld message"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Choose %1$@ as me, %2$lld messages"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Choose Screenshots" : {
+
+    },
+    "Choose a clear name for this chat." : {
+
+    },
+    "Choose a new default. Chats using this persona will be reassigned." : {
+
+    },
+    "Choose once to label every message from these authors." : {
+
+    },
+    "Clear Learned Observations" : {
+
+    },
+    "Close" : {
+
+    },
+    "Close chat history" : {
+
+    },
+    "Connect" : {
+
+    },
+    "Connect OpenAI or a supported vision provider." : {
+
+    },
+    "Connect an active provider and allow provider sharing in FrameReply. If a Shortcut reports that consent is required, open Settings → Privacy & Data." : {
+
+    },
+    "Connecting..." : {
+
+    },
+    "Context or Draft" : {
+
+    },
+    "Conversation Strategy" : {
+
+    },
+    "Copied" : {
+
+    },
+    "Copied text is sent to your selected provider for analysis. FrameReply stores the imported messages in its protected local database, but does not retain a separate copy of the source transcript." : {
+
+    },
+    "Copy" : {
+
+    },
+    "Could Not Delete Chat" : {
+
+    },
+    "Could Not Update Chat" : {
+
+    },
+    "Could Not Update Names" : {
+
+    },
+    "Couldn’t Delete All Data" : {
+
+    },
+    "Couldn’t Delete Persona" : {
+
+    },
+    "Couldn’t Remove Provider" : {
+
+    },
+    "Couldn’t Save Remembered Context" : {
+
+    },
+    "Couldn’t Set Default Persona" : {
+
+    },
+    "Create New Persona" : {
+
+    },
+    "Create Persona" : {
+
+    },
+    "Creating replies from this conversation…" : {
+
+    },
+    "Creating…" : {
+
+    },
+    "Current Goal" : {
+
+    },
+    "Current model provider" : {
+
+    },
+    "Data Handling" : {
+
+    },
+    "Data Sharing" : {
+
+    },
+    "Data Sharing Details" : {
+
+    },
+    "Default" : {
+
+    },
+    "Default Persona" : {
+
+    },
+    "Default persona" : {
+
+    },
+    "Delete" : {
+
+    },
+    "Delete All Local Data" : {
+
+    },
+    "Delete Chat" : {
+
+    },
+    "Delete Persona" : {
+
+    },
+    "Delete all local FrameReply data?" : {
+
+    },
+    "Delete chat with %@?" : {
+
+    },
+    "Detailed" : {
+
+    },
+    "Display name" : {
+
+    },
+    "Done" : {
+
+    },
+    "Double tap to edit" : {
+
+    },
+    "Duplicate" : {
+
+    },
+    "Edit" : {
+
+    },
+    "Edit Names" : {
+
+    },
+    "Edit memory" : {
+
+    },
+    "Emoji" : {
+
+    },
+    "Enter API key" : {
+
+    },
+    "Example: For networking messages, mention the shared context, make one clear request, and give the other person an easy way to decline." : {
+
+    },
+    "Expressive" : {
+
+    },
+    "Few emoji" : {
+
+    },
+    "Fewer" : {
+
+    },
+    "Fine-tune the voice." : {
+
+    },
+    "Forget Identity" : {
+
+    },
+    "Forget imported identity" : {
+
+    },
+    "Forget imported identity?" : {
+
+    },
+    "Formal" : {
+
+    },
+    "Formality" : {
+
+    },
+    "FrameReply Images" : {
+
+    },
+    "FrameReply Text" : {
+
+    },
+    "FrameReply uses these names only for future imports into this chat." : {
+
+    },
+    "FrameReply uses these names to recognize this person in screenshots and pasted transcripts. Removing one may make a future import require review; existing messages won’t change." : {
+
+    },
+    "Frequent" : {
+
+    },
+    "From conversation" : {
+
+    },
+    "Future imports may ask which sender is you again. Existing messages won’t change." : {
+
+    },
+    "General" : {
+
+    },
+    "Generate Replies" : {
+
+    },
+    "Generate Suggested Replies" : {
+
+    },
+    "Generate replies for ${analyzedChat}" : {
+
+    },
+    "Generate replies when you’re ready." : {
+
+    },
+    "Generates two replies for a chat analyzed by FrameReply." : {
+
+    },
+    "Hide API key" : {
+
+    },
+    "Highest-quality interpretation and writing at the highest cost" : {
+
+    },
+    "Image Shortcut" : {
+
+    },
+    "Import your first chat" : {
+
+    },
+    "Imported chat" : {
+
+    },
+    "Importing Messages" : {
+
+    },
+    "Importing…" : {
+
+    },
+    "Imports Reviewed" : {
+
+    },
+    "Imports one to eight images from the same chat while you optionally add context or draft a reply. The images aren't saved." : {
+
+    },
+    "Imports shared or copied chat text while you optionally add context or draft a reply. Imported messages are stored locally; the source transcript is not retained separately." : {
+
+    },
+    "Inbox" : {
+
+    },
+    "Install" : {
+
+    },
+    "Install %@" : {
+
+    },
+    "Instructions" : {
+
+    },
+    "Keep" : {
+
+    },
+    "Keep as new" : {
+
+    },
+    "Learned from %lld messages." : {
+
+    },
+    "Learning on %lld chats" : {
+
+    },
+    "Local Data" : {
+
+    },
+    "Local Data Unavailable" : {
+
+    },
+    "Lowest cost; may be less reliable with subtle or complex context" : {
+
+    },
+    "Makes this provider active" : {
+
+    },
+    "Memory: %@" : {
+
+    },
+    "Merge Imported Chat" : {
+
+    },
+    "Merge Into %@" : {
+
+    },
+    "Merge into..." : {
+
+    },
+    "Model Providers" : {
+
+    },
+    "More" : {
+
+    },
+    "Move this imported chat into an existing chat. This can’t be undone." : {
+
+    },
+    "Name or username" : {
+
+    },
+    "New Persona" : {
+
+    },
+    "New remembered context for %@" : {
+
+    },
+    "No archived observations." : {
+
+    },
+    "No chats found" : {
+
+    },
+    "No emoji" : {
+
+    },
+    "No provider permissions have been granted." : {
+
+    },
+    "Not Now" : {
+
+    },
+    "Not selected" : {
+
+    },
+    "Nothing saved yet. Add a detail you would like to remember." : {
+
+    },
+    "OK" : {
+
+    },
+    "Observation" : {
+
+    },
+    "Observation History" : {
+
+    },
+    "Observations" : {
+
+    },
+    "Occasional" : {
+
+    },
+    "Only share content you have permission to use." : {
+
+    },
+    "Open Chat Assistant for %@" : {
+
+    },
+    "Open chat details for %@" : {
+
+    },
+    "Open chat history" : {
+
+    },
+    "Opening FrameReply…" : {
+
+    },
+    "Optional context or a rough reply used once for this generation." : {
+
+    },
+    "Optional: paste 3–10 messages you wrote, one per line." : {
+
+    },
+    "Options for %@" : {
+
+    },
+    "Pass one to eight images from the same chat, such as shared photos or the output from Take Screenshot." : {
+
+    },
+    "Pass shared plain text, Get Clipboard output, or text from another action." : {
+
+    },
+    "Paste 3–10 messages you wrote, one per line." : {
+
+    },
+    "Paste Copied Messages" : {
+
+    },
+    "Performance" : {
+
+    },
+    "Performance tier" : {
+
+    },
+    "Permanently reset all local FrameReply data?" : {
+
+    },
+    "Persona" : {
+
+    },
+    "Personas" : {
+
+    },
+    "Policies & Support" : {
+
+    },
+    "Preserves all text items supplied by the clipboard." : {
+
+    },
+    "Privacy & Data" : {
+
+    },
+    "Privacy Policy" : {
+
+    },
+    "Provider" : {
+
+    },
+    "Provider Privacy Policy" : {
+
+    },
+    "Provider Sharing" : {
+
+    },
+    "Provider actions for %@" : {
+
+    },
+    "Recent Chat" : {
+
+    },
+    "Recommended for consistently strong results at moderate cost" : {
+
+    },
+    "Refreshing replies…" : {
+
+    },
+    "Remembered Context" : {
+
+    },
+    "Remove" : {
+
+    },
+    "Remove Name" : {
+
+    },
+    "Rename Chat" : {
+
+    },
+    "Reply Brief" : {
+
+    },
+    "Reply Length" : {
+
+    },
+    "Reply Note Added" : {
+
+    },
+    "Reserved" : {
+
+    },
+    "Reset Local Data" : {
+
+    },
+    "Retry" : {
+
+    },
+    "Review" : {
+
+    },
+    "Review & Allow" : {
+
+    },
+    "Review Import" : {
+
+    },
+    "Review Imports" : {
+
+    },
+    "Review messages individually" : {
+
+    },
+    "Save" : {
+
+    },
+    "Saves this as a separate memory" : {
+
+    },
+    "Search all chat history" : {
+
+    },
+    "Search chats..." : {
+
+    },
+    "Select performance" : {
+
+    },
+    "Select provider" : {
+
+    },
+    "Select up to eight chat screenshots." : {
+
+    },
+    "Selected" : {
+
+    },
+    "Selected content is sent to the active provider. Source images are discarded after processing; extracted messages are stored in FrameReply’s protected local database." : {
+
+    },
+    "Sender unknown" : {
+
+    },
+    "Set as Default" : {
+
+    },
+    "Settings" : {
+
+    },
+    "Share 1–8 screenshots or photos from one chat, or run the Shortcut to capture the screen." : {
+
+    },
+    "Share selected message text when supported, or copy messages and run the Shortcut." : {
+
+    },
+    "Sharing allowed" : {
+
+    },
+    "Sharing not allowed" : {
+
+    },
+    "Short" : {
+
+    },
+    "Shortcut Setup" : {
+
+    },
+    "Shortcuts" : {
+
+    },
+    "Show API key" : {
+
+    },
+    "Skip" : {
+
+    },
+    "Start from" : {
+
+    },
+    "Stop Sharing" : {
+
+    },
+    "Stored securely on this device." : {
+
+    },
+    "Style" : {
+
+    },
+    "Suggested Replies" : {
+
+    },
+    "Support" : {
+
+    },
+    "Teach It Your Voice" : {
+
+    },
+    "Tell this persona how to respond." : {
+
+    },
+    "Terms of Use" : {
+
+    },
+    "Text Shortcut" : {
+
+    },
+    "The output from Analyze Chat Images or Analyze Chat Text." : {
+
+    },
+    "The reply brief changed. Update when you’re ready." : {
+
+    },
+    "This cannot be undone." : {
+
+    },
+    "This is me" : {
+
+    },
+    "This is the name shown throughout FrameReply." : {
+
+    },
+    "This permanently deletes chats, messages, personas, drafts, provider settings, consent records, and API keys from this device." : {
+
+    },
+    "This permanently deletes this chat and its data. This can’t be undone." : {
+
+    },
+    "Try Again" : {
+
+    },
+    "Try again." : {
+
+    },
+    "Unavailable" : {
+
+    },
+    "Update Replies" : {
+
+    },
+    "Use %@" : {
+
+    },
+    "Use %@ as Default" : {
+
+    },
+    "Use as Display Name" : {
+
+    },
+    "Use the Share Sheet, Spotlight, Action button, Back Tap, Home Screen, Siri, or the Shortcuts app." : {
+
+    },
+    "Used once for the next set of replies" : {
+
+    },
+    "Very casual" : {
+
+    },
+    "Very detailed" : {
+
+    },
+    "Very formal" : {
+
+    },
+    "Very reserved" : {
+
+    },
+    "Very short" : {
+
+    },
+    "Very warm" : {
+
+    },
+    "Warm" : {
+
+    },
+    "Warmth" : {
+
+    },
+    "Ways to Run" : {
+
+    },
+    "Which name is you?" : {
+
+    },
+    "Who sent this?" : {
+
+    },
+    "Why These Replies" : {
+
+    },
+    "You appear as" : {
+
+    },
+    "chat.fallback.imported" : {
+      "comment" : "Fallback title for an imported chat whose participant is not known.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Imported Chat"
+          }
+        }
+      }
+    },
+    "chat.fallback.preview" : {
+      "comment" : "Preview text for a chat that has no stored messages.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No messages yet"
+          }
+        }
+      }
+    },
+    "chat.fallback.title" : {
+      "comment" : "Fallback title for an imported chat whose participant or title is unknown.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Imported Chat"
+          }
+        }
+      }
+    },
+    "chat.merge.candidate.alias" : {
+      "comment" : "Merge candidate label. First value is the chat title; second is another known participant name.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ — also %2$@"
+          }
+        }
+      }
+    },
+    "e.g. Agree on a time for dinner…" : {
+
+    },
+    "e.g. Concise, polished replies for work conversations." : {
+
+    },
+    "e.g. We met at university, they prefer vegetarian restaurants…" : {
+
+    },
+    "e.g. Work Mode" : {
+
+    },
+    "error.ai.consent-required" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Review and accept this provider's data-sharing disclosure in Settings first."
+          }
+        }
+      }
+    },
+    "error.ai.missing-key" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The selected provider API key is unavailable. Reconnect it in Settings."
+          }
+        }
+      }
+    },
+    "error.ai.no-provider" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Connect and select a model provider first."
+          }
+        }
+      }
+    },
+    "error.ai.unsupported-capability" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The selected provider does not support this AI task."
+          }
+        }
+      }
+    },
+    "error.ai.unsupported-provider" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The selected provider is not available."
+          }
+        }
+      }
+    },
+    "error.chat.direct-required" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Participant names are available for one-to-one chats only."
+          }
+        }
+      }
+    },
+    "error.chat.empty-name" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Enter a display name for this chat."
+          }
+        }
+      }
+    },
+    "error.chat.sender-label-unavailable" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "That sender label is no longer available. Reopen the review and try again."
+          }
+        }
+      }
+    },
+    "error.chat.unavailable" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "That chat is no longer available."
+          }
+        }
+      }
+    },
+    "error.import.consent-required" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Allow provider sharing in Settings → Privacy & Data first."
+          }
+        }
+      }
+    },
+    "error.import.images-too-large" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The selected images are too large to process safely. Choose fewer or smaller images."
+          }
+        }
+      }
+    },
+    "error.import.no-image" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Select at least one screenshot to import."
+          }
+        }
+      }
+    },
+    "error.import.no-provider" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Connect and select a model provider before importing messages."
+          }
+        }
+      }
+    },
+    "error.import.no-transcript" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Share or copy at least one text message before importing."
+          }
+        }
+      }
+    },
+    "error.import.too-many-images" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Select no more than eight screenshots from one chat."
+          }
+        }
+      }
+    },
+    "error.import.transcript-too-large" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The chat text is too large. Select fewer messages and try again."
+          }
+        }
+      }
+    },
+    "error.import.unreadable-image" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The selected screenshot could not be read. Choose a still PNG, JPEG, or HEIC image."
+          }
+        }
+      }
+    },
+    "error.import.unsupported-image" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A selected image could not be processed safely. Use a still PNG, JPEG, or HEIC image."
+          }
+        }
+      }
+    },
+    "error.import.unsupported-provider" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The selected provider cannot analyze chat imports."
+          }
+        }
+      }
+    },
+    "error.provider.consent-required" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Allow provider data sharing before connecting."
+          }
+        }
+      }
+    },
+    "error.provider.empty-response" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The provider returned an empty response."
+          }
+        }
+      }
+    },
+    "error.provider.incomplete-messages" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The provider returned incomplete chat messages."
+          }
+        }
+      }
+    },
+    "error.provider.insufficient-balance" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This account does not have enough available API credit or quota."
+          }
+        }
+      }
+    },
+    "error.provider.invalid-chat" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The provider selected an unknown chat."
+          }
+        }
+      }
+    },
+    "error.provider.invalid-json" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The provider returned malformed JSON."
+          }
+        }
+      }
+    },
+    "error.provider.invalid-key" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This provider rejected the API key. Check it and try again."
+          }
+        }
+      }
+    },
+    "error.provider.invalid-request" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The provider could not process this request. Check the configuration and try again."
+          }
+        }
+      }
+    },
+    "error.provider.invalid-response" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The provider returned an unreadable response. Try again."
+          }
+        }
+      }
+    },
+    "error.provider.keychain" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The API key was valid, but FrameReply could not save it securely."
+          }
+        }
+      }
+    },
+    "error.provider.missing-key" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Enter an API key before saving."
+          }
+        }
+      }
+    },
+    "error.provider.network" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "FrameReply could not reach the provider. Check your connection and try again."
+          }
+        }
+      }
+    },
+    "error.provider.rate-limited" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This provider is rate limiting the key. Wait a moment and try again."
+          }
+        }
+      }
+    },
+    "error.provider.schema-mismatch" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The provider response did not match the chat format."
+          }
+        }
+      }
+    },
+    "error.provider.truncated-response" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The provider response was cut off before it finished."
+          }
+        }
+      }
+    },
+    "error.provider.unavailable" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This provider is temporarily unavailable. Try again shortly."
+          }
+        }
+      }
+    },
+    "error.provider.unsupported" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This provider is not available yet."
+          }
+        }
+      }
+    },
+    "error.replies.chat-not-found" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This chat is no longer available."
+          }
+        }
+      }
+    },
+    "error.replies.consent-required" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Allow provider sharing in Settings → Privacy & Data first."
+          }
+        }
+      }
+    },
+    "error.replies.invalid-response" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The provider could not generate replies in the expected format. Try again."
+          }
+        }
+      }
+    },
+    "error.replies.no-messages" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Import at least one chat message before generating replies."
+          }
+        }
+      }
+    },
+    "error.replies.no-provider" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Connect and select a model provider to generate replies."
+          }
+        }
+      }
+    },
+    "error.replies.unsupported-provider" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The selected provider cannot generate suggested replies."
+          }
+        }
+      }
+    },
+    "error.shortcut.analyzed-chat-unavailable" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The analyzed chat has expired or is unavailable."
+          }
+        }
+      }
+    },
+    "error.shortcut.context-unavailable" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The optional context for this analyzed chat is no longer available. Run an Analyze action again."
+          }
+        }
+      }
+    },
+    "error.shortcut.invalid-image" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Image %lld is empty or is not a readable image."
+          }
+        }
+      }
+    },
+    "error.shortcut.no-analyzed-chat" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No analyzed chat was provided."
+          }
+        }
+      }
+    },
+    "error.shortcut.no-images" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No chat images were provided."
+          }
+        }
+      }
+    },
+    "error.shortcut.not-ready" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The analyzed chat is not ready yet. Run the Analyze action again."
+          }
+        }
+      }
+    },
+    "error.shortcut.operation-mismatch" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The analyzed chat does not match this Shortcut run."
+          }
+        }
+      }
+    },
+    "error.shortcut.too-many-images" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Choose no more than %lld images from the same chat."
+          }
+        }
+      }
+    },
+    "import.added-messages" : {
+      "comment" : "Import result. The catalog supplies singular and plural variants for the message count.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Added %1$lld message to %2$@."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Added %1$lld messages to %2$@."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "import.no-new-messages" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No new messages found in %@."
+          }
+        }
+      }
+    },
+    "import.review-required" : {
+      "comment" : "Import result. The catalog supplies singular and plural variants for the message count.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Imported %lld message. Review may be needed."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Imported %lld messages. Review may be needed."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "persona.copy-name" : {
+      "comment" : "Name assigned when duplicating a persona. The placeholder is the original persona name.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@ Copy"
+          }
+        }
+      }
+    },
+    "persona.observation.casual-conversational" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keeps wording casual and conversational."
+          }
+        }
+      }
+    },
+    "persona.observation.clear-direct" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "States the main point clearly and directly."
+          }
+        }
+      }
+    },
+    "persona.observation.concise" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keeps replies concise and omits nonessential detail."
+          }
+        }
+      }
+    },
+    "persona.observation.detailed-without-filler" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Writes detailed replies while avoiding repetition and filler."
+          }
+        }
+      }
+    },
+    "persona.observation.expressive-emoji" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Uses expressive emoji naturally without cluttering the message."
+          }
+        }
+      }
+    },
+    "persona.observation.frequent-emoji" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Uses emoji fairly often when they fit the conversation."
+          }
+        }
+      }
+    },
+    "persona.observation.fuller-context" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Usually gives fuller replies with useful context."
+          }
+        }
+      }
+    },
+    "persona.observation.highly-formal" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Uses highly polished, formal phrasing and avoids slang."
+          }
+        }
+      }
+    },
+    "persona.observation.light-playfulness" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Allows light playfulness when it fits naturally."
+          }
+        }
+      }
+    },
+    "persona.observation.limited-warmth" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Shows limited warmth while staying courteous."
+          }
+        }
+      }
+    },
+    "persona.observation.natural-detail" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Uses the amount of detail naturally required by the message."
+          }
+        }
+      }
+    },
+    "persona.observation.no-emoji" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Does not use emoji."
+          }
+        }
+      }
+    },
+    "persona.observation.occasional-emoji" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Uses an occasional emoji only when it fits the conversation."
+          }
+        }
+      }
+    },
+    "persona.observation.one-concise-sentence" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Usually replies in one very concise sentence."
+          }
+        }
+      }
+    },
+    "persona.observation.open-warmth" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Writes with open warmth and empathy without inventing feelings."
+          }
+        }
+      }
+    },
+    "persona.observation.polished-conversational" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Uses polished, complete phrasing while remaining conversational."
+          }
+        }
+      }
+    },
+    "persona.observation.rare-emoji" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Uses emoji rarely and only when it reads naturally."
+          }
+        }
+      }
+    },
+    "persona.observation.restrained-neutral" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keeps emotional tone restrained and neutral."
+          }
+        }
+      }
+    },
+    "persona.observation.tactful-clarity" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Balances clarity with tact."
+          }
+        }
+      }
+    },
+    "persona.observation.very-relaxed" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Uses very relaxed, conversational wording and natural contractions."
+          }
+        }
+      }
+    },
+    "persona.observation.warm-acknowledgment" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Shows clear warmth and considerate acknowledgment."
+          }
+        }
+      }
+    },
+    "persona.professional.instructions" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Write clear, structured messages for professional and formal conversations. Be decisive and avoid filler."
+          }
+        }
+      }
+    },
+    "persona.professional.name" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Professional"
+          }
+        }
+      }
+    },
+    "persona.professional.summary" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Concise, polished replies for work and formal conversations."
+          }
+        }
+      }
+    },
+    "persona.spark.instructions" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Write genuine dating messages that read the room. Match the other person's emotional intensity and never force flirtation or over-escalate."
+          }
+        }
+      }
+    },
+    "persona.spark.name" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Spark"
+          }
+        }
+      }
+    },
+    "persona.spark.summary" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Playful, confident, genuine dating messages that read the room."
+          }
+        }
+      }
+    },
+    "persona.thoughtful.instructions" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Write tactful messages for friends, family, and delicate moments. Acknowledge emotion without inventing feelings or becoming overly sentimental."
+          }
+        }
+      }
+    },
+    "persona.thoughtful.name" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Thoughtful"
+          }
+        }
+      }
+    },
+    "persona.thoughtful.summary" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Warm, empathetic replies for friends, family, and delicate moments."
+          }
+        }
+      }
+    },
+    "provider.consent.message" : {
+      "comment" : "Privacy disclosure. The placeholder is the third-party provider brand.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "FrameReply will send the messages, images, names, and drafts you select directly to %@, a third-party AI provider, to analyze chats and create replies."
+          }
+        }
+      }
+    },
+    "provider.consent.summary" : {
+      "comment" : "Detailed provider privacy disclosure. The placeholder describes the processing destination.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "FrameReply sends selected screenshots or message text, participant names, chat context, and drafts to %@ to analyze conversations and generate replies. Your provider may retain request data under its policy and may charge your provider account. FrameReply does not operate a proxy server."
+          }
+        }
+      }
+    },
+    "provider.consent.title" : {
+      "comment" : "Provider data-sharing consent title. The placeholder is a provider brand.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Share chat content with %@?"
+          }
+        }
+      }
+    },
+    "provider.destination.openai" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "OpenAI in the United States or another region selected by OpenAI"
+          }
+        }
+      }
+    },
+    "provider.destination.zai-international" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Z.ai International, which generally processes API data in Singapore"
+          }
+        }
+      }
+    },
+    "provider.destination.zhipu-china" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Zhipu AI in mainland China"
+          }
+        }
+      }
+    },
+    "shortcut.error.with-reference" : {
+      "comment" : "Shortcut error followed by a private diagnostic reference.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ Reference %2$@."
+          }
+        }
+      }
+    },
+    "shortcut.import.added-messages" : {
+      "comment" : "Shortcut result. The catalog supplies singular and plural variants for the message count.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Added %1$lld new message to %2$@."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Added %1$lld new messages to %2$@."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "shortcut.import.no-new-messages" : {
+      "comment" : "Shortcut result when all imported chat messages were already present.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No new messages found in %@."
+          }
+        }
+      }
+    },
+    "shortcut.import.review-required" : {
+      "comment" : "Shortcut result. The catalog supplies singular and plural variants for the message count.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Imported %1$lld message as %2$@. Review it in FrameReply."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Imported %1$lld messages as %2$@. Review it in FrameReply."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "shortcut.replies.result" : {
+      "comment" : "Shortcut result with two verbatim AI-generated reply bodies.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@\n\nSuggested replies:\n1. %2$@\n2. %3$@"
+          }
+        }
+      }
+    },
+    "shortcut.replies.unavailable" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@ Suggested replies are unavailable; open FrameReply to retry."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

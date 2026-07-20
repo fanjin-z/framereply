@@ -150,7 +150,8 @@ struct PersonaDetailView: View {
                     newObservation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                         || activeObservations.count >= PersonaLimits.maximumActiveObservations)
             }.padding(14).background(
-                FrameReplyColor.secondaryContainer.opacity(0.2), in: RoundedRectangle(cornerRadius: 18))
+                FrameReplyColor.secondaryContainer.opacity(0.2),
+                in: RoundedRectangle(cornerRadius: 18))
 
             if activeObservations.contains(where: {
                 $0.origin == PersonaObservationOrigin.ai.rawValue
@@ -191,14 +192,16 @@ struct PersonaDetailView: View {
             } else {
                 Button {
                     editingID = observation.id
-                    observationDraft = observation.text
+                    observationDraft = observation.localizedText
                 } label: {
-                    Text(observation.text).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(verbatim: observation.localizedText).frame(
+                        maxWidth: .infinity, alignment: .leading)
                 }
                 .buttonStyle(.plain)
             }
         }.padding(14).background(
-            FrameReplyColor.secondaryContainer.opacity(0.28), in: RoundedRectangle(cornerRadius: 18))
+            FrameReplyColor.secondaryContainer.opacity(0.28), in: RoundedRectangle(cornerRadius: 18)
+        )
     }
 
     private var exampleCard: some View {
@@ -212,9 +215,13 @@ struct PersonaDetailView: View {
                     FrameReplyColor.secondaryContainer.opacity(0.28),
                     in: RoundedRectangle(cornerRadius: 18))
             if let exampleError { Text(exampleError).font(.caption).foregroundStyle(.red) }
-            Button(isAnalyzing ? "Analyzing…" : "Analyze Examples") { analyzeExamples() }
-                .buttonStyle(SoftPressButtonStyle())
-                .disabled(!(3...10).contains(exampleLines.count) || isAnalyzing)
+            Button(
+                isAnalyzing
+                    ? LocalizedStringResource("Analyzing…")
+                    : LocalizedStringResource("Analyze Examples")
+            ) { analyzeExamples() }
+            .buttonStyle(SoftPressButtonStyle())
+            .disabled(!(3...10).contains(exampleLines.count) || isAnalyzing)
         }.padding(22).glassPanel(cornerRadius: 28)
     }
 
@@ -227,7 +234,7 @@ struct PersonaDetailView: View {
             } else {
                 ForEach(inactiveObservations) { observation in
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(observation.text)
+                        Text(verbatim: observation.localizedText)
                         Text(observation.status.capitalized).font(.caption2).foregroundStyle(
                             FrameReplyColor.outline)
                     }.padding(.top, 10)

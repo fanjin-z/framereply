@@ -34,7 +34,7 @@ struct PersonasView: View {
                 } label: {
                     Label("Create New Persona", systemImage: "plus")
                         .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white).frame(maxWidth: .infinity).frame(height: 50)
+                        .foregroundStyle(.white).frame(maxWidth: .infinity).frame(minHeight: 50)
                         .background(Capsule().fill(FrameReplyColor.primary))
                 }
                 .buttonStyle(SoftPressButtonStyle()).padding(.top, 6)

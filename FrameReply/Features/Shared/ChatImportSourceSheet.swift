@@ -80,8 +80,8 @@ struct ChatImportSourceSheet: View {
 }
 
 private struct ImportSourceRow: View {
-    let title: String
-    let detail: String
+    let title: LocalizedStringResource
+    let detail: LocalizedStringResource
     let symbolName: String
 
     var body: some View {

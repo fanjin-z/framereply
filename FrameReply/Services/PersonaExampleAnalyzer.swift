@@ -10,9 +10,14 @@ final class PersonaExampleAnalyzer {
         repository = ChatRepository()
     }
 
-    func analyze(personaID: UUID, examples: [String]) async throws {
+    func analyze(
+        personaID: UUID,
+        examples: [String],
+        localization: LocalizationContext = .current
+    ) async throws {
         let persona = try repository.personaPromptContext(personaID: personaID)
-        let analysis = try await analyze(persona: persona, examples: examples)
+        let analysis = try await analyze(
+            persona: persona, examples: examples, localization: localization)
         try repository.savePersonaExampleAnalysis(
             personaID: personaID,
             changes: analysis.changes,
@@ -23,7 +28,8 @@ final class PersonaExampleAnalyzer {
 
     func analyze(
         persona: PersonaPromptContext,
-        examples: [String]
+        examples: [String],
+        localization: LocalizationContext = .current
     ) async throws -> (changes: [PersonaObservationChange], messageIDs: Set<UUID>) {
         let provider = try aiService.activeContext(requiring: .suggestedReplies)
         let messages = examples.map {
@@ -42,6 +48,7 @@ final class PersonaExampleAnalyzer {
             summaryMode: .unchanged,
             olderMessagesToSummarize: [],
             recentMessages: [],
+            presentationLanguageIdentifier: localization.languageIdentifier,
             traceID: ImportTraceID()
         )
         let result = try await aiService.generateSuggestedReplies(request, using: provider)

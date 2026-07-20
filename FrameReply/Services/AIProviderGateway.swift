@@ -98,15 +98,15 @@ nonisolated enum AIServiceError: LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .noActiveProvider:
-            "Connect and select a model provider first."
+            String(localized: AppStrings.Errors.AI.noProvider)
         case .missingAPIKey:
-            "The selected provider API key is unavailable. Reconnect it in Settings."
+            String(localized: AppStrings.Errors.AI.missingKey)
         case .consentRequired:
-            "Review and accept this provider's data-sharing disclosure in Settings first."
+            String(localized: AppStrings.Errors.AI.consentRequired)
         case .unsupportedProvider:
-            "The selected provider is not available."
+            String(localized: AppStrings.Errors.AI.unsupportedProvider)
         case .unsupportedCapability:
-            "The selected provider does not support this AI task."
+            String(localized: AppStrings.Errors.AI.unsupportedCapability)
         }
     }
 

@@ -76,6 +76,12 @@ Import turns external conversation data into trusted local history. Reply genera
 
 See [AI Workflows](ai-workflows.md) for the matching algorithm and the state rules shared by these workflows.
 
+## Localization boundaries
+
+`Localizable.xcstrings` is the app-owned presentation source of truth. `LocalizationContext` carries a resolved supported language into coordinators and prompt construction; there is no mutable global language manager.
+
+Persistent identity is language-independent: chat titles are optional verbatim content, built-in personas and seed observations use stable IDs with optional user overrides, and suggested-reply caches use chat plus presentation language as their identity. Localized fallbacks are resolved only by projections. Imported text, names, user edits, provider brands, reply bodies, protocol fields, and diagnostic identifiers remain verbatim.
+
 ## Glossary
 
 | Term | Meaning |

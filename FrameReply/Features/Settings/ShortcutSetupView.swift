@@ -48,7 +48,11 @@ struct ShortcutSetupView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func guideSection(title: String, symbol: String, text: String) -> some View {
+    private func guideSection(
+        title: LocalizedStringResource,
+        symbol: String,
+        text: LocalizedStringResource
+    ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(title, systemImage: symbol)
                 .font(.system(size: 17, weight: .bold, design: .rounded))

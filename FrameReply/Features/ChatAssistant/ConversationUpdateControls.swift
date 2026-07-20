@@ -21,14 +21,18 @@ struct ConversationUpdateControls: View {
                         Image(systemName: "text.below.photo")
                             .font(.system(size: 16, weight: .semibold))
                     }
-                    Text(isImporting ? "Importing…" : "Add Messages")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.72)
+                    Text(
+                        isImporting
+                            ? LocalizedStringResource("Importing…")
+                            : LocalizedStringResource("Add Messages")
+                    )
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
                 }
                 .foregroundStyle(FrameReplyColor.primary)
                 .frame(maxWidth: .infinity)
-                .frame(height: 58)
+                .frame(minHeight: 58)
                 .background {
                     Capsule(style: .continuous)
                         .fill(FrameReplyColor.secondaryContainer.opacity(0.42))
@@ -43,14 +47,17 @@ struct ConversationUpdateControls: View {
                 HStack(spacing: 9) {
                     Image(systemName: hasReplyNote ? "checkmark.bubble" : "text.badge.plus")
                         .font(.system(size: 16, weight: .semibold))
-                    Text(hasReplyNote ? "Reply Note Added" : "Add Reply Note")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
+                    Text(
+                        hasReplyNote
+                            ? LocalizedStringResource("Reply Note Added")
+                            : LocalizedStringResource("Add Reply Note")
+                    )
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .multilineTextAlignment(.center)
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 58)
+                .frame(minHeight: 58)
                 .background {
                     Capsule(style: .continuous)
                         .fill(FrameReplyColor.primary)

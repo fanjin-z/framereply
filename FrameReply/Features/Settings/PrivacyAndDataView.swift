@@ -29,6 +29,7 @@ struct PrivacyAndDataView: View {
         }
         .navigationTitle("Privacy & Data")
         .navigationBarTitleDisplayMode(.inline)
+        .accessibilityIdentifier("privacy-and-data-screen")
         .alert(
             consentDisclosure?.permissionTitle ?? "Share chat content?",
             isPresented: Binding(
@@ -103,13 +104,13 @@ struct PrivacyAndDataView: View {
     private var legalSection: some View {
         settingsPanel(title: "Policies & Support", symbol: "doc.text") {
             VStack(alignment: .leading, spacing: 12) {
-                legalLink("Privacy Policy", destination: AppLegalLinks.privacy)
+                legalLink("Privacy Policy", destination: AppLegalLinks.url(for: .privacy))
                     .accessibilityIdentifier("privacy-policy-link")
-                legalLink("Terms of Use", destination: AppLegalLinks.terms)
+                legalLink("Terms of Use", destination: AppLegalLinks.url(for: .terms))
                     .accessibilityIdentifier("terms-link")
-                legalLink("Support", destination: AppLegalLinks.support)
+                legalLink("Support", destination: AppLegalLinks.url(for: .support))
                     .accessibilityIdentifier("support-link")
-                legalLink("Age Suitability", destination: AppLegalLinks.ageSuitability)
+                legalLink("Age Suitability", destination: AppLegalLinks.url(for: .ageSuitability))
                     .accessibilityIdentifier("age-suitability-link")
             }
         }
@@ -145,12 +146,15 @@ struct PrivacyAndDataView: View {
                     Text(platform.displayName)
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundStyle(FrameReplyColor.onSurface)
-                    Text(
-                        providerStore.hasValidDataConsent(for: platform)
-                            ? "Sharing allowed" : "Sharing not allowed"
-                    )
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.outline)
+                    if providerStore.hasValidDataConsent(for: platform) {
+                        Text("Sharing allowed")
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(FrameReplyColor.outline)
+                    } else {
+                        Text("Sharing not allowed")
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(FrameReplyColor.outline)
+                    }
                 }
             }
             .buttonStyle(.plain)
@@ -171,7 +175,7 @@ struct PrivacyAndDataView: View {
         .padding(.vertical, 4)
     }
 
-    private func legalLink(_ title: String, destination: URL) -> some View {
+    private func legalLink(_ title: LocalizedStringResource, destination: URL) -> some View {
         Link(destination: destination) {
             HStack {
                 Text(title)
@@ -184,7 +188,7 @@ struct PrivacyAndDataView: View {
     }
 
     private func settingsPanel<Content: View>(
-        title: String,
+        title: LocalizedStringResource,
         symbol: String,
         @ViewBuilder content: () -> Content
     ) -> some View {

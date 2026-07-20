@@ -24,12 +24,16 @@ struct SuggestedReplyCard: View {
                 HStack(spacing: 8) {
                     Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
                         .font(.system(size: 13, weight: .semibold))
-                    Text(isCopied ? "Copied" : "Copy")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                    Text(
+                        isCopied
+                            ? LocalizedStringResource("Copied")
+                            : LocalizedStringResource("Copy")
+                    )
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 22)
-                .frame(height: 42)
+                .frame(minHeight: 42)
                 .background {
                     Capsule(style: .continuous)
                         .fill(FrameReplyColor.primary)

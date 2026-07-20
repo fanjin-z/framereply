@@ -20,25 +20,25 @@ enum ScreenshotImportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noImage:
-            "Select at least one screenshot to import."
+            String(localized: AppStrings.Errors.Import.noImage)
         case .noTranscript:
-            "Share or copy at least one text message before importing."
+            String(localized: AppStrings.Errors.Import.noTranscript)
         case .transcriptTooLarge:
-            "The chat text is too large. Select fewer messages and try again."
+            String(localized: AppStrings.Errors.Import.transcriptTooLarge)
         case .tooManyImages:
-            "Select no more than eight screenshots from one chat."
+            String(localized: AppStrings.Errors.Import.tooManyImages)
         case .unsupportedImage:
-            "A selected image could not be processed safely. Use a still PNG, JPEG, or HEIC image."
+            String(localized: AppStrings.Errors.Import.unsupportedImage)
         case .imagePayloadTooLarge:
-            "The selected images are too large to process safely. Choose fewer or smaller images."
+            String(localized: AppStrings.Errors.Import.imagesTooLarge)
         case .noActiveProvider:
-            "Connect and select a model provider before importing messages."
+            String(localized: AppStrings.Errors.Import.noProvider)
         case .missingAPIKey:
-            "The selected provider API key is unavailable. Reconnect it in Settings."
+            String(localized: AppStrings.Errors.AI.missingKey)
         case .consentRequired:
-            "Allow provider sharing in Settings → Privacy & Data first."
+            String(localized: AppStrings.Errors.Import.consentRequired)
         case .unsupportedProvider:
-            "The selected provider cannot analyze chat imports."
+            String(localized: AppStrings.Errors.Import.unsupportedProvider)
         }
     }
 

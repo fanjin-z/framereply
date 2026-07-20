@@ -27,7 +27,7 @@ struct ChatMemoryCard: View {
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(FrameReplyColor.outline)
                     .padding(.horizontal, 12)
-                    .frame(height: 30)
+                    .frame(minHeight: 30)
                     .background {
                         Capsule(style: .continuous)
                             .fill(Color.white.opacity(0.46))
@@ -55,7 +55,7 @@ struct ChatMemoryCard: View {
         .alert("Couldn’t Save Remembered Context", isPresented: saveErrorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(saveError ?? "Try again.")
+            Text(verbatim: saveError ?? String(localized: AppStrings.Common.tryAgain))
         }
     }
 
@@ -98,7 +98,7 @@ struct ChatMemoryCard: View {
                 Label("Add", systemImage: "plus")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .padding(.horizontal, 17)
-                    .frame(height: 38)
+                    .frame(minHeight: 38)
                     .foregroundStyle(
                         trimmedDraft.isEmpty ? FrameReplyColor.outline : FrameReplyColor.primary
                     )

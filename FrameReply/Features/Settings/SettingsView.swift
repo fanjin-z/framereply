@@ -100,9 +100,11 @@ struct SettingsView: View {
             Button("Not Now", role: .cancel) {
                 providerAwaitingConsent = nil
             }
+            .accessibilityIdentifier("provider-consent-cancel")
             Button("Allow & Connect") {
                 authorizeAndConnectProvider()
             }
+            .accessibilityIdentifier("provider-consent-allow")
         } message: {
             Text(consentDisclosure?.permissionMessage ?? "")
         }
@@ -155,6 +157,7 @@ struct SettingsView: View {
             }
             .buttonStyle(SoftPressButtonStyle())
             .accessibilityLabel("Add model provider")
+            .accessibilityIdentifier("add-provider-header")
         }
         .foregroundStyle(FrameReplyColor.primary)
         .padding(.top, 16)
@@ -195,6 +198,7 @@ struct SettingsView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("add-provider")
             } else {
                 ForEach(providerStore.providers) { provider in
                     ProviderCard(

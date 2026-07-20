@@ -41,42 +41,42 @@ nonisolated enum ProviderConnectionError: LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .missingAPIKey:
-            "Enter an API key before saving."
+            String(localized: AppStrings.Errors.Provider.missingKey)
         case .invalidKey:
-            "This provider rejected the API key. Check it and try again."
+            String(localized: AppStrings.Errors.Provider.invalidKey)
         case .insufficientBalance:
-            "This account does not have enough available API credit or quota."
+            String(localized: AppStrings.Errors.Provider.insufficientBalance)
         case .rateLimited:
-            "This provider is rate limiting the key. Wait a moment and try again."
+            String(localized: AppStrings.Errors.Provider.rateLimited)
         case .providerUnavailable:
-            "This provider is temporarily unavailable. Try again shortly."
-        case .invalidRequest(let error):
-            error.message
-        case .invalidResponse(let message):
-            message
+            String(localized: AppStrings.Errors.Provider.unavailable)
+        case .invalidRequest:
+            String(localized: AppStrings.Errors.Provider.invalidRequest)
+        case .invalidResponse:
+            String(localized: AppStrings.Errors.Provider.invalidResponse)
         case .structuredOutput(let error):
             switch error.failure.kind {
             case .emptyResponse:
-                "The provider returned an empty response."
+                String(localized: AppStrings.Errors.Provider.emptyResponse)
             case .truncatedResponse:
-                "The provider response was cut off before it finished."
+                String(localized: AppStrings.Errors.Provider.truncatedResponse)
             case .invalidJSON:
-                "The provider returned malformed JSON."
+                String(localized: AppStrings.Errors.Provider.invalidJSON)
             case .schemaMismatch:
-                "The provider response did not match the chat format."
+                String(localized: AppStrings.Errors.Provider.schemaMismatch)
             case .invalidCandidateID:
-                "The provider selected an unknown chat."
+                String(localized: AppStrings.Errors.Provider.invalidChat)
             case .incompleteMessages:
-                "The provider returned incomplete chat messages."
+                String(localized: AppStrings.Errors.Provider.incompleteMessages)
             }
-        case .networkFailure(let message):
-            message
-        case .keychainFailure(let message):
-            "The API key was valid, but FrameReply could not save it securely. \(message)"
+        case .networkFailure:
+            String(localized: AppStrings.Errors.Provider.network)
+        case .keychainFailure:
+            String(localized: AppStrings.Errors.Provider.keychain)
         case .dataConsentRequired:
-            "Allow provider data sharing before connecting."
+            String(localized: AppStrings.Errors.Provider.consentRequired)
         case .unsupportedProvider:
-            "This provider is not available yet."
+            String(localized: AppStrings.Errors.Provider.unsupported)
         }
     }
 

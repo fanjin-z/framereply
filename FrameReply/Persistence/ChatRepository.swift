@@ -34,11 +34,11 @@ nonisolated enum ChatParticipantNameError: LocalizedError, Equatable, Sendable {
     var errorDescription: String? {
         switch self {
         case .chatUnavailable:
-            "That chat is no longer available."
+            String(localized: AppStrings.Errors.Chat.unavailable)
         case .directChatRequired:
-            "Participant names are available for one-to-one chats only."
+            String(localized: AppStrings.Errors.Chat.directRequired)
         case .emptyDisplayName:
-            "Enter a display name for this chat."
+            String(localized: AppStrings.Errors.Chat.emptyName)
         }
     }
 }
@@ -107,7 +107,7 @@ final class ChatRepository {
     }
 
     func chat(id: String) throws -> ChatRecord? {
-        try context.fetch(
+        return try context.fetch(
             FetchDescriptor<ChatRecord>(predicate: #Predicate { $0.id == id })
         ).first
     }
@@ -273,18 +273,19 @@ final class ChatRepository {
             suppliedAliases,
             excludingDisplayName: cleanedDisplayName
         )
-        if ChatParticipantAlias.normalizedKey(chat.name)
+        if ChatParticipantAlias.normalizedKey(chat.title)
             != ChatParticipantAlias.normalizedKey(cleanedDisplayName),
-            isRetainableParticipantLabel(chat.name)
+            let formerTitle = chat.title,
+            isRetainableParticipantLabel(formerTitle)
         {
-            aliases.append(ChatParticipantAlias(displayLabel: chat.name))
+            aliases.append(ChatParticipantAlias(displayLabel: formerTitle))
             aliases = sanitizedParticipantAliases(
                 aliases,
                 excludingDisplayName: cleanedDisplayName
             )
         }
 
-        chat.name = cleanedDisplayName
+        chat.title = cleanedDisplayName
         chat.updatedAt = Date()
         record.participantAliases = aliases
 
@@ -296,11 +297,25 @@ final class ChatRepository {
         }
     }
 
-    func suggestedReplyCache(chatID: String) throws -> SuggestedReplyCacheRecord? {
+    func suggestedReplyCache(
+        chatID: String,
+        presentationLanguageIdentifier: String = LocalizationContext.current.languageIdentifier
+    ) throws -> SuggestedReplyCacheRecord? {
+        let key = SuggestedReplyCacheRecord.makeKey(
+            chatID: chatID,
+            presentationLanguageIdentifier: presentationLanguageIdentifier
+        )
+        return try context.fetch(
+            FetchDescriptor<SuggestedReplyCacheRecord>(
+                predicate: #Predicate { $0.key == key })
+        ).first
+    }
+
+    func suggestedReplyCaches(chatID: String) throws -> [SuggestedReplyCacheRecord] {
         try context.fetch(
             FetchDescriptor<SuggestedReplyCacheRecord>(
                 predicate: #Predicate { $0.chatID == chatID })
-        ).first
+        )
     }
 
     func importRecord(id: UUID) throws -> ChatImportRecord? {
@@ -414,7 +429,7 @@ final class ChatRepository {
             applyProjected(change, to: &values, allowedMessageIDs: allowed)
         }
         return PersonaPromptContext(
-            id: record.id, name: record.name, instructions: record.instructions,
+            id: record.id, name: record.resolvedName(), instructions: record.promptInstructions,
             observations: values.filter { $0.status == .active }.sorted {
                 if $0.isUserProtected != $1.isUserProtected { return $0.isUserProtected }
                 return $0.createdAt < $1.createdAt
@@ -445,6 +460,7 @@ final class ChatRepository {
 
     func saveSuggestedReplyGeneration(
         chatID: String,
+        presentationLanguageIdentifier: String,
         chatMemories: [ChatMemory],
         personaID: UUID,
         personaObservationChanges: [PersonaObservationChange],
@@ -497,11 +513,15 @@ final class ChatRepository {
             let repliesData = try JSONEncoder().encode(replies)
             let repliesJSON = String(data: repliesData, encoding: .utf8) ?? "[]"
             let cache: SuggestedReplyCacheRecord
-            if let existing = try suggestedReplyCache(chatID: chatID) {
+            if let existing = try suggestedReplyCache(
+                chatID: chatID,
+                presentationLanguageIdentifier: presentationLanguageIdentifier
+            ) {
                 cache = existing
             } else {
                 cache = SuggestedReplyCacheRecord(
                     chatID: chatID,
+                    presentationLanguageIdentifier: presentationLanguageIdentifier,
                     historySummary: "",
                     summarizedMessageCount: 0,
                     summarizedPrefixFingerprint: "",
@@ -531,6 +551,7 @@ final class ChatRepository {
     /// summaries, chat memory, or persona learning.
     func saveSuggestedRepliesOnly(
         chatID: String,
+        presentationLanguageIdentifier: String,
         replies: [String],
         conversationStrategy: String,
         strategyRationale: String,
@@ -541,11 +562,15 @@ final class ChatRepository {
             let repliesData = try JSONEncoder().encode(replies)
             let repliesJSON = String(data: repliesData, encoding: .utf8) ?? "[]"
             let cache: SuggestedReplyCacheRecord
-            if let existing = try suggestedReplyCache(chatID: chatID) {
+            if let existing = try suggestedReplyCache(
+                chatID: chatID,
+                presentationLanguageIdentifier: presentationLanguageIdentifier
+            ) {
                 cache = existing
             } else {
                 cache = SuggestedReplyCacheRecord(
                     chatID: chatID,
+                    presentationLanguageIdentifier: presentationLanguageIdentifier,
                     historySummary: "",
                     summarizedMessageCount: 0,
                     summarizedPrefixFingerprint: "",
@@ -749,7 +774,7 @@ final class ChatRepository {
             return
         }
 
-        chat.name = trimmedName
+        chat.title = trimmedName
         chat.updatedAt = Date()
 
         do {
@@ -775,7 +800,7 @@ final class ChatRepository {
         let memoryRecords = try chatMemories(chatID: chatID)
         let importRecords = try imports(chatID: chatID)
         let aliasRecords = try selfAliases(chatID: chatID)
-        let replyCache = try suggestedReplyCache(chatID: chatID)
+        let replyCaches = try suggestedReplyCaches(chatID: chatID)
         let learningReceipts = try context.fetch(
             FetchDescriptor<PersonaLearningReceiptRecord>(
                 predicate: #Predicate { $0.chatID == chatID })
@@ -799,7 +824,7 @@ final class ChatRepository {
         for receipt in learningReceipts {
             context.delete(receipt)
         }
-        if let replyCache {
+        for replyCache in replyCaches {
             context.delete(replyCache)
         }
         context.delete(chat)
@@ -833,7 +858,7 @@ final class ChatRepository {
             }
             return ChatMatchCandidate(
                 id: chat.id,
-                name: chat.name,
+                title: chat.title,
                 participantAliases: try participantAliases(chatID: chat.id).map(\.displayLabel),
                 recentMessages: recentMessages
             )
@@ -891,7 +916,7 @@ final class ChatRepository {
         }
 
         if let latestMessage = mergeResult.messages.last {
-            targetChat.preview = latestMessage.text
+            targetChat.previewText = latestMessage.text
         }
         targetChat.updatedAt = Date()
 
@@ -934,7 +959,7 @@ final class ChatRepository {
             appendParticipantAlias(
                 observedLabel,
                 to: identityContext,
-                displayName: targetChat.name
+                displayName: targetChat.title
             )
         }
 
@@ -947,7 +972,7 @@ final class ChatRepository {
 
         return ScreenshotImportOutcome(
             chatID: targetChat.id,
-            chatName: targetChat.name,
+            chatTitle: targetChat.title,
             importID: importRecord.id,
             diagnosticID: traceID.diagnosticID,
             matchedExisting: matchedExisting,
@@ -963,17 +988,19 @@ final class ChatRepository {
         }
         if let cleanedName = ChatParticipantAlias.displayLabel(name) {
             if chat.conversationKind == .direct,
-                ChatParticipantAlias.normalizedKey(chat.name)
+                ChatParticipantAlias.normalizedKey(chat.title)
                     != ChatParticipantAlias.normalizedKey(cleanedName)
             {
                 let identityContext = try chatContextForMutation(chatID: chatID)
-                appendParticipantAlias(
-                    chat.name,
-                    to: identityContext,
-                    displayName: cleanedName
-                )
+                if let formerTitle = chat.title {
+                    appendParticipantAlias(
+                        formerTitle,
+                        to: identityContext,
+                        displayName: cleanedName
+                    )
+                }
             }
-            chat.name = cleanedName
+            chat.title = cleanedName
         }
         var state = chat.importReviewState ?? ChatImportReviewState(identityStatus: .needsReview)
         state.identityStatus = .confirmed
@@ -1025,7 +1052,7 @@ final class ChatRepository {
                 appendParticipantAlias(
                     observedParticipantLabel,
                     to: identityContext,
-                    displayName: chat.name
+                    displayName: chat.title
                 )
             }
             chat.updatedAt = Date()
@@ -1103,10 +1130,10 @@ final class ChatRepository {
             if effectiveKind == .direct,
                 groups.count == 2,
                 chat.requiresImportIdentityReview,
-                chat.name == "Imported Chat",
+                chat.title == nil,
                 let otherLabel = resolvedOtherLabel
             {
-                chat.name = otherLabel
+                chat.title = otherLabel
                 renamedChat = true
             }
 
@@ -1115,7 +1142,7 @@ final class ChatRepository {
                 appendParticipantAlias(
                     resolvedOtherLabel,
                     to: identityContext,
-                    displayName: chat.name
+                    displayName: chat.title
                 )
             }
 
@@ -1225,9 +1252,11 @@ final class ChatRepository {
             })?.senderName
             var participantAliases =
                 targetIdentityContext.participantAliases + transferredAliases
-            if isRetainableParticipantLabel(provisionalChat.name) {
+            if let provisionalTitle = provisionalChat.title,
+                isRetainableParticipantLabel(provisionalTitle)
+            {
                 participantAliases.append(
-                    ChatParticipantAlias(displayLabel: provisionalChat.name)
+                    ChatParticipantAlias(displayLabel: provisionalTitle)
                 )
             }
             if let observedMessageLabel,
@@ -1239,7 +1268,7 @@ final class ChatRepository {
             }
             targetIdentityContext.participantAliases = sanitizedParticipantAliases(
                 participantAliases,
-                excludingDisplayName: targetChat.name
+                excludingDisplayName: targetChat.title
             )
         }
         if let provisionalIdentityContext {
@@ -1248,7 +1277,7 @@ final class ChatRepository {
         for memory in try chatMemories(chatID: provisionalChatID) {
             memory.chatID = targetChatID
         }
-        if let replyCache = try suggestedReplyCache(chatID: provisionalChatID) {
+        for replyCache in try suggestedReplyCaches(chatID: provisionalChatID) {
             context.delete(replyCache)
         }
         let provisionalImports = try imports(chatID: provisionalChatID)
@@ -1272,7 +1301,7 @@ final class ChatRepository {
         context.delete(provisionalChat)
 
         if let latestMessage = mergeResult.messages.last {
-            targetChat.preview = latestMessage.text
+            targetChat.previewText = latestMessage.text
         }
         targetChat.updatedAt = Date()
         try refreshImportReviewState(chatID: targetChatID)
@@ -1315,17 +1344,17 @@ final class ChatRepository {
             let name = message.senderName?.trimmingCharacters(in: .whitespacesAndNewlines)
             return name?.isEmpty == false ? name : nil
         }.first
-        let name =
+        let resolvedTitle =
             [title, participant].compactMap { value -> String? in
                 guard let value, !value.isEmpty else {
                     return nil
                 }
                 return value
-            }.first ?? "Imported Chat"
+            }.first
         return ChatRecord(
             id: UUID().uuidString.lowercased(),
-            name: name,
-            preview: analysis.messages.last?.text ?? "Imported conversation",
+            title: resolvedTitle,
+            previewText: analysis.messages.last?.text,
             conversationKind: analysis.conversationKind,
             isProvisional: true
         )
@@ -1337,7 +1366,7 @@ final class ChatRepository {
 
     private func sanitizedParticipantAliases(
         _ aliases: [ChatParticipantAlias],
-        excludingDisplayName displayName: String
+        excludingDisplayName displayName: String?
     ) -> [ChatParticipantAlias] {
         let displayKey = ChatParticipantAlias.normalizedKey(displayName)
         var seen = Set<String>()
@@ -1357,8 +1386,7 @@ final class ChatRepository {
     }
 
     private func isRetainableParticipantLabel(_ value: String?) -> Bool {
-        guard let key = ChatParticipantAlias.normalizedKey(value) else { return false }
-        return key != ChatParticipantAlias.normalizedKey("Imported Chat")
+        ChatParticipantAlias.normalizedKey(value) != nil
     }
 
     private func chatContextForMutation(chatID: String) throws -> ChatContextRecord {
@@ -1373,7 +1401,7 @@ final class ChatRepository {
     private func appendParticipantAlias(
         _ label: String,
         to record: ChatContextRecord,
-        displayName: String
+        displayName: String?
     ) {
         guard let displayLabel = ChatParticipantAlias.displayLabel(label),
             isRetainableParticipantLabel(displayLabel)

@@ -18,9 +18,10 @@ final class SuggestedRepliesViewModel: ObservableObject {
         self.coordinator = coordinator
     }
 
-    func loadCached() {
+    func loadCached(localization: LocalizationContext = .current) {
         do {
-            let outcome = try coordinator.cachedReplies(chatID: chatID)
+            let outcome = try coordinator.cachedReplies(
+                chatID: chatID, localization: localization)
             replies = outcome?.replies.map(SuggestedReply.init(text:)) ?? []
             conversationStrategy = outcome?.conversationStrategy ?? ""
             strategyRationale = outcome?.strategyRationale ?? ""
@@ -41,7 +42,8 @@ final class SuggestedRepliesViewModel: ObservableObject {
     func generate(
         draftingInput: String? = nil,
         force: Bool = true,
-        discardExisting: Bool = false
+        discardExisting: Bool = false,
+        localization: LocalizationContext = .current
     ) async -> Bool {
         loadID += 1
         let currentLoadID = loadID
@@ -62,7 +64,8 @@ final class SuggestedRepliesViewModel: ObservableObject {
             let outcome = try await coordinator.generate(
                 chatID: chatID,
                 draftingInput: draftingInput,
-                force: force
+                force: force,
+                localization: localization
             )
             try Task.checkCancellation()
             guard loadID == currentLoadID else { return false }

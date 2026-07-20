@@ -74,7 +74,7 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
     ) -> ScreenshotImportOutcome {
         ScreenshotImportOutcome(
             chatID: "chat-1",
-            chatName: "Sarah",
+            chatTitle: "Sarah",
             importID: UUID(),
             diagnosticID: "ABC12345",
             matchedExisting: true,
@@ -144,6 +144,7 @@ private final class StubInAppReplies: InAppSuggestedRepliesGenerating {
         chatID: String,
         draftingInput: String?,
         force: Bool,
+        localization: LocalizationContext,
         traceID: ImportTraceID
     ) async throws -> SuggestedRepliesOutcome {
         requests.append(Request(chatID: chatID, draftingInput: draftingInput, force: force))

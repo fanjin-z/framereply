@@ -30,7 +30,8 @@ struct ChatRow: View {
                     PillChip(
                         title: chat.chipTitle,
                         symbolName: chat.chipSymbol,
-                        tint: chat.isUnread ? FrameReplyColor.primaryContainer : FrameReplyColor.secondary
+                        tint: chat.isUnread
+                            ? FrameReplyColor.primaryContainer : FrameReplyColor.secondary
                     )
                     .fixedSize(horizontal: true, vertical: true)
 
@@ -43,7 +44,8 @@ struct ChatRow: View {
                             )
                         )
                         .foregroundStyle(
-                            chat.isUnread ? FrameReplyColor.onSurfaceVariant : FrameReplyColor.outline
+                            chat.isUnread
+                                ? FrameReplyColor.onSurfaceVariant : FrameReplyColor.outline
                         )
                         .lineLimit(1)
                 }

@@ -35,7 +35,7 @@ struct AddReplyNoteSheet: View {
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 18)
-                            .frame(height: 38)
+                            .frame(minHeight: 38)
                             .background {
                                 Capsule(style: .continuous)
                                     .fill(FrameReplyColor.primary)

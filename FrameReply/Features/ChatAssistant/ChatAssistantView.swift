@@ -14,6 +14,7 @@ struct ChatAssistantView: View {
     let onMergedIntoChat: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
     @State private var isHistoryPresented = false
     @State private var isReplyNotePresented = false
     @State private var isImportSourcePresented = false
@@ -68,7 +69,8 @@ struct ChatAssistantView: View {
         )
         _mergeCandidateRecords = Query(
             filter: #Predicate<ChatRecord> { $0.id != chatID },
-            sort: \ChatRecord.name
+            sort: \ChatRecord.updatedAt,
+            order: .reverse
         )
         _mergeCandidateContextRecords = Query(
             filter: #Predicate<ChatContextRecord> { $0.chatID != chatID }
@@ -128,12 +130,16 @@ struct ChatAssistantView: View {
                 .participantAliases
                 .first(where: {
                     ChatParticipantAlias.normalizedKey($0.displayLabel)
-                        != ChatParticipantAlias.normalizedKey(candidate.name)
+                        != ChatParticipantAlias.normalizedKey(candidate.title)
                 })
         else {
-            return candidate.name
+            return candidate.displayTitle()
         }
-        return "\(candidate.name) — also \(alias.displayLabel)"
+        return String(
+            localized: AppStrings.Chat.mergeCandidate(
+                title: candidate.displayTitle(), alias: alias.displayLabel
+            )
+        )
     }
 
     private var shouldShowImportReviewCard: Bool {
@@ -149,12 +155,13 @@ struct ChatAssistantView: View {
             hasher.combine(message.text)
             hasher.combine(message.sortIndex)
         }
-        if let cache = suggestedReplyCacheRecords.first {
+        if let cache = currentLanguageCache {
             hasher.combine(cache.inputFingerprint)
             hasher.combine(cache.repliesJSON)
             hasher.combine(cache.promptVersion)
             hasher.combine(cache.generatedAt)
         }
+        hasher.combine(localizationContext.languageIdentifier)
         hasher.combine(providerStore.activeProvider?.platform.rawValue)
         hasher.combine(providerStore.activeProvider?.tier.rawValue)
         return hasher.finalize()
@@ -314,7 +321,7 @@ struct ChatAssistantView: View {
         .alert("Could Not Update Chat", isPresented: actionErrorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(actionErrorMessage ?? "Try again.")
+            Text(verbatim: actionErrorMessage ?? String(localized: AppStrings.Common.tryAgain))
         }
         .task(id: replyCacheKey) {
             loadCachedReplies()
@@ -342,7 +349,7 @@ struct ChatAssistantView: View {
             if didLoadContext && oldValue != newValue
                 && !suggestedRepliesModel.isLoading && !importModel.isLoading
             {
-                needsReplyRefresh = suggestedReplyCacheRecords.first != nil
+                needsReplyRefresh = currentLanguageCache != nil
             }
         }
     }
@@ -399,7 +406,7 @@ struct ChatAssistantView: View {
                 imageDataList,
                 draftingInput: draftingInput.isEmpty ? nil : draftingInput
             ), result.chatID == chat.id {
-                suggestedRepliesModel.loadCached()
+                suggestedRepliesModel.loadCached(localization: localizationContext)
                 needsReplyRefresh = false
                 if !draftingInput.isEmpty, result.replyErrorMessage == nil {
                     replyNote = ""
@@ -421,7 +428,7 @@ struct ChatAssistantView: View {
             items,
             draftingInput: draftingInput.isEmpty ? nil : draftingInput
         ), result.chatID == chat.id {
-            suggestedRepliesModel.loadCached()
+            suggestedRepliesModel.loadCached(localization: localizationContext)
             needsReplyRefresh = false
             if !draftingInput.isEmpty, result.replyErrorMessage == nil {
                 replyNote = ""
@@ -444,7 +451,8 @@ struct ChatAssistantView: View {
         Task {
             let draftingInput = replyNote.trimmingCharacters(in: .whitespacesAndNewlines)
             if await suggestedRepliesModel.generate(
-                draftingInput: draftingInput.isEmpty ? nil : draftingInput
+                draftingInput: draftingInput.isEmpty ? nil : draftingInput,
+                localization: localizationContext
             ) {
                 needsReplyRefresh = false
                 if !draftingInput.isEmpty {
@@ -457,16 +465,16 @@ struct ChatAssistantView: View {
     }
 
     private func loadCachedReplies() {
-        suggestedRepliesModel.loadCached()
+        suggestedRepliesModel.loadCached(localization: localizationContext)
         needsReplyRefresh =
-            suggestedReplyCacheRecords.first != nil && suggestedRepliesModel.replies.isEmpty
+            currentLanguageCache != nil && suggestedRepliesModel.replies.isEmpty
     }
 
     private func confirmCurrentChat() {
         do {
             try ChatRepository().confirmProvisionalChat(
                 chatID: chat.id,
-                name: currentChatRecord?.name ?? chat.name
+                name: currentChatRecord.map { $0.displayTitle() } ?? chat.name
             )
         } catch {
             actionErrorMessage = error.localizedDescription
@@ -502,7 +510,7 @@ struct ChatAssistantView: View {
                 goalDraft = String(
                     goalDraft.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500)
                 )
-                needsReplyRefresh = suggestedReplyCacheRecords.first != nil
+                needsReplyRefresh = currentLanguageCache != nil
             }
         } catch {
             actionErrorMessage = error.localizedDescription
@@ -512,7 +520,7 @@ struct ChatAssistantView: View {
     private func assignPersona(_ personaID: UUID) {
         do {
             if try ChatRepository().assignPersona(personaID: personaID, toChatID: chat.id) {
-                needsReplyRefresh = suggestedReplyCacheRecords.first != nil
+                needsReplyRefresh = currentLanguageCache != nil
             }
         } catch {
             actionErrorMessage = error.localizedDescription
@@ -547,12 +555,25 @@ struct ChatAssistantView: View {
         recordMeaningfulReviewAction()
         guard !messageRecords.isEmpty else { return }
         Task {
-            if await suggestedRepliesModel.generate(draftingInput: trimmedNote) {
+            if await suggestedRepliesModel.generate(
+                draftingInput: trimmedNote,
+                localization: localizationContext
+            ) {
                 needsReplyRefresh = false
                 replyNote = ""
                 lastSubmittedReplyNote = ""
                 recordMeaningfulReviewAction()
             }
+        }
+    }
+
+    private var localizationContext: LocalizationContext {
+        LocalizationContext(locale: locale)
+    }
+
+    private var currentLanguageCache: SuggestedReplyCacheRecord? {
+        suggestedReplyCacheRecords.first {
+            $0.presentationLanguageIdentifier == localizationContext.languageIdentifier
         }
     }
 }
@@ -585,7 +606,7 @@ private struct ChatImportReviewCard: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.82)
                 .padding(.horizontal, 14)
-                .frame(height: 34)
+                .frame(minHeight: 34)
                 .background {
                     Capsule(style: .continuous)
                         .fill(FrameReplyColor.primary)

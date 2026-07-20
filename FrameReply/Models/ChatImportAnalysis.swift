@@ -7,18 +7,18 @@ import Foundation
 
 nonisolated struct ChatMatchCandidate: Codable, Equatable, Sendable {
     let id: String
-    let name: String
+    let title: String?
     let participantAliases: [String]
     let recentMessages: [ChatCandidateMessage]
 
     init(
         id: String,
-        name: String,
+        title: String?,
         participantAliases: [String] = [],
         recentMessages: [ChatCandidateMessage]
     ) {
         self.id = id
-        self.name = name
+        self.title = title
         self.participantAliases = participantAliases
         self.recentMessages = recentMessages
     }

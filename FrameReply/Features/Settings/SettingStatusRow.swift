@@ -6,7 +6,7 @@
 import SwiftUI
 
 struct SettingStatusRow<Value: View>: View {
-    let title: String
+    let title: LocalizedStringResource
     @ViewBuilder let value: Value
 
     var body: some View {

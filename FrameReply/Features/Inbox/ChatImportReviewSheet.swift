@@ -62,7 +62,9 @@ struct ChatImportReviewSheet: View {
             guard let groups = grouped[id], !groups.isEmpty else { return nil }
             return ParticipantReviewGroup(
                 chatID: id,
-                chatName: allChats.first(where: { $0.id == id })?.name ?? "Imported chat",
+                chatName: ChatPresentation.title(
+                    for: allChats.first(where: { $0.id == id })
+                ),
                 groups: groups
             )
         }
@@ -142,9 +144,9 @@ struct ChatImportReviewSheet: View {
                                 ForEach(individualMessages) { message in
                                     UnknownSenderReviewCard(
                                         message: message,
-                                        chatName:
-                                            allChats.first(where: { $0.id == message.chatID })?.name
-                                            ?? "Imported chat",
+                                        chatName: ChatPresentation.title(
+                                            for: allChats.first(where: { $0.id == message.chatID })
+                                        ),
                                         onResolve: resolveSender
                                     )
                                 }
@@ -159,9 +161,9 @@ struct ChatImportReviewSheet: View {
                                 ForEach(unlabeledMessages) { message in
                                     UnknownSenderReviewCard(
                                         message: message,
-                                        chatName:
-                                            allChats.first(where: { $0.id == message.chatID })?.name
-                                            ?? "Imported chat",
+                                        chatName: ChatPresentation.title(
+                                            for: allChats.first(where: { $0.id == message.chatID })
+                                        ),
                                         onResolve: resolveSender
                                     )
                                 }
@@ -191,7 +193,7 @@ struct ChatImportReviewSheet: View {
             .alert("Could Not Update Chat", isPresented: errorBinding) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(errorMessage ?? "Try again.")
+                Text(verbatim: errorMessage ?? String(localized: AppStrings.Common.tryAgain))
             }
         }
     }
@@ -237,12 +239,16 @@ struct ChatImportReviewSheet: View {
                 .participantAliases
                 .first(where: {
                     ChatParticipantAlias.normalizedKey($0.displayLabel)
-                        != ChatParticipantAlias.normalizedKey(candidate.name)
+                        != ChatParticipantAlias.normalizedKey(candidate.title)
                 })
         else {
-            return candidate.name
+            return candidate.displayTitle()
         }
-        return "\(candidate.name) — also \(alias.displayLabel)"
+        return String(
+            localized: AppStrings.Chat.mergeCandidate(
+                title: candidate.displayTitle(), alias: alias.displayLabel
+            )
+        )
     }
 
     private func resolveSender(
@@ -385,12 +391,9 @@ private struct ParticipantIdentityReviewCard: View {
                             Spacer(minLength: 8)
 
                             VStack(alignment: .trailing, spacing: 8) {
-                                Text(
-                                    "\(group.messageIDs.count) "
-                                        + (group.messageIDs.count == 1 ? "message" : "messages")
-                                )
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                                Text("\(group.messageIDs.count) messages")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
                                 Label(
                                     "This is me",
@@ -399,7 +402,7 @@ private struct ParticipantIdentityReviewCard: View {
                                 .font(.system(size: 12, weight: .bold, design: .rounded))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 11)
-                                .frame(height: 32)
+                                .frame(minHeight: 32)
                                 .background {
                                     Capsule(style: .continuous)
                                         .fill(FrameReplyColor.primary)
@@ -461,7 +464,7 @@ private struct ImportReviewCard: View {
         self.mergeLabel = mergeLabel
         self.onConfirm = onConfirm
         self.onMerge = onMerge
-        _name = State(initialValue: chat.name)
+        _name = State(initialValue: chat.displayTitle())
     }
 
     var body: some View {
@@ -487,7 +490,7 @@ private struct ImportReviewCard: View {
                 }
             }
 
-            Text(chat.preview)
+            Text(verbatim: chat.displayPreview())
                 .font(.system(size: 14, design: .rounded))
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 .lineLimit(1)
@@ -500,7 +503,7 @@ private struct ImportReviewCard: View {
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 36)
+                        .frame(minHeight: 36)
                         .background {
                             Capsule(style: .continuous)
                                 .fill(FrameReplyColor.primary)
@@ -520,7 +523,7 @@ private struct ImportReviewCard: View {
                             .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundStyle(FrameReplyColor.primary)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 36)
+                            .frame(minHeight: 36)
                             .background {
                                 Capsule(style: .continuous)
                                     .fill(FrameReplyColor.secondaryContainer.opacity(0.46))
@@ -532,8 +535,8 @@ private struct ImportReviewCard: View {
         }
         .padding(14)
         .quietReviewPanel()
-        .onChange(of: chat.name) { _, newName in
-            name = newName
+        .onChange(of: chat.title) { _, _ in
+            name = chat.displayTitle()
         }
     }
 }
@@ -555,7 +558,7 @@ private struct SenderChoiceChip: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
                 .frame(maxWidth: .infinity)
-                .frame(height: 36)
+                .frame(minHeight: 36)
                 .background {
                     Capsule(style: .continuous)
                         .fill(FrameReplyColor.secondaryContainer.opacity(0.46))

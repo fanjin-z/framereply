@@ -13,7 +13,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
             confirmedChatID: nil
         )
 
-        XCTAssertEqual(try repository.chat(id: importOutcome.chatID)?.name, "Imported Chat")
+        XCTAssertNil(try repository.chat(id: importOutcome.chatID)?.title)
         let outcome = try repository.resolveUnknownSenderLabels(
             chatID: importOutcome.chatID,
             selfLabel: "Test User"
@@ -25,7 +25,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
         XCTAssertTrue(outcome.renamedChat)
 
         let chat = try XCTUnwrap(repository.chat(id: importOutcome.chatID))
-        XCTAssertEqual(chat.name, "Sample Contact")
+        XCTAssertEqual(chat.title, "Sample Contact")
         XCTAssertEqual(chat.conversationKind, .direct)
         XCTAssertTrue(chat.isProvisional)
 
@@ -39,7 +39,8 @@ final class ChatParticipantIdentityTests: XCTestCase {
                 "Test User"
             ])
         let recognizedParticipantLabels =
-            [chat.name] + (try repository.participantAliases(chatID: chat.id).map(\.displayLabel))
+            [chat.title].compactMap { $0 }
+            + (try repository.participantAliases(chatID: chat.id).map(\.displayLabel))
         XCTAssertEqual(
             Set(recognizedParticipantLabels.compactMap(ChatParticipantAlias.normalizedKey)),
             ["sample contact"]
@@ -63,7 +64,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
 
         XCTAssertEqual(inverseOutcome.resolvedUserCount, 6)
         XCTAssertEqual(inverseOutcome.resolvedOtherCount, 4)
-        XCTAssertEqual(try inverseRepository.chat(id: inverseImport.chatID)?.name, "Test User")
+        XCTAssertEqual(try inverseRepository.chat(id: inverseImport.chatID)?.title, "Test User")
     }
 
     func testRememberedAliasAppliesOnlyWithinSelectedChat() throws {
@@ -99,8 +100,8 @@ final class ChatParticipantIdentityTests: XCTestCase {
 
         let otherChat = ChatRecord(
             id: "other-chat",
-            name: "Other Chat",
-            preview: "",
+            title: "Other Chat",
+            previewText: "",
             conversationKind: .direct
         )
         container.mainContext.insert(otherChat)
@@ -165,8 +166,8 @@ final class ChatParticipantIdentityTests: XCTestCase {
         let repository = ChatRepository(container: container)
         let target = ChatRecord(
             id: "target-chat",
-            name: "Sample Contact",
-            preview: "",
+            title: "Sample Contact",
+            previewText: "",
             conversationKind: .direct
         )
         container.mainContext.insert(target)
@@ -206,15 +207,15 @@ final class ChatParticipantIdentityTests: XCTestCase {
         let aliasRepository = ChatRepository(container: aliasContainer)
         let aliasTarget = ChatRecord(
             id: "merge-target",
-            name: "Sarah Jenkins",
-            preview: "",
+            title: "Sarah Jenkins",
+            previewText: "",
             conversationKind: .direct
         )
         aliasContainer.mainContext.insert(aliasTarget)
         try aliasContainer.mainContext.save()
         try aliasRepository.updateParticipantNames(
             chatID: aliasTarget.id,
-            displayName: aliasTarget.name,
+            displayName: try XCTUnwrap(aliasTarget.title),
             aliases: [ChatParticipantAlias(displayLabel: "Sarah J.")]
         )
 
@@ -292,8 +293,8 @@ final class ChatParticipantIdentityTests: XCTestCase {
         let namesRepository = ChatRepository(container: namesContainer)
         let chat = ChatRecord(
             id: "participant-names",
-            name: "Sarah Jenkins",
-            preview: "",
+            title: "Sarah Jenkins",
+            previewText: "",
             conversationKind: .direct
         )
         namesContainer.mainContext.insert(chat)
@@ -319,9 +320,12 @@ final class ChatParticipantIdentityTests: XCTestCase {
             ]
         )
 
-        XCTAssertEqual(try namesRepository.chat(id: chat.id)?.name, "Sarah Chen")
+        XCTAssertEqual(try namesRepository.chat(id: chat.id)?.title, "Sarah Chen")
         let aliases = try namesRepository.participantAliases(chatID: chat.id)
-        XCTAssertEqual(Set(aliases.map(\.normalizedLabel)), ["cafe sarah", "sarah jenkins"])
+        XCTAssertEqual(
+            Set(aliases.map(\.normalizedLabel)),
+            ["cafe sarah", "imported chat", "sarah jenkins"]
+        )
         XCTAssertEqual(
             aliases.first(where: { $0.normalizedLabel == "cafe sarah" })?.displayLabel,
             "Café Sarah"

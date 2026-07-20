@@ -23,7 +23,8 @@ nonisolated struct ShortcutResponsePayload: Codable, Equatable, Sendable {
     let message: String
     let diagnosticID: String
     let chatID: String?
-    let chatName: String?
+    let chatTitle: String?
+    let presentationLanguageIdentifier: String
     let importID: UUID?
     let matchedExisting: Bool?
     let reviewRequired: Bool?
@@ -39,7 +40,8 @@ nonisolated struct ShortcutResponsePayload: Codable, Equatable, Sendable {
         message: String,
         diagnosticID: String,
         chatID: String?,
-        chatName: String?,
+        chatTitle: String?,
+        presentationLanguageIdentifier: String,
         importID: UUID?,
         matchedExisting: Bool?,
         reviewRequired: Bool?,
@@ -54,7 +56,8 @@ nonisolated struct ShortcutResponsePayload: Codable, Equatable, Sendable {
         self.message = message
         self.diagnosticID = diagnosticID
         self.chatID = chatID
-        self.chatName = chatName
+        self.chatTitle = chatTitle
+        self.presentationLanguageIdentifier = presentationLanguageIdentifier
         self.importID = importID
         self.matchedExisting = matchedExisting
         self.reviewRequired = reviewRequired
@@ -86,17 +89,33 @@ nonisolated enum ShortcutResponseBuilder {
     static func success(
         _ outcome: ScreenshotImportOutcome,
         repliesOutcome: SuggestedRepliesOutcome? = nil,
-        replyErrorCode: String? = nil
+        replyErrorCode: String? = nil,
+        localization: LocalizationContext = .current
     ) -> ShortcutResponsePresentation {
         let count = outcome.insertedMessageCount
-        let noun = count == 1 ? "message" : "messages"
+        let chatTitle =
+            outcome.chatTitle
+            ?? AppStrings.resolve(AppStrings.Chat.importedFallback, locale: localization.locale)
         let message: String
         if outcome.duplicate {
-            message = "No new messages found in \(outcome.chatName)."
+            message = AppStrings.resolve(
+                AppStrings.Shortcut.noNewMessages(chatTitle: chatTitle),
+                locale: localization.locale
+            )
         } else if outcome.reviewRequired {
-            message = "Imported \(count) \(noun) as \(outcome.chatName). Review it in FrameReply."
+            message = AppStrings.resolve(
+                AppStrings.Shortcut.reviewRequired(
+                    count: count, chatTitle: chatTitle
+                ),
+                locale: localization.locale
+            )
         } else {
-            message = "Added \(count) new \(noun) to \(outcome.chatName)."
+            message = AppStrings.resolve(
+                AppStrings.Shortcut.addedMessages(
+                    count: count, chatTitle: chatTitle
+                ),
+                locale: localization.locale
+            )
         }
 
         let replies = repliesOutcome?.replies
@@ -109,9 +128,17 @@ nonisolated enum ShortcutResponseBuilder {
             } ?? .failed
         let dialog: String
         if let replies, replies.count == 2 {
-            dialog = "\(message)\n\nSuggested replies:\n1. \(replies[0])\n2. \(replies[1])"
+            dialog = AppStrings.resolve(
+                AppStrings.Shortcut.repliesResult(
+                    message: message, firstReply: replies[0], secondReply: replies[1]
+                ),
+                locale: localization.locale
+            )
         } else {
-            dialog = "\(message) Suggested replies are unavailable; open FrameReply to retry."
+            dialog = AppStrings.resolve(
+                AppStrings.Shortcut.repliesUnavailable(message: message),
+                locale: localization.locale
+            )
         }
 
         return ShortcutResponsePresentation(
@@ -120,7 +147,8 @@ nonisolated enum ShortcutResponseBuilder {
                 message: message,
                 diagnosticID: outcome.diagnosticID,
                 chatID: outcome.chatID,
-                chatName: outcome.chatName,
+                chatTitle: outcome.chatTitle,
+                presentationLanguageIdentifier: localization.languageIdentifier,
                 importID: outcome.importID,
                 matchedExisting: outcome.matchedExisting,
                 reviewRequired: outcome.reviewRequired,
@@ -139,7 +167,8 @@ nonisolated enum ShortcutResponseBuilder {
     static func failure(
         message: String,
         errorCode: String,
-        traceID: ImportTraceID
+        traceID: ImportTraceID,
+        localization: LocalizationContext = .current
     ) -> ShortcutResponsePresentation {
         ShortcutResponsePresentation(
             payload: ShortcutResponsePayload(
@@ -147,7 +176,8 @@ nonisolated enum ShortcutResponseBuilder {
                 message: message,
                 diagnosticID: traceID.diagnosticID,
                 chatID: nil,
-                chatName: nil,
+                chatTitle: nil,
+                presentationLanguageIdentifier: localization.languageIdentifier,
                 importID: nil,
                 matchedExisting: nil,
                 reviewRequired: nil,
@@ -158,12 +188,18 @@ nonisolated enum ShortcutResponseBuilder {
                 replyStatus: nil,
                 replyErrorCode: nil
             ),
-            dialog: "\(message) Reference \(traceID.diagnosticID)."
+            dialog: AppStrings.resolve(
+                AppStrings.Shortcut.errorWithReference(
+                    message: message, diagnosticID: traceID.diagnosticID
+                ),
+                locale: localization.locale
+            )
         )
     }
 }
 
 struct GenerateSuggestedRepliesIntent: AppIntent {
+    // Static App Intents metadata cannot be indirected through AppStrings.
     static let title: LocalizedStringResource = "Generate Suggested Replies"
     static let description = IntentDescription(
         "Generates two replies for a chat analyzed by FrameReply.")
@@ -181,15 +217,17 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
         Summary("Generate replies for \(\.$analyzedChat)")
     }
 
-    func perform() async throws -> some IntentResult & ReturnsValue<String> {
+    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
+        // Shortcut execution may use a presentation locale different from the open app.
+        let localization = LocalizationContext(locale: .current)
         let fallbackTraceID = ImportTraceID()
         guard let analyzedChat else {
             let response = ShortcutResponseBuilder.failure(
-                message: "No analyzed chat was provided.",
+                message: String(localized: AppStrings.Errors.Shortcut.noAnalyzedChat),
                 errorCode: "no_prepared_chat",
                 traceID: fallbackTraceID
             )
-            return .result(value: response.dialog)
+            return .result(value: response.json, dialog: "\(response.dialog)")
         }
 
         let eventReporter = OSLogImportEventReporter()
@@ -202,7 +240,8 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
         do {
             let consumption = try await DraftingInputBarrier.waitUntilReady {
                 let result = try await MainActor.run {
-                    let repository = ChatRepository(context: ModelContext(FrameReplyDataStore.shared))
+                    let repository = ChatRepository(
+                        context: ModelContext(FrameReplyDataStore.shared))
                     guard let record = try repository.importRecord(id: analyzedChat.id),
                         record.chatID == analyzedChat.chatID
                     else {
@@ -251,68 +290,79 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                 input = nil
             case .operationMismatch:
                 let response = ShortcutResponseBuilder.failure(
-                    message: "The analyzed chat does not match this Shortcut run.",
+                    message: String(localized: AppStrings.Errors.Shortcut.operationMismatch),
                     errorCode: "operation_mismatch",
                     traceID: traceID
                 )
-                return .result(value: response.dialog)
+                return .result(value: response.json, dialog: "\(response.dialog)")
             case .missing:
                 let response = ShortcutResponseBuilder.failure(
-                    message: "The analyzed chat has expired or is unavailable.",
+                    message: String(
+                        localized: AppStrings.Errors.Shortcut.analyzedChatUnavailable),
                     errorCode: "import_not_found",
                     traceID: traceID
                 )
-                return .result(value: response.dialog)
+                return .result(value: response.json, dialog: "\(response.dialog)")
             case .expired, .alreadyConsumed:
                 let response = ShortcutResponseBuilder.failure(
-                    message:
-                        "The optional context for this analyzed chat is no longer available. Run an Analyze action again.",
+                    message: String(localized: AppStrings.Errors.Shortcut.contextUnavailable),
                     errorCode: "input_handoff_unavailable",
                     traceID: traceID
                 )
-                return .result(value: response.dialog)
+                return .result(value: response.json, dialog: "\(response.dialog)")
             case .pending:
                 let response = ShortcutResponseBuilder.failure(
-                    message: "The analyzed chat is not ready yet. Run the Analyze action again.",
+                    message: String(localized: AppStrings.Errors.Shortcut.notReady),
                     errorCode: "import_pending",
                     traceID: traceID
                 )
-                return .result(value: response.dialog)
+                return .result(value: response.json, dialog: "\(response.dialog)")
             }
             let replyCoordinator = await MainActor.run { SuggestedRepliesCoordinator() }
             let replies = try await replyCoordinator.generate(
                 chatID: analyzedChat.chatID,
                 draftingInput: input,
+                localization: localization,
                 traceID: traceID
             )
             let response = ShortcutResponseBuilder.success(
-                analyzedChat.outcome, repliesOutcome: replies)
-            return .result(value: response.dialog)
+                analyzedChat.outcome,
+                repliesOutcome: replies,
+                localization: localization
+            )
+            return .result(value: response.json, dialog: "\(response.dialog)")
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as SuggestedRepliesError {
             eventReporter.record(
                 .importFailed(traceID: traceID, stage: .replyGeneration, errorCode: error.code))
             let response = ShortcutResponseBuilder.success(
-                analyzedChat.outcome, replyErrorCode: error.code)
-            return .result(value: response.dialog)
+                analyzedChat.outcome,
+                replyErrorCode: error.code,
+                localization: localization
+            )
+            return .result(value: response.json, dialog: "\(response.dialog)")
         } catch let error as ProviderConnectionError {
             eventReporter.record(
                 .importFailed(
                     traceID: traceID, stage: .replyGeneration, errorCode: error.shortcutErrorCode))
             let response = ShortcutResponseBuilder.success(
-                analyzedChat.outcome, replyErrorCode: error.shortcutErrorCode
+                analyzedChat.outcome,
+                replyErrorCode: error.shortcutErrorCode,
+                localization: localization
             )
-            return .result(value: response.dialog)
+            return .result(value: response.json, dialog: "\(response.dialog)")
         } catch {
             eventReporter.record(
                 .importFailed(
                     traceID: traceID, stage: .replyGeneration, errorCode: "reply_generation_failed")
             )
             let response = ShortcutResponseBuilder.success(
-                analyzedChat.outcome, replyErrorCode: "reply_generation_failed"
+                analyzedChat.outcome,
+                replyErrorCode: "reply_generation_failed",
+                localization: localization
             )
-            return .result(value: response.dialog)
+            return .result(value: response.json, dialog: "\(response.dialog)")
         }
     }
 }

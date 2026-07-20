@@ -1,8 +1,18 @@
 import Foundation
 
+nonisolated enum AppLegalDocument: String, Sendable {
+    case privacy
+    case terms
+    case support
+    case ageSuitability = "age-suitability"
+}
+
 nonisolated enum AppLegalLinks {
-    static let privacy = URL(string: "https://fanjin-z.github.io/framereply/privacy")!
-    static let terms = URL(string: "https://fanjin-z.github.io/framereply/terms")!
-    static let support = URL(string: "https://fanjin-z.github.io/framereply/support")!
-    static let ageSuitability = URL(string: "https://fanjin-z.github.io/framereply/age-suitability")!
+    /// Returns the canonical, reviewed English document.
+    ///
+    /// Legal and support pages intentionally do not vary with the app locale. Add a
+    /// localized destination only after qualified legal and translation review.
+    static func url(for document: AppLegalDocument) -> URL {
+        return URL(string: "https://fanjin-z.github.io/framereply/\(document.rawValue)")!
+    }
 }

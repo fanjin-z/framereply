@@ -134,8 +134,10 @@ final class ProviderValidatorTests: XCTestCase {
             XCTAssertEqual(details.httpStatus, 400)
             XCTAssertEqual(details.providerCode, "1214")
             XCTAssertEqual(error.shortcutErrorCode, "provider_invalid_request")
+            XCTAssertEqual(details.message, "智谱 (国内) rejected an API parameter.")
             XCTAssertEqual(
-                error.localizedDescription, "智谱 (国内) rejected an API parameter."
+                error.localizedDescription,
+                "The provider could not process this request. Check the configuration and try again."
             )
             XCTAssertFalse(String(describing: details).contains("key"))
         } catch {

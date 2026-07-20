@@ -31,7 +31,7 @@ final class ChatImportMatcherTests: XCTestCase {
         )
         let aliasCandidate = ChatMatchCandidate(
             id: "sarah-jenkins",
-            name: "Sarah Jenkins",
+            title: "Sarah Jenkins",
             participantAliases: ["@Sarah_Work"],
             recentMessages: []
         )
@@ -46,7 +46,7 @@ final class ChatImportMatcherTests: XCTestCase {
         let ambiguousCandidates = ["alex-one", "alex-two"].map {
             ChatMatchCandidate(
                 id: $0,
-                name: $0,
+                title: $0,
                 participantAliases: ["Alex"],
                 recentMessages: []
             )
@@ -77,7 +77,7 @@ final class ChatImportMatcherTests: XCTestCase {
         )
         let localCandidate = ChatMatchCandidate(
             id: "sarah-jenkins",
-            name: "Sarah Jenkins",
+            title: "Sarah Jenkins",
             recentMessages: [
                 ChatCandidateMessage(sender: "other_participant", text: "First", timeLabel: ""),
                 ChatCandidateMessage(sender: "user", text: "Second", timeLabel: "")
@@ -110,7 +110,7 @@ final class ChatImportMatcherTests: XCTestCase {
         let repeatedCandidates = ["one", "two"].map {
             ChatMatchCandidate(
                 id: $0,
-                name: $0,
+                title: $0,
                 recentMessages: [
                     ChatCandidateMessage(sender: "user", text: repeatedOpener, timeLabel: "")
                 ]
@@ -137,7 +137,7 @@ final class ChatImportMatcherTests: XCTestCase {
         )
         let inna = ChatMatchCandidate(
             id: "inna",
-            name: "Inna",
+            title: "Inna",
             recentMessages: [ChatCandidateMessage(sender: "user", text: opener, timeLabel: "")]
         )
 
@@ -166,7 +166,7 @@ final class ChatImportMatcherTests: XCTestCase {
         )
         let changedNameCandidate = ChatMatchCandidate(
             id: "old-name",
-            name: "Old Name",
+            title: "Old Name",
             recentMessages: [
                 ChatCandidateMessage(
                     sender: "other_participant",
@@ -208,7 +208,7 @@ final class ChatImportMatcherTests: XCTestCase {
     }
 
     private func candidate() -> ChatMatchCandidate {
-        ChatMatchCandidate(id: "sarah-jenkins", name: "Sarah Jenkins", recentMessages: [])
+        ChatMatchCandidate(id: "sarah-jenkins", title: "Sarah Jenkins", recentMessages: [])
     }
 
 }

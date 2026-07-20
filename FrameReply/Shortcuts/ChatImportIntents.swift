@@ -8,13 +8,14 @@ import SwiftData
 import UniformTypeIdentifiers
 
 nonisolated struct AnalyzedChatEntity: AppEntity {
+    // App Intents metadata export requires a literal or direct initializer here.
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Analyzed Chat")
     static let defaultQuery = AnalyzedChatEntityQuery()
 
     let id: UUID
     let operationID: UUID
     let chatID: String
-    let chatName: String
+    let chatTitle: String?
     let diagnosticID: String
     let matchedExisting: Bool
     let reviewRequired: Bool
@@ -22,14 +23,18 @@ nonisolated struct AnalyzedChatEntity: AppEntity {
     let insertedMessageCount: Int
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(chatName)", subtitle: "Analyzed chat input")
+        let title =
+            chatTitle
+            ?? String(localized: AppStrings.Chat.importedFallback)
+        return DisplayRepresentation(
+            title: "\(title)", subtitle: AppStrings.Shortcut.analyzedChatSubtitle)
     }
 
     init(outcome: ScreenshotImportOutcome, operationID: UUID) {
         id = outcome.importID
         self.operationID = operationID
         chatID = outcome.chatID
-        chatName = outcome.chatName
+        chatTitle = outcome.chatTitle
         diagnosticID = outcome.diagnosticID
         matchedExisting = outcome.matchedExisting
         reviewRequired = outcome.reviewRequired
@@ -37,11 +42,11 @@ nonisolated struct AnalyzedChatEntity: AppEntity {
         insertedMessageCount = outcome.insertedMessageCount
     }
 
-    init(record: ChatImportRecord, chatName: String, operationID: UUID) {
+    init(record: ChatImportRecord, chatTitle: String?, operationID: UUID) {
         id = record.id
         self.operationID = operationID
         chatID = record.chatID
-        self.chatName = chatName
+        self.chatTitle = chatTitle
         diagnosticID = record.diagnosticID ?? "UNKNOWN"
         matchedExisting = record.matchedExisting
         reviewRequired = record.requiresReview
@@ -52,7 +57,7 @@ nonisolated struct AnalyzedChatEntity: AppEntity {
     var outcome: ScreenshotImportOutcome {
         ScreenshotImportOutcome(
             chatID: chatID,
-            chatName: chatName,
+            chatTitle: chatTitle,
             importID: id,
             diagnosticID: diagnosticID,
             matchedExisting: matchedExisting,
@@ -74,7 +79,7 @@ nonisolated struct AnalyzedChatEntityQuery: EntityQuery {
                     return nil
                 }
                 return AnalyzedChatEntity(
-                    record: record, chatName: chat.name, operationID: record.operationID)
+                    record: record, chatTitle: chat.title, operationID: record.operationID)
             }
         }
     }
@@ -197,9 +202,15 @@ nonisolated struct ShortcutExecutionError: LocalizedError, CustomLocalizedString
     let message: String
     let diagnosticID: String
 
-    var errorDescription: String? { "\(message) Reference \(diagnosticID)." }
+    var errorDescription: String? {
+        String(
+            localized: AppStrings.Shortcut.errorWithReference(
+                message: message, diagnosticID: diagnosticID
+            )
+        )
+    }
     var localizedStringResource: LocalizedStringResource {
-        "\(message) Reference \(diagnosticID)."
+        AppStrings.Shortcut.errorWithReference(message: message, diagnosticID: diagnosticID)
     }
 }
 
@@ -211,11 +222,11 @@ nonisolated enum ChatImageIntentInputError: LocalizedError, Equatable, Sendable 
     var errorDescription: String? {
         switch self {
         case .noImages:
-            "No chat images were provided."
+            String(localized: AppStrings.Errors.Shortcut.noImages)
         case .tooManyImages(let maximum):
-            "Choose no more than \(maximum) images from the same chat."
+            String(localized: AppStrings.Errors.Shortcut.tooManyImages(maximum: maximum))
         case .invalidImage(let position):
-            "Image \(position) is empty or is not a readable image."
+            String(localized: AppStrings.Errors.Shortcut.invalidImage(position: position))
         }
     }
 
@@ -260,6 +271,7 @@ nonisolated enum ChatImageIntentInput {
 }
 
 struct AnalyzeChatImagesIntent: AppIntent {
+    // Static App Intents metadata cannot be indirected through AppStrings.
     static let title: LocalizedStringResource = "Analyze Chat Images"
     static let description = IntentDescription(
         "Imports one to eight images from the same chat while you optionally add context or draft a reply. The images aren't saved."
@@ -328,12 +340,11 @@ struct AnalyzeChatImagesIntent: AppIntent {
             } else if #available(iOS 26.0, *) {
                 lifecycleReporter.record(
                     .inputChoiceDisplayed, operationID: traceID.value, startedAt: startedAt)
-                let add = IntentChoiceOption(title: "Add Context or Draft")
-                let skip = IntentChoiceOption(title: "Skip")
+                let add = IntentChoiceOption(title: AppStrings.Shortcut.addContextOrDraft)
+                let skip = IntentChoiceOption(title: AppStrings.Shortcut.skip)
                 let choice = try await requestChoice(
                     between: [add, skip],
-                    dialog:
-                        "Add optional context or a rough draft while FrameReply analyzes the chat images?"
+                    dialog: IntentDialog(AppStrings.Shortcut.imagesContextChoice)
                 )
                 if choice == skip {
                     input = nil
@@ -341,14 +352,14 @@ struct AnalyzeChatImagesIntent: AppIntent {
                     lifecycleReporter.record(
                         .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                     input = try await $draftingInput.requestValue(
-                        "Analyzing chat images… Add context or draft what you want to say. Tap Done when finished. Cancel stops the shortcut."
+                        IntentDialog(AppStrings.Shortcut.imagesContextPrompt)
                     )
                 }
             } else {
                 lifecycleReporter.record(
                     .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                 input = try await $draftingInput.requestValue(
-                    "Analyzing chat images… Add optional context or a draft. Tap Done empty to skip; Cancel stops the shortcut."
+                    IntentDialog(AppStrings.Shortcut.imagesLegacyContextPrompt)
                 )
             }
 
@@ -368,15 +379,17 @@ struct AnalyzeChatImagesIntent: AppIntent {
                 startedAt: startedAt,
                 eventReporter: eventReporter,
                 lifecycleReporter: lifecycleReporter,
-                synchronizationMessage:
-                    "The optional input could not be synchronized with this image import.",
-                persistenceMessage: "The chat history could not be saved."
+                synchronizationMessage: String(
+                    localized: AppStrings.Shortcut.imageInputSynchronizationError),
+                persistenceMessage: String(
+                    localized: AppStrings.Shortcut.chatHistoryPersistenceError)
             )
         }
     }
 }
 
 struct AnalyzeCopiedMessagesIntent: AppIntent {
+    // Static App Intents metadata cannot be indirected through AppStrings.
     static let title: LocalizedStringResource = "Analyze Chat Text"
     static let description = IntentDescription(
         "Imports shared or copied chat text while you optionally add context or draft a reply. Imported messages are stored locally; the source transcript is not retained separately."
@@ -416,7 +429,7 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
                 .importFailed(traceID: traceID, stage: .shortcut, errorCode: "no_transcript")
             )
             throw ShortcutExecutionError(
-                message: "No shared or copied message text was provided.",
+                message: String(localized: AppStrings.Shortcut.noSharedText),
                 diagnosticID: traceID.diagnosticID
             )
         }
@@ -441,12 +454,11 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
             } else if #available(iOS 26.0, *) {
                 lifecycleReporter.record(
                     .inputChoiceDisplayed, operationID: traceID.value, startedAt: startedAt)
-                let add = IntentChoiceOption(title: "Add Context or Draft")
-                let skip = IntentChoiceOption(title: "Skip")
+                let add = IntentChoiceOption(title: AppStrings.Shortcut.addContextOrDraft)
+                let skip = IntentChoiceOption(title: AppStrings.Shortcut.skip)
                 let choice = try await requestChoice(
                     between: [add, skip],
-                    dialog:
-                        "Add optional context or a rough draft while FrameReply analyzes the chat text?"
+                    dialog: IntentDialog(AppStrings.Shortcut.textContextChoice)
                 )
                 if choice == skip {
                     input = nil
@@ -454,14 +466,14 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
                     lifecycleReporter.record(
                         .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                     input = try await $draftingInput.requestValue(
-                        "Analyzing chat text… Add context or draft what you want to say. Tap Done when finished."
+                        IntentDialog(AppStrings.Shortcut.textContextPrompt)
                     )
                 }
             } else {
                 lifecycleReporter.record(
                     .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                 input = try await $draftingInput.requestValue(
-                    "Analyzing chat text… Add optional context or a draft. Tap Done empty to skip."
+                    IntentDialog(AppStrings.Shortcut.textLegacyContextPrompt)
                 )
             }
 
@@ -481,9 +493,9 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
                 startedAt: startedAt,
                 eventReporter: eventReporter,
                 lifecycleReporter: lifecycleReporter,
-                synchronizationMessage:
-                    "The optional input could not be synchronized with this chat import.",
-                persistenceMessage: "The imported chat text could not be saved."
+                synchronizationMessage: String(
+                    localized: AppStrings.Shortcut.textInputSynchronizationError),
+                persistenceMessage: String(localized: AppStrings.Shortcut.textPersistenceError)
             )
         }
     }
