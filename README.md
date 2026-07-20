@@ -1,68 +1,50 @@
 # FrameReply
 
-FrameReply is an open-source iOS and iPadOS AI reply assistant for context-aware communication.
+> Stay in chat. Keep the thread
+
+FrameReply is an open-source iPhone and iPad assistant that gives you two thoughtful reply ideas without pulling you out of the conversation. Run it through Shortcuts, carry forward chat history and person-specific context, and shape each draft around your goal and voice.
+
+## How it works
+
+1. **Bring in the conversation.** Run FrameReply with Apple Shortcuts, share chat screenshots, or paste copied messages.
+2. **Keep the context.** FrameReply joins new messages to the thread and remembers the person-specific details you choose to keep.
+3. **Choose your reply.** Set a communication goal and persona, then review and copy one of two suggestions.
+
+AI-generated suggestions are drafts. You stay in control of what gets sent.
+
+## Why FrameReply
+
+- **Stay in the conversation.** Use Shortcuts to get reply suggestions without switching to the FrameReply app.
+- **Pick up where you left off.** Preserve chat history and add new screenshots or copied messages as the conversation continues.
+- **Remember the relationship.** Keep useful context—preferences, shared history, or recurring plans—with the relevant person.
+- **Make replies sound like you.** Choose or customize a persona, and let its writing style learn from the messages you send.
+- **Reply with intention.** Give FrameReply a goal and compare two alternatives before choosing what fits.
+
+## Privacy and control
+
+Chats, extracted messages, personas, remembered context, drafts, and generated replies are stored in FrameReply's protected local database and excluded from device backups. API keys are stored in the device Keychain. FrameReply has no proxy server, advertising, analytics, or tracking.
+
+When you request analysis or suggestions, FrameReply asks for consent before sending selected screenshots or text, participant information, and relevant context directly to the provider you choose. Source images are normalized and discarded after processing. Provider processing, retention, and charges remain governed by that provider.
+
+Read the [Privacy Policy](docs/privacy.md), [Terms](docs/terms.md), and [Age Suitability](docs/age-suitability.md) pages for the complete details.
 
 ## Requirements
 
-- macOS with Xcode 26.6 or a compatible newer release.
-- An iOS 26 simulator or device.
-- Your own supported model-provider API key. Provider usage may incur charges billed by that provider.
+- iOS or iPadOS 26 or later.
+- A user-owned API key for OpenAI or Z.ai. Provider usage may incur charges billed by that provider.
 
-## Quick start
+## Build and contribute
 
-```bash
-git clone git@github.com:fanjin-z/framereply.git
-cd framereply
-cp Config/Local.xcconfig.example Config/Local.xcconfig
-# Put your Apple Developer Team ID in Local.xcconfig for device builds.
-```
+Start with the [development guide](docs/development.md), then read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. The [architecture overview](docs/architecture.md) and [AI workflows](docs/ai-workflows.md) explain the system's main boundaries and data flow.
 
-Open `FrameReply.xcodeproj`, select the shared `FrameReply` scheme and an iOS simulator, then choose **Product → Run**. No signing identity is needed for simulator builds.
+Report vulnerabilities privately according to [SECURITY.md](SECURITY.md). Use the [support guide](docs/support.md) for safe bug reports, and never share credentials, private conversations, or unredacted personal information.
 
-For a command-line build:
+## Documentation
 
-```bash
-xcodebuild build \
-  -project FrameReply.xcodeproj \
-  -scheme FrameReply \
-  -destination 'generic/platform=iOS Simulator' \
-  CODE_SIGNING_ALLOWED=NO
-```
-
-## Architecture
-
-Start with the contributor [architecture overview](docs/architecture.md), then read [AI workflows](docs/ai-workflows.md) for chat reconciliation and reply-generation design.
-
-## Privacy and provider access
-
-FrameReply has no proxy server, advertising, analytics, or tracking. API keys are stored in the device Keychain. Chats, extracted messages, personas, context, and generated replies are stored in the app's protected local database and excluded from device backups.
-
-Before connecting a provider, FrameReply requires explicit consent to send selected screenshots or text, participant information, context, and drafts directly to that provider. Source images are normalized and are not retained by FrameReply after processing; extracted messages are stored locally. Provider retention and processing are governed by the selected provider's policy. OpenAI requests set `store: false`, but OpenAI may still retain abuse-monitoring data under its API data controls.
-
-See the project [Privacy Policy](docs/privacy.md), [Terms](docs/terms.md), and [Age Suitability](docs/age-suitability.md) pages.
-
-## Import chats
-
-In FrameReply, tap **Add Messages** to choose up to eight still images or paste message text. Images are re-encoded, stripped of metadata, and bounded to 5 MB each and 20 MB per request. Text import accepts 8,000 characters, 40 text items, and approximately 25 messages.
-
-FrameReply also supports two team-published Apple Shortcuts:
-
-- **FrameReply Images** accepts 1–8 shared images or captures the current screen.
-- **FrameReply Text** accepts shared text or reads the clipboard when run directly.
-
-Shortcut installation buttons appear only when verified team-owned iCloud links are configured. See [Shortcut maintenance](docs/shortcuts.md).
-
-AI-generated suggestions are drafts. Review them before sending.
-
-## Release and automation
-
-The first App Store release is archived, signed, validated, and submitted manually through Xcode Organizer. The public repository intentionally contains no signing or distribution automation and no App Store credentials.
-
-See the [release runbook](docs/release.md) for the remaining owner-operated checks and safe future automation options.
-
-## Contributing and security
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Report vulnerabilities privately according to [SECURITY.md](SECURITY.md); never open a public issue containing credentials, private conversations, or exploitable details.
+- [Development](docs/development.md)
+- [Architecture](docs/architecture.md) and [AI workflows](docs/ai-workflows.md)
+- [Shortcuts](docs/shortcuts.md)
+- [Privacy](docs/privacy.md), [Terms](docs/terms.md), [Support](docs/support.md), and [Age Suitability](docs/age-suitability.md)
 
 ## License
 

@@ -12,7 +12,7 @@ permalink: /support
 - Confirm the active provider has valid data-sharing consent in **Settings → Privacy & Data**.
 - Confirm the provider key is active and has quota.
 - Retry on a stable network and with a smaller image selection.
-- For Shortcut issues, follow the [Shortcut troubleshooting guide](shortcuts).
+- For Shortcut issues, follow the [Shortcut troubleshooting guide](shortcuts.md).
 
 Use a [public GitHub issue](https://github.com/fanjin-z/framereply/issues/new/choose) for general bugs only when the report contains synthetic data. Never attach API keys, real conversations, unredacted screenshots, request contents, or personal information.
 

@@ -2,6 +2,17 @@
 
 FrameReply publishes two personal shortcuts from a team-controlled Apple account. Keep their public links in `ShortcutInstallationCatalog` and verify both links on a device that has not previously installed them before every release. Missing links leave installation unavailable but must not prevent the app from opening.
 
+## Supported Inputs and Limits
+
+FrameReply accepts conversation context through its in-app **Add Messages** flow and through the two Shortcuts documented below.
+
+- Image import accepts 1–8 still PNG, JPEG, or HEIC images from one chat. Images are normalized to a maximum 3,072-pixel edge, stripped of metadata, and bounded to 5 MB each and 20 MB for the request.
+- Text import accepts at most 8,000 characters across 40 text items and approximately 25 messages.
+- **FrameReply Images** accepts shared images or captures the current screen when run without input.
+- **FrameReply Text** accepts shared plain text or reads the clipboard when run directly.
+
+Use only conversation content that you are authorized to process. Imported messages remain stored locally; normalized source images are discarded after processing. See the [Privacy Policy](privacy.md) for the provider data flow and retention details.
+
 ## Workflow Handoff
 
 ```mermaid
