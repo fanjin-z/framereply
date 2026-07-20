@@ -103,11 +103,8 @@ struct ChatDetailsView: View {
                     .padding(20)
                     .glassPanel(cornerRadius: 26)
 
-                    if let cache = replyCaches.first, !rationale.isEmpty {
-                        StrategyRationaleCard(
-                            strategyRationale: rationale,
-                            generatedAt: cache.generatedAt
-                        )
+                    if !rationale.isEmpty {
+                        StrategyRationaleCard(strategyRationale: rationale)
                     }
 
                     if !selfAliasRecords.isEmpty {

@@ -46,13 +46,6 @@ struct ChatAssistantTopBar: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Open chat details for \(chat.name)")
-
-            Spacer(minLength: 8)
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(FrameReplyColor.outline)
-                .accessibilityHidden(true)
         }
         .padding(.horizontal, 2)
     }

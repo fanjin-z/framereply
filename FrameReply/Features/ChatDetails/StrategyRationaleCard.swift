@@ -7,15 +7,10 @@ import SwiftUI
 
 struct StrategyRationaleCard: View {
     let strategyRationale: String
-    let generatedAt: Date
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionHeader(symbolName: "sparkles", title: "Why These Replies") {
-                Text(generatedAt, style: .relative)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.outline)
-            }
+            SectionHeader(symbolName: "sparkles", title: "Why These Replies")
 
             HStack(alignment: .top, spacing: 14) {
                 Image(systemName: "lightbulb.max")
