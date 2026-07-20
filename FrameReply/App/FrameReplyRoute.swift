@@ -10,6 +10,5 @@ enum FrameReplyRoute: Hashable {
     case chatAssistant(String)
     case newPersona
     case persona(UUID)
-    case shortcutSetup
     case privacyAndData
 }

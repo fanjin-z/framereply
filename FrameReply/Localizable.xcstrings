@@ -106,9 +106,6 @@
     "All imports are reviewed." : {
 
     },
-    "Allow" : {
-
-    },
     "Allow & Connect" : {
 
     },
@@ -176,9 +173,6 @@
 
     },
     "Basics" : {
-
-    },
-    "Before You Start" : {
 
     },
     "Best" : {
@@ -259,9 +253,6 @@
     "Chats using it will switch to your default persona." : {
 
     },
-    "Chats, personas, and generated replies are stored locally. FrameReply has no proxy server, analytics, advertising, or tracking." : {
-
-    },
     "Choose %@ as me, %lld messages" : {
       "localizations" : {
         "en" : {
@@ -306,9 +297,6 @@
 
     },
     "Connect" : {
-
-    },
-    "Connect an active provider and allow provider sharing in FrameReply. If a Shortcut reports that consent is required, open Settings → Privacy & Data." : {
 
     },
     "Connect OpenAI or a supported vision provider." : {
@@ -372,9 +360,6 @@
 
     },
     "Current model provider" : {
-
-    },
-    "Data Handling" : {
 
     },
     "Data Sharing" : {
@@ -1077,9 +1062,6 @@
     "Highest-quality interpretation and writing at the highest cost" : {
 
     },
-    "Image Shortcut" : {
-
-    },
     "Import your first chat" : {
 
     },
@@ -1233,9 +1215,6 @@
     "No emoji" : {
 
     },
-    "No provider permissions have been granted." : {
-
-    },
     "No shared or copied message text was provided." : {
 
     },
@@ -1261,9 +1240,6 @@
 
     },
     "OK" : {
-
-    },
-    "On This Device" : {
 
     },
     "Only share content you have permission to use." : {
@@ -1680,9 +1656,6 @@
     "Provider Privacy Policy" : {
 
     },
-    "Provider Sharing" : {
-
-    },
     "provider.consent.message" : {
       "comment" : "Privacy disclosure. The placeholder is the third-party provider brand.",
       "extractionState" : "extracted_with_value",
@@ -1794,9 +1767,6 @@
     "Review" : {
 
     },
-    "Review & Allow" : {
-
-    },
     "Review Import" : {
 
     },
@@ -1830,9 +1800,6 @@
     "Selected" : {
 
     },
-    "Selected content is sent to the active provider. Source images are discarded after processing; extracted messages are stored in FrameReply’s protected local database." : {
-
-    },
     "Sender unknown" : {
 
     },
@@ -1842,22 +1809,7 @@
     "Settings" : {
 
     },
-    "Share 1–8 screenshots or photos from one chat, or run the Shortcut to capture the screen." : {
-
-    },
-    "Share selected message text when supported, or copy messages and run the Shortcut." : {
-
-    },
-    "Sharing allowed" : {
-
-    },
-    "Sharing not allowed" : {
-
-    },
     "Short" : {
-
-    },
-    "Shortcut Setup" : {
 
     },
     "shortcut.error.with-reference" : {
@@ -1965,9 +1917,6 @@
     "Start from" : {
 
     },
-    "Stop Sharing" : {
-
-    },
     "Stored securely on this device." : {
 
     },
@@ -1987,9 +1936,6 @@
 
     },
     "Terms of Use" : {
-
-    },
-    "Text Shortcut" : {
 
     },
     "The chat history could not be saved." : {
@@ -2043,9 +1989,6 @@
     "Use as Display Name" : {
 
     },
-    "Use the Share Sheet, Spotlight, Action button, Back Tap, Home Screen, Siri, or the Shortcuts app." : {
-
-    },
     "Used once for the next set of replies" : {
 
     },
@@ -2071,9 +2014,6 @@
 
     },
     "Warmth" : {
-
-    },
-    "Ways to Run" : {
 
     },
     "Which name is you?" : {

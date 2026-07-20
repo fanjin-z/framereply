@@ -15,6 +15,7 @@ final class FrameReplyReleaseUITests: XCTestCase {
         XCTAssertTrue(app.buttons["add-messages"].exists)
 
         app.buttons["app-tab-settings"].tap()
+        XCTAssertFalse(app.buttons["shortcut-setup-guide"].exists)
         let privacyAndData = app.buttons["privacy-and-data"]
         XCTAssertTrue(privacyAndData.waitForExistence(timeout: 3))
         privacyAndData.tap()
@@ -24,6 +25,8 @@ final class FrameReplyReleaseUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["terms-link"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["support-link"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["delete-all-local-data"].exists)
+        XCTAssertFalse(app.staticTexts["On This Device"].exists)
+        XCTAssertFalse(app.staticTexts["Provider Sharing"].exists)
     }
 
     func testProviderConsentCanBeCancelledWithoutSaving() throws {

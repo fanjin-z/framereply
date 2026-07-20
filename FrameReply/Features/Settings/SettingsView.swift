@@ -9,7 +9,6 @@ import UIKit
 struct SettingsView: View {
     @ObservedObject var providerStore: ProviderStore
     let isActive: Bool
-    let onShortcutGuideTap: () -> Void
     let onPrivacyAndDataTap: () -> Void
 
     @State private var selectedPlatform: ProviderPlatform?
@@ -241,16 +240,6 @@ struct SettingsView: View {
                         symbol: "text.bubble",
                         installation: ShortcutInstallationCatalog.text
                     )
-
-                    Button(action: onShortcutGuideTap) {
-                        settingsNavigationLabel(
-                            title: "Setup Guide",
-                            subtitle: "Ways to run and troubleshoot Shortcuts",
-                            symbol: "questionmark.circle"
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("shortcut-setup-guide")
                 }
             }
         }
@@ -500,7 +489,7 @@ struct SettingsView: View {
         Button(action: onPrivacyAndDataTap) {
             settingsNavigationLabel(
                 title: "Privacy & Data",
-                subtitle: "Sharing permissions and local data",
+                subtitle: "Policies, support, and local data",
                 symbol: "hand.raised.fill"
             )
         }

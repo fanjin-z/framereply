@@ -46,9 +46,6 @@ struct FrameReplyShellView: View {
                         SettingsView(
                             providerStore: providerStore,
                             isActive: isActive,
-                            onShortcutGuideTap: {
-                                navigationPath.append(.shortcutSetup)
-                            },
                             onPrivacyAndDataTap: {
                                 navigationPath.append(.privacyAndData)
                             }
@@ -91,8 +88,6 @@ struct FrameReplyShellView: View {
                     }
                 case .persona(let personaID):
                     PersonaDetailView(personaID: personaID, providerStore: providerStore)
-                case .shortcutSetup:
-                    ShortcutSetupView()
                 case .privacyAndData:
                     PrivacyAndDataView(providerStore: providerStore)
                 }

@@ -5,8 +5,6 @@ struct PrivacyAndDataView: View {
     @Environment(\.modelContext) private var modelContext
     @ObservedObject var providerStore: ProviderStore
 
-    @State private var providerAwaitingConsent: ProviderPlatform?
-    @State private var providerDataDetails: ProviderPlatform?
     @State private var isDeleteAllConfirmationPresented = false
     @State private var deleteAllError: String?
 
@@ -16,8 +14,6 @@ struct PrivacyAndDataView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    localDataSection
-                    providerPermissionsSection
                     legalSection
                     deletionSection
                 }
@@ -30,25 +26,6 @@ struct PrivacyAndDataView: View {
         .navigationTitle("Privacy & Data")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("privacy-and-data-screen")
-        .alert(
-            consentDisclosure?.permissionTitle ?? "Share chat content?",
-            isPresented: Binding(
-                get: { providerAwaitingConsent != nil },
-                set: { if $0 == false { providerAwaitingConsent = nil } }
-            )
-        ) {
-            Button("Not Now", role: .cancel) {
-                providerAwaitingConsent = nil
-            }
-            Button("Allow") {
-                if let platform = providerAwaitingConsent {
-                    providerStore.grantDataConsent(for: platform)
-                }
-                providerAwaitingConsent = nil
-            }
-        } message: {
-            Text(consentDisclosure?.permissionMessage ?? "")
-        }
         .confirmationDialog(
             "Delete all local FrameReply data?",
             isPresented: $isDeleteAllConfirmationPresented,
@@ -70,34 +47,6 @@ struct PrivacyAndDataView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(deleteAllError ?? "")
-        }
-        .sheet(item: $providerDataDetails) { platform in
-            ProviderDataSharingDetailsView(platform: platform)
-        }
-    }
-
-    private var localDataSection: some View {
-        settingsPanel(title: "On This Device", symbol: "iphone") {
-            Text(
-                "Chats, personas, and generated replies are stored locally. FrameReply has no proxy server, analytics, advertising, or tracking."
-            )
-            .font(.system(size: 13, weight: .medium, design: .rounded))
-            .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private var providerPermissionsSection: some View {
-        settingsPanel(title: "Provider Sharing", symbol: "network") {
-            if displayedPlatforms.isEmpty {
-                Text("No provider permissions have been granted.")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-            } else {
-                ForEach(displayedPlatforms) { platform in
-                    providerPermissionRow(platform)
-                }
-            }
         }
     }
 
@@ -124,55 +73,6 @@ struct PrivacyAndDataView: View {
             .accessibilityIdentifier("delete-all-local-data")
             .font(.system(size: 14, weight: .bold, design: .rounded))
         }
-    }
-
-    private var displayedPlatforms: [ProviderPlatform] {
-        ProviderPlatform.availableCases.filter { platform in
-            providerStore.providers.contains { $0.platform == platform }
-                || providerStore.hasValidDataConsent(for: platform)
-        }
-    }
-
-    private var consentDisclosure: ProviderDataConsentDisclosure? {
-        providerAwaitingConsent.map { ProviderDataConsentDisclosure(provider: $0) }
-    }
-
-    private func providerPermissionRow(_ platform: ProviderPlatform) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            Button {
-                providerDataDetails = platform
-            } label: {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(platform.displayName)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(FrameReplyColor.onSurface)
-                    if providerStore.hasValidDataConsent(for: platform) {
-                        Text("Sharing allowed")
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(FrameReplyColor.outline)
-                    } else {
-                        Text("Sharing not allowed")
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(FrameReplyColor.outline)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            if providerStore.hasValidDataConsent(for: platform) {
-                Button("Stop Sharing", role: .destructive) {
-                    providerStore.revokeDataConsent(for: platform)
-                }
-            } else {
-                Button("Review & Allow") {
-                    providerAwaitingConsent = platform
-                }
-            }
-        }
-        .font(.system(size: 12, weight: .bold, design: .rounded))
-        .padding(.vertical, 4)
     }
 
     private func legalLink(_ title: LocalizedStringResource, destination: URL) -> some View {
