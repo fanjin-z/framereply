@@ -1,18 +1,11 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "%@" : {
+    "" : {
 
     },
-    "%@ Reference %@." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ Reference %2$@."
-          }
-        }
-      }
+    "%@" : {
+
     },
     "%@ · %@" : {
       "localizations" : {
@@ -65,31 +58,19 @@
     "%lld/10 messages" : {
 
     },
-    "AI-generated — review before sending" : {
-
-    },
-    "API Key" : {
-
-    },
     "Add" : {
-
-    },
-    "Add Context or Draft" : {
-
-    },
-    "Add Messages" : {
-
-    },
-    "Add Provider" : {
-
-    },
-    "Add Reply Note" : {
 
     },
     "Add an observation" : {
 
     },
+    "Add Context or Draft" : {
+
+    },
     "Add messages" : {
+
+    },
+    "Add Messages" : {
 
     },
     "Add model provider" : {
@@ -101,7 +82,13 @@
     "Add optional context or a rough draft while FrameReply analyzes the chat text?" : {
 
     },
+    "Add Provider" : {
+
+    },
     "Add recent conversation messages from screenshots or copied text." : {
+
+    },
+    "Add Reply Note" : {
 
     },
     "Add what happened offline, what you want to accomplish, or anything the screenshot might miss..." : {
@@ -111,6 +98,9 @@
 
     },
     "Age Suitability" : {
+
+    },
+    "AI-generated — review before sending" : {
 
     },
     "All imports are reviewed." : {
@@ -161,6 +151,9 @@
     "Analyzing…" : {
 
     },
+    "API Key" : {
+
+    },
     "Auto-saved" : {
 
     },
@@ -209,11 +202,59 @@
     "Chat Images" : {
 
     },
+    "Chat name" : {
+
+    },
     "Chat Text" : {
 
     },
-    "Chat name" : {
-
+    "chat.fallback.imported" : {
+      "comment" : "Fallback title for an imported chat whose participant is not known.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Imported Chat"
+          }
+        }
+      }
+    },
+    "chat.fallback.preview" : {
+      "comment" : "Preview text for a chat that has no stored messages.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No messages yet"
+          }
+        }
+      }
+    },
+    "chat.fallback.title" : {
+      "comment" : "Fallback title for an imported chat whose participant or title is unknown.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Imported Chat"
+          }
+        }
+      }
+    },
+    "chat.merge.candidate.alias" : {
+      "comment" : "Merge candidate label. First value is the chat title; second is another known participant name.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ — also %2$@"
+          }
+        }
+      }
     },
     "Chats using it will switch to your default persona." : {
 
@@ -243,9 +284,6 @@
         }
       }
     },
-    "Choose Screenshots" : {
-
-    },
     "Choose a clear name for this chat." : {
 
     },
@@ -253,6 +291,9 @@
 
     },
     "Choose once to label every message from these authors." : {
+
+    },
+    "Choose Screenshots" : {
 
     },
     "Clear Learned Observations" : {
@@ -267,10 +308,10 @@
     "Connect" : {
 
     },
-    "Connect OpenAI or a supported vision provider." : {
+    "Connect an active provider and allow provider sharing in FrameReply. If a Shortcut reports that consent is required, open Settings → Privacy & Data." : {
 
     },
-    "Connect an active provider and allow provider sharing in FrameReply. If a Shortcut reports that consent is required, open Settings → Privacy & Data." : {
+    "Connect OpenAI or a supported vision provider." : {
 
     },
     "Connecting..." : {
@@ -345,10 +386,10 @@
     "Default" : {
 
     },
-    "Default Persona" : {
+    "Default persona" : {
 
     },
-    "Default persona" : {
+    "Default Persona" : {
 
     },
     "Delete" : {
@@ -357,16 +398,16 @@
     "Delete All Local Data" : {
 
     },
-    "Delete Chat" : {
-
-    },
-    "Delete Persona" : {
-
-    },
     "Delete all local FrameReply data?" : {
 
     },
+    "Delete Chat" : {
+
+    },
     "Delete chat with %@?" : {
+
+    },
+    "Delete Persona" : {
 
     },
     "Detailed" : {
@@ -384,579 +425,6 @@
     "Duplicate" : {
 
     },
-    "Edit" : {
-
-    },
-    "Edit Names" : {
-
-    },
-    "Edit memory" : {
-
-    },
-    "Emoji" : {
-
-    },
-    "Enter API key" : {
-
-    },
-    "Example: For networking messages, mention the shared context, make one clear request, and give the other person an easy way to decline." : {
-
-    },
-    "Expressive" : {
-
-    },
-    "Few emoji" : {
-
-    },
-    "Fewer" : {
-
-    },
-    "Fine-tune the voice." : {
-
-    },
-    "Forget Identity" : {
-
-    },
-    "Forget imported identity" : {
-
-    },
-    "Forget imported identity?" : {
-
-    },
-    "Formal" : {
-
-    },
-    "Formality" : {
-
-    },
-    "FrameReply Images" : {
-
-    },
-    "FrameReply Text" : {
-
-    },
-    "FrameReply uses these names only for future imports into this chat." : {
-
-    },
-    "FrameReply uses these names to recognize this person in screenshots and pasted transcripts. Removing one may make a future import require review; existing messages won’t change." : {
-
-    },
-    "Frequent" : {
-
-    },
-    "From conversation" : {
-
-    },
-    "Future imports may ask which sender is you again. Existing messages won’t change." : {
-
-    },
-    "General" : {
-
-    },
-    "Generate Replies" : {
-
-    },
-    "Generate Suggested Replies" : {
-
-    },
-    "Generate replies for ${analyzedChat}" : {
-
-    },
-    "Generate replies when you’re ready." : {
-
-    },
-    "Generates two replies for a chat analyzed by FrameReply." : {
-
-    },
-    "Hide API key" : {
-
-    },
-    "Highest-quality interpretation and writing at the highest cost" : {
-
-    },
-    "Image Shortcut" : {
-
-    },
-    "Import your first chat" : {
-
-    },
-    "Imported chat" : {
-
-    },
-    "Importing Messages" : {
-
-    },
-    "Importing…" : {
-
-    },
-    "Imports Reviewed" : {
-
-    },
-    "Imports one to eight images from the same chat while you optionally add context or draft a reply. The images aren't saved." : {
-
-    },
-    "Imports shared or copied chat text while you optionally add context or draft a reply. Imported messages are stored locally; the source transcript is not retained separately." : {
-
-    },
-    "Inbox" : {
-
-    },
-    "Install" : {
-
-    },
-    "Install %@" : {
-
-    },
-    "Instructions" : {
-
-    },
-    "Keep" : {
-
-    },
-    "Keep as new" : {
-
-    },
-    "Learned from %lld messages." : {
-
-    },
-    "Learning on %lld chats" : {
-
-    },
-    "Local Data" : {
-
-    },
-    "Local Data Unavailable" : {
-
-    },
-    "Lowest cost; may be less reliable with subtle or complex context" : {
-
-    },
-    "Makes this provider active" : {
-
-    },
-    "Memory: %@" : {
-
-    },
-    "Merge Imported Chat" : {
-
-    },
-    "Merge Into %@" : {
-
-    },
-    "Merge into..." : {
-
-    },
-    "Model Providers" : {
-
-    },
-    "More" : {
-
-    },
-    "Move this imported chat into an existing chat. This can’t be undone." : {
-
-    },
-    "Name or username" : {
-
-    },
-    "New Persona" : {
-
-    },
-    "New remembered context for %@" : {
-
-    },
-    "No archived observations." : {
-
-    },
-    "No chats found" : {
-
-    },
-    "No emoji" : {
-
-    },
-    "No provider permissions have been granted." : {
-
-    },
-    "Not Now" : {
-
-    },
-    "Not selected" : {
-
-    },
-    "Nothing saved yet. Add a detail you would like to remember." : {
-
-    },
-    "OK" : {
-
-    },
-    "Observation" : {
-
-    },
-    "Observation History" : {
-
-    },
-    "Observations" : {
-
-    },
-    "Occasional" : {
-
-    },
-    "Only share content you have permission to use." : {
-
-    },
-    "Open Chat Assistant for %@" : {
-
-    },
-    "Open chat details for %@" : {
-
-    },
-    "Open chat history" : {
-
-    },
-    "Opening FrameReply…" : {
-
-    },
-    "Optional context or a rough reply used once for this generation." : {
-
-    },
-    "Optional: paste 3–10 messages you wrote, one per line." : {
-
-    },
-    "Options for %@" : {
-
-    },
-    "Pass one to eight images from the same chat, such as shared photos or the output from Take Screenshot." : {
-
-    },
-    "Pass shared plain text, Get Clipboard output, or text from another action." : {
-
-    },
-    "Paste 3–10 messages you wrote, one per line." : {
-
-    },
-    "Paste Copied Messages" : {
-
-    },
-    "Performance" : {
-
-    },
-    "Performance tier" : {
-
-    },
-    "Permanently reset all local FrameReply data?" : {
-
-    },
-    "Persona" : {
-
-    },
-    "Personas" : {
-
-    },
-    "Policies & Support" : {
-
-    },
-    "Preserves all text items supplied by the clipboard." : {
-
-    },
-    "Privacy & Data" : {
-
-    },
-    "Privacy Policy" : {
-
-    },
-    "Provider" : {
-
-    },
-    "Provider Privacy Policy" : {
-
-    },
-    "Provider Sharing" : {
-
-    },
-    "Provider actions for %@" : {
-
-    },
-    "Recent Chat" : {
-
-    },
-    "Recommended for consistently strong results at moderate cost" : {
-
-    },
-    "Refreshing replies…" : {
-
-    },
-    "Remembered Context" : {
-
-    },
-    "Remove" : {
-
-    },
-    "Remove Name" : {
-
-    },
-    "Rename Chat" : {
-
-    },
-    "Reply Brief" : {
-
-    },
-    "Reply Length" : {
-
-    },
-    "Reply Note Added" : {
-
-    },
-    "Reserved" : {
-
-    },
-    "Reset Local Data" : {
-
-    },
-    "Retry" : {
-
-    },
-    "Review" : {
-
-    },
-    "Review & Allow" : {
-
-    },
-    "Review Import" : {
-
-    },
-    "Review Imports" : {
-
-    },
-    "Review messages individually" : {
-
-    },
-    "Save" : {
-
-    },
-    "Saves this as a separate memory" : {
-
-    },
-    "Search all chat history" : {
-
-    },
-    "Search chats..." : {
-
-    },
-    "Select performance" : {
-
-    },
-    "Select provider" : {
-
-    },
-    "Select up to eight chat screenshots." : {
-
-    },
-    "Selected" : {
-
-    },
-    "Selected content is sent to the active provider. Source images are discarded after processing; extracted messages are stored in FrameReply’s protected local database." : {
-
-    },
-    "Sender unknown" : {
-
-    },
-    "Set as Default" : {
-
-    },
-    "Settings" : {
-
-    },
-    "Share 1–8 screenshots or photos from one chat, or run the Shortcut to capture the screen." : {
-
-    },
-    "Share selected message text when supported, or copy messages and run the Shortcut." : {
-
-    },
-    "Sharing allowed" : {
-
-    },
-    "Sharing not allowed" : {
-
-    },
-    "Short" : {
-
-    },
-    "Shortcut Setup" : {
-
-    },
-    "Shortcuts" : {
-
-    },
-    "Show API key" : {
-
-    },
-    "Skip" : {
-
-    },
-    "Start from" : {
-
-    },
-    "Stop Sharing" : {
-
-    },
-    "Stored securely on this device." : {
-
-    },
-    "Style" : {
-
-    },
-    "Suggested Replies" : {
-
-    },
-    "Support" : {
-
-    },
-    "Teach It Your Voice" : {
-
-    },
-    "Tell this persona how to respond." : {
-
-    },
-    "Terms of Use" : {
-
-    },
-    "Text Shortcut" : {
-
-    },
-    "The output from Analyze Chat Images or Analyze Chat Text." : {
-
-    },
-    "The reply brief changed. Update when you’re ready." : {
-
-    },
-    "This cannot be undone." : {
-
-    },
-    "This is me" : {
-
-    },
-    "This is the name shown throughout FrameReply." : {
-
-    },
-    "This permanently deletes chats, messages, personas, drafts, provider settings, consent records, and API keys from this device." : {
-
-    },
-    "This permanently deletes this chat and its data. This can’t be undone." : {
-
-    },
-    "Try Again" : {
-
-    },
-    "Try again." : {
-
-    },
-    "Unavailable" : {
-
-    },
-    "Update Replies" : {
-
-    },
-    "Use %@" : {
-
-    },
-    "Use %@ as Default" : {
-
-    },
-    "Use as Display Name" : {
-
-    },
-    "Use the Share Sheet, Spotlight, Action button, Back Tap, Home Screen, Siri, or the Shortcuts app." : {
-
-    },
-    "Used once for the next set of replies" : {
-
-    },
-    "Very casual" : {
-
-    },
-    "Very detailed" : {
-
-    },
-    "Very formal" : {
-
-    },
-    "Very reserved" : {
-
-    },
-    "Very short" : {
-
-    },
-    "Very warm" : {
-
-    },
-    "Warm" : {
-
-    },
-    "Warmth" : {
-
-    },
-    "Ways to Run" : {
-
-    },
-    "Which name is you?" : {
-
-    },
-    "Who sent this?" : {
-
-    },
-    "Why These Replies" : {
-
-    },
-    "You appear as" : {
-
-    },
-    "chat.fallback.imported" : {
-      "comment" : "Fallback title for an imported chat whose participant is not known.",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Imported Chat"
-          }
-        }
-      }
-    },
-    "chat.fallback.preview" : {
-      "comment" : "Preview text for a chat that has no stored messages.",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "No messages yet"
-          }
-        }
-      }
-    },
-    "chat.fallback.title" : {
-      "comment" : "Fallback title for an imported chat whose participant or title is unknown.",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Imported Chat"
-          }
-        }
-      }
-    },
-    "chat.merge.candidate.alias" : {
-      "comment" : "Merge candidate label. First value is the chat title; second is another known participant name.",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ — also %2$@"
-          }
-        }
-      }
-    },
     "e.g. Agree on a time for dinner…" : {
 
     },
@@ -967,6 +435,21 @@
 
     },
     "e.g. Work Mode" : {
+
+    },
+    "Edit" : {
+
+    },
+    "Edit memory" : {
+
+    },
+    "Edit Names" : {
+
+    },
+    "Emoji" : {
+
+    },
+    "Enter API key" : {
 
     },
     "error.ai.consent-required" : {
@@ -1519,6 +1002,87 @@
         }
       }
     },
+    "Example: For networking messages, mention the shared context, make one clear request, and give the other person an easy way to decline." : {
+
+    },
+    "Expressive" : {
+
+    },
+    "Few emoji" : {
+
+    },
+    "Fewer" : {
+
+    },
+    "Fine-tune the voice." : {
+
+    },
+    "Forget Identity" : {
+
+    },
+    "Forget imported identity" : {
+
+    },
+    "Forget imported identity?" : {
+
+    },
+    "Formal" : {
+
+    },
+    "Formality" : {
+
+    },
+    "FrameReply Images" : {
+
+    },
+    "FrameReply Text" : {
+
+    },
+    "FrameReply uses these names only for future imports into this chat." : {
+
+    },
+    "FrameReply uses these names to recognize this person in screenshots and pasted transcripts. Removing one may make a future import require review; existing messages won’t change." : {
+
+    },
+    "Frequent" : {
+
+    },
+    "From conversation" : {
+
+    },
+    "Future imports may ask which sender is you again. Existing messages won’t change." : {
+
+    },
+    "General" : {
+
+    },
+    "Generate Replies" : {
+
+    },
+    "Generate replies for ${analyzedChat}" : {
+
+    },
+    "Generate replies when you’re ready." : {
+
+    },
+    "Generate Suggested Replies" : {
+
+    },
+    "Generates two replies for a chat analyzed by FrameReply." : {
+
+    },
+    "Hide API key" : {
+
+    },
+    "Highest-quality interpretation and writing at the highest cost" : {
+
+    },
+    "Image Shortcut" : {
+
+    },
+    "Import your first chat" : {
+
+    },
     "import.added-messages" : {
       "comment" : "Import result. The catalog supplies singular and plural variants for the message count.",
       "localizations" : {
@@ -1575,6 +1139,180 @@
           }
         }
       }
+    },
+    "Imported chat" : {
+
+    },
+    "Importing Messages" : {
+
+    },
+    "Importing…" : {
+
+    },
+    "Imports one to eight images from the same chat while you optionally add context or draft a reply. The images aren't saved." : {
+
+    },
+    "Imports Reviewed" : {
+
+    },
+    "Imports shared or copied chat text while you optionally add context or draft a reply. Imported messages are stored locally; the source transcript is not retained separately." : {
+
+    },
+    "Inbox" : {
+
+    },
+    "Install" : {
+
+    },
+    "Install %@" : {
+
+    },
+    "Instructions" : {
+
+    },
+    "Keep" : {
+
+    },
+    "Keep as new" : {
+
+    },
+    "Learned from %lld messages." : {
+
+    },
+    "Learning on %lld chats" : {
+
+    },
+    "Local Data" : {
+
+    },
+    "Local Data Unavailable" : {
+
+    },
+    "Lowest cost; may be less reliable with subtle or complex context" : {
+
+    },
+    "Makes this provider active" : {
+
+    },
+    "Memory: %@" : {
+
+    },
+    "Merge Imported Chat" : {
+
+    },
+    "Merge Into %@" : {
+
+    },
+    "Merge into..." : {
+
+    },
+    "Model Providers" : {
+
+    },
+    "More" : {
+
+    },
+    "Move this imported chat into an existing chat. This can’t be undone." : {
+
+    },
+    "Name or username" : {
+
+    },
+    "New Persona" : {
+
+    },
+    "New remembered context for %@" : {
+
+    },
+    "No archived observations." : {
+
+    },
+    "No chats found" : {
+
+    },
+    "No emoji" : {
+
+    },
+    "No provider permissions have been granted." : {
+
+    },
+    "No shared or copied message text was provided." : {
+
+    },
+    "Not Now" : {
+
+    },
+    "Not selected" : {
+
+    },
+    "Nothing saved yet. Add a detail you would like to remember." : {
+
+    },
+    "Observation" : {
+
+    },
+    "Observation History" : {
+
+    },
+    "Observations" : {
+
+    },
+    "Occasional" : {
+
+    },
+    "OK" : {
+
+    },
+    "On This Device" : {
+
+    },
+    "Only share content you have permission to use." : {
+
+    },
+    "Open Chat Assistant for %@" : {
+
+    },
+    "Open chat details for %@" : {
+
+    },
+    "Open chat history" : {
+
+    },
+    "Opening FrameReply…" : {
+
+    },
+    "Optional context or a rough reply used once for this generation." : {
+
+    },
+    "Optional: paste 3–10 messages you wrote, one per line." : {
+
+    },
+    "Options for %@" : {
+
+    },
+    "Pass one to eight images from the same chat, such as shared photos or the output from Take Screenshot." : {
+
+    },
+    "Pass shared plain text, Get Clipboard output, or text from another action." : {
+
+    },
+    "Paste 3–10 messages you wrote, one per line." : {
+
+    },
+    "Paste Copied Messages" : {
+
+    },
+    "Performance" : {
+
+    },
+    "Performance tier" : {
+
+    },
+    "Permanently reset all local FrameReply data?" : {
+
+    },
+    "Persona" : {
+
     },
     "persona.copy-name" : {
       "comment" : "Name assigned when duplicating a persona. The placeholder is the original persona name.",
@@ -1918,6 +1656,33 @@
         }
       }
     },
+    "Personas" : {
+
+    },
+    "Policies & Support" : {
+
+    },
+    "Preserves all text items supplied by the clipboard." : {
+
+    },
+    "Privacy & Data" : {
+
+    },
+    "Privacy Policy" : {
+
+    },
+    "Provider" : {
+
+    },
+    "Provider actions for %@" : {
+
+    },
+    "Provider Privacy Policy" : {
+
+    },
+    "Provider Sharing" : {
+
+    },
     "provider.consent.message" : {
       "comment" : "Privacy disclosure. The placeholder is the third-party provider brand.",
       "extractionState" : "extracted_with_value",
@@ -1986,6 +1751,114 @@
           }
         }
       }
+    },
+    "Recent Chat" : {
+
+    },
+    "Recommended for consistently strong results at moderate cost" : {
+
+    },
+    "Refreshing replies…" : {
+
+    },
+    "Remembered Context" : {
+
+    },
+    "Remove" : {
+
+    },
+    "Remove Name" : {
+
+    },
+    "Rename Chat" : {
+
+    },
+    "Reply Brief" : {
+
+    },
+    "Reply Length" : {
+
+    },
+    "Reply Note Added" : {
+
+    },
+    "Reserved" : {
+
+    },
+    "Reset Local Data" : {
+
+    },
+    "Retry" : {
+
+    },
+    "Review" : {
+
+    },
+    "Review & Allow" : {
+
+    },
+    "Review Import" : {
+
+    },
+    "Review Imports" : {
+
+    },
+    "Review messages individually" : {
+
+    },
+    "Save" : {
+
+    },
+    "Saves this as a separate memory" : {
+
+    },
+    "Search all chat history" : {
+
+    },
+    "Search chats..." : {
+
+    },
+    "Select performance" : {
+
+    },
+    "Select provider" : {
+
+    },
+    "Select up to eight chat screenshots." : {
+
+    },
+    "Selected" : {
+
+    },
+    "Selected content is sent to the active provider. Source images are discarded after processing; extracted messages are stored in FrameReply’s protected local database." : {
+
+    },
+    "Sender unknown" : {
+
+    },
+    "Set as Default" : {
+
+    },
+    "Settings" : {
+
+    },
+    "Share 1–8 screenshots or photos from one chat, or run the Shortcut to capture the screen." : {
+
+    },
+    "Share selected message text when supported, or copy messages and run the Shortcut." : {
+
+    },
+    "Sharing allowed" : {
+
+    },
+    "Sharing not allowed" : {
+
+    },
+    "Short" : {
+
+    },
+    "Shortcut Setup" : {
+
     },
     "shortcut.error.with-reference" : {
       "comment" : "Shortcut error followed by a private diagnostic reference.",
@@ -2079,6 +1952,141 @@
           }
         }
       }
+    },
+    "Shortcuts" : {
+
+    },
+    "Show API key" : {
+
+    },
+    "Skip" : {
+
+    },
+    "Start from" : {
+
+    },
+    "Stop Sharing" : {
+
+    },
+    "Stored securely on this device." : {
+
+    },
+    "Style" : {
+
+    },
+    "Suggested Replies" : {
+
+    },
+    "Support" : {
+
+    },
+    "Teach It Your Voice" : {
+
+    },
+    "Tell this persona how to respond." : {
+
+    },
+    "Terms of Use" : {
+
+    },
+    "Text Shortcut" : {
+
+    },
+    "The chat history could not be saved." : {
+
+    },
+    "The imported chat text could not be saved." : {
+
+    },
+    "The optional input could not be synchronized with this chat import." : {
+
+    },
+    "The optional input could not be synchronized with this image import." : {
+
+    },
+    "The output from Analyze Chat Images or Analyze Chat Text." : {
+
+    },
+    "The reply brief changed. Update when you’re ready." : {
+
+    },
+    "This cannot be undone." : {
+
+    },
+    "This is me" : {
+
+    },
+    "This is the name shown throughout FrameReply." : {
+
+    },
+    "This permanently deletes chats, messages, personas, drafts, provider settings, consent records, and API keys from this device." : {
+
+    },
+    "This permanently deletes this chat and its data. This can’t be undone." : {
+
+    },
+    "Try Again" : {
+
+    },
+    "Try again." : {
+
+    },
+    "Update Replies" : {
+
+    },
+    "Use %@" : {
+
+    },
+    "Use %@ as Default" : {
+
+    },
+    "Use as Display Name" : {
+
+    },
+    "Use the Share Sheet, Spotlight, Action button, Back Tap, Home Screen, Siri, or the Shortcuts app." : {
+
+    },
+    "Used once for the next set of replies" : {
+
+    },
+    "Very casual" : {
+
+    },
+    "Very detailed" : {
+
+    },
+    "Very formal" : {
+
+    },
+    "Very reserved" : {
+
+    },
+    "Very short" : {
+
+    },
+    "Very warm" : {
+
+    },
+    "Warm" : {
+
+    },
+    "Warmth" : {
+
+    },
+    "Ways to Run" : {
+
+    },
+    "Which name is you?" : {
+
+    },
+    "Who sent this?" : {
+
+    },
+    "Why These Replies" : {
+
+    },
+    "You appear as" : {
+
     }
   },
   "version" : "1.0"
