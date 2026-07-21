@@ -11,42 +11,41 @@ struct ChatAssistantTopBar: View {
     let onDetailsTap: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            Button {
-                onBackTap()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(FrameReplyColor.primary)
-                    .frame(width: 42, height: 42)
-            }
-            .buttonStyle(SoftPressButtonStyle())
-            .accessibilityLabel("Back to inbox")
+        FrameReplyTopBar {
+            HStack(spacing: 12) {
+                FrameReplyTopBarBackButton(
+                    accessibilityLabel: "Back to inbox",
+                    action: onBackTap
+                )
 
-            Button {
-                onDetailsTap()
-            } label: {
-                HStack(spacing: 12) {
-                    AvatarMark(
-                        initials: chat.initials,
-                        symbolName: chat.avatarSymbol,
-                        colors: chat.gradient,
-                        size: 42
-                    )
+                Button {
+                    onDetailsTap()
+                } label: {
+                    HStack(spacing: 12) {
+                        AvatarMark(
+                            initials: chat.initials,
+                            symbolName: chat.avatarSymbol,
+                            colors: chat.gradient,
+                            size: 42
+                        )
 
-                    VStack(alignment: .leading, spacing: 2) {
                         Text(chat.name)
                             .font(.system(size: 19, weight: .semibold, design: .rounded))
                             .foregroundStyle(FrameReplyColor.onSurface)
                             .lineLimit(1)
                             .minimumScaleFactor(0.78)
+
+                        Spacer(minLength: 0)
                     }
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel("Open chat details for \(chat.name)")
+                .accessibilityHint("Shows chat settings and memory")
+                .accessibilityIdentifier("open-chat-details")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Open chat details for \(chat.name)")
         }
-        .padding(.horizontal, 2)
     }
 }

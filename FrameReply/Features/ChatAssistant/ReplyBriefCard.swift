@@ -5,6 +5,7 @@
 
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct ReplyBriefSummaryCard: View {
     let goal: String
@@ -74,15 +75,16 @@ struct ReplyBriefSummaryCard: View {
     }
 }
 
-struct ReplyBriefSheet: View {
+struct ReplyBriefDialog: View {
     @Binding var goalDraft: String
     let personaID: UUID?
     let onGoalCommit: () -> Void
     let onPersonaSelect: (UUID) -> Void
+    let onDismiss: () -> Void
 
-    @Environment(\.dismiss) private var dismiss
     @Query(sort: \PersonaRecord.createdAt) private var personas: [PersonaRecord]
     @FocusState private var isGoalFocused: Bool
+    @State private var keyboardHeight: CGFloat = 0
 
     private var selectedPersonaName: String {
         personas.first(where: { $0.id == personaID })?.name
@@ -90,24 +92,55 @@ struct ReplyBriefSheet: View {
     }
 
     var body: some View {
-        ZStack {
-            EtherealBackground()
+        GeometryReader { proxy in
+            let availableHeight = max(0, proxy.size.height - keyboardHeight)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    header
-                    editor
+            ZStack {
+                Color.black.opacity(0.24)
+                    .ignoresSafeArea()
+                    .onTapGesture(perform: onDismiss)
+
+                ScrollView {
+                    dialogCard
+                        .frame(maxWidth: 560)
+                        .frame(
+                            maxWidth: .infinity,
+                            minHeight: availableHeight,
+                            alignment: keyboardHeight > 0 ? .top : .center
+                        )
+                        .padding(.horizontal, 24)
+                        .padding(.top, keyboardHeight > 0 ? 12 : 24)
+                        .padding(.bottom, keyboardHeight + 24)
                 }
-                .padding(24)
-                .frame(maxWidth: 720, alignment: .leading)
-                .frame(maxWidth: .infinity)
+                .scrollIndicators(.hidden)
+                .scrollDismissesKeyboard(.interactively)
             }
-            .scrollIndicators(.hidden)
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-        .accessibilityIdentifier("reply-brief-sheet")
-        .onDisappear(perform: onGoalCommit)
+        .accessibilityAddTraits(.isModal)
+        .accessibilityIdentifier("reply-brief-dialog")
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: UIResponder.keyboardWillChangeFrameNotification
+            )
+        ) { notification in
+            updateKeyboardHeight(from: notification)
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
+        ) { _ in
+            withAnimation(.easeOut(duration: 0.25)) {
+                keyboardHeight = 0
+            }
+        }
+    }
+
+    private var dialogCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            header
+            editor
+        }
+        .padding(20)
+        .glassPanel(cornerRadius: 26)
     }
 
     private var header: some View {
@@ -124,11 +157,7 @@ struct ReplyBriefSheet: View {
 
             Spacer(minLength: 8)
 
-            Button {
-                KeyboardDismissal.dismiss()
-                onGoalCommit()
-                dismiss()
-            } label: {
+            Button(action: onDismiss) {
                 Text("Done")
                     .font(.system(.subheadline, design: .rounded, weight: .bold))
                     .foregroundStyle(.white)
@@ -141,6 +170,17 @@ struct ReplyBriefSheet: View {
             }
             .buttonStyle(SoftPressButtonStyle())
             .accessibilityIdentifier("reply-brief-done")
+        }
+    }
+
+    private func updateKeyboardHeight(from notification: Notification) {
+        guard
+            let endFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey]
+                as? CGRect
+        else { return }
+
+        withAnimation(.easeOut(duration: 0.25)) {
+            keyboardHeight = endFrame.height
         }
     }
 
@@ -197,9 +237,6 @@ struct ReplyBriefSheet: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassPanel(cornerRadius: 26)
         .onChange(of: isGoalFocused) { wasFocused, isFocused in
             if wasFocused && !isFocused {
                 onGoalCommit()

@@ -66,8 +66,6 @@ struct ChatDetailsView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
-                    topBar
-
                     HStack(spacing: 16) {
                         AvatarMark(
                             initials: displayedChat.initials,
@@ -171,6 +169,9 @@ struct ChatDetailsView: View {
             }
             .scrollIndicators(.hidden)
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            topBar
+        }
         .interactiveSwipeBackEnabled()
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
@@ -217,26 +218,23 @@ struct ChatDetailsView: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 12) {
-            Button {
-                KeyboardDismissal.dismiss()
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(FrameReplyColor.primary)
-                    .frame(width: 42, height: 42)
+        FrameReplyTopBar {
+            HStack(spacing: 12) {
+                FrameReplyTopBarBackButton(
+                    accessibilityLabel: "Back to chat assistant"
+                ) {
+                    KeyboardDismissal.dismiss()
+                    dismiss()
+                }
+
+                Text("Chat Details")
+                    .font(.system(size: 19, weight: .semibold, design: .rounded))
+                    .foregroundStyle(FrameReplyColor.onSurface)
+
+                Spacer()
             }
-            .buttonStyle(SoftPressButtonStyle())
-            .accessibilityLabel("Back to chat assistant")
-
-            Text("Chat Details")
-                .font(.system(size: 19, weight: .semibold, design: .rounded))
-                .foregroundStyle(FrameReplyColor.onSurface)
-
-            Spacer()
+            .accessibilityIdentifier("chat-details-top-bar")
         }
-        .padding(.horizontal, 2)
     }
 
     private func renameChat() {

@@ -35,7 +35,6 @@ struct PersonaDetailView: View {
             if let persona = personas.first {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        topBar
                         identity(persona)
                         instructionsCard(persona)
                         observationsCard(persona)
@@ -47,31 +46,35 @@ struct PersonaDetailView: View {
                 }.scrollIndicators(.hidden)
             }
         }
+        .safeAreaInset(edge: .top, spacing: 0) { topBar }
         .task { defaultPersonaID = try? PersonaRepository().defaultPersonaID() }
         .interactiveSwipeBackEnabled().navigationBarBackButtonHidden(true).toolbar(
             .hidden, for: .navigationBar)
     }
 
     private var topBar: some View {
-        HStack {
-            Button {
-                KeyboardDismissal.dismiss()
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left").font(.system(size: 20, weight: .semibold))
-                    .frame(width: 46, height: 46).background(
-                        Color.white.opacity(0.68), in: Circle())
-            }.buttonStyle(SoftPressButtonStyle())
-            Spacer()
-            if defaultPersonaID == personaID {
-                Label("Default", systemImage: "checkmark.circle.fill").font(.caption.bold())
-            } else {
-                Button("Set as Default") {
-                    try? PersonaRepository().setDefaultPersona(id: personaID)
-                    defaultPersonaID = personaID
-                }.font(.caption.bold())
+        FrameReplyTopBar {
+            HStack(spacing: 12) {
+                FrameReplyTopBarBackButton(accessibilityLabel: "Back") {
+                    KeyboardDismissal.dismiss()
+                    dismiss()
+                }
+
+                Spacer()
+
+                if defaultPersonaID == personaID {
+                    Label("Default", systemImage: "checkmark.circle.fill")
+                        .font(.caption.bold())
+                } else {
+                    Button("Set as Default") {
+                        try? PersonaRepository().setDefaultPersona(id: personaID)
+                        defaultPersonaID = personaID
+                    }
+                    .font(.caption.bold())
+                }
             }
-        }.foregroundStyle(FrameReplyColor.primary)
+            .foregroundStyle(FrameReplyColor.primary)
+        }
     }
 
     private func identity(_ persona: PersonaRecord) -> some View {

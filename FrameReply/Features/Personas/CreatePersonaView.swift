@@ -24,7 +24,6 @@ struct CreatePersonaView: View {
             EtherealBackground()
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    topBar
                     basicsSection
                     styleSection
                     instructionsSection
@@ -38,6 +37,7 @@ struct CreatePersonaView: View {
             }
             .scrollIndicators(.hidden)
         }
+        .safeAreaInset(edge: .top, spacing: 0) { topBar }
         .safeAreaInset(edge: .bottom, spacing: 0) { creationBar }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .interactiveSwipeBackEnabled()
@@ -46,24 +46,20 @@ struct CreatePersonaView: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 14) {
-            Button {
-                KeyboardDismissal.dismiss()
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .semibold))
-                    .frame(width: 46, height: 46)
-                    .background(Color.white.opacity(0.68), in: Circle())
-            }
-            .buttonStyle(SoftPressButtonStyle())
-            .accessibilityLabel("Back")
+        FrameReplyTopBar {
+            HStack(spacing: 12) {
+                FrameReplyTopBarBackButton(accessibilityLabel: "Back") {
+                    KeyboardDismissal.dismiss()
+                    dismiss()
+                }
 
-            Text("New Persona")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-            Spacer()
+                Text("New Persona")
+                    .font(.system(size: 19, weight: .semibold, design: .rounded))
+                    .foregroundStyle(FrameReplyColor.onSurface)
+
+                Spacer()
+            }
         }
-        .foregroundStyle(FrameReplyColor.primary)
     }
 
     private var basicsSection: some View {

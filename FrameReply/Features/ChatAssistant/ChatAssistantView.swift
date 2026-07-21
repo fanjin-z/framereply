@@ -192,14 +192,6 @@ struct ChatAssistantView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    ChatAssistantTopBar(
-                        chat: displayedChat,
-                        onBackTap: {
-                            dismiss()
-                        },
-                        onDetailsTap: onDetailsTap
-                    )
-
                     if shouldShowImportReviewCard {
                         ChatImportReviewCard(
                             isProvisional: isCurrentChatProvisional,
@@ -257,7 +249,9 @@ struct ChatAssistantView: View {
                         goal: goalDraft,
                         personaID: currentChatContext?.personaID,
                         onTap: {
-                            isReplyBriefPresented = true
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                                isReplyBriefPresented = true
+                            }
                         }
                     )
 
@@ -284,6 +278,28 @@ struct ChatAssistantView: View {
             }
             .scrollIndicators(.hidden)
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            ChatAssistantTopBar(
+                chat: displayedChat,
+                onBackTap: {
+                    dismiss()
+                },
+                onDetailsTap: onDetailsTap
+            )
+        }
+        .overlay {
+            if isReplyBriefPresented {
+                ReplyBriefDialog(
+                    goalDraft: $goalDraft,
+                    personaID: currentChatContext?.personaID,
+                    onGoalCommit: commitGoal,
+                    onPersonaSelect: assignPersona,
+                    onDismiss: dismissReplyBrief
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                .zIndex(10)
+            }
+        }
         .interactiveSwipeBackEnabled()
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
@@ -292,14 +308,6 @@ struct ChatAssistantView: View {
         }
         .sheet(isPresented: $isReplyNotePresented) {
             AddReplyNoteSheet(note: $replyNote)
-        }
-        .sheet(isPresented: $isReplyBriefPresented) {
-            ReplyBriefSheet(
-                goalDraft: $goalDraft,
-                personaID: currentChatContext?.personaID,
-                onGoalCommit: commitGoal,
-                onPersonaSelect: assignPersona
-            )
         }
         .sheet(isPresented: $isImportSourcePresented) {
             ChatImportSourceSheet(
@@ -524,6 +532,14 @@ struct ChatAssistantView: View {
             }
         } catch {
             actionErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func dismissReplyBrief() {
+        KeyboardDismissal.dismiss()
+        commitGoal()
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+            isReplyBriefPresented = false
         }
     }
 
