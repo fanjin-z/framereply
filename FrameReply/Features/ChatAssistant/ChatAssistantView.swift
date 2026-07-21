@@ -17,6 +17,7 @@ struct ChatAssistantView: View {
     @Environment(\.locale) private var locale
     @State private var isHistoryPresented = false
     @State private var isReplyNotePresented = false
+    @State private var isReplyBriefPresented = false
     @State private var isImportSourcePresented = false
     @State private var isReviewPresented = false
     @State private var isMergeConfirmationPresented = false
@@ -190,7 +191,7 @@ struct ChatAssistantView: View {
             EtherealBackground()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 20) {
                     ChatAssistantTopBar(
                         chat: displayedChat,
                         onBackTap: {
@@ -252,11 +253,12 @@ struct ChatAssistantView: View {
                         }
                     }
 
-                    ReplyBriefCard(
-                        goalDraft: $goalDraft,
+                    ReplyBriefSummaryCard(
+                        goal: goalDraft,
                         personaID: currentChatContext?.personaID,
-                        onGoalCommit: commitGoal,
-                        onPersonaSelect: assignPersona
+                        onTap: {
+                            isReplyBriefPresented = true
+                        }
                     )
 
                     SuggestedRepliesSection(
@@ -290,6 +292,14 @@ struct ChatAssistantView: View {
         }
         .sheet(isPresented: $isReplyNotePresented) {
             AddReplyNoteSheet(note: $replyNote)
+        }
+        .sheet(isPresented: $isReplyBriefPresented) {
+            ReplyBriefSheet(
+                goalDraft: $goalDraft,
+                personaID: currentChatContext?.personaID,
+                onGoalCommit: commitGoal,
+                onPersonaSelect: assignPersona
+            )
         }
         .sheet(isPresented: $isImportSourcePresented) {
             ChatImportSourceSheet(

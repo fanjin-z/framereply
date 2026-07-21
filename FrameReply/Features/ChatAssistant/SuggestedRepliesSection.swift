@@ -94,5 +94,6 @@ struct SuggestedRepliesSection: View {
                 }
             }
         }
+        .accessibilityIdentifier("suggested-replies-section")
     }
 }

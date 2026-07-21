@@ -58,6 +58,9 @@
     "%lld/10 messages" : {
 
     },
+    "•" : {
+
+    },
     "Add" : {
 
     },
@@ -432,6 +435,9 @@
 
     },
     "Edit Names" : {
+
+    },
+    "Edit reply brief" : {
 
     },
     "Emoji" : {
@@ -1227,6 +1233,9 @@
     "No emoji" : {
 
     },
+    "No goal set" : {
+
+    },
     "No shared or copied message text was provided." : {
 
     },
@@ -1263,10 +1272,10 @@
     "Open chat details for %@" : {
 
     },
-    "Open chat history" : {
+    "Opening FrameReply…" : {
 
     },
-    "Opening FrameReply…" : {
+    "Opens full chat history" : {
 
     },
     "Opens the photo library to select up to eight chat screenshots." : {
@@ -1761,6 +1770,16 @@
     "Reply Brief" : {
 
     },
+    "Reply Brief, Current Goal: %@, Persona: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Reply Brief, Current Goal: %1$@, Persona: %2$@"
+          }
+        }
+      }
+    },
     "Reply Length" : {
 
     },
@@ -1794,13 +1813,13 @@
     "Saves this as a separate memory" : {
 
     },
-    "Search all chat history" : {
-
-    },
     "Search chats..." : {
 
     },
     "Select performance" : {
+
+    },
+    "Select Persona" : {
 
     },
     "Select provider" : {
@@ -1819,6 +1838,9 @@
 
     },
     "Settings" : {
+
+    },
+    "Shape the next suggested replies" : {
 
     },
     "Short" : {
@@ -2020,6 +2042,9 @@
 
     },
     "Very warm" : {
+
+    },
+    "View All" : {
 
     },
     "Warm" : {
