@@ -1,0 +1,13 @@
+title: FrameReply
+description: Legal, privacy, and support information for FrameReply.
+theme: jekyll-theme-minimal
+url: https://fanjin-z.github.io
+baseurl: /framereply
+repository: fanjin-z/framereply
+
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: true

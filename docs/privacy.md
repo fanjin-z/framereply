@@ -48,6 +48,6 @@ FrameReply is not designed specifically for children. Users must meet the age an
 
 ## Contact
 
-For privacy or deletion questions, contact the maintainer using this repository's GitHub private vulnerability-reporting channel. Do not put personal data in a public issue. General support instructions are available on the [support page](support.md).
+For privacy or deletion questions, use the maintainer's [contact page](https://fanjin.org/contact) and mention FrameReply. Do not put personal data in a public issue. Security-sensitive reports should use this repository's GitHub private vulnerability-reporting channel. General support instructions are available on the [support page](support.md).
 
 Material policy changes will update the effective date and require renewed in-app consent when provider data sharing changes.
