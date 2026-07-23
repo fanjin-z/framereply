@@ -45,7 +45,6 @@ final class PersonaExampleAnalyzer {
             persona: persona,
             personaLearningMessages: messages,
             existingHistorySummary: "",
-            summaryMode: .unchanged,
             olderMessagesToSummarize: [],
             recentMessages: [],
             presentationLanguageIdentifier: localization.languageIdentifier,

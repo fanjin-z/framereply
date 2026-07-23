@@ -3,6 +3,7 @@
 //  FrameReply
 //
 
+import CoreFoundation
 import Foundation
 
 nonisolated enum ChatImportAnalysisDecoder {
@@ -12,6 +13,20 @@ nonisolated enum ChatImportAnalysisDecoder {
         isSharedTranscript: Bool,
         candidateIDs: Set<String>
     ) throws -> ChatImportAnalysis {
+        try decodeResult(
+            content: content,
+            finishReason: finishReason,
+            isSharedTranscript: isSharedTranscript,
+            candidateIDs: candidateIDs
+        ).value
+    }
+
+    static func decodeResult(
+        content: String?,
+        finishReason: String?,
+        isSharedTranscript: Bool,
+        candidateIDs: Set<String>
+    ) throws -> StructuredOutputDecodingResult<ChatImportAnalysis> {
         if let finishReason, finishReason != "stop" {
             let kind: StructuredOutputFailureKind =
                 finishReason == "length"
@@ -19,44 +34,176 @@ nonisolated enum ChatImportAnalysisDecoder {
             throw StructuredOutputFailure(kind: kind, codingPath: "finish_reason")
         }
 
-        let cleaned = clean(content)
-        guard !cleaned.isEmpty else {
-            throw StructuredOutputFailure(kind: .emptyResponse, codingPath: nil)
-        }
-        guard let data = cleaned.data(using: .utf8) else {
-            throw StructuredOutputFailure(kind: .invalidJSON, codingPath: nil)
+        let normalized = try StructuredOutputJSONNormalizer.decodeObject(from: content)
+        let root = normalized.object
+        var recovered = normalized.recovered
+        let knownRootKeys: Set<String> = [
+            "extractionStatus", "conversationTitle", "conversationKind", "titleSource",
+            "messages", "matchedChatID", "matchConfidence", "ownershipConvention"
+        ]
+        if !Set(root.keys).subtracting(knownRootKeys).isEmpty
+            || (isSharedTranscript && root["ownershipConvention"] != nil)
+        {
+            recovered = true
         }
 
-        let jsonObject: Any
-        do {
-            jsonObject = try JSONSerialization.jsonObject(with: data)
-        } catch {
-            throw StructuredOutputFailure(kind: .invalidJSON, codingPath: nil)
+        guard let messageValues = root["messages"] as? [Any] else {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "messages")
         }
-        try validateContract(jsonObject, isSharedTranscript: isSharedTranscript)
-
-        let analysis: ChatImportAnalysis
-        do {
-            if isSharedTranscript {
-                let shared = try JSONDecoder().decode(SharedTranscriptAnalysis.self, from: data)
-                analysis = shared.analysis
-            } else {
-                analysis = try JSONDecoder().decode(ChatImportAnalysis.self, from: data)
+        let messages = try messageValues.enumerated().map { index, value in
+            guard let object = value as? [String: Any] else {
+                throw StructuredOutputFailure(
+                    kind: .schemaMismatch, codingPath: "messages[\(index)]")
             }
-        } catch let error as DecodingError {
-            throw StructuredOutputFailure(
-                kind: .schemaMismatch,
-                codingPath: codingPath(for: error)
+            let knownMessageKeys: Set<String> = [
+                "sender", "senderName", "text", "timestampLabel", "outerAlignment",
+                "outerAuthorLabel", "senderConfidence", "senderEvidence"
+            ]
+            if !Set(object.keys).subtracting(knownMessageKeys).isEmpty
+                || (isSharedTranscript
+                    && (object["outerAlignment"] != nil || object["outerAuthorLabel"] != nil))
+            {
+                recovered = true
+            }
+            guard let rawText = object["text"] as? String else {
+                throw StructuredOutputFailure(
+                    kind: .schemaMismatch, codingPath: "messages[\(index)].text")
+            }
+            let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else {
+                throw StructuredOutputFailure(
+                    kind: .incompleteMessages, codingPath: "messages[\(index)].text")
+            }
+
+            let sender: AnalyzedMessageSender
+            let senderWasRecovered: Bool
+            if let rawSender = object["sender"] as? String,
+                let value = AnalyzedMessageSender(rawValue: rawSender)
+            {
+                sender = value
+                senderWasRecovered = false
+            } else {
+                sender = .unknown
+                senderWasRecovered = true
+                recovered = true
+            }
+            let senderName = optionalString(object["senderName"], recovered: &recovered)
+            let timestampLabel = optionalString(
+                object["timestampLabel"], recovered: &recovered)
+            let outerAlignment: MessageAlignment
+            let outerAuthorLabel: String?
+            if isSharedTranscript {
+                outerAlignment = .unknown
+                outerAuthorLabel = nil
+            } else if senderWasRecovered {
+                outerAlignment = .unknown
+                outerAuthorLabel = nil
+            } else {
+                if let rawAlignment = object["outerAlignment"] as? String,
+                    let value = MessageAlignment(rawValue: rawAlignment)
+                {
+                    outerAlignment = value
+                } else {
+                    outerAlignment = .unknown
+                    recovered = true
+                }
+                outerAuthorLabel = optionalString(
+                    object["outerAuthorLabel"], recovered: &recovered)
+            }
+            let senderConfidence =
+                senderWasRecovered
+                ? 0 : boundedDouble(object["senderConfidence"], recovered: &recovered)
+            let senderEvidence: MessageSenderEvidence
+            if senderWasRecovered {
+                senderEvidence = .insufficient
+            } else if let rawEvidence = object["senderEvidence"] as? String,
+                let value = MessageSenderEvidence(rawValue: rawEvidence)
+            {
+                senderEvidence = value
+            } else {
+                senderEvidence = .insufficient
+                recovered = true
+            }
+            return AnalyzedChatMessage(
+                sender: sender,
+                senderName: senderName,
+                text: text,
+                timestampLabel: timestampLabel,
+                outerAlignment: outerAlignment,
+                outerAuthorLabel: outerAuthorLabel,
+                senderConfidence: senderConfidence,
+                senderEvidence: senderEvidence
             )
-        } catch {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: nil)
         }
 
-        return try validate(
-            analysis,
+        let conversationTitle = optionalString(
+            root["conversationTitle"], recovered: &recovered)
+        let conversationKind: ChatConversationKind
+        if let rawKind = root["conversationKind"] as? String,
+            let value = ChatConversationKind(rawValue: rawKind)
+        {
+            conversationKind = value
+        } else {
+            conversationKind = .unknown
+            recovered = true
+        }
+        let titleSource: ChatTitleSource
+        if let rawSource = root["titleSource"] as? String,
+            let value = ChatTitleSource(rawValue: rawSource)
+        {
+            titleSource = value
+        } else {
+            titleSource = .unavailable
+            recovered = true
+        }
+        let ownershipConvention: MessageOwnershipConvention
+        if isSharedTranscript {
+            ownershipConvention = .unobservable
+        } else {
+            ownershipConvention = recoveredOwnershipConvention(
+                root["ownershipConvention"], recovered: &recovered)
+        }
+
+        let matchedChatID: String?
+        if let rawID = root["matchedChatID"] as? String, candidateIDs.contains(rawID) {
+            matchedChatID = rawID
+        } else {
+            matchedChatID = nil
+            if !(root["matchedChatID"] is NSNull) {
+                recovered = true
+            }
+        }
+        let matchConfidence: Double
+        if matchedChatID != nil {
+            matchConfidence = boundedDouble(root["matchConfidence"], recovered: &recovered)
+        } else {
+            matchConfidence = 0
+            if let value = numericDouble(root["matchConfidence"]), value != 0 {
+                recovered = true
+            } else if numericDouble(root["matchConfidence"]) == nil {
+                recovered = true
+            }
+        }
+        let extractionStatus: ChatExtractionStatus = messages.isEmpty ? .noMessages : .ok
+        if (root["extractionStatus"] as? String) != extractionStatus.rawValue {
+            recovered = true
+        }
+
+        let validated = try validate(
+            ChatImportAnalysis(
+                extractionStatus: extractionStatus,
+                conversationTitle: conversationTitle,
+                messages: messages,
+                matchedChatID: matchedChatID,
+                matchConfidence: matchConfidence,
+                conversationKind: conversationKind,
+                titleSource: titleSource,
+                ownershipConvention: ownershipConvention
+            ),
             candidateIDs: candidateIDs,
             normalizeVisualOwnership: !isSharedTranscript
         )
+        return StructuredOutputDecodingResult(value: validated, recovered: recovered)
     }
 
     static func validate(
@@ -158,47 +305,78 @@ nonisolated enum ChatImportAnalysisDecoder {
         return title
     }
 
-    private static func validateContract(_ object: Any, isSharedTranscript: Bool) throws {
-        guard let root = object as? [String: Any] else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "root")
+    private static func optionalString(_ value: Any?, recovered: inout Bool) -> String? {
+        guard value != nil else {
+            recovered = true
+            return nil
         }
-        let common: Set<String> = [
-            "extractionStatus", "conversationTitle", "conversationKind", "titleSource",
-            "messages", "matchedChatID", "matchConfidence"
+        if value is NSNull { return nil }
+        guard let string = value as? String else {
+            recovered = true
+            return nil
+        }
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            recovered = true
+            return nil
+        }
+        return trimmed
+    }
+
+    private static func numericDouble(_ value: Any?) -> Double? {
+        guard let number = value as? NSNumber,
+            CFGetTypeID(number) != CFBooleanGetTypeID()
+        else { return nil }
+        return number.doubleValue
+    }
+
+    private static func boundedDouble(_ value: Any?, recovered: inout Bool) -> Double {
+        guard let number = numericDouble(value), (0...1).contains(number) else {
+            recovered = true
+            return 0
+        }
+        return number
+    }
+
+    private static func recoveredOwnershipConvention(
+        _ value: Any?,
+        recovered: inout Bool
+    ) -> MessageOwnershipConvention {
+        guard let object = value as? [String: Any] else {
+            recovered = true
+            return .unobservable
+        }
+        let knownKeys: Set<String> = [
+            "mode", "screenshotOwnerAlignment", "screenshotOwnerAuthorLabel"
         ]
-        let expectedRoot = isSharedTranscript ? common : common.union(["ownershipConvention"])
-        guard Set(root.keys) == expectedRoot else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "root")
+        if !Set(object.keys).subtracting(knownKeys).isEmpty {
+            recovered = true
         }
-        if !isSharedTranscript {
-            guard let convention = root["ownershipConvention"] as? [String: Any],
-                Set(convention.keys) == [
-                    "mode", "screenshotOwnerAlignment", "screenshotOwnerAuthorLabel"
-                ]
-            else {
-                throw StructuredOutputFailure(
-                    kind: .schemaMismatch, codingPath: "ownershipConvention")
-            }
+        let mode: MessageOwnershipMode
+        if let rawMode = object["mode"] as? String,
+            let value = MessageOwnershipMode(rawValue: rawMode)
+        {
+            mode = value
+        } else {
+            mode = .unobservable
+            recovered = true
         }
-        guard let messages = root["messages"] as? [[String: Any]] else {
-            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "messages")
+        let alignment: MessageAlignment
+        if let rawAlignment = object["screenshotOwnerAlignment"] as? String,
+            let value = MessageAlignment(rawValue: rawAlignment)
+        {
+            alignment = value
+        } else {
+            alignment = .unknown
+            recovered = true
         }
-        let required: Set<String> =
-            isSharedTranscript
-            ? [
-                "sender", "senderName", "text", "timestampLabel", "senderConfidence",
-                "senderEvidence"
-            ]
-            : [
-                "sender", "senderName", "text", "timestampLabel", "outerAlignment",
-                "outerAuthorLabel", "senderConfidence", "senderEvidence"
-            ]
-        for (index, message) in messages.enumerated() {
-            guard Set(message.keys) == required else {
-                throw StructuredOutputFailure(
-                    kind: .schemaMismatch, codingPath: "messages[\(index)]")
-            }
-        }
+        let label = optionalString(
+            object["screenshotOwnerAuthorLabel"], recovered: &recovered)
+        return MessageOwnershipConvention(
+            mode: mode,
+            screenshotOwnerAlignment: alignment,
+            screenshotOwnerAuthorLabel: label
+        )
     }
 
     private static func resolvedSender(
@@ -271,82 +449,9 @@ nonisolated enum ChatImportAnalysisDecoder {
         return normalized?.isEmpty == false ? normalized : nil
     }
 
-    private static func clean(_ content: String?) -> String {
-        content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-    }
-
-    private static func codingPath(for error: DecodingError) -> String? {
-        let path: [any CodingKey]
-        let appendedKey: (any CodingKey)?
-        switch error {
-        case .keyNotFound(let key, let context):
-            path = context.codingPath
-            appendedKey = key
-        case .typeMismatch(_, let context), .valueNotFound(_, let context),
-            .dataCorrupted(let context):
-            path = context.codingPath
-            appendedKey = nil
-        @unknown default:
-            return nil
-        }
-
-        let keys = path + (appendedKey.map { [$0] } ?? [])
-        guard !keys.isEmpty else { return nil }
-        return keys.reduce(into: "") { result, key in
-            if let index = key.intValue {
-                result += "[\(index)]"
-            } else {
-                if !result.isEmpty { result += "." }
-                result += key.stringValue
-            }
-        }
-    }
 }
 
 nonisolated struct ChatImportNormalizationResult: Equatable, Sendable {
     let analysis: ChatImportAnalysis
     let notes: [String]
-}
-
-nonisolated private struct SharedTranscriptAnalysis: Decodable {
-    let extractionStatus: ChatExtractionStatus
-    let conversationTitle: String?
-    let conversationKind: ChatConversationKind
-    let titleSource: ChatTitleSource
-    let messages: [SharedTranscriptMessage]
-    let matchedChatID: String?
-    let matchConfidence: Double
-
-    var analysis: ChatImportAnalysis {
-        ChatImportAnalysis(
-            extractionStatus: extractionStatus,
-            conversationTitle: conversationTitle,
-            messages: messages.map(\.analyzed),
-            matchedChatID: matchedChatID,
-            matchConfidence: matchConfidence,
-            conversationKind: conversationKind,
-            titleSource: titleSource,
-            ownershipConvention: .unobservable
-        )
-    }
-}
-
-nonisolated private struct SharedTranscriptMessage: Decodable {
-    let sender: AnalyzedMessageSender
-    let senderName: String?
-    let text: String
-    let timestampLabel: String?
-    let senderConfidence: Double
-    let senderEvidence: MessageSenderEvidence
-
-    var analyzed: AnalyzedChatMessage {
-        AnalyzedChatMessage(
-            sender: sender,
-            senderName: senderName,
-            text: text,
-            timestampLabel: timestampLabel,
-            senderConfidence: senderConfidence,
-            senderEvidence: senderEvidence
-        )
-    }
 }

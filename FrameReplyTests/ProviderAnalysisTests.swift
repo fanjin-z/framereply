@@ -11,7 +11,7 @@ final class ProviderAnalysisTests: XCTestCase {
 
     func testFiveContractsHaveExactClosedRootKeys() throws {
         XCTAssertEqual(ChatScreenshotPrompt.version, 1)
-        XCTAssertEqual(SuggestedReplyPrompt.version, 2)
+        XCTAssertEqual(SuggestedReplyPrompt.version, 3)
 
         let screenshot = ChatScreenshotPrompt.contract(for: makeRequest())
         let shared = ChatScreenshotPrompt.contract(
@@ -55,6 +55,15 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(screenshotText.contains("outerAlignment"))
         XCTAssertFalse(sharedText.contains("outerAlignment"))
         XCTAssertFalse(sharedText.contains("ownershipConvention"))
+
+        XCTAssertEqual(standard.name, "suggested_reply")
+        let summaryProperties = try XCTUnwrap(
+            standard.schema["properties"] as? [String: Any])
+        let summarySchema = try XCTUnwrap(
+            summaryProperties["historySummary"] as? [String: Any])
+        XCTAssertEqual(summarySchema["type"] as? [String], ["string", "null"])
+        XCTAssertTrue(standard.instructions.contains("olderMessagesToSummarize is empty"))
+        XCTAssertTrue(standard.instructions.contains("merge existingHistorySummary"))
     }
 
     func testTaskInputsContainOnlyDataUsedByTheirContract() {
@@ -128,7 +137,7 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(replyFormat["name"] as? String, "suggested_reply_drafting")
         XCTAssertEqual(
             replyBody["prompt_cache_key"] as? String,
-            "suggested_reply_drafting-v2-gpt-5.6-luna-en")
+            "suggested_reply_drafting-v3-gpt-5.6-luna-en")
         let schema = try XCTUnwrap(replyFormat["schema"] as? [String: Any])
         XCTAssertEqual(
             Set(try XCTUnwrap(schema["properties"] as? [String: Any]).keys),
@@ -143,53 +152,296 @@ final class ProviderAnalysisTests: XCTestCase {
             })
     }
 
+    func testSuggestedReplyDecoderRecoversSecondaryFieldsAndPreservesCoreReplies() throws {
+        let content = jsonString([
+            "historySummary": 42,
+            "replies": [" First ", NSNull(), "first", " Second ", "Third"],
+            "conversationStrategy": NSNull(),
+            "memoryChanges": "invalid",
+            "extra": true
+        ])
+        let decoded = try SuggestedReplyResultDecoder.decodeResult(
+            content: "Result:\n\(content)", finishReason: "stop", task: .standard)
+
+        XCTAssertTrue(decoded.recovered)
+        XCTAssertEqual(decoded.value.replies, ["First", "Second"])
+        XCTAssertNil(decoded.value.historySummary)
+        XCTAssertEqual(decoded.value.conversationStrategy, "")
+        XCTAssertEqual(decoded.value.strategyRationale, "")
+        XCTAssertTrue(decoded.value.memoryChanges.isEmpty)
+        XCTAssertTrue(decoded.value.personaObservationChanges.isEmpty)
+        XCTAssertFalse(decoded.value.personaObservationChangesAvailable)
+    }
+
+    func testSuggestedReplyDecoderHandlesSummaryAndJSONWrappersConservatively() throws {
+        let valid = validStandardRepliesJSON(historySummary: " Merged summary ")
+        XCTAssertEqual(
+            try SuggestedReplyResultDecoder.decode(
+                content: valid, finishReason: "stop", task: .standard
+            ).historySummary,
+            "Merged summary")
+        XCTAssertTrue(
+            try SuggestedReplyResultDecoder.decodeResult(
+                content: "```json\n\(valid)\n```", finishReason: "stop", task: .standard
+            ).recovered)
+
+        for invalidSummary: Any in [
+            NSNull(), 42, "", String(repeating: "x", count: 2_001)
+        ] {
+            XCTAssertNil(
+                try SuggestedReplyResultDecoder.decode(
+                    content: validStandardRepliesJSON(historySummary: invalidSummary),
+                    finishReason: "stop", task: .standard
+                ).historySummary)
+        }
+        XCTAssertNil(
+            try SuggestedReplyResultDecoder.decode(
+                content: validStandardRepliesJSON(), finishReason: "stop", task: .standard
+            ).historySummary)
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content: jsonString(["replies": ["same", " same "]]),
+                finishReason: "stop", task: .standard))
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content: "\(valid)\n\(valid)", finishReason: "stop", task: .standard))
+    }
+
+    func testSuggestedReplyDecoderRetainsOnlyValidLearningChanges() throws {
+        let memoryEvidence = UUID()
+        let personaEvidence = [UUID(), UUID()]
+        let content = jsonString([
+            "historySummary": NSNull(),
+            "replies": ["First", "Second"],
+            "conversationStrategy": "Continue",
+            "strategyRationale": "The latest message supports a direct answer.",
+            "memoryChanges": [
+                [
+                    "action": "add", "targetMemoryID": NSNull(), "text": "Likes tea",
+                    "evidenceMessageIDs": [memoryEvidence.uuidString]
+                ],
+                ["action": "add", "targetMemoryID": NSNull(), "text": 42]
+            ],
+            "personaObservationChanges": [
+                [
+                    "action": "add", "targetObservationID": NSNull(),
+                    "text": "Uses short sentences",
+                    "evidenceMessageIDs": personaEvidence.map(\.uuidString)
+                ],
+                ["action": "invented"]
+            ]
+        ])
+
+        let decoded = try SuggestedReplyResultDecoder.decodeResult(
+            content: content, finishReason: "stop", task: .standard)
+        XCTAssertTrue(decoded.recovered)
+        XCTAssertEqual(decoded.value.memoryChanges.count, 1)
+        XCTAssertEqual(decoded.value.personaObservationChanges.count, 1)
+        XCTAssertTrue(decoded.value.personaObservationChangesAvailable)
+
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content: "{}", finishReason: "stop", task: .personaStyleLearning))
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content: #"{"personaObservationChanges":[{"action":"invented"}]}"#,
+                finishReason: "stop",
+                task: .personaStyleLearning))
+    }
+
     @MainActor
-    func testZAIRepairsInvalidObjectsButNotTruncation() async throws {
+    func testOpenAIUsesOneStandardContractAndOneRequestForRecoveredOrFatalOutput() async throws {
+        let recoveredJSON = jsonString([
+            "replies": [" First ", "Second"],
+            "historySummary": NSNull()
+        ])
         let reporter = SpyImportEventReporter()
         AnalysisURLProtocolStub.responses = [
-            (200, zaiResponse(content: "{}")),
-            (200, zaiResponse(content: validStandardRepliesJSON(), includeUsage: true))
+            (200, openAIResponse(content: "```json\n\(recoveredJSON)\n```"))
         ]
-
-        let result = try await ZAIClient(
-            region: .international, session: makeSession(), eventReporter: reporter
+        let result = try await OpenAIClient(
+            session: makeSession(), eventReporter: reporter
         ).generateSuggestedReplies(
-            makeReplyRequest(task: .standard), apiKey: "key", model: .glm47FlashX)
-
+            makeReplyRequest(task: .standard, hasOlderMessages: true),
+            apiKey: "key",
+            model: .gpt56Terra
+        )
         XCTAssertEqual(result.replies, ["First", "Second"])
-        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 2)
-        XCTAssertEqual(providerAttempts(in: reporter.events), [1, 2])
-        let first = try jsonBody(AnalysisURLProtocolStub.requests[0])
+        XCTAssertNil(result.historySummary)
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+        XCTAssertEqual(providerAttempts(in: reporter.events), [1])
+        let body = try jsonBody(AnalysisURLProtocolStub.requests[0])
         XCTAssertEqual(
-            (first["response_format"] as? [String: Any])?["type"] as? String,
-            "json_object")
-        let firstMessages = try XCTUnwrap(first["messages"] as? [[String: Any]])
-        XCTAssertTrue(
-            try XCTUnwrap(firstMessages.first?["content"] as? String).contains(
-                "Return JSON matching this exact schema"))
-        let second = try jsonBody(AnalysisURLProtocolStub.requests[1])
-        let secondMessages = try XCTUnwrap(second["messages"] as? [[String: Any]])
-        XCTAssertEqual(secondMessages.count, 4)
-        XCTAssertEqual(secondMessages[2]["role"] as? String, "assistant")
-        XCTAssertEqual(secondMessages[3]["role"] as? String, "user")
+            body["prompt_cache_key"] as? String,
+            "suggested_reply-v3-gpt-5.6-terra-en")
+        XCTAssertEqual(
+            ((body["text"] as? [String: Any])?["format"] as? [String: Any])?["name"]
+                as? String,
+            "suggested_reply")
+        XCTAssertTrue(hasValidationCategory("recovered", in: reporter.events))
 
         AnalysisURLProtocolStub.reset()
-        let truncationReporter = SpyImportEventReporter()
+        let fatalReporter = SpyImportEventReporter()
         AnalysisURLProtocolStub.responses = [
-            (200, zaiResponse(content: "{}", finishReason: "length")),
-            (200, zaiResponse(content: validStandardRepliesJSON()))
+            (200, openAIResponse(content: "{}")),
+            (200, openAIResponse(content: validStandardRepliesJSON()))
         ]
-
-        await assertThrowsErrorAsync {
-            _ = try await ZAIClient(
-                region: .international,
-                session: self.makeSession(),
-                eventReporter: truncationReporter
-            ).generateSuggestedReplies(
-                self.makeReplyRequest(task: .standard), apiKey: "key", model: .glm47FlashX)
-        }
+        await assertThrowsErrorAsync(
+            {
+                _ = try await OpenAIClient(
+                    session: self.makeSession(), eventReporter: fatalReporter
+                ).generateSuggestedReplies(
+                    self.makeReplyRequest(task: .standard),
+                    apiKey: "key",
+                    model: .gpt56Terra
+                )
+            },
+            errorHandler: {
+                self.assertStructuredOutputError($0, provider: "openai", codingPath: "root")
+            })
         XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
-        XCTAssertEqual(providerAttempts(in: truncationReporter.events), [1])
+        XCTAssertEqual(providerAttempts(in: fatalReporter.events), [1])
+        XCTAssertTrue(hasValidationCategory("fatal", in: fatalReporter.events))
+    }
+
+    @MainActor
+    func testOpenAIImportUsesOneRequestForRecoveredAndFatalOutput() async throws {
+        let recoveredReporter = SpyImportEventReporter()
+        AnalysisURLProtocolStub.responses = [
+            (200, openAIResponse(content: #"{"messages":[{"text":"Hello"}]}"#))
+        ]
+        let recovered = try await OpenAIClient(
+            session: makeSession(), eventReporter: recoveredReporter
+        ).analyzeChatScreenshot(
+            makeRequest(), apiKey: "key", model: .gpt56Sol)
+        XCTAssertEqual(recovered.messages.first?.text, "Hello")
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+        XCTAssertEqual(providerAttempts(in: recoveredReporter.events), [1])
+        XCTAssertTrue(hasValidationCategory("recovered", in: recoveredReporter.events))
+
+        AnalysisURLProtocolStub.reset()
+        let fatalReporter = SpyImportEventReporter()
+        AnalysisURLProtocolStub.responses = [
+            (200, openAIResponse(content: #"{"messages":[{"text":42}]}"#)),
+            (200, openAIResponse(content: validScreenshotAnalysisJSON()))
+        ]
+        await assertThrowsErrorAsync(
+            {
+                _ = try await OpenAIClient(
+                    session: self.makeSession(), eventReporter: fatalReporter
+                ).analyzeChatScreenshot(
+                    self.makeRequest(), apiKey: "key", model: .gpt56Sol)
+            },
+            errorHandler: {
+                self.assertStructuredOutputError(
+                    $0, provider: "openai", codingPath: "messages[0].text")
+            })
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+        XCTAssertEqual(providerAttempts(in: fatalReporter.events), [1])
+    }
+
+    @MainActor
+    func testBothZAIRegionsUseOneRequestForRecoveredAndFatalReplies() async throws {
+        for (region, provider) in [
+            (ZAIClient.Region.international, "zaiInternational"),
+            (.china, "zhipuChina")
+        ] {
+            AnalysisURLProtocolStub.reset()
+            let recoveredReporter = SpyImportEventReporter()
+            AnalysisURLProtocolStub.responses = [
+                (200, zaiResponse(content: #"{"replies":["First","Second"]}"#))
+            ]
+            let recovered = try await ZAIClient(
+                region: region,
+                session: makeSession(),
+                eventReporter: recoveredReporter
+            ).generateSuggestedReplies(
+                makeReplyRequest(task: .standard),
+                apiKey: "key",
+                model: .glm47FlashX
+            )
+            XCTAssertEqual(recovered.replies, ["First", "Second"])
+            XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+            XCTAssertEqual(providerAttempts(in: recoveredReporter.events), [1])
+            XCTAssertTrue(hasValidationCategory("recovered", in: recoveredReporter.events))
+
+            let first = try jsonBody(AnalysisURLProtocolStub.requests[0])
+            XCTAssertEqual(
+                (first["response_format"] as? [String: Any])?["type"] as? String,
+                "json_object")
+            let firstMessages = try XCTUnwrap(first["messages"] as? [[String: Any]])
+            XCTAssertTrue(
+                try XCTUnwrap(firstMessages.first?["content"] as? String).contains(
+                    "Return JSON matching this exact schema"))
+            XCTAssertEqual(firstMessages.count, 2)
+
+            AnalysisURLProtocolStub.reset()
+            let fatalReporter = SpyImportEventReporter()
+            AnalysisURLProtocolStub.responses = [
+                (200, zaiResponse(content: "{}")),
+                (200, zaiResponse(content: validStandardRepliesJSON(), includeUsage: true))
+            ]
+            await assertThrowsErrorAsync(
+                {
+                    _ = try await ZAIClient(
+                        region: region,
+                        session: self.makeSession(),
+                        eventReporter: fatalReporter
+                    ).generateSuggestedReplies(
+                        self.makeReplyRequest(task: .standard),
+                        apiKey: "key",
+                        model: .glm47FlashX
+                    )
+                },
+                errorHandler: {
+                    self.assertStructuredOutputError(
+                        $0, provider: provider, codingPath: "root")
+                })
+            XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+            XCTAssertEqual(providerAttempts(in: fatalReporter.events), [1])
+        }
+    }
+
+    @MainActor
+    func testZAIScreenshotAnalysisUsesOneRequestForRecoveredAndFatalOutput() async throws {
+        let recoveredReporter = SpyImportEventReporter()
+        let minimal = #"{"messages":[{"text":"Hello"}]}"#
+        AnalysisURLProtocolStub.responses = [
+            (200, zaiResponse(content: "Result:\n\(minimal)"))
+        ]
+        let recovered = try await ZAIClient(
+            region: .international,
+            session: makeSession(),
+            eventReporter: recoveredReporter
+        ).analyzeChatScreenshot(
+            makeRequest(), apiKey: "key", model: .glm46VFlashX)
+        XCTAssertEqual(recovered.messages.first?.text, "Hello")
+        XCTAssertEqual(recovered.messages.first?.sender, .unknown)
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+        XCTAssertEqual(providerAttempts(in: recoveredReporter.events), [1])
+        XCTAssertTrue(hasValidationCategory("recovered", in: recoveredReporter.events))
+
+        AnalysisURLProtocolStub.reset()
+        let fatalReporter = SpyImportEventReporter()
+        AnalysisURLProtocolStub.responses = [
+            (200, zaiResponse(content: #"{"messages":[{"text":42}]}"#)),
+            (200, zaiResponse(content: validScreenshotAnalysisJSON()))
+        ]
+        await assertThrowsErrorAsync(
+            {
+                _ = try await ZAIClient(
+                    region: .international,
+                    session: self.makeSession(),
+                    eventReporter: fatalReporter
+                ).analyzeChatScreenshot(
+                    self.makeRequest(), apiKey: "key", model: .glm46VFlashX)
+            },
+            errorHandler: {
+                self.assertStructuredOutputError(
+                    $0, provider: "zaiInternational", codingPath: "messages[0].text")
+            })
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+        XCTAssertEqual(providerAttempts(in: fatalReporter.events), [1])
     }
 
     private func assertContract(
@@ -217,8 +469,19 @@ final class ProviderAnalysisTests: XCTestCase {
         ChatScreenshotAnalysisRequest(imageData: screenshotData, candidates: [])
     }
 
-    private func makeReplyRequest(task: SuggestedReplyTask) -> SuggestedReplyGenerationRequest {
-        SuggestedReplyGenerationRequest(
+    private func makeReplyRequest(
+        task: SuggestedReplyTask,
+        hasOlderMessages: Bool = false,
+        existingHistorySummary: String = "Earlier context"
+    ) -> SuggestedReplyGenerationRequest {
+        let olderMessages =
+            hasOlderMessages
+            ? [
+                SuggestedReplyPromptMessage(
+                    id: UUID(), sender: "other_participant", senderName: "Sarah",
+                    text: "We chose the Italian restaurant.", timeLabel: "Yesterday")
+            ] : []
+        return SuggestedReplyGenerationRequest(
             task: task,
             chatMemories: [
                 ChatMemory(text: "Met at university", origin: .user, certainty: .userConfirmed)
@@ -236,9 +499,8 @@ final class ProviderAnalysisTests: XCTestCase {
                 SuggestedReplyPromptMessage(
                     id: UUID(), sender: "user", senderName: nil, text: "Sure", timeLabel: "")
             ],
-            existingHistorySummary: "Earlier context",
-            summaryMode: .unchanged,
-            olderMessagesToSummarize: [],
+            existingHistorySummary: existingHistorySummary,
+            olderMessagesToSummarize: olderMessages,
             recentMessages: [
                 SuggestedReplyPromptMessage(
                     id: UUID(), sender: "other_participant", senderName: "Sarah",
@@ -272,13 +534,17 @@ final class ProviderAnalysisTests: XCTestCase {
         ])
     }
 
-    private func validStandardRepliesJSON() -> String {
-        jsonString([
-            "historySummary": NSNull(), "replies": ["First", "Second"],
+    private func validStandardRepliesJSON(historySummary: Any? = nil) -> String {
+        var object: [String: Any] = [
+            "replies": ["First", "Second"],
             "conversationStrategy": "Answer directly and keep momentum.",
             "strategyRationale": "The latest message asks for a concrete confirmation.",
             "memoryChanges": [], "personaObservationChanges": []
-        ])
+        ]
+        if let historySummary {
+            object["historySummary"] = historySummary
+        }
+        return jsonString(object)
     }
 
     private func validDraftingJSON() -> String {
@@ -352,6 +618,33 @@ final class ProviderAnalysisTests: XCTestCase {
             return attempt
         }
     }
+
+    private func hasValidationCategory(_ category: String, in events: [ImportEvent]) -> Bool {
+        events.contains { event in
+            guard case .contractValidation(_, _, _, _, _, let value) = event else {
+                return false
+            }
+            return value == category
+        }
+    }
+
+    private func assertStructuredOutputError(
+        _ error: Error,
+        provider: String,
+        codingPath: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        guard let providerError = error as? ProviderConnectionError,
+            case .structuredOutput(let detail) = providerError
+        else {
+            XCTFail("Expected structured-output error, got \(error)", file: file, line: line)
+            return
+        }
+        XCTAssertEqual(detail.provider, provider, file: file, line: line)
+        XCTAssertEqual(detail.failure.kind, .schemaMismatch, file: file, line: line)
+        XCTAssertEqual(detail.failure.codingPath, codingPath, file: file, line: line)
+    }
 }
 
 private final class SpyImportEventReporter: ImportEventReporting, @unchecked Sendable {
@@ -417,11 +710,14 @@ private final class AnalysisURLProtocolStub: URLProtocol {
 
 private func assertThrowsErrorAsync(
     _ expression: () async throws -> Void,
+    errorHandler: (Error) -> Void = { _ in },
     file: StaticString = #filePath,
     line: UInt = #line
 ) async {
     do {
         try await expression()
         XCTFail("Expected error", file: file, line: line)
-    } catch {}
+    } catch {
+        errorHandler(error)
+    }
 }

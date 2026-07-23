@@ -173,7 +173,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let first = try await coordinator.generate(chatID: chatID)
         XCTAssertEqual(first.source, .generated)
         XCTAssertEqual(client.requests.count, 1)
-        XCTAssertEqual(client.requests[0].summaryMode, .rebuild)
+        XCTAssertEqual(client.requests[0].existingHistorySummary, "")
         XCTAssertEqual(client.requests[0].olderMessagesToSummarize.count, 2)
         XCTAssertEqual(client.requests[0].recentMessages.count, 20)
         XCTAssertEqual(
@@ -189,7 +189,6 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         _ = try await coordinator.generate(chatID: chatID)
 
         XCTAssertEqual(client.requests.count, 2)
-        XCTAssertEqual(client.requests[1].summaryMode, .incremental)
         XCTAssertEqual(client.requests[1].olderMessagesToSummarize.map(\.text), ["Message 2"])
         XCTAssertEqual(client.requests[1].existingHistorySummary, "Summary through Message 1")
         XCTAssertEqual(client.requests[1].previousConversationStrategy, "Strategy 1")
@@ -200,6 +199,108 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertEqual(cache.replies.count, 2)
         XCTAssertEqual(cache.conversationStrategy, "Strategy 2")
         XCTAssertEqual(cache.strategyRationale, "Rationale 2")
+    }
+
+    @MainActor
+    func testDeferredSummaryKeepsCheckpointAndResendsPendingPrefix() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "deferred-summary-chat"
+        container.mainContext.insert(makeChat(id: chatID))
+        for index in 0..<22 {
+            container.mainContext.insert(makeMessage(chatID: chatID, index: index))
+        }
+        try container.mainContext.save()
+
+        var callCount = 0
+        let client = StubReplyService { request in
+            callCount += 1
+            return SuggestedReplyGenerationResult(
+                historySummary: callCount == 1 ? nil : "Summary through Message 2",
+                replies: ["First", "Second"],
+                conversationStrategy: "Continue",
+                strategyRationale: "Recent context is sufficient."
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(aiService: client, repository: repository)
+
+        _ = try await coordinator.generate(chatID: chatID)
+        var cache = try XCTUnwrap(repository.suggestedReplyCache(chatID: chatID))
+        XCTAssertEqual(cache.summarizedMessageCount, 0)
+        XCTAssertEqual(cache.historySummary, "")
+
+        container.mainContext.insert(makeMessage(chatID: chatID, index: 22))
+        try container.mainContext.save()
+        _ = try await coordinator.generate(chatID: chatID)
+
+        XCTAssertEqual(client.requests.count, 2)
+        XCTAssertEqual(client.requests[1].existingHistorySummary, "")
+        XCTAssertEqual(
+            client.requests[1].olderMessagesToSummarize.map(\.text),
+            ["Message 0", "Message 1", "Message 2"])
+        cache = try XCTUnwrap(repository.suggestedReplyCache(chatID: chatID))
+        XCTAssertEqual(cache.summarizedMessageCount, 3)
+        XCTAssertEqual(cache.historySummary, "Summary through Message 2")
+    }
+
+    @MainActor
+    func testEditedSummarizedPrefixForcesFullRebuild() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "edited-prefix-chat"
+        container.mainContext.insert(makeChat(id: chatID))
+        var records: [ChatMessageRecord] = []
+        for index in 0..<22 {
+            let message = makeMessage(chatID: chatID, index: index)
+            records.append(message)
+            container.mainContext.insert(message)
+        }
+        try container.mainContext.save()
+
+        let client = StubReplyService()
+        let coordinator = SuggestedRepliesCoordinator(aiService: client, repository: repository)
+        _ = try await coordinator.generate(chatID: chatID)
+
+        records[0].text = "Edited Message 0"
+        try container.mainContext.save()
+        _ = try await coordinator.generate(chatID: chatID)
+
+        XCTAssertEqual(client.requests.count, 2)
+        XCTAssertEqual(client.requests[1].existingHistorySummary, "")
+        XCTAssertEqual(
+            client.requests[1].olderMessagesToSummarize.map(\.text),
+            ["Edited Message 0", "Message 1"])
+    }
+
+    @MainActor
+    func testUnavailablePersonaChangesDoNotConsumeLearningMessages() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let personaID = try PersonaRepository(container: container).defaultPersonaID()
+        let chatID = "unavailable-persona-changes-chat"
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
+        try container.mainContext.save()
+
+        let client = StubReplyService { _ in
+            SuggestedReplyGenerationResult(
+                historySummary: nil,
+                replies: ["First", "Second"],
+                conversationStrategy: "",
+                strategyRationale: "",
+                personaObservationChangesAvailable: false
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(aiService: client, repository: repository)
+        _ = try await coordinator.generate(chatID: chatID)
+
+        XCTAssertFalse(
+            try repository.personaLearningMessages(
+                chatID: chatID,
+                personaID: personaID,
+                assignedAt: .distantPast
+            ).isEmpty)
+        XCTAssertEqual(try coordinator.cachedReplies(chatID: chatID)?.replies, ["First", "Second"])
     }
 
     @MainActor

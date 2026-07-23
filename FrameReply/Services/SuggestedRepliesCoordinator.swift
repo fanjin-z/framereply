@@ -228,7 +228,6 @@ final class SuggestedRepliesCoordinator {
             persona: persona,
             personaLearningMessages: learningMessages.map(promptMessage),
             existingHistorySummary: summaryPlan.existingSummary,
-            summaryMode: summaryPlan.mode,
             olderMessagesToSummarize: summaryPlan.messages.map(promptMessage),
             recentMessages: recentMessages.map(promptMessage),
             draftingInput: oneUseInput,
@@ -264,11 +263,16 @@ final class SuggestedRepliesCoordinator {
         }
 
         let historySummary: String
-        switch summaryPlan.mode {
-        case .unchanged:
+        let summarizedMessageCount: Int
+        let summarizedPrefixFingerprint: String
+        if !summaryPlan.messages.isEmpty, let updatedSummary = generated.historySummary {
+            historySummary = updatedSummary
+            summarizedMessageCount = olderMessages.count
+            summarizedPrefixFingerprint = messageFingerprint(olderMessages)
+        } else {
             historySummary = summaryPlan.existingSummary
-        case .incremental, .rebuild:
-            historySummary = olderMessages.isEmpty ? "" : generated.historySummary
+            summarizedMessageCount = summaryPlan.summarizedMessageCount
+            summarizedPrefixFingerprint = summaryPlan.summarizedPrefixFingerprint
         }
 
         let otherParticipantEvidenceMessageIDs = Set(
@@ -282,11 +286,16 @@ final class SuggestedRepliesCoordinator {
             changes: generated.memoryChanges,
             allowedOtherParticipantSourceMessageIDs: otherParticipantEvidenceMessageIDs
         )
-        let learningMessageIDs = Set(learningMessages.map(\.id))
+        let learningMessageIDList = learningMessages.map(\.id)
+        let learningMessageIDs = Set(learningMessageIDList)
         let validObservationChanges = generated.personaObservationChanges.filter {
             $0.sourceMessageIDs.count >= 2
                 && $0.sourceMessageIDs.allSatisfy(learningMessageIDs.contains)
         }
+        let processedLearningMessageIDs =
+            generated.personaObservationChangesAvailable ? learningMessageIDs : []
+        let remainingLearningMessageIDs =
+            generated.personaObservationChangesAvailable ? [] : learningMessageIDList
 
         // Input-specific output cannot affect summaries, memory, or persona
         // learning. Cache only its replies so the app can show the same result.
@@ -314,7 +323,7 @@ final class SuggestedRepliesCoordinator {
             persona: try repository.projectedPersonaPromptContext(
                 personaID: persona.id, changes: validObservationChanges
             ),
-            learningMessageIDs: [],
+            learningMessageIDs: remainingLearningMessageIDs,
             provider: providerContext.platform,
             model: replyModel,
             presentationLanguageIdentifier: localization.languageIdentifier
@@ -326,10 +335,10 @@ final class SuggestedRepliesCoordinator {
             chatMemories: reconciledContext.chatMemories,
             personaID: persona.id,
             personaObservationChanges: validObservationChanges,
-            learningMessageIDs: learningMessageIDs,
+            learningMessageIDs: processedLearningMessageIDs,
             historySummary: historySummary,
-            summarizedMessageCount: olderMessages.count,
-            summarizedPrefixFingerprint: messageFingerprint(olderMessages),
+            summarizedMessageCount: summarizedMessageCount,
+            summarizedPrefixFingerprint: summarizedPrefixFingerprint,
             replies: generated.replies,
             conversationStrategy: generated.conversationStrategy,
             strategyRationale: generated.strategyRationale,
@@ -346,8 +355,9 @@ final class SuggestedRepliesCoordinator {
     }
 
     private struct SummaryPlan {
-        let mode: SuggestedReplySummaryMode
         let existingSummary: String
+        let summarizedMessageCount: Int
+        let summarizedPrefixFingerprint: String
         let messages: [ChatMessageRecord]
     }
 
@@ -355,34 +365,49 @@ final class SuggestedRepliesCoordinator {
         olderMessages: [ChatMessageRecord],
         cache: SuggestedReplyCacheRecord?
     ) -> SummaryPlan {
+        let emptyPrefixFingerprint = messageFingerprint([])
         guard !olderMessages.isEmpty else {
-            if let cache, cache.summarizedMessageCount == 0,
-                cache.promptVersion == SuggestedReplyPrompt.version
-            {
-                return SummaryPlan(mode: .unchanged, existingSummary: "", messages: [])
-            }
-            return SummaryPlan(mode: .rebuild, existingSummary: "", messages: [])
+            return SummaryPlan(
+                existingSummary: "",
+                summarizedMessageCount: 0,
+                summarizedPrefixFingerprint: emptyPrefixFingerprint,
+                messages: []
+            )
         }
 
         guard let cache,
             cache.promptVersion == SuggestedReplyPrompt.version,
-            cache.summarizedMessageCount <= olderMessages.count
+            cache.summarizedMessageCount <= olderMessages.count,
+            (cache.summarizedMessageCount == 0
+                && cache.historySummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                || (cache.summarizedMessageCount > 0
+                    && !cache.historySummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         else {
-            return SummaryPlan(mode: .rebuild, existingSummary: "", messages: olderMessages)
+            return SummaryPlan(
+                existingSummary: "",
+                summarizedMessageCount: 0,
+                summarizedPrefixFingerprint: emptyPrefixFingerprint,
+                messages: olderMessages
+            )
         }
 
         let cachedPrefix = Array(olderMessages.prefix(cache.summarizedMessageCount))
         guard messageFingerprint(cachedPrefix) == cache.summarizedPrefixFingerprint else {
-            return SummaryPlan(mode: .rebuild, existingSummary: "", messages: olderMessages)
+            return SummaryPlan(
+                existingSummary: "",
+                summarizedMessageCount: 0,
+                summarizedPrefixFingerprint: emptyPrefixFingerprint,
+                messages: olderMessages
+            )
         }
 
         let newMessages = Array(olderMessages.dropFirst(cache.summarizedMessageCount))
-        if newMessages.isEmpty {
-            return SummaryPlan(
-                mode: .unchanged, existingSummary: cache.historySummary, messages: [])
-        }
         return SummaryPlan(
-            mode: .incremental, existingSummary: cache.historySummary, messages: newMessages)
+            existingSummary: cache.historySummary,
+            summarizedMessageCount: cache.summarizedMessageCount,
+            summarizedPrefixFingerprint: cache.summarizedPrefixFingerprint,
+            messages: newMessages
+        )
     }
 
     private func promptMessage(_ message: ChatMessageRecord) -> SuggestedReplyPromptMessage {

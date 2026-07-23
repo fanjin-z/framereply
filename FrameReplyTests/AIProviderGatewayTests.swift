@@ -75,7 +75,6 @@ final class AIProviderGatewayTests: XCTestCase {
             ),
             personaLearningMessages: [],
             existingHistorySummary: "",
-            summaryMode: .unchanged,
             olderMessagesToSummarize: [],
             recentMessages: [],
             presentationLanguageIdentifier: "en",

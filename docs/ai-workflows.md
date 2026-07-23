@@ -19,10 +19,11 @@ Chat import and reply generation share this execution model. They share provider
 1. The gateway selects a model that supports the requested capability.
 2. Work stops before any provider request if the API key, consent, provider, or capability is unavailable.
 3. Conversation content is enclosed as untrusted data; it cannot redefine the task instructions.
-4. The provider must return the task's closed structured-output contract.
-5. Local code validates the structure and domain rules. Invalid output fails safely instead of being partially accepted.
-6. Reply results are discarded if their grounding inputs or provider selection changed during generation.
-7. Only locally approved changes are committed.
+4. The provider is asked to return the task's closed structured-output contract.
+5. Local code conservatively unwraps valid JSON and validates domain rules. Core output remains mandatory; invalid secondary fields degrade to safe unknown or empty values.
+6. Each AI operation makes one provider request. There are no automatic repair turns or structured-output retries.
+7. Reply results are discarded if their grounding inputs or provider selection changed during generation.
+8. Only locally approved changes are committed.
 
 This boundary is deliberate: model confidence or valid JSON alone never makes a result trusted application state.
 
@@ -107,7 +108,7 @@ flowchart LR
 
 ### Grounding and cache validity
 
-Reply content is grounded in conversation history, the current interaction goal, active chat memory, the selected persona, and optional one-use drafting input. The newest messages remain verbatim; older history is compacted through unchanged, incremental, or rebuilt summaries.
+Reply content is grounded in conversation history, the current interaction goal, active chat memory, the selected persona, and optional one-use drafting input. The newest messages remain verbatim; older history uses a validated summary checkpoint. A valid summary advances the checkpoint, an unavailable summary preserves it, and a historical mismatch triggers a rebuild.
 
 The cache fingerprint covers the conversation and every durable input that can change the result, including active memory, persona state, pending style-learning samples, provider, model, and prompt version. Any relevant change invalidates the cache.
 

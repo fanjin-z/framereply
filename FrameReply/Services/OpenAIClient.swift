@@ -214,7 +214,7 @@ struct OpenAIClient: AIProviderAdapter {
             }
             recordContractValidation(
                 contract, traceID: analysisRequest.traceID, provider: provider,
-                attempt: 1, category: StructuredOutputFailureKind.truncatedResponse.rawValue)
+                attempt: 1, category: "fatal")
             throw ProviderConnectionError.structuredOutput(
                 ProviderStructuredOutputError(
                     provider: provider,
@@ -241,7 +241,7 @@ struct OpenAIClient: AIProviderAdapter {
             )
         }
         do {
-            let analysis = try ChatImportAnalysisDecoder.decode(
+            let decoded = try ChatImportAnalysisDecoder.decodeResult(
                 content: completion.outputText,
                 finishReason: nil,
                 isSharedTranscript: analysisRequest.sharedTranscript != nil,
@@ -249,7 +249,7 @@ struct OpenAIClient: AIProviderAdapter {
             )
             if analysisRequest.sharedTranscript == nil {
                 ChatImportDebugLogger.normalized(
-                    analysis,
+                    decoded.value,
                     traceID: analysisRequest.traceID,
                     provider: provider,
                     model: model.rawValue,
@@ -258,12 +258,12 @@ struct OpenAIClient: AIProviderAdapter {
             }
             recordContractValidation(
                 contract, traceID: analysisRequest.traceID, provider: provider,
-                attempt: 1, category: "valid")
-            return analysis
+                attempt: 1, category: decoded.recovered ? "recovered" : "valid")
+            return decoded.value
         } catch let failure as StructuredOutputFailure {
             recordContractValidation(
                 contract, traceID: analysisRequest.traceID, provider: provider,
-                attempt: 1, category: failure.kind.rawValue)
+                attempt: 1, category: "fatal")
             ChatImportDebugLogger.structuredOutputFailure(
                 failure,
                 traceID: analysisRequest.traceID,
@@ -414,20 +414,19 @@ struct OpenAIClient: AIProviderAdapter {
                     attempt: 1, category: "refusal")
                 throw ProviderConnectionError.invalidResponse("OpenAI refused the reply request.")
             }
-            let result = try SuggestedReplyResultDecoder.decode(
+            let decoded = try SuggestedReplyResultDecoder.decodeResult(
                 content: completion.outputText,
                 finishReason: nil,
-                task: generationRequest.task,
-                historySummaryFallback: summaryFallback(for: generationRequest)
+                task: generationRequest.task
             )
             recordContractValidation(
                 contract, traceID: generationRequest.traceID, provider: "openai",
-                attempt: 1, category: "valid")
-            return result
+                attempt: 1, category: decoded.recovered ? "recovered" : "valid")
+            return decoded.value
         } catch let failure as StructuredOutputFailure {
             recordContractValidation(
                 contract, traceID: generationRequest.traceID, provider: "openai",
-                attempt: 1, category: failure.kind.rawValue)
+                attempt: 1, category: "fatal")
             eventReporter.record(
                 .structuredOutputFailure(
                     traceID: generationRequest.traceID,
@@ -448,13 +447,6 @@ struct OpenAIClient: AIProviderAdapter {
     }
 
     private static let supportedModels: Set<ProviderModel> = [.gpt56Luna, .gpt56Terra, .gpt56Sol]
-
-    private func summaryFallback(for request: SuggestedReplyGenerationRequest) -> String? {
-        if request.summaryMode == .unchanged {
-            return request.existingHistorySummary
-        }
-        return request.olderMessagesToSummarize.isEmpty ? "" : nil
-    }
 
     private func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {
         try ProviderNetworkSession.validateHTTPS(request, allowedHost: "api.openai.com")
