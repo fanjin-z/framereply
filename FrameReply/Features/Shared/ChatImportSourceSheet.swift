@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ChatImportSourceSheet: View {
     @Binding var screenshotSelection: [PhotosPickerItem]
+    @Binding var draftingInput: String
     let onPaste: ([String]) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -15,6 +16,7 @@ struct ChatImportSourceSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     header
+                    draftingInputEditor
 
                     VStack(spacing: 0) {
                         ImportSourceRow(
@@ -84,7 +86,80 @@ struct ChatImportSourceSheet: View {
         if dynamicTypeSize.isAccessibilitySize {
             return [.medium, .large]
         }
-        return [.height(360), .medium]
+        return [.medium, .large]
+    }
+
+    private var draftingInputEditor: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Context or draft")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(FrameReplyColor.onSurface)
+
+                Spacer(minLength: 12)
+
+                if DraftingInputLimits.shouldShowCounter(for: draftingInput) {
+                    Text(
+                        "\(draftingInput.count)/\(DraftingInputLimits.maximumCharacterCount)"
+                    )
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                    .monospacedDigit()
+                    .accessibilityLabel(
+                        "\(draftingInput.count) of "
+                            + "\(DraftingInputLimits.maximumCharacterCount) characters"
+                    )
+                }
+            }
+
+            ZStack(alignment: .topLeading) {
+                if draftingInput.isEmpty {
+                    Text("Direction, tone, or a rough draft…")
+                        .font(.system(size: 15, design: .rounded))
+                        .foregroundStyle(FrameReplyColor.onSurfaceVariant.opacity(0.72))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 8)
+                        .allowsHitTesting(false)
+                }
+
+                TextEditor(text: limitedDraftingInput)
+                    .font(.system(size: 15, design: .rounded))
+                    .foregroundStyle(FrameReplyColor.onSurface)
+                    .scrollContentBackground(.hidden)
+                    .frame(minHeight: 84, maxHeight: 112)
+                    .accessibilityLabel("Context or draft")
+                    .accessibilityHint(
+                        "Optionally add direction, tone, or a rough draft for these replies."
+                    )
+                    .accessibilityIdentifier("import-context-or-draft")
+            }
+            .padding(10)
+            .background {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.white.opacity(0.58))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(
+                                FrameReplyColor.outlineVariant.opacity(0.48),
+                                lineWidth: 1
+                            )
+                    }
+            }
+        }
+        .padding(16)
+        .glassPanel(cornerRadius: 22)
+    }
+
+    private var limitedDraftingInput: Binding<String> {
+        Binding(
+            get: { draftingInput },
+            set: { newValue in
+                guard DraftingInputLimits.canAccept(newValue) else {
+                    return
+                }
+                draftingInput = newValue
+            }
+        )
     }
 
     private var header: some View {

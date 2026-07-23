@@ -5,6 +5,12 @@
 
 import Foundation
 
+struct PreparedScreenshotImport {
+    let analysis: ChatImportAnalysis
+    let confirmedChatID: String?
+    let traceID: ImportTraceID
+}
+
 enum ScreenshotImportError: LocalizedError {
     case noImage
     case noTranscript
@@ -124,14 +130,30 @@ final class ScreenshotImportCoordinator {
         imageDataList: [Data],
         traceID: ImportTraceID = ImportTraceID()
     ) async throws -> ScreenshotImportOutcome {
+        let prepared = try await prepare(imageDataList: imageDataList, traceID: traceID)
+        return try commit(prepared)
+    }
+
+    func prepare(
+        imageDataList: [Data],
+        traceID: ImportTraceID = ImportTraceID()
+    ) async throws -> PreparedScreenshotImport {
         let normalized = try ScreenshotImageNormalizer.normalize(imageDataList)
-        return try await process(payload: .screenshots(normalized), traceID: traceID)
+        return try await prepare(payload: .screenshots(normalized), traceID: traceID)
     }
 
     func process(
         transcriptItems: [String],
         traceID: ImportTraceID = ImportTraceID()
     ) async throws -> ScreenshotImportOutcome {
+        let prepared = try await prepare(transcriptItems: transcriptItems, traceID: traceID)
+        return try commit(prepared)
+    }
+
+    func prepare(
+        transcriptItems: [String],
+        traceID: ImportTraceID = ImportTraceID()
+    ) async throws -> PreparedScreenshotImport {
         let items = transcriptItems.filter {
             !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
@@ -155,13 +177,46 @@ final class ScreenshotImportCoordinator {
             )
             throw ScreenshotImportError.transcriptTooLarge
         }
-        return try await process(payload: .sharedTranscript(transcript), traceID: traceID)
+        return try await prepare(payload: .sharedTranscript(transcript), traceID: traceID)
     }
 
-    private func process(
+    func commit(_ prepared: PreparedScreenshotImport) throws -> ScreenshotImportOutcome {
+        try Task.checkCancellation()
+        eventReporter.record(
+            .stageStarted(traceID: prepared.traceID, stage: .persistence)
+        )
+        do {
+            let outcome = try repository.applyImport(
+                analysis: prepared.analysis,
+                confirmedChatID: prepared.confirmedChatID,
+                traceID: prepared.traceID
+            )
+            eventReporter.record(
+                .importCompleted(
+                    traceID: prepared.traceID,
+                    matchedExisting: outcome.matchedExisting,
+                    reviewRequired: outcome.reviewRequired,
+                    duplicate: outcome.duplicate,
+                    insertedMessageCount: outcome.insertedMessageCount
+                )
+            )
+            return outcome
+        } catch {
+            eventReporter.record(
+                .importFailed(
+                    traceID: prepared.traceID,
+                    stage: .persistence,
+                    errorCode: "import_failed"
+                )
+            )
+            throw error
+        }
+    }
+
+    private func prepare(
         payload: ChatImportPayload,
         traceID: ImportTraceID
-    ) async throws -> ScreenshotImportOutcome {
+    ) async throws -> PreparedScreenshotImport {
         eventReporter.record(.stageStarted(traceID: traceID, stage: .shortcut))
         if case .screenshots(let imageDataList) = payload, imageDataList.isEmpty {
             eventReporter.record(
@@ -266,28 +321,11 @@ final class ScreenshotImportCoordinator {
             )
         }
 
-        eventReporter.record(.stageStarted(traceID: traceID, stage: .persistence))
-        do {
-            let outcome = try repository.applyImport(
-                analysis: analysis,
-                confirmedChatID: confirmedChatID,
-                traceID: traceID
-            )
-            eventReporter.record(
-                .importCompleted(
-                    traceID: traceID,
-                    matchedExisting: outcome.matchedExisting,
-                    reviewRequired: outcome.reviewRequired,
-                    duplicate: outcome.duplicate,
-                    insertedMessageCount: outcome.insertedMessageCount
-                )
-            )
-            return outcome
-        } catch {
-            eventReporter.record(
-                .importFailed(traceID: traceID, stage: .persistence, errorCode: "import_failed"))
-            throw error
-        }
+        return PreparedScreenshotImport(
+            analysis: analysis,
+            confirmedChatID: confirmedChatID,
+            traceID: traceID
+        )
     }
 }
 

@@ -54,6 +54,24 @@ final class ChatPersistenceTests: XCTestCase {
             .skipped
         )
 
+        let overlong = makePendingImport(operationID: operationID)
+        container.mainContext.insert(overlong)
+        try container.mainContext.save()
+        XCTAssertThrowsError(
+            try repository.resolveDraftingInput(
+                String(repeating: "a", count: 501),
+                importID: overlong.id,
+                operationID: operationID
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? DraftingInputError,
+                .tooLong(maximum: DraftingInputLimits.maximumCharacterCount)
+            )
+        }
+        XCTAssertEqual(overlong.draftingInputStateRaw, DraftingInputState.pending.rawValue)
+        XCTAssertNil(overlong.draftingInput)
+
         let expired = makePendingImport(operationID: operationID)
         container.mainContext.insert(expired)
         try container.mainContext.save()

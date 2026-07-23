@@ -162,10 +162,7 @@ final class SuggestedRepliesCoordinator {
         localization: LocalizationContext = .current,
         traceID: ImportTraceID = ImportTraceID()
     ) async throws -> SuggestedRepliesOutcome {
-        let draftingInput = draftingInput?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .prefix(2_000)
-        let oneUseInput = draftingInput.map(String.init).flatMap { $0.isEmpty ? nil : $0 }
+        let oneUseInput = try DraftingInputLimits.validated(draftingInput)
         let providerContext: AIProviderExecutionContext
         do {
             providerContext = try aiService.activeContext(requiring: .suggestedReplies)

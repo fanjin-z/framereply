@@ -42,6 +42,11 @@ enum InAppChatImportKind: Equatable {
     case copiedMessages
 }
 
+enum InAppChatImportPhase: Equatable {
+    case analyzing
+    case generatingReplies
+}
+
 @MainActor
 protocol ScreenshotImportProcessing {
     func process(
@@ -83,6 +88,7 @@ extension SuggestedRepliesCoordinator: InAppSuggestedRepliesGenerating {}
 final class InAppScreenshotImportViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var importKind: InAppChatImportKind = .screenshots
+    @Published private(set) var phase: InAppChatImportPhase = .analyzing
     @Published private(set) var result: InAppScreenshotImportResult?
     @Published private(set) var errorMessage: String?
 
@@ -171,6 +177,7 @@ final class InAppScreenshotImportViewModel: ObservableObject {
         result = nil
         errorMessage = nil
         isLoading = true
+        phase = .analyzing
         defer {
             if loadID == currentLoadID {
                 isLoading = false
@@ -178,29 +185,35 @@ final class InAppScreenshotImportViewModel: ObservableObject {
         }
 
         do {
+            let validatedDraftingInput = try DraftingInputLimits.validated(draftingInput)
             let outcome = try await importOperation(traceID)
-            try Task.checkCancellation()
             guard loadID == currentLoadID else { return nil }
+            phase = .generatingReplies
 
             let replies: SuggestedRepliesOutcome?
             let replyErrorMessage: String?
-            do {
-                replies = try await repliesGenerator.generate(
-                    chatID: outcome.chatID,
-                    draftingInput: draftingInput,
-                    force: true,
-                    localization: localization,
-                    traceID: traceID
-                )
-                replyErrorMessage = nil
-            } catch is CancellationError {
-                return nil
-            } catch {
+            if Task.isCancelled {
                 replies = nil
-                replyErrorMessage = error.localizedDescription
+                replyErrorMessage = "Reply generation canceled."
+            } else {
+                do {
+                    replies = try await repliesGenerator.generate(
+                        chatID: outcome.chatID,
+                        draftingInput: validatedDraftingInput,
+                        force: true,
+                        localization: localization,
+                        traceID: traceID
+                    )
+                    replyErrorMessage = nil
+                } catch is CancellationError {
+                    replies = nil
+                    replyErrorMessage = "Reply generation canceled."
+                } catch {
+                    replies = nil
+                    replyErrorMessage = error.localizedDescription
+                }
             }
 
-            try Task.checkCancellation()
             guard loadID == currentLoadID else { return nil }
 
             let result = InAppScreenshotImportResult(

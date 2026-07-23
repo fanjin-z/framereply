@@ -9,6 +9,7 @@ import SwiftUI
 struct FrameReplyShellView: View {
     @State private var selectedTab: AppTab = .inbox
     @StateObject private var providerStore = ProviderStore()
+    @ObservedObject private var shortcutNavigation = ShortcutNavigationCenter.shared
     @State private var navigationPath: [FrameReplyRoute] = []
     @Query private var chatRecords: [ChatRecord]
 
@@ -79,6 +80,20 @@ struct FrameReplyShellView: View {
                             }
                         )
                     }
+                case .chatImportReview(let chatID):
+                    if let chat = chat(withID: chatID) {
+                        ChatAssistantView(
+                            chat: chat,
+                            providerStore: providerStore,
+                            presentImportReviewOnAppear: true,
+                            onDetailsTap: {
+                                navigationPath.append(.chatDetails(chatID))
+                            },
+                            onMergedIntoChat: { targetChatID in
+                                replaceCurrentRoute(with: .chatAssistant(targetChatID))
+                            }
+                        )
+                    }
                 case .newPersona:
                     CreatePersonaView(providerStore: providerStore) { record in
                         if navigationPath.last == .newPersona {
@@ -95,6 +110,25 @@ struct FrameReplyShellView: View {
         }
         .keyboardDismissable()
         .tint(FrameReplyColor.primary)
+        .onChange(of: shortcutNavigation.request) { _, request in
+            guard let request else { return }
+            selectedTab = .inbox
+            navigationPath = [
+                request.reviewRequired
+                    ? .chatImportReview(request.chatID)
+                    : .chatAssistant(request.chatID)
+            ]
+        }
+        .task {
+            if let request = shortcutNavigation.request {
+                selectedTab = .inbox
+                navigationPath = [
+                    request.reviewRequired
+                        ? .chatImportReview(request.chatID)
+                        : .chatAssistant(request.chatID)
+                ]
+            }
+        }
     }
 
     private func chat(withID id: String) -> Chat? {

@@ -152,6 +152,8 @@ nonisolated struct OSLogImportEventReporter: ImportEventReporting {
 }
 
 nonisolated enum ShortcutLifecycleStage: String, Sendable {
+    case endToEndStarted = "end_to_end_started"
+    case endToEndCompleted = "end_to_end_completed"
     case analysisStarted = "analysis_started"
     case analysisCompleted = "analysis_completed"
     case inputChoiceDisplayed = "input_choice_displayed"

@@ -8,37 +8,40 @@ FrameReply accepts conversation context through its in-app **Add Messages** flow
 
 - Image import accepts 1–8 still PNG, JPEG, or HEIC images from one chat. Images are normalized to a maximum 3,072-pixel edge, stripped of metadata, and bounded to 5 MB each and 20 MB for the request.
 - Text import accepts at most 8,000 characters across 40 text items and approximately 25 messages.
+- Context or draft accepts at most 500 user-perceived characters. Empty or whitespace-only input is treated as Skip.
 - **FrameReply Images** accepts shared images or captures the current screen when run without input.
 - **FrameReply Text** accepts shared plain text or reads the clipboard when run directly.
 
 Use only conversation content that you are authorized to process. Imported messages remain stored locally; normalized source images are discarded after processing. See the [Privacy Policy](privacy.md) for the provider data flow and retention details.
 
-## Workflow Handoff
+## End-to-End Workflow
 
 ```mermaid
 sequenceDiagram
     participant Shortcut
-    participant Analyze as Analyze Action
+    participant Action as FrameReply Action
     participant Store as Local Store
-    participant Generate as Generate Action
+    participant Provider as AI Provider
 
-    Shortcut->>Analyze: Images or copied text
+    Shortcut->>Action: Images or copied text
     par Analyze conversation
-        Analyze->>Store: Save import with operation ID
+        Action->>Provider: Analyze conversation
     and Collect optional input
-        Analyze-->>Shortcut: Ask to add context or skip
-        Shortcut-->>Analyze: Context or skip
+        Action-->>Shortcut: Add context or a draft?
+        Shortcut-->>Action: Add or Skip
     end
-    Analyze->>Store: Commit one-use input state
-    Analyze-->>Shortcut: Analyzed chat entity
-    Shortcut->>Generate: Analyzed chat entity
-    Generate->>Store: Verify operation ID and consume input once
-    Generate-->>Shortcut: Replies or reply-specific failure
+    Action->>Store: Commit analyzed messages
+    Action->>Provider: Generate replies with one-use context
+    Action-->>Shortcut: JSON, Siri dialog, and result snippet
 ```
 
-The operation ID prevents data from different Shortcut runs from being mixed. Submitted context is consumed once and expires after 15 minutes; it never becomes chat history, memory, or persona learning.
+The new actions pass context directly to reply generation. Context never becomes chat history, memory, or persona learning. Analysis begins before the context choice is complete, but persistence waits for that choice. Canceling before persistence saves nothing.
 
 Import and reply generation are separate outcomes. A saved import remains successful when reply generation is unavailable or fails.
+
+On iOS 26, the result snippet shows the chat, import/review status, two replies, a copy action for each reply, and **Review Import** or **Open Chat**. The action also returns JSON for downstream automation and a short spoken dialog for Siri.
+
+The legacy **Analyze Chat Images**, **Analyze Chat Text**, and **Generate Suggested Replies** actions remain executable for existing shortcuts for at least two releases. Do not use them in newly published shortcuts.
 
 ## FrameReply Images
 
@@ -55,14 +58,10 @@ Receive Images from Share Sheet
 Use Shortcut Input  Take Screenshot
           └────┬────┘
                ▼
-      Analyze Chat Images
-               ▼
- Generate Suggested Replies
-               ▼
-          Show Result
+Suggest Replies from Chat Images
 ```
 
-The conditional must return all items from `Shortcut Input` in its true branch and the screenshot in its false branch. Connect the conditional result to the single **Analyze Chat Images** action.
+The conditional must return all items from `Shortcut Input` in its true branch and the screenshot in its false branch. Connect the conditional result to **Suggest Replies from Chat Images**. The action presents its own result, so do not add Show Result.
 
 ## FrameReply Text
 
@@ -72,20 +71,18 @@ Enable **Show in Share Sheet**, accept **Text** only, and set the no-input behav
 Receive Text from Share Sheet
 If there is no input: Get Clipboard
               ↓
-      Analyze Chat Text
-              ↓
-Generate Suggested Replies
-              ↓
-          Show Result
+Suggest Replies from Chat Text
 ```
 
 Compatible apps can pass shared plain text directly. A normal launch reads the clipboard. WhatsApp may display the shortcut without supplying selected message text, so its supported workflow is **select messages → Share → Copy → run FrameReply Text**. Do not advertise direct WhatsApp sharing unless a physical-device test confirms that `Shortcut Input` contains the selected transcript.
 
 ## Optional Context or Draft
 
-Both Analyze actions offer **Add Context or Draft** and **Skip** while analysis runs. Choosing Add opens a multiline prompt. Submitting blank text is treated as Skip; cancelling stops the shortcut. Submitted text is used once and expires after 15 minutes if the workflow is abandoned.
+Both end-to-end actions default **Ask for Context** to on. When no value is supplied, they offer **Add** and **Skip** while analysis runs. Choosing Add opens a multiline prompt reading **What do you want to say?** Submitting blank text is treated as Skip; cancelling before persistence stops the shortcut without saving an import.
 
 Chat import remains successful if suggested replies are temporarily unavailable.
+
+Automation builders can turn **Ask for Context** off or connect a fixed or variable **Context or Draft** value. A supplied value bypasses the prompt. Values over 500 characters fail before persistence instead of being truncated.
 
 ## Publishing Checklist
 
@@ -115,7 +112,7 @@ If the Back Tap banner covers the conversation title before a screenshot is take
 
 - **Image shortcut does not appear when sharing:** confirm **Show in Share Sheet** is enabled and the accepted input type is **Images**.
 - **A tap does not take a screenshot:** confirm no-input behavior is **Continue** and the false branch returns **Take Screenshot**.
-- **Shared images trigger a screenshot:** confirm the true branch returns `Shortcut Input` and feeds the same Analyze action.
+- **Shared images trigger a screenshot:** confirm the true branch returns `Shortcut Input` and feeds the same Suggest Replies action.
 - **Text shortcut does not appear when sharing:** confirm **Show in Share Sheet** is enabled, the accepted input type is **Text**, and the source app actually supplies plain text.
 - **A normal text-shortcut run has no input:** copy usable message text first and confirm the no-input behavior is **Get Clipboard**.
 - **WhatsApp shows FrameReply but imports old clipboard text:** use **Share → Copy**, close the Share Sheet, then run **FrameReply Text**; do not use the visible shortcut unless direct input has been verified on that device.

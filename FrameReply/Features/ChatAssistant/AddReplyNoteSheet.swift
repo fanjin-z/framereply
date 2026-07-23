@@ -44,27 +44,36 @@ struct AddReplyNoteSheet: View {
                     .buttonStyle(SoftPressButtonStyle())
                 }
 
-                ZStack(alignment: .topLeading) {
-                    TextEditor(text: $note)
-                        .font(.system(size: 16, weight: .regular, design: .rounded))
-                        .foregroundStyle(FrameReplyColor.onSurface)
-                        .lineSpacing(4)
-                        .scrollContentBackground(.hidden)
-                        .padding(12)
-                        .frame(minHeight: 180)
+                VStack(alignment: .trailing, spacing: 8) {
+                    ZStack(alignment: .topLeading) {
+                        TextEditor(text: limitedNote)
+                            .font(.system(size: 16, weight: .regular, design: .rounded))
+                            .foregroundStyle(FrameReplyColor.onSurface)
+                            .lineSpacing(4)
+                            .scrollContentBackground(.hidden)
+                            .padding(12)
+                            .frame(minHeight: 180)
 
-                    if note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text(
-                            "Add what happened offline, what you want to accomplish, or anything the screenshot might miss..."
-                        )
-                        .font(.system(size: 16, weight: .regular, design: .rounded))
-                        .foregroundStyle(FrameReplyColor.outline)
-                        .lineSpacing(4)
-                        .padding(20)
-                        .allowsHitTesting(false)
+                        if note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text(
+                                "Add what happened offline, what you want to accomplish, or anything the screenshot might miss..."
+                            )
+                            .font(.system(size: 16, weight: .regular, design: .rounded))
+                            .foregroundStyle(FrameReplyColor.outline)
+                            .lineSpacing(4)
+                            .padding(20)
+                            .allowsHitTesting(false)
+                        }
+                    }
+                    .glassPanel(cornerRadius: 24)
+
+                    if DraftingInputLimits.shouldShowCounter(for: note) {
+                        Text("\(note.count)/\(DraftingInputLimits.maximumCharacterCount)")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                            .monospacedDigit()
                     }
                 }
-                .glassPanel(cornerRadius: 24)
 
                 Spacer()
             }
@@ -74,5 +83,17 @@ struct AddReplyNoteSheet: View {
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+    }
+
+    private var limitedNote: Binding<String> {
+        Binding(
+            get: { note },
+            set: { newValue in
+                guard DraftingInputLimits.canAccept(newValue) else {
+                    return
+                }
+                note = newValue
+            }
+        )
     }
 }

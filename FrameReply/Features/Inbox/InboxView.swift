@@ -19,6 +19,8 @@ struct InboxView: View {
     @State private var deleteErrorMessage: String?
     @State private var selectedScreenshotItems: [PhotosPickerItem] = []
     @State private var photoLoadErrorMessage: String?
+    @State private var importDraftingInput = ""
+    @State private var importTask: Task<Void, Never>?
     @StateObject private var importModel: InAppScreenshotImportViewModel
     @Query(sort: \ChatRecord.updatedAt, order: .reverse) private var chatRecords: [ChatRecord]
     @Query(filter: #Predicate<ChatMessageRecord> { $0.senderKind == "unknown" })
@@ -81,6 +83,19 @@ struct InboxView: View {
                     InboxImportErrorMessage(message: importErrorMessage)
                 }
 
+                if importModel.isLoading {
+                    ScreenshotImportStatusCard(
+                        symbolName: "sparkles",
+                        message: importModel.phase == .analyzing
+                            ? "Analyzing messages…"
+                            : "Generating replies…",
+                        isLoading: true,
+                        onCancel: {
+                            importTask?.cancel()
+                        }
+                    )
+                }
+
                 VStack(spacing: 16) {
                     ForEach(chats) { chat in
                         ChatRow(
@@ -125,8 +140,10 @@ struct InboxView: View {
         .sheet(isPresented: $isImportSourcePresented) {
             ChatImportSourceSheet(
                 screenshotSelection: $selectedScreenshotItems,
+                draftingInput: $importDraftingInput,
                 onPaste: { items in
-                    Task {
+                    importTask?.cancel()
+                    importTask = Task {
                         await importCopiedMessages(items)
                     }
                 }
@@ -155,7 +172,8 @@ struct InboxView: View {
             if !items.isEmpty {
                 isImportSourcePresented = false
             }
-            Task {
+            importTask?.cancel()
+            importTask = Task {
                 await importSelectedScreenshots(items)
             }
         }
@@ -205,9 +223,16 @@ struct InboxView: View {
 
         do {
             let imageDataList = try await ChatScreenshotPhotoLoader.loadData(from: items)
-            if let result = await importModel.importScreenshots(imageDataList) {
+            if let result = await importModel.importScreenshots(
+                imageDataList,
+                draftingInput: importDraftingInput
+            ) {
+                if result.replies != nil {
+                    importDraftingInput = ""
+                }
                 onImportCompleted(result.chatID)
             }
+        } catch is CancellationError {
         } catch {
             photoLoadErrorMessage = error.localizedDescription
         }
@@ -217,7 +242,13 @@ struct InboxView: View {
         guard !items.isEmpty else { return }
         photoLoadErrorMessage = nil
 
-        if let result = await importModel.importCopiedMessages(items) {
+        if let result = await importModel.importCopiedMessages(
+            items,
+            draftingInput: importDraftingInput
+        ) {
+            if result.replies != nil {
+                importDraftingInput = ""
+            }
             onImportCompleted(result.chatID)
         }
     }

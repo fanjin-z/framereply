@@ -55,6 +55,16 @@
         }
       }
     },
+    "%lld/%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld/%2$lld"
+          }
+        }
+      }
+    },
     "%lld/10 messages" : {
 
     },
@@ -67,7 +77,7 @@
     "Add an observation" : {
 
     },
-    "Add Context or Draft" : {
+    "Add context or a draft?" : {
 
     },
     "Add messages" : {
@@ -77,12 +87,6 @@
 
     },
     "Add model provider" : {
-
-    },
-    "Add optional context or a rough draft while FrameReply analyzes the chat images?" : {
-
-    },
-    "Add optional context or a rough draft while FrameReply analyzes the chat text?" : {
 
     },
     "Add Provider" : {
@@ -130,22 +134,16 @@
     "Analyzed chat input" : {
 
     },
-    "Analyzing chat images… Add context or draft what you want to say. Tap Done when finished. Cancel stops the shortcut." : {
-
-    },
-    "Analyzing chat images… Add optional context or a draft. Tap Done empty to skip; Cancel stops the shortcut." : {
-
-    },
-    "Analyzing chat text… Add context or draft what you want to say. Tap Done when finished." : {
-
-    },
-    "Analyzing chat text… Add optional context or a draft. Tap Done empty to skip." : {
-
-    },
     "Analyzing…" : {
 
     },
     "API Key" : {
+
+    },
+    "Ask for Context" : {
+
+    },
+    "Ask whether to add context when none is supplied." : {
 
     },
     "Auto-saved" : {
@@ -190,6 +188,12 @@
     "Chat History" : {
 
     },
+    "Chat ID" : {
+
+    },
+    "Chat Image Replies" : {
+
+    },
     "Chat Images" : {
 
     },
@@ -200,6 +204,9 @@
 
     },
     "Chat Text" : {
+
+    },
+    "Chat Text Replies" : {
 
     },
     "chat.fallback.imported" : {
@@ -311,6 +318,9 @@
     "Connecting..." : {
 
     },
+    "Context or draft" : {
+
+    },
     "Context or Draft" : {
 
     },
@@ -324,6 +334,12 @@
 
     },
     "Copy" : {
+
+    },
+    "Copy Reply %lld" : {
+
+    },
+    "Copy Suggested Reply" : {
 
     },
     "Could Not Delete Chat" : {
@@ -402,6 +418,9 @@
 
     },
     "Detailed" : {
+
+    },
+    "Direction, tone, or a rough draft…" : {
 
     },
     "Display name" : {
@@ -1149,6 +1168,12 @@
     "Imports all compatible text items from the clipboard." : {
 
     },
+    "Imports chat images and generates two suggested replies in one action." : {
+
+    },
+    "Imports chat text and generates two suggested replies in one action." : {
+
+    },
     "Imports one to eight images from the same chat while you optionally add context or draft a reply. The images aren't saved." : {
 
     },
@@ -1174,6 +1199,9 @@
 
     },
     "Keep as new" : {
+
+    },
+    "Keep context under 500 characters." : {
 
     },
     "Learned from %lld messages." : {
@@ -1263,13 +1291,22 @@
     "OK" : {
 
     },
+    "One to eight images from the same chat." : {
+
+    },
     "Only share content you have permission to use." : {
+
+    },
+    "Open Chat" : {
 
     },
     "Open Chat Assistant for %@" : {
 
     },
     "Open chat details for %@" : {
+
+    },
+    "Open Imported Chat" : {
 
     },
     "Opening FrameReply…" : {
@@ -1284,7 +1321,13 @@
     "Optional context or a rough reply used once for this generation." : {
 
     },
+    "Optional one-use direction or rough draft." : {
+
+    },
     "Optional: paste 3–10 messages you wrote, one per line." : {
+
+    },
+    "Optionally add direction, tone, or a rough draft for these replies." : {
 
     },
     "Options for %@" : {
@@ -1767,6 +1810,9 @@
     "Rename Chat" : {
 
     },
+    "Reply" : {
+
+    },
     "Reply Brief" : {
 
     },
@@ -1841,6 +1887,9 @@
 
     },
     "Shape the next suggested replies" : {
+
+    },
+    "Shared text, clipboard output, or text from another action." : {
 
     },
     "Short" : {
@@ -1954,10 +2003,25 @@
     "Start from" : {
 
     },
+    "Stops the current import or reply generation." : {
+
+    },
     "Stored securely on this device." : {
 
     },
     "Style" : {
+
+    },
+    "Suggest replies from ${chatImages}" : {
+
+    },
+    "Suggest replies from ${chatText}" : {
+
+    },
+    "Suggest Replies from Chat Images" : {
+
+    },
+    "Suggest Replies from Chat Text" : {
 
     },
     "Suggested Replies" : {
@@ -2054,6 +2118,9 @@
 
     },
     "Warmth" : {
+
+    },
+    "What do you want to say?" : {
 
     },
     "Which name is you?" : {

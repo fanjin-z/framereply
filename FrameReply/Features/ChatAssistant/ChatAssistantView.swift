@@ -24,6 +24,8 @@ struct ChatAssistantView: View {
     @State private var actionErrorMessage: String?
     @State private var selectedScreenshotItems: [PhotosPickerItem] = []
     @State private var photoLoadErrorMessage: String?
+    @State private var importDraftingInput = ""
+    @State private var importTask: Task<Void, Never>?
     @State private var replyNote = ""
     @State private var lastSubmittedReplyNote = ""
     @State private var goalDraft = ""
@@ -43,6 +45,7 @@ struct ChatAssistantView: View {
     init(
         chat: Chat,
         providerStore: ProviderStore,
+        presentImportReviewOnAppear: Bool = false,
         onDetailsTap: @escaping () -> Void,
         onMergedIntoChat: @escaping (String) -> Void
     ) {
@@ -50,6 +53,7 @@ struct ChatAssistantView: View {
         self.providerStore = providerStore
         self.onDetailsTap = onDetailsTap
         self.onMergedIntoChat = onMergedIntoChat
+        _isReviewPresented = State(initialValue: presentImportReviewOnAppear)
         let chatID = chat.id
         _currentChatRecords = Query(
             filter: #Predicate<ChatRecord> { $0.id == chatID }
@@ -235,9 +239,10 @@ struct ChatAssistantView: View {
                             ScreenshotImportStatusCard(
                                 symbolName: "sparkles",
                                 message: importModel.importKind == .copiedMessages
-                                    ? "Analyzing chat text…"
-                                    : "Analyzing selected screenshots…",
-                                isLoading: true
+                                    ? importProgressMessage(for: "chat text")
+                                    : importProgressMessage(for: "selected screenshots"),
+                                isLoading: true,
+                                onCancel: cancelImport
                             )
                         } else if let importStatusMessage {
                             ScreenshotImportStatusCard(
@@ -315,8 +320,10 @@ struct ChatAssistantView: View {
         .sheet(isPresented: $isImportSourcePresented) {
             ChatImportSourceSheet(
                 screenshotSelection: $selectedScreenshotItems,
+                draftingInput: $importDraftingInput,
                 onPaste: { items in
-                    Task {
+                    importTask?.cancel()
+                    importTask = Task {
                         await importCopiedMessages(items)
                     }
                 }
@@ -357,7 +364,8 @@ struct ChatAssistantView: View {
             if !items.isEmpty {
                 isImportSourcePresented = false
             }
-            Task {
+            importTask?.cancel()
+            importTask = Task {
                 await importSelectedScreenshots(items)
             }
         }
@@ -415,6 +423,19 @@ struct ChatAssistantView: View {
         return "checkmark.circle.fill"
     }
 
+    private func importProgressMessage(for source: String) -> String {
+        switch importModel.phase {
+        case .analyzing:
+            "Analyzing \(source)…"
+        case .generatingReplies:
+            "Generating replies…"
+        }
+    }
+
+    private func cancelImport() {
+        importTask?.cancel()
+    }
+
     private func importSelectedScreenshots(_ items: [PhotosPickerItem]) async {
         guard !items.isEmpty else { return }
         defer { selectedScreenshotItems = [] }
@@ -422,19 +443,19 @@ struct ChatAssistantView: View {
 
         do {
             let imageDataList = try await ChatScreenshotPhotoLoader.loadData(from: items)
-            let draftingInput = replyNote.trimmingCharacters(in: .whitespacesAndNewlines)
+            let draftingInput = importDraftingInput
             if let result = await importModel.importScreenshots(
                 imageDataList,
-                draftingInput: draftingInput.isEmpty ? nil : draftingInput
+                draftingInput: draftingInput
             ), result.chatID == chat.id {
                 suggestedRepliesModel.loadCached(localization: localizationContext)
                 needsReplyRefresh = false
-                if !draftingInput.isEmpty, result.replyErrorMessage == nil {
-                    replyNote = ""
-                    lastSubmittedReplyNote = ""
+                if result.replies != nil {
+                    importDraftingInput = ""
                 }
                 recordMeaningfulReviewAction()
             }
+        } catch is CancellationError {
         } catch {
             photoLoadErrorMessage = error.localizedDescription
         }
@@ -444,16 +465,15 @@ struct ChatAssistantView: View {
         guard !items.isEmpty else { return }
         photoLoadErrorMessage = nil
 
-        let draftingInput = replyNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        let draftingInput = importDraftingInput
         if let result = await importModel.importCopiedMessages(
             items,
-            draftingInput: draftingInput.isEmpty ? nil : draftingInput
+            draftingInput: draftingInput
         ), result.chatID == chat.id {
             suggestedRepliesModel.loadCached(localization: localizationContext)
             needsReplyRefresh = false
-            if !draftingInput.isEmpty, result.replyErrorMessage == nil {
-                replyNote = ""
-                lastSubmittedReplyNote = ""
+            if result.replies != nil {
+                importDraftingInput = ""
             }
             recordMeaningfulReviewAction()
         }
@@ -712,31 +732,5 @@ private struct ChatImportReviewCard: View {
 
     private var hasSecondaryActions: Bool {
         (isProvisional && unknownSenderCount > 0) || canMerge
-    }
-}
-
-private struct ScreenshotImportStatusCard: View {
-    let symbolName: String
-    let message: String
-    let isLoading: Bool
-
-    var body: some View {
-        HStack(spacing: 12) {
-            if isLoading {
-                ProgressView()
-            } else {
-                Image(systemName: symbolName)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(FrameReplyColor.primary)
-            }
-            Text(message)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .glassPanel(cornerRadius: 18)
     }
 }

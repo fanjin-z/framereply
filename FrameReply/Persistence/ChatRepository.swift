@@ -334,9 +334,7 @@ final class ChatRepository {
         guard let record = try importRecord(id: importID), record.operationID == operationID else {
             throw DraftingInputSynchronizationError.importUnavailable
         }
-        let trimmed = input?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let limited = trimmed.map { String($0.prefix(2_000)) }
-        record.draftingInput = limited?.isEmpty == false ? limited : nil
+        record.draftingInput = try DraftingInputLimits.validated(input)
         let state: DraftingInputState = record.draftingInput == nil ? .skipped : .submitted
         record.draftingInputStateRaw = state.rawValue
         record.draftingInputCreatedAt = state == .submitted ? now : nil

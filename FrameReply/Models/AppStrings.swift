@@ -524,30 +524,32 @@ nonisolated enum AppStrings {
 
     enum Shortcut {
         static let analyzedChatSubtitle: LocalizedStringResource = "Analyzed chat input"
-        static let addContextOrDraft: LocalizedStringResource = "Add Context or Draft"
+        static let addContextOrDraft: LocalizedStringResource = "Add"
         static let skip: LocalizedStringResource = "Skip"
         static let imagesContextChoice: LocalizedStringResource =
-            "Add optional context or a rough draft while FrameReply analyzes the chat images?"
+            "Add context or a draft?"
         static let imagesContextPrompt: LocalizedStringResource =
-            "Analyzing chat images… Add context or draft what you want to say. Tap Done when finished. Cancel stops the shortcut."
+            "What do you want to say?"
         static let imagesLegacyContextPrompt: LocalizedStringResource =
-            "Analyzing chat images… Add optional context or a draft. Tap Done empty to skip; Cancel stops the shortcut."
+            "What do you want to say?"
         static let imageInputSynchronizationError: LocalizedStringResource =
             "The optional input could not be synchronized with this image import."
         static let chatHistoryPersistenceError: LocalizedStringResource =
             "The chat history could not be saved."
         static let textContextChoice: LocalizedStringResource =
-            "Add optional context or a rough draft while FrameReply analyzes the chat text?"
+            "Add context or a draft?"
         static let textContextPrompt: LocalizedStringResource =
-            "Analyzing chat text… Add context or draft what you want to say. Tap Done when finished."
+            "What do you want to say?"
         static let textLegacyContextPrompt: LocalizedStringResource =
-            "Analyzing chat text… Add optional context or a draft. Tap Done empty to skip."
+            "What do you want to say?"
         static let textInputSynchronizationError: LocalizedStringResource =
             "The optional input could not be synchronized with this chat import."
         static let textPersistenceError: LocalizedStringResource =
             "The imported chat text could not be saved."
         static let noSharedText: LocalizedStringResource =
             "No shared or copied message text was provided."
+        static let contextTooLong: LocalizedStringResource =
+            "Keep context under 500 characters."
         static let imagesInstallationTitle: LocalizedStringResource = "FrameReply Images"
         static let textInstallationTitle: LocalizedStringResource = "FrameReply Text"
 

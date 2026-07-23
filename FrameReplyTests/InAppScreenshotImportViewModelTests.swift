@@ -68,6 +68,82 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testRejectsOverlongDraftingInputBeforeImport() async {
+        let importer = StubInAppImporter(
+            outcome: makeOutcome(insertedMessageCount: 1, reviewRequired: false)
+        )
+        let replies = StubInAppReplies(
+            outcome: SuggestedRepliesOutcome(replies: ["First", "Second"], source: .generated)
+        )
+        let viewModel = InAppScreenshotImportViewModel(
+            importer: importer,
+            repliesGenerator: replies
+        )
+
+        let result = await viewModel.importScreenshots(
+            [Data([1])],
+            draftingInput: String(repeating: "a", count: 501)
+        )
+
+        XCTAssertNil(result)
+        XCTAssertTrue(importer.receivedImageDataList.isEmpty)
+        XCTAssertEqual(viewModel.errorMessage, "Keep context under 500 characters.")
+        XCTAssertTrue(replies.requests.isEmpty)
+    }
+
+    @MainActor
+    func testCancellationBeforeImportCompletionProducesNoResult() async {
+        let importer = CancellableInAppImporter(
+            outcome: makeOutcome(insertedMessageCount: 1, reviewRequired: false)
+        )
+        let replies = StubInAppReplies(
+            outcome: SuggestedRepliesOutcome(replies: ["First", "Second"], source: .generated)
+        )
+        let viewModel = InAppScreenshotImportViewModel(
+            importer: importer,
+            repliesGenerator: replies
+        )
+
+        let task = Task {
+            await viewModel.importScreenshots([Data([1])])
+        }
+        while !importer.didStart {
+            await Task.yield()
+        }
+        task.cancel()
+
+        let result = await task.value
+        XCTAssertNil(result)
+        XCTAssertNil(viewModel.result)
+        XCTAssertTrue(replies.requests.isEmpty)
+    }
+
+    @MainActor
+    func testCancellationDuringReplyGenerationPreservesImportResult() async {
+        let importer = StubInAppImporter(
+            outcome: makeOutcome(insertedMessageCount: 1, reviewRequired: false)
+        )
+        let replies = CancellableInAppReplies()
+        let viewModel = InAppScreenshotImportViewModel(
+            importer: importer,
+            repliesGenerator: replies
+        )
+
+        let task = Task {
+            await viewModel.importScreenshots([Data([1])])
+        }
+        while !replies.didStart {
+            await Task.yield()
+        }
+        task.cancel()
+
+        let result = await task.value
+        XCTAssertEqual(result?.chatID, "chat-1")
+        XCTAssertNil(result?.replies)
+        XCTAssertEqual(result?.replyErrorMessage, "Reply generation canceled.")
+    }
+
+    @MainActor
     private func makeOutcome(
         insertedMessageCount: Int,
         reviewRequired: Bool
@@ -152,5 +228,41 @@ private final class StubInAppReplies: InAppSuggestedRepliesGenerating {
             throw error
         }
         return outcome!
+    }
+}
+
+@MainActor
+private final class CancellableInAppImporter: ScreenshotImportProcessing {
+    let outcome: ScreenshotImportOutcome
+    private(set) var didStart = false
+
+    init(outcome: ScreenshotImportOutcome) {
+        self.outcome = outcome
+    }
+
+    func process(
+        imageDataList: [Data],
+        traceID: ImportTraceID
+    ) async throws -> ScreenshotImportOutcome {
+        didStart = true
+        try await Task.sleep(for: .seconds(60))
+        return outcome
+    }
+}
+
+@MainActor
+private final class CancellableInAppReplies: InAppSuggestedRepliesGenerating {
+    private(set) var didStart = false
+
+    func generate(
+        chatID: String,
+        draftingInput: String?,
+        force: Bool,
+        localization: LocalizationContext,
+        traceID: ImportTraceID
+    ) async throws -> SuggestedRepliesOutcome {
+        didStart = true
+        try await Task.sleep(for: .seconds(60))
+        return SuggestedRepliesOutcome(replies: ["First", "Second"], source: .generated)
     }
 }

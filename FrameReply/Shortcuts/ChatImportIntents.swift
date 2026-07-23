@@ -169,6 +169,12 @@ nonisolated enum ChatImportIntentSupport {
                 diagnosticID: traceID.diagnosticID
             )
         }
+        if let draftingInputError = error as? DraftingInputError {
+            throw ShortcutExecutionError(
+                message: draftingInputError.localizedDescription,
+                diagnosticID: traceID.diagnosticID
+            )
+        }
         if error is DraftingInputSynchronizationError {
             eventReporter.record(
                 .importFailed(
@@ -322,21 +328,22 @@ struct AnalyzeChatImagesIntent: AppIntent {
         eventReporter.record(.stageStarted(traceID: traceID, stage: .screenshotDecoding))
         let coordinator = await MainActor.run { ScreenshotImportCoordinator() }
         do {
+            let suppliedInput = try DraftingInputLimits.validated(draftingInput)
             lifecycleReporter.record(
                 .analysisStarted, operationID: traceID.value, startedAt: startedAt)
-            async let pendingOutcome: ScreenshotImportOutcome = {
-                let outcome = try await coordinator.process(
+            async let pendingImport: PreparedScreenshotImport = {
+                let prepared = try await coordinator.prepare(
                     imageDataList: imageDataList,
                     traceID: traceID
                 )
                 lifecycleReporter.record(
                     .analysisCompleted, operationID: traceID.value, startedAt: startedAt)
-                return outcome
+                return prepared
             }()
 
             let input: String?
-            if let draftingInput {
-                input = draftingInput
+            if draftingInput != nil {
+                input = suppliedInput
             } else if #available(iOS 26.0, *) {
                 lifecycleReporter.record(
                     .inputChoiceDisplayed, operationID: traceID.value, startedAt: startedAt)
@@ -351,20 +358,25 @@ struct AnalyzeChatImagesIntent: AppIntent {
                 } else {
                     lifecycleReporter.record(
                         .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
-                    input = try await $draftingInput.requestValue(
-                        IntentDialog(AppStrings.Shortcut.imagesContextPrompt)
+                    input = try DraftingInputLimits.validated(
+                        try await $draftingInput.requestValue(
+                            IntentDialog(AppStrings.Shortcut.imagesContextPrompt)
+                        )
                     )
                 }
             } else {
                 lifecycleReporter.record(
                     .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
-                input = try await $draftingInput.requestValue(
-                    IntentDialog(AppStrings.Shortcut.imagesLegacyContextPrompt)
+                input = try DraftingInputLimits.validated(
+                    try await $draftingInput.requestValue(
+                        IntentDialog(AppStrings.Shortcut.imagesLegacyContextPrompt)
+                    )
                 )
             }
 
+            let outcome = try await coordinator.commit(try await pendingImport)
             let entity = try await ChatImportIntentSupport.finalize(
-                outcome: try await pendingOutcome,
+                outcome: outcome,
                 input: input,
                 traceID: traceID,
                 startedAt: startedAt,
@@ -436,21 +448,22 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
 
         let coordinator = await MainActor.run { ScreenshotImportCoordinator() }
         do {
+            let suppliedInput = try DraftingInputLimits.validated(draftingInput)
             lifecycleReporter.record(
                 .analysisStarted, operationID: traceID.value, startedAt: startedAt)
-            async let pendingOutcome: ScreenshotImportOutcome = {
-                let outcome = try await coordinator.process(
+            async let pendingImport: PreparedScreenshotImport = {
+                let prepared = try await coordinator.prepare(
                     transcriptItems: transcriptItems,
                     traceID: traceID
                 )
                 lifecycleReporter.record(
                     .analysisCompleted, operationID: traceID.value, startedAt: startedAt)
-                return outcome
+                return prepared
             }()
 
             let input: String?
-            if let draftingInput {
-                input = draftingInput
+            if draftingInput != nil {
+                input = suppliedInput
             } else if #available(iOS 26.0, *) {
                 lifecycleReporter.record(
                     .inputChoiceDisplayed, operationID: traceID.value, startedAt: startedAt)
@@ -465,20 +478,25 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
                 } else {
                     lifecycleReporter.record(
                         .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
-                    input = try await $draftingInput.requestValue(
-                        IntentDialog(AppStrings.Shortcut.textContextPrompt)
+                    input = try DraftingInputLimits.validated(
+                        try await $draftingInput.requestValue(
+                            IntentDialog(AppStrings.Shortcut.textContextPrompt)
+                        )
                     )
                 }
             } else {
                 lifecycleReporter.record(
                     .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
-                input = try await $draftingInput.requestValue(
-                    IntentDialog(AppStrings.Shortcut.textLegacyContextPrompt)
+                input = try DraftingInputLimits.validated(
+                    try await $draftingInput.requestValue(
+                        IntentDialog(AppStrings.Shortcut.textLegacyContextPrompt)
+                    )
                 )
             }
 
+            let outcome = try await coordinator.commit(try await pendingImport)
             let entity = try await ChatImportIntentSupport.finalize(
-                outcome: try await pendingOutcome,
+                outcome: outcome,
                 input: input,
                 traceID: traceID,
                 startedAt: startedAt,

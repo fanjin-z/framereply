@@ -235,6 +235,39 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testPreparedImportDoesNotPersistUntilCommitted() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let analysis = ChatImportAnalysis(
+            conversationTitle: "New Chat",
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .otherParticipant,
+                    senderName: "Alex",
+                    text: "Are you free?",
+                    timestampLabel: nil
+                )
+            ],
+            matchedChatID: nil,
+            matchConfidence: 0,
+            titleSource: .header
+        )
+        let coordinator = ScreenshotImportCoordinator(
+            aiService: StubAnalysisService(analysis: analysis),
+            repository: repository
+        )
+
+        let prepared = try await coordinator.prepare(
+            transcriptItems: ["Alex: Are you free?"]
+        )
+
+        XCTAssertTrue(try repository.chats().isEmpty)
+        let outcome = try coordinator.commit(prepared)
+        XCTAssertEqual(outcome.insertedMessageCount, 1)
+        XCTAssertEqual(try repository.chats().count, 1)
+    }
+
+    @MainActor
     func testCoordinatorRejectsEmptyAndOversizedCopiedMessagesBeforeProviderResolution()
         async throws
     {
