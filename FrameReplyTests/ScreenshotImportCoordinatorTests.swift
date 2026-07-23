@@ -185,6 +185,56 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testConfiguredDestinationBypassesMatchingAndRetainsDeduplication() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        try repository.seedIfNeeded()
+        container.mainContext.insert(
+            ChatRecord(
+                id: "current-chat",
+                title: "Alice",
+                previewText: "Existing conversation"
+            )
+        )
+        let analysis = ChatImportAnalysis(
+            conversationTitle: "Alice",
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .otherParticipant,
+                    senderName: "Alice",
+                    text: "This should go directly into the open chat.",
+                    timestampLabel: "10:15 AM"
+                )
+            ],
+            matchedChatID: nil,
+            matchConfidence: 0,
+            titleSource: .header
+        )
+        let coordinator = ScreenshotImportCoordinator(
+            aiService: StubAnalysisService(analysis: analysis),
+            repository: repository,
+            destinationChatID: "current-chat"
+        )
+
+        let first = try await coordinator.process(
+            transcriptItems: ["Alice: This should go directly into the open chat."]
+        )
+        let second = try await coordinator.process(
+            transcriptItems: ["Alice: This should go directly into the open chat."]
+        )
+
+        XCTAssertEqual(first.chatID, "current-chat")
+        XCTAssertTrue(first.matchedExisting)
+        XCTAssertEqual(first.insertedMessageCount, 1)
+        XCTAssertFalse(first.duplicate)
+        XCTAssertEqual(second.chatID, "current-chat")
+        XCTAssertEqual(second.insertedMessageCount, 0)
+        XCTAssertTrue(second.duplicate)
+        XCTAssertEqual(try repository.messages(chatID: "current-chat").count, 1)
+        XCTAssertEqual(try repository.chats().count, 1)
+    }
+
+    @MainActor
     func testCoordinatorRejectsEmptyAndOversizedCopiedMessagesBeforeProviderResolution()
         async throws
     {

@@ -86,6 +86,7 @@ final class ScreenshotImportCoordinator {
     private let aiService: any AIServiceProviding
     private let repository: ChatRepository
     private let eventReporter: any ImportEventReporting
+    private let destinationChatID: String?
 
     convenience init() {
         let eventReporter = OSLogImportEventReporter()
@@ -103,11 +104,13 @@ final class ScreenshotImportCoordinator {
     init(
         aiService: any AIServiceProviding,
         repository: ChatRepository,
-        eventReporter: any ImportEventReporting = OSLogImportEventReporter()
+        eventReporter: any ImportEventReporting = OSLogImportEventReporter(),
+        destinationChatID: String? = nil
     ) {
         self.aiService = aiService
         self.repository = repository
         self.eventReporter = eventReporter
+        self.destinationChatID = destinationChatID
     }
 
     func process(
@@ -252,11 +255,16 @@ final class ScreenshotImportCoordinator {
             throw error
         }
 
-        eventReporter.record(.stageStarted(traceID: traceID, stage: .matching))
-        let confirmedChatID = ChatImportMatcher.confirmedChatID(
-            analysis: analysis,
-            candidates: candidates
-        )
+        let confirmedChatID: String?
+        if let destinationChatID {
+            confirmedChatID = destinationChatID
+        } else {
+            eventReporter.record(.stageStarted(traceID: traceID, stage: .matching))
+            confirmedChatID = ChatImportMatcher.confirmedChatID(
+                analysis: analysis,
+                candidates: candidates
+            )
+        }
 
         eventReporter.record(.stageStarted(traceID: traceID, stage: .persistence))
         do {

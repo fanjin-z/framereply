@@ -95,14 +95,18 @@ final class InAppScreenshotImportViewModel: ObservableObject {
         self.init(providerStore: ProviderStore())
     }
 
-    convenience init(providerStore: any ProviderConfigurationProviding) {
+    convenience init(
+        providerStore: any ProviderConfigurationProviding,
+        destinationChatID: String? = nil
+    ) {
         self.init(
             importer: ScreenshotImportCoordinator(
                 aiService: AIService(
                     providerConfiguration: providerStore,
                     registry: .live(eventReporter: OSLogImportEventReporter())
                 ),
-                repository: ChatRepository()
+                repository: ChatRepository(),
+                destinationChatID: destinationChatID
             ),
             repliesGenerator: SuggestedRepliesCoordinator(providerStore: providerStore)
         )

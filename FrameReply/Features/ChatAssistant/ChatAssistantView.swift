@@ -83,7 +83,10 @@ struct ChatAssistantView: View {
             )
         )
         _importModel = StateObject(
-            wrappedValue: InAppScreenshotImportViewModel(providerStore: providerStore)
+            wrappedValue: InAppScreenshotImportViewModel(
+                providerStore: providerStore,
+                destinationChatID: chatID
+            )
         )
     }
 
