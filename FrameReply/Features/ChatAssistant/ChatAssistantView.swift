@@ -94,8 +94,21 @@ struct ChatAssistantView: View {
         )
     }
 
+    private var provisionalIdentity: ProvisionalIdentityInterpretation? {
+        ProvisionalIdentityResolver.resolve(
+            chat: currentChatRecord,
+            messages: messageRecords,
+            previouslyUsedSelfAliasLabels:
+                ProvisionalIdentityResolver.previouslyUsedSelfAliasLabels(
+                    in: chatContextRecords + mergeCandidateContextRecords
+                )
+        )
+    }
+
     private var messages: [ChatMessage] {
-        messageRecords.map { ChatMessage(record: $0) }
+        messageRecords.map {
+            ChatMessage(record: $0, provisionalIdentity: provisionalIdentity)
+        }
     }
 
     private var latestMessages: [ChatMessage] {
@@ -111,7 +124,9 @@ struct ChatAssistantView: View {
     }
 
     @MainActor private var displayedChat: Chat {
-        currentChatRecord.map(Chat.init(record:)) ?? chat
+        currentChatRecord.map {
+            Chat(record: $0, provisionalIdentity: provisionalIdentity)
+        } ?? chat
     }
 
     private var currentChatContext: ChatContextRecord? {
@@ -163,6 +178,12 @@ struct ChatAssistantView: View {
             hasher.combine(message.text)
             hasher.combine(message.sortIndex)
         }
+        for context in chatContextRecords + mergeCandidateContextRecords {
+            hasher.combine(context.chatID)
+            for alias in context.selfAliases {
+                hasher.combine(alias.displayLabel)
+            }
+        }
         if let cache = currentLanguageCache {
             hasher.combine(cache.inputFingerprint)
             hasher.combine(cache.repliesJSON)
@@ -204,7 +225,9 @@ struct ChatAssistantView: View {
                             isProvisional: isCurrentChatProvisional,
                             unknownSenderCount: unknownSenderCount,
                             canMerge: !mergeCandidates.isEmpty,
+                            provisionalIdentity: provisionalIdentity,
                             onKeepAsNew: confirmCurrentChat,
+                            onConfirmIdentity: confirmInferredIdentity,
                             onMergeTap: {
                                 isMergeConfirmationPresented = true
                             },
@@ -312,7 +335,10 @@ struct ChatAssistantView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $isHistoryPresented) {
-            ChatHistorySheet(chat: displayedChat)
+            ChatHistorySheet(
+                chat: displayedChat,
+                provisionalIdentity: provisionalIdentity
+            )
         }
         .sheet(isPresented: $isReplyNotePresented) {
             AddReplyNoteSheet(note: $replyNote)
@@ -515,7 +541,19 @@ struct ChatAssistantView: View {
         do {
             try ChatRepository().confirmProvisionalChat(
                 chatID: chat.id,
-                name: currentChatRecord.map { $0.displayTitle() } ?? chat.name
+                name: displayedChat.name
+            )
+        } catch {
+            actionErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func confirmInferredIdentity() {
+        guard let provisionalIdentity else { return }
+        do {
+            try ChatRepository().resolveUnknownSenderLabels(
+                chatID: chat.id,
+                selfLabel: provisionalIdentity.selfDisplayLabel
             )
         } catch {
             actionErrorMessage = error.localizedDescription
@@ -631,7 +669,9 @@ private struct ChatImportReviewCard: View {
     let isProvisional: Bool
     let unknownSenderCount: Int
     let canMerge: Bool
+    let provisionalIdentity: ProvisionalIdentityInterpretation?
     let onKeepAsNew: () -> Void
+    let onConfirmIdentity: () -> Void
     let onMergeTap: () -> Void
     let onReviewSenders: () -> Void
 
@@ -664,8 +704,8 @@ private struct ChatImportReviewCard: View {
 
             if hasSecondaryActions {
                 Menu {
-                    if isProvisional && unknownSenderCount > 0 {
-                        Button("Keep as new", action: onKeepAsNew)
+                    if isProvisional && provisionalIdentity != nil {
+                        Button("Confirm Identity", action: onConfirmIdentity)
                     }
                     if canMerge {
                         Button("Merge into...", action: onMergeTap)
@@ -709,6 +749,9 @@ private struct ChatImportReviewCard: View {
     }
 
     private var nudgeText: String {
+        if let provisionalIdentity {
+            return "Assuming you are \(provisionalIdentity.selfDisplayLabel)"
+        }
         if isProvisional && unknownSenderCount > 0 {
             return "Review imported chat"
         }
@@ -731,6 +774,6 @@ private struct ChatImportReviewCard: View {
     }
 
     private var hasSecondaryActions: Bool {
-        (isProvisional && unknownSenderCount > 0) || canMerge
+        (isProvisional && provisionalIdentity != nil) || canMerge
     }
 }

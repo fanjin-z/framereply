@@ -240,6 +240,15 @@ final class ChatPersistenceTests: XCTestCase {
             .needsReview
         )
 
+        let unresolvedMessage = try XCTUnwrap(
+            repository.messages(chatID: outcome.chatID).first {
+                $0.senderKind == "unknown"
+            }
+        )
+        try repository.resolveUnknownSender(
+            messageID: unresolvedMessage.id,
+            as: .otherParticipant
+        )
         try repository.confirmProvisionalChat(chatID: outcome.chatID, name: "Alex Hiking")
 
         let chat = try XCTUnwrap(repository.chat(id: outcome.chatID))
@@ -435,12 +444,18 @@ final class ChatPersistenceTests: XCTestCase {
 
         XCTAssertNil(try repository.chat(id: "delete-me"))
         XCTAssertTrue(try repository.messages(chatID: "delete-me").isEmpty)
-        XCTAssertEqual(try relatedRecordCounts(chatID: "delete-me", in: container), [0, 0, 0])
+        XCTAssertEqual(
+            try relatedRecordCounts(chatID: "delete-me", in: container),
+            [0, 0, 0, 0]
+        )
         XCTAssertNil(try repository.suggestedReplyCache(chatID: "delete-me"))
 
         XCTAssertNotNil(try repository.chat(id: "keep-me"))
         XCTAssertEqual(try repository.messages(chatID: "keep-me").count, 1)
-        XCTAssertEqual(try relatedRecordCounts(chatID: "keep-me", in: container), [1, 1, 1])
+        XCTAssertEqual(
+            try relatedRecordCounts(chatID: "keep-me", in: container),
+            [1, 1, 1, 1]
+        )
         XCTAssertNotNil(try repository.suggestedReplyCache(chatID: "keep-me"))
     }
 
@@ -493,6 +508,13 @@ final class ChatPersistenceTests: XCTestCase {
                 requiresReview: false
             )
         )
+        container.mainContext.insert(
+            PersonaLearningReceiptRecord(
+                personaID: UUID(),
+                chatID: chatID,
+                messageID: UUID()
+            )
+        )
     }
 
     private func makePendingImport(operationID: UUID) -> ChatImportRecord {
@@ -534,7 +556,17 @@ final class ChatPersistenceTests: XCTestCase {
                 predicate: #Predicate { $0.chatID == chatID }
             )
         )
-        return [chatContextRecords.count, memoryRecords.count, importRecords.count]
+        let learningReceipts = try container.mainContext.fetch(
+            FetchDescriptor<PersonaLearningReceiptRecord>(
+                predicate: #Predicate { $0.chatID == chatID }
+            )
+        )
+        return [
+            chatContextRecords.count,
+            memoryRecords.count,
+            importRecords.count,
+            learningReceipts.count
+        ]
     }
 
     private func provisionalAnalysis() -> ChatImportAnalysis {

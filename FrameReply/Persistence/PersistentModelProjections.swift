@@ -7,9 +7,9 @@ import Foundation
 import OSLog
 import SwiftUI
 
-extension ChatSelfAliasRecord {
+extension SelfAliasRecord {
     var normalizedLabel: String {
-        ParticipantLabelNormalizer.key(displayLabel) ?? ""
+        IdentityLabelPolicy.normalizedKey(displayLabel) ?? ""
     }
 }
 
@@ -30,17 +30,40 @@ nonisolated enum ChatPresentation {
     )
 
     static func title(for record: ChatRecord?, locale: Locale = .current) -> String {
+        title(for: record, provisionalIdentity: nil, locale: locale)
+    }
+
+    static func title(
+        for record: ChatRecord?,
+        provisionalIdentity: ProvisionalIdentityInterpretation?,
+        locale: Locale = .current
+    ) -> String {
         guard let record else {
             logger.error("Missing chat record while resolving a presentation title")
             return AppStrings.resolve(AppStrings.Chat.titleFallback, locale: locale)
+        }
+        if let storedTitle = IdentityLabelPolicy.displayLabel(record.title, locale: locale) {
+            return storedTitle
+        }
+        if let inferredTitle = IdentityLabelPolicy.displayLabel(
+            provisionalIdentity?.displayTitle,
+            locale: locale
+        ) {
+            return inferredTitle
         }
         return record.displayTitle(locale: locale)
     }
 }
 
 extension Chat {
-    init(record: ChatRecord) {
-        let name = record.displayTitle()
+    init(
+        record: ChatRecord,
+        provisionalIdentity: ProvisionalIdentityInterpretation? = nil
+    ) {
+        let name = ChatPresentation.title(
+            for: record,
+            provisionalIdentity: provisionalIdentity
+        )
         let preview = record.displayPreview()
         self.init(
             id: record.id,
@@ -78,9 +101,12 @@ extension Chat {
 }
 
 extension ChatMessage {
-    init(record: ChatMessageRecord) {
+    init(
+        record: ChatMessageRecord,
+        provisionalIdentity: ProvisionalIdentityInterpretation? = nil
+    ) {
         let sender: Sender
-        switch record.senderKind {
+        switch provisionalIdentity?.senderKind(for: record) ?? record.senderKind {
         case "user":
             sender = .user
         case "group_participant":

@@ -12,6 +12,9 @@ struct FrameReplyShellView: View {
     @ObservedObject private var shortcutNavigation = ShortcutNavigationCenter.shared
     @State private var navigationPath: [FrameReplyRoute] = []
     @Query private var chatRecords: [ChatRecord]
+    @Query private var chatContextRecords: [ChatContextRecord]
+    @Query(filter: #Predicate<ChatMessageRecord> { $0.senderKind == "unknown" })
+    private var unknownSenderMessages: [ChatMessageRecord]
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -47,6 +50,9 @@ struct FrameReplyShellView: View {
                         SettingsView(
                             providerStore: providerStore,
                             isActive: isActive,
+                            onYourNamesTap: {
+                                navigationPath.append(.yourNames)
+                            },
                             onPrivacyAndDataTap: {
                                 navigationPath.append(.privacyAndData)
                             }
@@ -103,6 +109,8 @@ struct FrameReplyShellView: View {
                     }
                 case .persona(let personaID):
                     PersonaDetailView(personaID: personaID, providerStore: providerStore)
+                case .yourNames:
+                    YourNamesView()
                 case .privacyAndData:
                     PrivacyAndDataView(providerStore: providerStore)
                 }
@@ -132,7 +140,18 @@ struct FrameReplyShellView: View {
     }
 
     private func chat(withID id: String) -> Chat? {
-        chatRecords.first(where: { $0.id == id }).map { Chat(record: $0) }
+        guard let record = chatRecords.first(where: { $0.id == id }) else {
+            return nil
+        }
+        let interpretation = ProvisionalIdentityResolver.resolve(
+            chat: record,
+            messages: unknownSenderMessages.filter { $0.chatID == id },
+            previouslyUsedSelfAliasLabels:
+                ProvisionalIdentityResolver.previouslyUsedSelfAliasLabels(
+                    in: chatContextRecords
+                )
+        )
+        return Chat(record: record, provisionalIdentity: interpretation)
     }
 
     private func replaceCurrentRoute(with route: FrameReplyRoute) {

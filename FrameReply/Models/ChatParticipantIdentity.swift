@@ -5,6 +5,53 @@
 
 import Foundation
 
+nonisolated enum IdentityLabelPolicy {
+    static func displayLabel(_ value: String?, locale: Locale = .current) -> String? {
+        guard let label = ParticipantLabelNormalizer.displayLabel(value),
+            !isImportedChatFallback(label, locale: locale)
+        else {
+            return nil
+        }
+        return label
+    }
+
+    static func normalizedKey(_ value: String?, locale: Locale = .current) -> String? {
+        displayLabel(value, locale: locale).flatMap(ParticipantLabelNormalizer.key)
+    }
+
+    static func isImportedChatFallback(_ value: String?, locale: Locale = .current) -> Bool {
+        guard let key = ParticipantLabelNormalizer.key(value) else { return false }
+        return fallbackKeys(locale: locale).contains(key)
+    }
+
+    private static func fallbackKeys(locale: Locale) -> Set<String> {
+        let localizationIDs =
+            Set(Bundle.main.localizations.filter { $0 != "Base" })
+            .union([locale.identifier, "en"])
+        return Set(
+            localizationIDs.compactMap { identifier in
+                ParticipantLabelNormalizer.key(
+                    AppStrings.resolve(
+                        AppStrings.Chat.titleFallback,
+                        locale: Locale(identifier: identifier)
+                    )
+                )
+            }
+        )
+    }
+}
+
+nonisolated enum ChatImportReviewError: LocalizedError, Equatable, Sendable {
+    case senderIdentityRequired
+
+    var errorDescription: String? {
+        switch self {
+        case .senderIdentityRequired:
+            String(localized: "Choose which sender is you before keeping this chat.")
+        }
+    }
+}
+
 nonisolated enum ParticipantLabelNormalizer {
     static func displayLabel(_ value: String?) -> String? {
         guard let value else { return nil }
@@ -46,8 +93,8 @@ struct UnknownSenderLabelGroup: Identifiable, Equatable {
         var accumulators: [String: Accumulator] = [:]
 
         for message in messages where message.senderKind == "unknown" {
-            guard let displayLabel = ParticipantLabelNormalizer.displayLabel(message.senderName),
-                let normalizedLabel = ParticipantLabelNormalizer.key(displayLabel)
+            guard let displayLabel = IdentityLabelPolicy.displayLabel(message.senderName),
+                let normalizedLabel = IdentityLabelPolicy.normalizedKey(displayLabel)
             else {
                 continue
             }

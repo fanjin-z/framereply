@@ -74,6 +74,9 @@
     "Add" : {
 
     },
+    "Add a name" : {
+
+    },
     "Add an observation" : {
 
     },
@@ -138,6 +141,9 @@
 
     },
     "API Key" : {
+
+    },
+    "Are you %@?" : {
 
     },
     "Ask for Context" : {
@@ -207,6 +213,9 @@
 
     },
     "Chat Text Replies" : {
+
+    },
+    "Chat: %@" : {
 
     },
     "chat.fallback.imported" : {
@@ -291,10 +300,13 @@
     "Choose a new default. Chats using this persona will be reassigned." : {
 
     },
-    "Choose once to label every message from these authors." : {
+    "Choose your name to label these messages." : {
 
     },
     "Choose Screenshots" : {
+
+    },
+    "Choose which sender is you before keeping this chat." : {
 
     },
     "Clear Learned Observations" : {
@@ -304,6 +316,9 @@
 
     },
     "Close chat history" : {
+
+    },
+    "Confirm Identity" : {
 
     },
     "Closes Add Messages." : {
@@ -414,7 +429,13 @@
     "Delete chat with %@?" : {
 
     },
+    "Delete Name" : {
+
+    },
     "Delete Persona" : {
+
+    },
+    "Deleting a name doesn’t change existing messages." : {
 
     },
     "Detailed" : {
@@ -1030,13 +1051,13 @@
     "Fine-tune the voice." : {
 
     },
-    "Forget Identity" : {
+    "Forget for this chat" : {
 
     },
-    "Forget imported identity" : {
+    "Forget for This Chat" : {
 
     },
-    "Forget imported identity?" : {
+    "Forget these names for this chat?" : {
 
     },
     "Formal" : {
@@ -1051,9 +1072,6 @@
     "FrameReply Text" : {
 
     },
-    "FrameReply uses these names only for future imports into this chat." : {
-
-    },
     "FrameReply uses these names to recognize this person in screenshots and pasted transcripts. Removing one may make a future import require review; existing messages won’t change." : {
 
     },
@@ -1061,6 +1079,9 @@
 
     },
     "From conversation" : {
+
+    },
+    "Future imports into this chat may ask which sender is you again. Your saved names and existing messages won’t change." : {
 
     },
     "Future imports may ask which sender is you again. Existing messages won’t change." : {
@@ -1198,9 +1219,6 @@
     "Keep" : {
 
     },
-    "Keep as new" : {
-
-    },
     "Keep context under 500 characters." : {
 
     },
@@ -1220,6 +1238,9 @@
 
     },
     "Makes this provider active" : {
+
+    },
+    "Manage Your Names" : {
 
     },
     "Memory: %@" : {
@@ -1246,6 +1267,9 @@
     "Name or username" : {
 
     },
+    "Names you confirm during import will appear here." : {
+
+    },
     "New Persona" : {
 
     },
@@ -1262,6 +1286,12 @@
 
     },
     "No goal set" : {
+
+    },
+    "No Saved Names" : {
+
+    },
+    "No, This Is Me" : {
 
     },
     "No shared or copied message text was provided." : {
@@ -1343,6 +1373,9 @@
 
     },
     "Paste Copied Text" : {
+
+    },
+    "Pending review · Assuming you are %@" : {
 
     },
     "Performance" : {
@@ -1807,7 +1840,13 @@
     "Remove Name" : {
 
     },
+    "Rename" : {
+
+    },
     "Rename Chat" : {
+
+    },
+    "Rename Name" : {
 
     },
     "Reply" : {
@@ -1854,6 +1893,9 @@
 
     },
     "Save" : {
+
+    },
+    "Saved names can be suggested when FrameReply needs to identify which sender is you." : {
 
     },
     "Saves this as a separate memory" : {
@@ -2057,13 +2099,19 @@
     "The reply brief changed. Update when you’re ready." : {
 
     },
+    "The updated name will apply wherever this identity is remembered." : {
+
+    },
+    "These names help recognize you in this chat and may be suggested for other imports." : {
+
+    },
     "This cannot be undone." : {
 
     },
-    "This is me" : {
+    "This is the name shown throughout FrameReply." : {
 
     },
-    "This is the name shown throughout FrameReply." : {
+    "This Is Me" : {
 
     },
     "This permanently deletes chats, messages, personas, drafts, provider settings, consent records, and API keys from this device." : {
@@ -2088,6 +2136,9 @@
 
     },
     "Use as Display Name" : {
+
+    },
+    "Used as your name before" : {
 
     },
     "Used once for the next set of replies" : {
@@ -2123,7 +2174,7 @@
     "What do you want to say?" : {
 
     },
-    "Which name is you?" : {
+    "Which name is yours?" : {
 
     },
     "Who sent this?" : {
@@ -2132,7 +2183,16 @@
     "Why These Replies" : {
 
     },
+    "Yes" : {
+
+    },
     "You appear as" : {
+
+    },
+    "Your names" : {
+
+    },
+    "Your Names" : {
 
     }
   },

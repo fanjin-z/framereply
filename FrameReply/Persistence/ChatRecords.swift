@@ -106,22 +106,21 @@ final class ChatRecord {
 }
 
 @Model
-final class ChatSelfAliasRecord {
-    var id: UUID
-    var chatID: String
+final class SelfAliasRecord {
     var displayLabel: String
-    var createdAt: Date
 
-    init(
-        id: UUID = UUID(),
-        chatID: String,
-        displayLabel: String,
-        createdAt: Date = Date()
-    ) {
-        self.id = id
-        self.chatID = chatID
+    init(displayLabel: String) {
         self.displayLabel = displayLabel
-        self.createdAt = createdAt
+    }
+}
+
+@Model
+final class SelfAliasAssociationRecord {
+    @Relationship(deleteRule: .nullify, inverse: nil)
+    var alias: SelfAliasRecord?
+
+    init(alias: SelfAliasRecord) {
+        self.alias = alias
     }
 }
 
@@ -164,6 +163,12 @@ final class ChatContextRecord {
     var personaID: UUID
     var personaAssignedAt: Date
     var participantAliasesJSON: String
+    @Relationship(deleteRule: .cascade, inverse: nil)
+    var selfAliasAssociations: [SelfAliasAssociationRecord]
+
+    var selfAliases: [SelfAliasRecord] {
+        selfAliasAssociations.compactMap(\.alias)
+    }
 
     var participantAliases: [ChatParticipantAlias] {
         get {
@@ -184,13 +189,15 @@ final class ChatContextRecord {
         currentInteractionGoal: String,
         personaID: UUID,
         personaAssignedAt: Date = Date(),
-        participantAliasesJSON: String = "[]"
+        participantAliasesJSON: String = "[]",
+        selfAliasAssociations: [SelfAliasAssociationRecord] = []
     ) {
         self.chatID = chatID
         self.currentInteractionGoal = currentInteractionGoal
         self.personaID = personaID
         self.personaAssignedAt = personaAssignedAt
         self.participantAliasesJSON = participantAliasesJSON
+        self.selfAliasAssociations = selfAliasAssociations
     }
 
 }

@@ -3,14 +3,15 @@ import SwiftData
 
 @MainActor
 enum FrameReplyDataStore {
-    static let configurationName = "FrameReplyChatsV2"
+    static let configurationName = "FrameReplyChatsV1"
     static let defaultStoreURL = URL.applicationSupportDirectory.appending(
         path: "\(configurationName).store"
     )
 
     static let schema = Schema([
         ChatRecord.self,
-        ChatSelfAliasRecord.self,
+        SelfAliasRecord.self,
+        SelfAliasAssociationRecord.self,
         ChatMessageRecord.self,
         ChatContextRecord.self,
         ChatMemoryRecord.self,
@@ -43,7 +44,6 @@ enum FrameReplyDataStore {
         if let preparedContainer {
             return preparedContainer
         }
-        discardPreLocalizationDevelopmentStore()
         let container = try makeContainer()
         try protectPersistentStoreFiles()
         preparedContainer = container
@@ -100,10 +100,13 @@ enum FrameReplyDataStore {
         for record in try context.fetch(FetchDescriptor<ChatContextRecord>()) {
             context.delete(record)
         }
+        for record in try context.fetch(FetchDescriptor<SelfAliasAssociationRecord>()) {
+            context.delete(record)
+        }
         for record in try context.fetch(FetchDescriptor<ChatMessageRecord>()) {
             context.delete(record)
         }
-        for record in try context.fetch(FetchDescriptor<ChatSelfAliasRecord>()) {
+        for record in try context.fetch(FetchDescriptor<SelfAliasRecord>()) {
             context.delete(record)
         }
         for record in try context.fetch(FetchDescriptor<ChatRecord>()) {
@@ -145,16 +148,4 @@ enum FrameReplyDataStore {
         ]
     }
 
-    /// The app has not shipped yet, so the localization schema intentionally
-    /// starts from a clean store instead of carrying migration compatibility.
-    private static func discardPreLocalizationDevelopmentStore() {
-        let oldURL = URL.applicationSupportDirectory.appending(path: "FrameReplyChatsV1.store")
-        for url in [
-            oldURL,
-            URL(fileURLWithPath: oldURL.path + "-wal"),
-            URL(fileURLWithPath: oldURL.path + "-shm")
-        ] where FileManager.default.fileExists(atPath: url.path) {
-            try? FileManager.default.removeItem(at: url)
-        }
-    }
 }

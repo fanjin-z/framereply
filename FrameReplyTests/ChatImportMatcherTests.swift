@@ -184,6 +184,43 @@ final class ChatImportMatcherTests: XCTestCase {
         XCTAssertEqual(changedNameMatch, changedNameCandidate.id)
     }
 
+    func testFallbackTitlesNeverCreateIdentityMatches() {
+        let analysis = ChatImportAnalysis(
+            conversationTitle: "Imported Chat",
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .otherParticipant,
+                    senderName: nil,
+                    text: "Synthetic message A",
+                    timestampLabel: nil
+                )
+            ],
+            matchedChatID: "chat-gamma",
+            matchConfidence: 0.99,
+            conversationKind: .direct,
+            titleSource: .header
+        )
+        let candidates = [
+            ChatMatchCandidate(
+                id: "chat-gamma",
+                title: "Imported Chat",
+                recentMessages: []
+            ),
+            ChatMatchCandidate(
+                id: "chat-delta",
+                title: "Imported Chat",
+                recentMessages: []
+            )
+        ]
+
+        XCTAssertNil(
+            ChatImportMatcher.confirmedChatID(
+                analysis: analysis,
+                candidates: candidates
+            )
+        )
+    }
+
     private func makeAnalysis(
         title: String,
         confidence: Double,

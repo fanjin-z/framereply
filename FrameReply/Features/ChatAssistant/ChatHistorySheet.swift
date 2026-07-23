@@ -8,14 +8,19 @@ import SwiftUI
 
 struct ChatHistorySheet: View {
     let chat: Chat
+    let provisionalIdentity: ProvisionalIdentityInterpretation?
 
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
     @State private var selectedDetent: PresentationDetent = .large
     @Query private var messageRecords: [ChatMessageRecord]
 
-    init(chat: Chat) {
+    init(
+        chat: Chat,
+        provisionalIdentity: ProvisionalIdentityInterpretation? = nil
+    ) {
         self.chat = chat
+        self.provisionalIdentity = provisionalIdentity
         let chatID = chat.id
         _messageRecords = Query(
             filter: #Predicate<ChatMessageRecord> { $0.chatID == chatID },
@@ -24,7 +29,9 @@ struct ChatHistorySheet: View {
     }
 
     private var messages: [ChatMessage] {
-        messageRecords.map { ChatMessage(record: $0) }
+        messageRecords.map {
+            ChatMessage(record: $0, provisionalIdentity: provisionalIdentity)
+        }
     }
 
     private var filteredMessages: [ChatMessage] {

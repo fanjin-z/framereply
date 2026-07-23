@@ -120,12 +120,95 @@ final class ChatRepository {
         return try context.fetch(descriptor)
     }
 
-    func selfAliases(chatID: String) throws -> [ChatSelfAliasRecord] {
-        var descriptor = FetchDescriptor<ChatSelfAliasRecord>(
-            predicate: #Predicate { $0.chatID == chatID }
+    func selfAliases() throws -> [SelfAliasRecord] {
+        try context.fetch(FetchDescriptor<SelfAliasRecord>()).sorted {
+            $0.displayLabel.localizedStandardCompare($1.displayLabel) == .orderedAscending
+        }
+    }
+
+    func selfAliases(chatID: String) throws -> [SelfAliasRecord] {
+        try chatContext(chatID: chatID)?.selfAliases.sorted {
+            $0.displayLabel.localizedStandardCompare($1.displayLabel) == .orderedAscending
+        } ?? []
+    }
+
+    func provisionalIdentityInterpretation(
+        chatID: String
+    ) throws -> ProvisionalIdentityInterpretation? {
+        let chatContexts = try context.fetch(FetchDescriptor<ChatContextRecord>())
+        return ProvisionalIdentityResolver.resolve(
+            chat: try chat(id: chatID),
+            messages: try messages(chatID: chatID),
+            previouslyUsedSelfAliasLabels:
+                ProvisionalIdentityResolver.previouslyUsedSelfAliasLabels(in: chatContexts)
         )
-        descriptor.sortBy = [SortDescriptor(\.createdAt)]
-        return try context.fetch(descriptor)
+    }
+
+    @discardableResult
+    func addSelfAlias(displayLabel: String, chatID: String? = nil) throws -> SelfAliasRecord {
+        guard let label = IdentityLabelPolicy.displayLabel(displayLabel),
+            let key = IdentityLabelPolicy.normalizedKey(label)
+        else {
+            throw ChatParticipantNameError.emptyDisplayName
+        }
+
+        do {
+            let record = try upsertSelfAlias(
+                normalizedLabel: key,
+                displayLabel: label,
+                chatID: chatID
+            )
+            try context.save()
+            return record
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
+    func renameSelfAlias(_ alias: SelfAliasRecord, displayLabel: String) throws {
+        guard let label = IdentityLabelPolicy.displayLabel(displayLabel),
+            let key = IdentityLabelPolicy.normalizedKey(label)
+        else {
+            throw ChatParticipantNameError.emptyDisplayName
+        }
+
+        do {
+            if let existing = try selfAliases().first(where: {
+                $0 !== alias && $0.normalizedLabel == key
+            }) {
+                for chatContext in try chatContexts(containing: alias) {
+                    if chatContext.selfAliases.contains(where: { $0 === existing }) {
+                        removeSelfAlias(alias, from: chatContext)
+                    } else {
+                        for association in chatContext.selfAliasAssociations
+                        where association.alias === alias {
+                            association.alias = existing
+                        }
+                    }
+                }
+                context.delete(alias)
+            } else {
+                alias.displayLabel = label
+            }
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
+    func deleteSelfAlias(_ alias: SelfAliasRecord) throws {
+        do {
+            for chatContext in try chatContexts(containing: alias) {
+                removeSelfAlias(alias, from: chatContext)
+            }
+            context.delete(alias)
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
     }
 
     @discardableResult
@@ -264,7 +347,7 @@ final class ChatRepository {
         guard chat.conversationKind == .direct else {
             throw ChatParticipantNameError.directChatRequired
         }
-        guard let cleanedDisplayName = ChatParticipantAlias.displayLabel(displayName) else {
+        guard let cleanedDisplayName = IdentityLabelPolicy.displayLabel(displayName) else {
             throw ChatParticipantNameError.emptyDisplayName
         }
 
@@ -273,9 +356,9 @@ final class ChatRepository {
             suppliedAliases,
             excludingDisplayName: cleanedDisplayName
         )
-        if ChatParticipantAlias.normalizedKey(chat.title)
-            != ChatParticipantAlias.normalizedKey(cleanedDisplayName),
-            let formerTitle = chat.title,
+        if IdentityLabelPolicy.normalizedKey(chat.title)
+            != IdentityLabelPolicy.normalizedKey(cleanedDisplayName),
+            let formerTitle = IdentityLabelPolicy.displayLabel(chat.title),
             isRetainableParticipantLabel(formerTitle)
         {
             aliases.append(ChatParticipantAlias(displayLabel: formerTitle))
@@ -758,9 +841,8 @@ final class ChatRepository {
             return
         }
 
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else {
-            return
+        guard let trimmedName = IdentityLabelPolicy.displayLabel(name) else {
+            throw ChatParticipantNameError.emptyDisplayName
         }
 
         if chat.conversationKind == .direct {
@@ -797,7 +879,6 @@ final class ChatRepository {
         )
         let memoryRecords = try chatMemories(chatID: chatID)
         let importRecords = try imports(chatID: chatID)
-        let aliasRecords = try selfAliases(chatID: chatID)
         let replyCaches = try suggestedReplyCaches(chatID: chatID)
         let learningReceipts = try context.fetch(
             FetchDescriptor<PersonaLearningReceiptRecord>(
@@ -815,9 +896,6 @@ final class ChatRepository {
         }
         for importRecord in importRecords {
             context.delete(importRecord)
-        }
-        for aliasRecord in aliasRecords {
-            context.delete(aliasRecord)
         }
         for receipt in learningReceipts {
             context.delete(receipt)
@@ -961,6 +1039,16 @@ final class ChatRepository {
             )
         }
 
+        let provisionalIdentity = ProvisionalIdentityResolver.resolve(
+            chat: targetChat,
+            messages: try messages(chatID: targetChat.id),
+            previouslyUsedSelfAliasLabels:
+                ProvisionalIdentityResolver.previouslyUsedSelfAliasLabels(
+                    in: try context.fetch(FetchDescriptor<ChatContextRecord>())
+                )
+        )
+        let blockingReviewRequired = requiresReview && provisionalIdentity == nil
+
         do {
             try context.save()
         } catch {
@@ -970,11 +1058,11 @@ final class ChatRepository {
 
         return ScreenshotImportOutcome(
             chatID: targetChat.id,
-            chatTitle: targetChat.title,
+            chatTitle: provisionalIdentity?.displayTitle ?? targetChat.title,
             importID: importRecord.id,
             diagnosticID: traceID.diagnosticID,
             matchedExisting: matchedExisting,
-            reviewRequired: requiresReview,
+            reviewRequired: blockingReviewRequired,
             duplicate: isDuplicate,
             insertedMessageCount: mergeResult.insertedMessageCount
         )
@@ -984,13 +1072,23 @@ final class ChatRepository {
         guard let chat = try chat(id: chatID), chat.requiresImportIdentityReview else {
             return
         }
-        if let cleanedName = ChatParticipantAlias.displayLabel(name) {
+        guard
+            UnknownSenderLabelGroup.make(
+                from: try messages(chatID: chatID).filter { $0.senderKind == "unknown" }
+            ).isEmpty
+        else {
+            throw ChatImportReviewError.senderIdentityRequired
+        }
+        guard let cleanedName = IdentityLabelPolicy.displayLabel(name) else {
+            throw ChatParticipantNameError.emptyDisplayName
+        }
+        do {
             if chat.conversationKind == .direct,
-                ChatParticipantAlias.normalizedKey(chat.title)
-                    != ChatParticipantAlias.normalizedKey(cleanedName)
+                IdentityLabelPolicy.normalizedKey(chat.title)
+                    != IdentityLabelPolicy.normalizedKey(cleanedName)
             {
                 let identityContext = try chatContextForMutation(chatID: chatID)
-                if let formerTitle = chat.title {
+                if let formerTitle = IdentityLabelPolicy.displayLabel(chat.title) {
                     appendParticipantAlias(
                         formerTitle,
                         to: identityContext,
@@ -999,13 +1097,17 @@ final class ChatRepository {
                 }
             }
             chat.title = cleanedName
+            var state =
+                chat.importReviewState ?? ChatImportReviewState(identityStatus: .needsReview)
+            state.identityStatus = .confirmed
+            chat.importReviewState = state
+            chat.updatedAt = Date()
+            try refreshImportReviewState(chatID: chatID)
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
         }
-        var state = chat.importReviewState ?? ChatImportReviewState(identityStatus: .needsReview)
-        state.identityStatus = .confirmed
-        chat.importReviewState = state
-        chat.updatedAt = Date()
-        try refreshImportReviewState(chatID: chatID)
-        try context.save()
     }
 
     func resolveUnknownSender(
@@ -1069,8 +1171,25 @@ final class ChatRepository {
         chatID: String,
         selfLabel: String
     ) throws -> SenderLabelResolutionOutcome {
+        do {
+            let outcome = try resolveUnknownSenderLabelsForMutation(
+                chatID: chatID,
+                selfLabel: selfLabel
+            )
+            try context.save()
+            return outcome
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
+    private func resolveUnknownSenderLabelsForMutation(
+        chatID: String,
+        selfLabel: String
+    ) throws -> SenderLabelResolutionOutcome {
         guard let chat = try chat(id: chatID),
-            let selectedKey = ParticipantLabelNormalizer.key(selfLabel)
+            let selectedKey = IdentityLabelPolicy.normalizedKey(selfLabel)
         else {
             throw SenderLabelResolutionError.labelUnavailable
         }
@@ -1117,46 +1236,41 @@ final class ChatRepository {
             ? groups.first(where: { $0.normalizedLabel != selectedKey })?.displayLabel
             : nil
         var renamedChat = false
-        do {
-            try insertSelfAliasIfNeeded(
-                chatID: chatID,
-                normalizedLabel: selectedKey,
-                displayLabel: selectedDisplayLabel
-            )
 
-            chat.conversationKind = effectiveKind
-            if effectiveKind == .direct,
-                groups.count == 2,
-                chat.requiresImportIdentityReview,
-                chat.title == nil,
-                let otherLabel = resolvedOtherLabel
-            {
-                chat.title = otherLabel
-                renamedChat = true
-            }
+        try insertSelfAliasIfNeeded(
+            chatID: chatID,
+            normalizedLabel: selectedKey,
+            displayLabel: selectedDisplayLabel
+        )
 
-            if let resolvedOtherLabel {
-                let identityContext = try chatContextForMutation(chatID: chatID)
-                appendParticipantAlias(
-                    resolvedOtherLabel,
-                    to: identityContext,
-                    displayName: chat.title
-                )
-            }
-
-            chat.updatedAt = Date()
-            if var state = chat.importReviewState {
-                state.meaningfulActionCount += 1
-                chat.importReviewState = state
-            }
-            try refreshImportReviewState(chatID: chatID)
-            try context.save()
-        } catch {
-            context.rollback()
-            throw error
+        chat.conversationKind = effectiveKind
+        if effectiveKind == .direct,
+            groups.count == 2,
+            chat.requiresImportIdentityReview,
+            IdentityLabelPolicy.displayLabel(chat.title) == nil,
+            let otherLabel = resolvedOtherLabel
+        {
+            chat.title = otherLabel
+            renamedChat = true
         }
 
-        let remainingUnknownCount = try messages(chatID: chatID).filter {
+        if let resolvedOtherLabel {
+            let identityContext = try chatContextForMutation(chatID: chatID)
+            appendParticipantAlias(
+                resolvedOtherLabel,
+                to: identityContext,
+                displayName: chat.title
+            )
+        }
+
+        chat.updatedAt = Date()
+        if var state = chat.importReviewState {
+            state.meaningfulActionCount += 1
+            chat.importReviewState = state
+        }
+        try refreshImportReviewState(chatID: chatID)
+
+        let remainingUnknownCount = unknownMessages.filter {
             $0.senderKind == "unknown"
         }.count
         return SenderLabelResolutionOutcome(
@@ -1168,8 +1282,11 @@ final class ChatRepository {
     }
 
     func forgetImportedSelfLabels(chatID: String) throws {
-        for alias in try selfAliases(chatID: chatID) {
-            context.delete(alias)
+        if let chatContext = try chatContext(chatID: chatID) {
+            for association in chatContext.selfAliasAssociations {
+                context.delete(association)
+            }
+            chatContext.selfAliasAssociations = []
         }
         do {
             try context.save()
@@ -1188,123 +1305,125 @@ final class ChatRepository {
             return
         }
 
-        targetChat.conversationKind = reconciledConversationKind(
-            current: targetChat.conversationKind,
-            incoming: provisionalChat.conversationKind
-        )
-        let targetAliases = try selfAliases(chatID: targetChatID)
-        let provisionalAliases = try selfAliases(chatID: provisionalChatID)
-        let combinedAliases = targetAliases + provisionalAliases
-        let targetMessages = try messages(chatID: targetChatID)
-        let provisionalMessages = try messages(chatID: provisionalChatID)
-        let targetIdentityContext = try chatContextForMutation(chatID: targetChatID)
-        let provisionalIdentityContext = try chatContext(chatID: provisionalChatID)
-        let targetByID = Dictionary(uniqueKeysWithValues: targetMessages.map { ($0.id, $0) })
-        let provisionalAnalyzedMessages = provisionalMessages.map { message in
-            AnalyzedChatMessage(
-                sender: analyzedSender(for: message),
-                senderName: message.senderName,
-                text: message.text,
-                timestampLabel: message.timeLabel
-            )
-        }
-        let imported = applyingIdentity(
-            to: provisionalAnalyzedMessages,
-            aliasKeys: Set(combinedAliases.map(\.normalizedLabel)),
-            conversationKind: targetChat.conversationKind
-        ).map { message in
-            MergeMessage(
-                analyzed: message
-            )
-        }
-        let mergeResult = ChatMessageMerger.merge(
-            existing: targetMessages.map(MergeMessage.init(record:)),
-            imported: imported
-        )
-
-        for (sortIndex, message) in mergeResult.messages.enumerated() {
-            if let existingID = message.existingID, let record = targetByID[existingID] {
-                record.sortIndex = sortIndex
-            } else {
-                context.insert(
-                    ChatMessageRecord(
-                        chatID: targetChatID,
-                        senderKind: persistedSenderKind(message.senderKind),
-                        senderName: message.senderName,
-                        text: message.text,
-                        timeLabel: message.timeLabel,
-                        sortIndex: sortIndex
-                    )
-                )
-            }
-        }
-
-        for message in provisionalMessages {
-            context.delete(message)
-        }
-        if targetChat.conversationKind == .direct {
-            let transferredAliases = provisionalIdentityContext?.participantAliases ?? []
-            let observedMessageLabel = provisionalMessages.first(where: {
-                $0.senderKind == "other_participant"
-                    && ChatParticipantAlias.displayLabel($0.senderName) != nil
-            })?.senderName
-            var participantAliases =
-                targetIdentityContext.participantAliases + transferredAliases
-            if let provisionalTitle = provisionalChat.title,
-                isRetainableParticipantLabel(provisionalTitle)
-            {
-                participantAliases.append(
-                    ChatParticipantAlias(displayLabel: provisionalTitle)
-                )
-            }
-            if let observedMessageLabel,
-                let displayLabel = ChatParticipantAlias.displayLabel(observedMessageLabel)
-            {
-                participantAliases.append(
-                    ChatParticipantAlias(displayLabel: displayLabel)
-                )
-            }
-            targetIdentityContext.participantAliases = sanitizedParticipantAliases(
-                participantAliases,
-                excludingDisplayName: targetChat.title
-            )
-        }
-        if let provisionalIdentityContext {
-            context.delete(provisionalIdentityContext)
-        }
-        for memory in try chatMemories(chatID: provisionalChatID) {
-            memory.chatID = targetChatID
-        }
-        for replyCache in try suggestedReplyCaches(chatID: provisionalChatID) {
-            context.delete(replyCache)
-        }
-        let provisionalImports = try imports(chatID: provisionalChatID)
-        for importRecord in provisionalImports {
-            importRecord.chatID = targetChatID
-            importRecord.transcriptFingerprint = nil
-            importRecord.requiresReview = mergeResult.messages.contains {
-                $0.senderKind == "unknown"
-            }
-        }
-
-        var existingAliasKeys = Set(targetAliases.map(\.normalizedLabel))
-        for alias in provisionalAliases {
-            if existingAliasKeys.insert(alias.normalizedLabel).inserted {
-                alias.chatID = targetChatID
-            } else {
-                context.delete(alias)
-            }
-        }
-
-        context.delete(provisionalChat)
-
-        if let latestMessage = mergeResult.messages.last {
-            targetChat.previewText = latestMessage.text
-        }
-        targetChat.updatedAt = Date()
-        try refreshImportReviewState(chatID: targetChatID)
-
         do {
+            targetChat.conversationKind = reconciledConversationKind(
+                current: targetChat.conversationKind,
+                incoming: provisionalChat.conversationKind
+            )
+            let targetAliases = try selfAliases(chatID: targetChatID)
+            let provisionalAliases = try selfAliases(chatID: provisionalChatID)
+            let combinedAliases = targetAliases + provisionalAliases
+            let targetMessages = try messages(chatID: targetChatID)
+            let provisionalMessages = try messages(chatID: provisionalChatID)
+            let targetIdentityContext = try chatContextForMutation(chatID: targetChatID)
+            let provisionalIdentityContext = try chatContext(chatID: provisionalChatID)
+            let targetByID = Dictionary(uniqueKeysWithValues: targetMessages.map { ($0.id, $0) })
+            let provisionalAnalyzedMessages = provisionalMessages.map { message in
+                AnalyzedChatMessage(
+                    sender: analyzedSender(for: message),
+                    senderName: message.senderName,
+                    text: message.text,
+                    timestampLabel: message.timeLabel
+                )
+            }
+            let imported = applyingIdentity(
+                to: provisionalAnalyzedMessages,
+                aliasKeys: Set(combinedAliases.map(\.normalizedLabel)),
+                conversationKind: targetChat.conversationKind
+            ).map { message in
+                MergeMessage(
+                    analyzed: message
+                )
+            }
+            let mergeResult = ChatMessageMerger.merge(
+                existing: targetMessages.map(MergeMessage.init(record:)),
+                imported: imported
+            )
+
+            for (sortIndex, message) in mergeResult.messages.enumerated() {
+                if let existingID = message.existingID, let record = targetByID[existingID] {
+                    record.sortIndex = sortIndex
+                } else {
+                    context.insert(
+                        ChatMessageRecord(
+                            chatID: targetChatID,
+                            senderKind: persistedSenderKind(message.senderKind),
+                            senderName: message.senderName,
+                            text: message.text,
+                            timeLabel: message.timeLabel,
+                            sortIndex: sortIndex
+                        )
+                    )
+                }
+            }
+
+            for message in provisionalMessages {
+                context.delete(message)
+            }
+            if targetChat.conversationKind == .direct {
+                let transferredAliases = provisionalIdentityContext?.participantAliases ?? []
+                let observedMessageLabel = provisionalMessages.first(where: {
+                    $0.senderKind == "other_participant"
+                        && IdentityLabelPolicy.displayLabel($0.senderName) != nil
+                })?.senderName
+                var participantAliases =
+                    targetIdentityContext.participantAliases + transferredAliases
+                if let provisionalTitle = provisionalChat.title,
+                    isRetainableParticipantLabel(provisionalTitle)
+                {
+                    participantAliases.append(
+                        ChatParticipantAlias(displayLabel: provisionalTitle)
+                    )
+                }
+                if let observedMessageLabel,
+                    let displayLabel = IdentityLabelPolicy.displayLabel(observedMessageLabel)
+                {
+                    participantAliases.append(
+                        ChatParticipantAlias(displayLabel: displayLabel)
+                    )
+                }
+                targetIdentityContext.participantAliases = sanitizedParticipantAliases(
+                    participantAliases,
+                    excludingDisplayName: targetChat.title
+                )
+            }
+            for memory in try chatMemories(chatID: provisionalChatID) {
+                memory.chatID = targetChatID
+            }
+            for replyCache in try suggestedReplyCaches(chatID: provisionalChatID) {
+                context.delete(replyCache)
+            }
+            let provisionalLearningReceipts = try context.fetch(
+                FetchDescriptor<PersonaLearningReceiptRecord>(
+                    predicate: #Predicate { $0.chatID == provisionalChatID }
+                )
+            )
+            for receipt in provisionalLearningReceipts {
+                context.delete(receipt)
+            }
+            let provisionalImports = try imports(chatID: provisionalChatID)
+            for importRecord in provisionalImports {
+                importRecord.chatID = targetChatID
+                importRecord.transcriptFingerprint = nil
+                importRecord.requiresReview = mergeResult.messages.contains {
+                    $0.senderKind == "unknown"
+                }
+            }
+
+            for alias in provisionalAliases {
+                appendSelfAlias(alias, to: targetIdentityContext)
+            }
+            if let provisionalIdentityContext {
+                context.delete(provisionalIdentityContext)
+            }
+
+            context.delete(provisionalChat)
+
+            if let latestMessage = mergeResult.messages.last {
+                targetChat.previewText = latestMessage.text
+            }
+            targetChat.updatedAt = Date()
+            try refreshImportReviewState(chatID: targetChatID)
             try context.save()
         } catch {
             context.rollback()
@@ -1334,13 +1453,12 @@ final class ChatRepository {
     }
 
     private func makeProvisionalChat(from analysis: ChatImportAnalysis) -> ChatRecord {
-        let title = analysis.conversationTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = IdentityLabelPolicy.displayLabel(analysis.conversationTitle)
         let participant = analysis.messages.lazy.compactMap { message -> String? in
             guard message.sender == .otherParticipant || message.sender == .groupParticipant else {
                 return nil
             }
-            let name = message.senderName?.trimmingCharacters(in: .whitespacesAndNewlines)
-            return name?.isEmpty == false ? name : nil
+            return IdentityLabelPolicy.displayLabel(message.senderName)
         }.first
         let resolvedTitle =
             [title, participant].compactMap { value -> String? in
@@ -1366,12 +1484,12 @@ final class ChatRepository {
         _ aliases: [ChatParticipantAlias],
         excludingDisplayName displayName: String?
     ) -> [ChatParticipantAlias] {
-        let displayKey = ChatParticipantAlias.normalizedKey(displayName)
+        let displayKey = IdentityLabelPolicy.normalizedKey(displayName)
         var seen = Set<String>()
         return aliases.compactMap { alias in
-            guard let displayLabel = ChatParticipantAlias.displayLabel(alias.displayLabel),
+            guard let displayLabel = IdentityLabelPolicy.displayLabel(alias.displayLabel),
                 isRetainableParticipantLabel(displayLabel),
-                let key = ChatParticipantAlias.normalizedKey(displayLabel),
+                let key = IdentityLabelPolicy.normalizedKey(displayLabel),
                 key != displayKey,
                 seen.insert(key).inserted
             else {
@@ -1384,7 +1502,7 @@ final class ChatRepository {
     }
 
     private func isRetainableParticipantLabel(_ value: String?) -> Bool {
-        ChatParticipantAlias.normalizedKey(value) != nil
+        IdentityLabelPolicy.normalizedKey(value) != nil
     }
 
     private func chatContextForMutation(chatID: String) throws -> ChatContextRecord {
@@ -1401,7 +1519,7 @@ final class ChatRepository {
         to record: ChatContextRecord,
         displayName: String?
     ) {
-        guard let displayLabel = ChatParticipantAlias.displayLabel(label),
+        guard let displayLabel = IdentityLabelPolicy.displayLabel(label),
             isRetainableParticipantLabel(displayLabel)
         else {
             return
@@ -1420,14 +1538,14 @@ final class ChatRepository {
     ) -> String? {
         guard conversationKind == .direct else { return nil }
         if analysis.titleSource != .unavailable,
-            let title = ChatParticipantAlias.displayLabel(analysis.conversationTitle),
+            let title = IdentityLabelPolicy.displayLabel(analysis.conversationTitle),
             isRetainableParticipantLabel(title)
         {
             return title
         }
         return analysis.messages.lazy.compactMap { message -> String? in
             guard message.sender == .otherParticipant,
-                let label = ChatParticipantAlias.displayLabel(message.senderName),
+                let label = IdentityLabelPolicy.displayLabel(message.senderName),
                 self.isRetainableParticipantLabel(label)
             else {
                 return nil
@@ -1529,19 +1647,63 @@ final class ChatRepository {
         normalizedLabel: String,
         displayLabel: String
     ) throws {
+        _ = try upsertSelfAlias(
+            normalizedLabel: normalizedLabel,
+            displayLabel: displayLabel,
+            chatID: chatID
+        )
+    }
+
+    private func upsertSelfAlias(
+        normalizedLabel: String,
+        displayLabel: String,
+        chatID: String?
+    ) throws -> SelfAliasRecord {
+        if let existing = try selfAliases().first(where: {
+            $0.normalizedLabel == normalizedLabel
+        }) {
+            if let chatID {
+                appendSelfAlias(existing, to: try chatContextForMutation(chatID: chatID))
+            }
+            return existing
+        }
+
+        let record = SelfAliasRecord(displayLabel: displayLabel)
+        context.insert(record)
+        if let chatID {
+            appendSelfAlias(record, to: try chatContextForMutation(chatID: chatID))
+        }
+        return record
+    }
+
+    private func chatContexts(containing alias: SelfAliasRecord) throws -> [ChatContextRecord] {
+        try context.fetch(FetchDescriptor<ChatContextRecord>()).filter { chatContext in
+            chatContext.selfAliases.contains { $0 === alias }
+        }
+    }
+
+    private func appendSelfAlias(_ alias: SelfAliasRecord, to chatContext: ChatContextRecord) {
         guard
-            try !selfAliases(chatID: chatID).contains(where: {
-                $0.normalizedLabel == normalizedLabel
+            !chatContext.selfAliases.contains(where: {
+                $0 === alias || $0.normalizedLabel == alias.normalizedLabel
             })
         else {
             return
         }
-        context.insert(
-            ChatSelfAliasRecord(
-                chatID: chatID,
-                displayLabel: displayLabel
-            )
-        )
+        let association = SelfAliasAssociationRecord(alias: alias)
+        context.insert(association)
+        chatContext.selfAliasAssociations.append(association)
+    }
+
+    private func removeSelfAlias(
+        _ alias: SelfAliasRecord,
+        from chatContext: ChatContextRecord
+    ) {
+        let associations = chatContext.selfAliasAssociations.filter { $0.alias === alias }
+        chatContext.selfAliasAssociations.removeAll { $0.alias === alias }
+        for association in associations {
+            context.delete(association)
+        }
     }
 
     private func imports(chatID: String) throws -> [ChatImportRecord] {

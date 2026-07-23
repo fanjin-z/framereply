@@ -13,7 +13,8 @@ struct ChatDetailsView: View {
     @Environment(\.dismiss) private var dismiss
     @Query private var chatRecords: [ChatRecord]
     @Query private var chatContextRecords: [ChatContextRecord]
-    @Query private var selfAliasRecords: [ChatSelfAliasRecord]
+    @Query private var allChatContextRecords: [ChatContextRecord]
+    @Query private var messageRecords: [ChatMessageRecord]
     @Query private var memoryRecords: [ChatMemoryRecord]
     @Query private var replyCaches: [SuggestedReplyCacheRecord]
     @State private var isRenamePresented = false
@@ -31,9 +32,10 @@ struct ChatDetailsView: View {
         _chatContextRecords = Query(
             filter: #Predicate<ChatContextRecord> { $0.chatID == chatID }
         )
-        _selfAliasRecords = Query(
-            filter: #Predicate<ChatSelfAliasRecord> { $0.chatID == chatID },
-            sort: \ChatSelfAliasRecord.createdAt
+        _allChatContextRecords = Query()
+        _messageRecords = Query(
+            filter: #Predicate<ChatMessageRecord> { $0.chatID == chatID },
+            sort: \ChatMessageRecord.sortIndex
         )
         _memoryRecords = Query(
             filter: #Predicate<ChatMemoryRecord> { $0.chatID == chatID },
@@ -44,8 +46,21 @@ struct ChatDetailsView: View {
         )
     }
 
+    private var provisionalIdentity: ProvisionalIdentityInterpretation? {
+        ProvisionalIdentityResolver.resolve(
+            chat: chatRecords.first,
+            messages: messageRecords,
+            previouslyUsedSelfAliasLabels:
+                ProvisionalIdentityResolver.previouslyUsedSelfAliasLabels(
+                    in: allChatContextRecords
+                )
+        )
+    }
+
     @MainActor private var displayedChat: Chat {
-        chatRecords.first.map(Chat.init(record:)) ?? chat
+        chatRecords.first.map {
+            Chat(record: $0, provisionalIdentity: provisionalIdentity)
+        } ?? chat
     }
 
     private var rationale: String {
@@ -58,6 +73,12 @@ struct ChatDetailsView: View {
 
     private var participantAliases: [ChatParticipantAlias] {
         chatContextRecords.first?.participantAliases ?? []
+    }
+
+    private var selfAliasRecords: [SelfAliasRecord] {
+        (chatContextRecords.first?.selfAliases ?? []).sorted {
+            $0.displayLabel.localizedStandardCompare($1.displayLabel) == .orderedAscending
+        }
     }
 
     var body: some View {
@@ -79,6 +100,16 @@ struct ChatDetailsView: View {
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
                                 .foregroundStyle(FrameReplyColor.onSurface)
                                 .lineLimit(2)
+
+                            if let provisionalIdentity {
+                                Label(
+                                    "Pending review · Assuming you are \(provisionalIdentity.selfDisplayLabel)",
+                                    systemImage: "person.crop.circle.badge.questionmark"
+                                )
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                                .lineLimit(2)
+                            }
 
                             Button(
                                 isDirectChat
@@ -130,15 +161,22 @@ struct ChatDetailsView: View {
                             }
 
                             Text(
-                                "FrameReply uses these names only for future imports into this chat."
+                                "These names help recognize you in this chat and may be suggested for other imports."
                             )
                             .font(.system(size: 13, design: .rounded))
                             .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
-                            Button("Forget imported identity", role: .destructive) {
+                            Button("Forget for this chat", role: .destructive) {
                                 isForgetIdentityConfirmationPresented = true
                             }
                             .font(.system(size: 13, weight: .bold, design: .rounded))
+
+                            NavigationLink(value: FrameReplyRoute.yourNames) {
+                                Text("Manage Your Names")
+                                    .font(
+                                        .system(size: 13, weight: .bold, design: .rounded)
+                                    )
+                            }
                         }
                         .padding(20)
                         .glassPanel(cornerRadius: 26)
@@ -200,15 +238,16 @@ struct ChatDetailsView: View {
             Text("This permanently deletes this chat and its data. This can’t be undone.")
         }
         .confirmationDialog(
-            "Forget imported identity?",
+            "Forget these names for this chat?",
             isPresented: $isForgetIdentityConfirmationPresented,
             titleVisibility: .visible
         ) {
-            Button("Forget Identity", role: .destructive, action: forgetImportedIdentity)
+            Button("Forget for This Chat", role: .destructive, action: forgetImportedIdentity)
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(
-                "Future imports may ask which sender is you again. Existing messages won’t change.")
+                "Future imports into this chat may ask which sender is you again. Your saved names and existing messages won’t change."
+            )
         }
         .alert("Could Not Update Chat", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}
@@ -329,7 +368,7 @@ private struct EditParticipantNamesSheet: View {
                             .onSubmit(addAlias)
 
                         Button("Add", action: addAlias)
-                            .disabled(ChatParticipantAlias.displayLabel(newAlias) == nil)
+                            .disabled(IdentityLabelPolicy.displayLabel(newAlias) == nil)
                     }
                 } header: {
                     Text("Also known as")
@@ -347,7 +386,7 @@ private struct EditParticipantNamesSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", action: save)
-                        .disabled(ChatParticipantAlias.displayLabel(displayName) == nil)
+                        .disabled(IdentityLabelPolicy.displayLabel(displayName) == nil)
                 }
             }
             .alert("Could Not Update Names", isPresented: errorBinding) {
@@ -359,9 +398,9 @@ private struct EditParticipantNamesSheet: View {
     }
 
     private func addAlias() {
-        guard let label = ChatParticipantAlias.displayLabel(newAlias),
-            let key = ChatParticipantAlias.normalizedKey(label),
-            key != ChatParticipantAlias.normalizedKey(displayName),
+        guard let label = IdentityLabelPolicy.displayLabel(newAlias),
+            let key = IdentityLabelPolicy.normalizedKey(label),
+            key != IdentityLabelPolicy.normalizedKey(displayName),
             !aliases.contains(where: { $0.normalizedLabel == key })
         else {
             newAlias = ""
@@ -375,9 +414,9 @@ private struct EditParticipantNamesSheet: View {
         let formerDisplayName = displayName
         displayName = alias.displayLabel
         aliases.removeAll { $0.id == alias.id }
-        if let formerLabel = ChatParticipantAlias.displayLabel(formerDisplayName),
-            let formerKey = ChatParticipantAlias.normalizedKey(formerLabel),
-            formerKey != ChatParticipantAlias.normalizedKey(displayName),
+        if let formerLabel = IdentityLabelPolicy.displayLabel(formerDisplayName),
+            let formerKey = IdentityLabelPolicy.normalizedKey(formerLabel),
+            formerKey != IdentityLabelPolicy.normalizedKey(displayName),
             !aliases.contains(where: { $0.normalizedLabel == formerKey })
         {
             aliases.append(ChatParticipantAlias(displayLabel: formerLabel))

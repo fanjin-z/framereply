@@ -9,6 +9,7 @@ import UIKit
 struct SettingsView: View {
     @ObservedObject var providerStore: ProviderStore
     let isActive: Bool
+    let onYourNamesTap: () -> Void
     let onPrivacyAndDataTap: () -> Void
 
     @State private var selectedPlatform: ProviderPlatform?
@@ -121,6 +122,7 @@ struct SettingsView: View {
                 }
 
                 shortcutSection
+                yourNamesSection
                 privacyAndDataSection
             }
             .padding(.horizontal, 24)
@@ -495,6 +497,18 @@ struct SettingsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("privacy-and-data")
+    }
+
+    private var yourNamesSection: some View {
+        Button(action: onYourNamesTap) {
+            settingsNavigationLabel(
+                title: "Your Names",
+                subtitle: "Names FrameReply can recognize as you",
+                symbol: "person.text.rectangle"
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("your-names")
     }
 
     private func settingsNavigationLabel(

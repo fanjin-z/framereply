@@ -116,6 +116,7 @@ final class SuggestedRepliesCoordinator {
         }
         let messages = try repository.messages(chatID: chatID)
         guard !messages.isEmpty else { return nil }
+        let provisionalIdentity = try repository.provisionalIdentityInterpretation(chatID: chatID)
 
         let chatContext = try repository.chatContextValue(chatID: chatID)
         let persona = try repository.personaPromptContext(personaID: chatContext.personaID)
@@ -139,7 +140,8 @@ final class SuggestedRepliesCoordinator {
             learningMessageIDs: learningMessages.map(\.id),
             provider: providerContext.platform,
             model: providerContext.effectiveModel,
-            presentationLanguageIdentifier: localization.languageIdentifier
+            presentationLanguageIdentifier: localization.languageIdentifier,
+            provisionalIdentity: provisionalIdentity
         )
         guard cache.inputFingerprint == inputFingerprint,
             cache.promptVersion == SuggestedReplyPrompt.version,
@@ -177,6 +179,7 @@ final class SuggestedRepliesCoordinator {
         guard !messages.isEmpty else {
             throw SuggestedRepliesError.noMessages
         }
+        let provisionalIdentity = try repository.provisionalIdentityInterpretation(chatID: chatID)
 
         let chatContext = try repository.chatContextValue(chatID: chatID)
         let persona = try repository.personaPromptContext(personaID: chatContext.personaID)
@@ -197,7 +200,8 @@ final class SuggestedRepliesCoordinator {
             learningMessageIDs: learningMessages.map(\.id),
             provider: providerContext.platform,
             model: replyModel,
-            presentationLanguageIdentifier: localization.languageIdentifier
+            presentationLanguageIdentifier: localization.languageIdentifier,
+            provisionalIdentity: provisionalIdentity
         )
 
         if oneUseInput == nil, !force,
@@ -217,19 +221,31 @@ final class SuggestedRepliesCoordinator {
         let olderCount = max(0, messages.count - Self.recentMessageLimit)
         let olderMessages = Array(messages.prefix(olderCount))
         let recentMessages = Array(messages.suffix(Self.recentMessageLimit))
-        let summaryPlan = makeSummaryPlan(olderMessages: olderMessages, cache: cache)
-        let previousConversationStrategy = cache?.conversationStrategy
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let summaryPlan = makeSummaryPlan(
+            olderMessages: olderMessages,
+            cache: provisionalIdentity == nil ? cache : nil
+        )
+        let previousConversationStrategy =
+            provisionalIdentity == nil
+            ? cache?.conversationStrategy
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            : nil
         let strategyContext = previousConversationStrategy.flatMap { $0.isEmpty ? nil : $0 }
         let request = SuggestedReplyGenerationRequest(
             task: oneUseInput == nil ? .standard : .drafting,
             chatMemories: chatContext.chatMemories.filter { $0.status == .active },
             currentInteractionGoal: chatContext.currentInteractionGoal,
             persona: persona,
-            personaLearningMessages: learningMessages.map(promptMessage),
+            personaLearningMessages: learningMessages.map {
+                promptMessage($0, provisionalIdentity: provisionalIdentity)
+            },
             existingHistorySummary: summaryPlan.existingSummary,
-            olderMessagesToSummarize: summaryPlan.messages.map(promptMessage),
-            recentMessages: recentMessages.map(promptMessage),
+            olderMessagesToSummarize: summaryPlan.messages.map {
+                promptMessage($0, provisionalIdentity: provisionalIdentity)
+            },
+            recentMessages: recentMessages.map {
+                promptMessage($0, provisionalIdentity: provisionalIdentity)
+            },
             draftingInput: oneUseInput,
             previousConversationStrategy: strategyContext,
             presentationLanguageIdentifier: localization.languageIdentifier,
@@ -297,9 +313,10 @@ final class SuggestedRepliesCoordinator {
         let remainingLearningMessageIDs =
             generated.personaObservationChangesAvailable ? [] : learningMessageIDList
 
-        // Input-specific output cannot affect summaries, memory, or persona
-        // learning. Cache only its replies so the app can show the same result.
-        if oneUseInput != nil {
+        // Input-specific and provisionally grounded output cannot affect
+        // summaries, memory, or persona learning. Cache only its replies so the
+        // app can show the same result.
+        if oneUseInput != nil || provisionalIdentity != nil {
             try repository.saveSuggestedRepliesOnly(
                 chatID: chatID,
                 presentationLanguageIdentifier: localization.languageIdentifier,
@@ -326,7 +343,8 @@ final class SuggestedRepliesCoordinator {
             learningMessageIDs: remainingLearningMessageIDs,
             provider: providerContext.platform,
             model: replyModel,
-            presentationLanguageIdentifier: localization.languageIdentifier
+            presentationLanguageIdentifier: localization.languageIdentifier,
+            provisionalIdentity: nil
         )
 
         try repository.saveSuggestedReplyGeneration(
@@ -410,11 +428,20 @@ final class SuggestedRepliesCoordinator {
         )
     }
 
-    private func promptMessage(_ message: ChatMessageRecord) -> SuggestedReplyPromptMessage {
-        SuggestedReplyPromptMessage(
+    private func promptMessage(
+        _ message: ChatMessageRecord,
+        provisionalIdentity: ProvisionalIdentityInterpretation?
+    ) -> SuggestedReplyPromptMessage {
+        let senderName: String?
+        if let provisionalIdentity {
+            senderName = provisionalIdentity.senderName(for: message)
+        } else {
+            senderName = message.senderName
+        }
+        return SuggestedReplyPromptMessage(
             id: message.id,
-            sender: message.senderKind,
-            senderName: message.senderName,
+            sender: provisionalIdentity?.senderKind(for: message) ?? message.senderKind,
+            senderName: senderName,
             text: message.text,
             timeLabel: message.timeLabel
         )
@@ -427,10 +454,13 @@ final class SuggestedRepliesCoordinator {
         learningMessageIDs: [UUID],
         provider: ProviderPlatform,
         model: ProviderModel,
-        presentationLanguageIdentifier: String
+        presentationLanguageIdentifier: String,
+        provisionalIdentity: ProvisionalIdentityInterpretation?
     ) -> String {
         let payload: [String: Any] = [
-            "messages": messages.map(messageObject),
+            "messages": messages.map {
+                messageObject($0, provisionalIdentity: provisionalIdentity)
+            },
             "chatMemories": chatContext.chatMemories
                 .filter { $0.status == .active }
                 .sorted { $0.id.uuidString < $1.id.uuidString }
@@ -441,6 +471,7 @@ final class SuggestedRepliesCoordinator {
             "provider": provider.rawValue,
             "model": model.rawValue,
             "presentationLanguageIdentifier": presentationLanguageIdentifier,
+            "provisionalIdentity": provisionalIdentity.map(identityObject) ?? NSNull(),
             "promptVersion": SuggestedReplyPrompt.version
         ]
         return digest(payload)
@@ -459,6 +490,7 @@ final class SuggestedRepliesCoordinator {
             return false
         }
         let messages = try repository.messages(chatID: chatID)
+        let provisionalIdentity = try repository.provisionalIdentityInterpretation(chatID: chatID)
         let context = try repository.chatContextValue(chatID: chatID)
         let persona = try repository.personaPromptContext(personaID: context.personaID)
         let learningMessages = try repository.personaLearningMessages(
@@ -471,22 +503,43 @@ final class SuggestedRepliesCoordinator {
             learningMessageIDs: learningMessages.map(\.id),
             provider: providerContext.platform,
             model: providerContext.effectiveModel,
-            presentationLanguageIdentifier: presentationLanguageIdentifier
+            presentationLanguageIdentifier: presentationLanguageIdentifier,
+            provisionalIdentity: provisionalIdentity
         ) == expectedFingerprint
     }
 
     private func messageFingerprint(_ messages: [ChatMessageRecord]) -> String {
-        digest(messages.map(messageObject))
+        digest(messages.map { messageObject($0, provisionalIdentity: nil) })
     }
 
-    private func messageObject(_ message: ChatMessageRecord) -> [String: Any] {
-        [
+    private func messageObject(
+        _ message: ChatMessageRecord,
+        provisionalIdentity: ProvisionalIdentityInterpretation?
+    ) -> [String: Any] {
+        let senderName: String?
+        if let provisionalIdentity {
+            senderName = provisionalIdentity.senderName(for: message)
+        } else {
+            senderName = message.senderName
+        }
+        let sender = provisionalIdentity?.senderKind(for: message) ?? message.senderKind
+        return [
             "id": message.id.uuidString,
-            "sender": message.senderKind,
-            "senderName": message.senderName ?? NSNull(),
+            "sender": sender,
+            "senderName": senderName ?? NSNull(),
             "text": message.text,
             "timeLabel": message.timeLabel,
             "sortIndex": message.sortIndex
+        ]
+    }
+
+    private func identityObject(
+        _ identity: ProvisionalIdentityInterpretation
+    ) -> [String: Any] {
+        [
+            "selfDisplayLabel": identity.selfDisplayLabel,
+            "counterpartDisplayLabel": identity.counterpartDisplayLabel,
+            "displayTitle": identity.displayTitle
         ]
     }
 

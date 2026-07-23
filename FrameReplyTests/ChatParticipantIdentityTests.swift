@@ -65,6 +65,10 @@ final class ChatParticipantIdentityTests: XCTestCase {
         XCTAssertEqual(inverseOutcome.resolvedUserCount, 6)
         XCTAssertEqual(inverseOutcome.resolvedOtherCount, 4)
         XCTAssertEqual(try inverseRepository.chat(id: inverseImport.chatID)?.title, "Test User")
+        XCTAssertTrue(try inverseRepository.chat(id: inverseImport.chatID)?.isProvisional == true)
+        XCTAssertTrue(
+            try XCTUnwrap(inverseRepository.importRecord(id: inverseImport.importID)).requiresReview
+        )
     }
 
     func testRememberedAliasAppliesOnlyWithinSelectedChat() throws {
@@ -171,13 +175,8 @@ final class ChatParticipantIdentityTests: XCTestCase {
             conversationKind: .direct
         )
         container.mainContext.insert(target)
-        container.mainContext.insert(
-            ChatSelfAliasRecord(
-                chatID: target.id,
-                displayLabel: "Test User"
-            )
-        )
         try container.mainContext.save()
+        try repository.addSelfAlias(displayLabel: "Test User", chatID: target.id)
 
         let provisional = try repository.applyImport(
             analysis: directUnknownAnalysis(
@@ -279,15 +278,14 @@ final class ChatParticipantIdentityTests: XCTestCase {
         try repository.forgetImportedSelfLabels(chatID: first.chatID)
         XCTAssertTrue(try repository.selfAliases(chatID: first.chatID).isEmpty)
 
-        container.mainContext.insert(
-            ChatSelfAliasRecord(
-                chatID: first.chatID,
-                displayLabel: "Café User"
-            )
-        )
-        try container.mainContext.save()
+        try repository.addSelfAlias(displayLabel: "Alias Alpha", chatID: first.chatID)
         try repository.deleteChat(id: first.chatID)
         XCTAssertTrue(try repository.selfAliases(chatID: first.chatID).isEmpty)
+        XCTAssertTrue(
+            try repository.selfAliases().contains {
+                $0.displayLabel == "Alias Alpha"
+            }
+        )
 
         let namesContainer = try FrameReplyDataStore.makeContainer(inMemory: true)
         let namesRepository = ChatRepository(container: namesContainer)
@@ -324,7 +322,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
         let aliases = try namesRepository.participantAliases(chatID: chat.id)
         XCTAssertEqual(
             Set(aliases.map(\.normalizedLabel)),
-            ["cafe sarah", "imported chat", "sarah jenkins"]
+            ["cafe sarah", "sarah jenkins"]
         )
         XCTAssertEqual(
             aliases.first(where: { $0.normalizedLabel == "cafe sarah" })?.displayLabel,

@@ -23,6 +23,7 @@ struct InboxView: View {
     @State private var importTask: Task<Void, Never>?
     @StateObject private var importModel: InAppScreenshotImportViewModel
     @Query(sort: \ChatRecord.updatedAt, order: .reverse) private var chatRecords: [ChatRecord]
+    @Query private var chatContextRecords: [ChatContextRecord]
     @Query(filter: #Predicate<ChatMessageRecord> { $0.senderKind == "unknown" })
     private var unknownSenderMessages: [ChatMessageRecord]
 
@@ -41,7 +42,18 @@ struct InboxView: View {
     }
 
     private var chats: [Chat] {
-        let allChats = chatRecords.map { Chat(record: $0) }
+        let usedSelfAliasLabels =
+            ProvisionalIdentityResolver.previouslyUsedSelfAliasLabels(
+                in: chatContextRecords
+            )
+        let allChats = chatRecords.map { record in
+            let interpretation = ProvisionalIdentityResolver.resolve(
+                chat: record,
+                messages: unknownSenderMessages.filter { $0.chatID == record.id },
+                previouslyUsedSelfAliasLabels: usedSelfAliasLabels
+            )
+            return Chat(record: record, provisionalIdentity: interpretation)
+        }
         guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return allChats
         }

@@ -6,6 +6,12 @@
 import SwiftData
 import SwiftUI
 
+enum ImportReviewReadiness {
+    static func canKeep(name: String, hasNamedUnresolvedSenders: Bool) -> Bool {
+        !hasNamedUnresolvedSenders && IdentityLabelPolicy.displayLabel(name) != nil
+    }
+}
+
 struct ChatImportReviewSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Query private var allChats: [ChatRecord]
@@ -48,6 +54,24 @@ struct ChatImportReviewSheet: View {
         allChats.filter { !$0.requiresImportIdentityReview }
     }
 
+    private var previouslyUsedSelfAliasLabels: [String] {
+        ProvisionalIdentityResolver.previouslyUsedSelfAliasLabels(
+            in: allChatContexts
+        )
+    }
+
+    private var provisionalIdentitiesByChatID: [String: ProvisionalIdentityInterpretation] {
+        Dictionary(
+            uniqueKeysWithValues: provisionalChats.compactMap { chat in
+                ProvisionalIdentityResolver.resolve(
+                    chat: chat,
+                    messages: unknownSenderMessages.filter { $0.chatID == chat.id },
+                    previouslyUsedSelfAliasLabels: previouslyUsedSelfAliasLabels
+                ).map { (chat.id, $0) }
+            }
+        )
+    }
+
     private var participantReviewGroups: [ParticipantReviewGroup] {
         let labelGroups = UnknownSenderLabelGroup.make(from: unknownSenderMessages)
         var chatOrder: [String] = []
@@ -60,14 +84,34 @@ struct ChatImportReviewSheet: View {
         }
         return chatOrder.compactMap { id in
             guard let groups = grouped[id], !groups.isEmpty else { return nil }
+            let provisionalIdentity = provisionalIdentitiesByChatID[id]
             return ParticipantReviewGroup(
                 chatID: id,
                 chatName: ChatPresentation.title(
-                    for: allChats.first(where: { $0.id == id })
+                    for: allChats.first(where: { $0.id == id }),
+                    provisionalIdentity: provisionalIdentity
                 ),
-                groups: groups
+                groups: groups.sorted {
+                    let firstRemembered = rememberedAliasKeys.contains($0.normalizedLabel)
+                    let secondRemembered = rememberedAliasKeys.contains($1.normalizedLabel)
+                    if firstRemembered != secondRemembered {
+                        return firstRemembered
+                    }
+                    return $0.displayLabel.localizedStandardCompare($1.displayLabel)
+                        == .orderedAscending
+                },
+                rememberedAliasKeys: rememberedAliasKeys,
+                provisionalIdentity: provisionalIdentity
             )
         }
+    }
+
+    private var rememberedAliasKeys: Set<String> {
+        Set(
+            previouslyUsedSelfAliasLabels.compactMap {
+                IdentityLabelPolicy.normalizedKey($0)
+            }
+        )
     }
 
     private var visibleParticipantReviewGroups: [ParticipantReviewGroup] {
@@ -99,28 +143,9 @@ struct ChatImportReviewSheet: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
-                        if !provisionalChats.isEmpty {
-                            if showsSectionHeaders {
-                                ImportReviewSectionHeader(title: "Imported chats")
-                            }
-
-                            VStack(spacing: 10) {
-                                ForEach(provisionalChats) { chat in
-                                    ImportReviewCard(
-                                        chat: chat,
-                                        mergeCandidates: confirmedChats,
-                                        mergeLabel: mergeCandidateLabel,
-                                        onConfirm: confirm,
-                                        onMerge: merge
-                                    )
-                                }
-                            }
-                        }
-
                         if !visibleParticipantReviewGroups.isEmpty {
                             if showsSectionHeaders {
                                 ImportReviewSectionHeader(title: "Sender identities")
-                                    .padding(.top, 4)
                             }
 
                             VStack(spacing: 10) {
@@ -144,9 +169,7 @@ struct ChatImportReviewSheet: View {
                                 ForEach(individualMessages) { message in
                                     UnknownSenderReviewCard(
                                         message: message,
-                                        chatName: ChatPresentation.title(
-                                            for: allChats.first(where: { $0.id == message.chatID })
-                                        ),
+                                        chatName: presentationTitle(chatID: message.chatID),
                                         onResolve: resolveSender
                                     )
                                 }
@@ -161,10 +184,33 @@ struct ChatImportReviewSheet: View {
                                 ForEach(unlabeledMessages) { message in
                                     UnknownSenderReviewCard(
                                         message: message,
-                                        chatName: ChatPresentation.title(
-                                            for: allChats.first(where: { $0.id == message.chatID })
-                                        ),
+                                        chatName: presentationTitle(chatID: message.chatID),
                                         onResolve: resolveSender
+                                    )
+                                }
+                            }
+                        }
+
+                        if !provisionalChats.isEmpty {
+                            if showsSectionHeaders {
+                                ImportReviewSectionHeader(title: "Imported chats")
+                                    .padding(.top, 4)
+                            }
+
+                            VStack(spacing: 10) {
+                                ForEach(provisionalChats) { chat in
+                                    let provisionalIdentity =
+                                        provisionalIdentitiesByChatID[chat.id]
+                                    ImportReviewCard(
+                                        chat: chat,
+                                        provisionalIdentity: provisionalIdentity,
+                                        mergeCandidates: confirmedChats,
+                                        mergeLabel: mergeCandidateLabel,
+                                        canConfirm: !participantReviewGroups.contains {
+                                            $0.chatID == chat.id
+                                        },
+                                        onConfirm: confirm,
+                                        onMerge: merge
                                     )
                                 }
                             }
@@ -206,6 +252,13 @@ struct ChatImportReviewSheet: View {
                     errorMessage = nil
                 }
             }
+        )
+    }
+
+    private func presentationTitle(chatID: String) -> String {
+        ChatPresentation.title(
+            for: allChats.first(where: { $0.id == chatID }),
+            provisionalIdentity: provisionalIdentitiesByChatID[chatID]
         )
     }
 
@@ -284,6 +337,8 @@ private struct ParticipantReviewGroup: Identifiable {
     let chatID: String
     let chatName: String
     let groups: [UnknownSenderLabelGroup]
+    let rememberedAliasKeys: Set<String>
+    let provisionalIdentity: ProvisionalIdentityInterpretation?
 
     var id: String { chatID }
 }
@@ -351,22 +406,28 @@ private struct ParticipantIdentityReviewCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Which name is you?")
+            if let provisionalIdentity = reviewGroup.provisionalIdentity {
+                Text("Are you \(provisionalIdentity.selfDisplayLabel)?")
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurface)
+            } else {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Which name is yours?")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(FrameReplyColor.onSurface)
 
-                Spacer(minLength: 8)
+                    Spacer(minLength: 8)
 
-                Text(reviewGroup.chatName)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    Text("Chat: \(reviewGroup.chatName)")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                        .lineLimit(1)
+                }
+
+                Text("Choose your name to label these messages.")
+                    .font(.system(size: 13, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                    .lineLimit(1)
             }
-
-            Text("Choose once to label every message from these authors.")
-                .font(.system(size: 13, design: .rounded))
-                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
             VStack(spacing: 8) {
                 ForEach(reviewGroup.groups) { group in
@@ -378,6 +439,20 @@ private struct ParticipantIdentityReviewCard: View {
                                 Text(group.displayLabel)
                                     .font(.system(size: 14, weight: .bold, design: .rounded))
                                     .foregroundStyle(FrameReplyColor.onSurface)
+
+                                if reviewGroup.rememberedAliasKeys.contains(
+                                    group.normalizedLabel
+                                ) {
+                                    Text("Used as your name before")
+                                        .font(
+                                            .system(
+                                                size: 11,
+                                                weight: .semibold,
+                                                design: .rounded
+                                            )
+                                        )
+                                        .foregroundStyle(FrameReplyColor.primary)
+                                }
 
                                 ForEach(Array(group.sampleMessages.enumerated()), id: \.offset) {
                                     _, sample in
@@ -396,7 +471,7 @@ private struct ParticipantIdentityReviewCard: View {
                                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
                                 Label(
-                                    "This is me",
+                                    actionTitle(for: group),
                                     systemImage: "person.crop.circle.badge.checkmark"
                                 )
                                 .font(.system(size: 12, weight: .bold, design: .rounded))
@@ -439,32 +514,59 @@ private struct ParticipantIdentityReviewCard: View {
         .padding(14)
         .quietReviewPanel(accented: true)
     }
+
+    private func actionTitle(for group: UnknownSenderLabelGroup) -> LocalizedStringKey {
+        guard let provisionalIdentity = reviewGroup.provisionalIdentity else {
+            return "This Is Me"
+        }
+        return IdentityLabelPolicy.normalizedKey(provisionalIdentity.selfDisplayLabel)
+            == group.normalizedLabel
+            ? "Yes"
+            : "No, This Is Me"
+    }
 }
 
 private struct ImportReviewCard: View {
     let chat: ChatRecord
+    let provisionalIdentity: ProvisionalIdentityInterpretation?
     let mergeCandidates: [ChatRecord]
     let mergeLabel: (ChatRecord) -> String
+    let canConfirm: Bool
     let onConfirm: (String, String) -> Void
     let onMerge: (String, String) -> Void
 
     @State private var name: String
 
-    private var presentation: Chat { Chat(record: chat) }
+    private var presentation: Chat {
+        Chat(record: chat, provisionalIdentity: provisionalIdentity)
+    }
 
     init(
         chat: ChatRecord,
+        provisionalIdentity: ProvisionalIdentityInterpretation?,
         mergeCandidates: [ChatRecord],
         mergeLabel: @escaping (ChatRecord) -> String,
+        canConfirm: Bool,
         onConfirm: @escaping (String, String) -> Void,
         onMerge: @escaping (String, String) -> Void
     ) {
         self.chat = chat
+        self.provisionalIdentity = provisionalIdentity
         self.mergeCandidates = mergeCandidates
         self.mergeLabel = mergeLabel
+        self.canConfirm = canConfirm
         self.onConfirm = onConfirm
         self.onMerge = onMerge
-        _name = State(initialValue: chat.displayTitle())
+        _name = State(
+            initialValue: chat.title ?? provisionalIdentity?.displayTitle ?? ""
+        )
+    }
+
+    private var canKeep: Bool {
+        ImportReviewReadiness.canKeep(
+            name: name,
+            hasNamedUnresolvedSenders: !canConfirm
+        )
     }
 
     var body: some View {
@@ -510,6 +612,8 @@ private struct ImportReviewCard: View {
                         }
                 }
                 .buttonStyle(SoftPressButtonStyle())
+                .disabled(!canKeep)
+                .opacity(canKeep ? 1 : 0.48)
 
                 if !mergeCandidates.isEmpty {
                     Menu {
@@ -536,7 +640,7 @@ private struct ImportReviewCard: View {
         .padding(14)
         .quietReviewPanel()
         .onChange(of: chat.title) { _, _ in
-            name = chat.displayTitle()
+            name = chat.title ?? provisionalIdentity?.displayTitle ?? ""
         }
     }
 }

@@ -27,7 +27,9 @@ enum ChatImportMatcher {
             allCandidates: allCandidateMessages
         )
 
-        let normalizedTitle = MessageTextNormalizer.normalize(analysis.conversationTitle ?? "")
+        let normalizedTitle =
+            IdentityLabelPolicy.displayLabel(analysis.conversationTitle)
+            .map(MessageTextNormalizer.normalize) ?? ""
         let titleWasObserved =
             (analysis.titleSource == .header || analysis.titleSource == .participantLabel)
             && !normalizedTitle.isEmpty
@@ -101,6 +103,7 @@ extension ChatMatchCandidate {
     fileprivate var identityLabelKeys: Set<String> {
         Set(
             ([title].compactMap { $0 } + participantAliases)
+                .compactMap { IdentityLabelPolicy.displayLabel($0) }
                 .map(MessageTextNormalizer.normalize)
         )
     }

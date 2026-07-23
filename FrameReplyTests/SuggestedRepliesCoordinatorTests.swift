@@ -5,6 +5,108 @@ import XCTest
 
 final class SuggestedRepliesCoordinatorTests: XCTestCase {
     @MainActor
+    func testProvisionalIdentityGroundsRepliesWithoutDurableLearning() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let priorChatID = "chat-gamma"
+        let provisionalChatID = "chat-delta"
+        container.mainContext.insert(
+            ChatRecord(
+                id: priorChatID,
+                title: "Chat Gamma",
+                previewText: "Synthetic message A",
+                conversationKind: .direct
+            )
+        )
+        try container.mainContext.save()
+        try repository.addSelfAlias(
+            displayLabel: "Alias Alpha",
+            chatID: priorChatID
+        )
+
+        let selfMessage = ChatMessageRecord(
+            chatID: provisionalChatID,
+            senderKind: "unknown",
+            senderName: "Alias Alpha",
+            text: "Synthetic message A",
+            timeLabel: "",
+            sortIndex: 0
+        )
+        let counterpartMessage = ChatMessageRecord(
+            chatID: provisionalChatID,
+            senderKind: "unknown",
+            senderName: "Contact Beta",
+            text: "Synthetic message B",
+            timeLabel: "",
+            sortIndex: 1
+        )
+        container.mainContext.insert(
+            ChatRecord(
+                id: provisionalChatID,
+                title: nil,
+                previewText: "Synthetic message B",
+                conversationKind: .direct,
+                isProvisional: true
+            )
+        )
+        container.mainContext.insert(selfMessage)
+        container.mainContext.insert(counterpartMessage)
+        try container.mainContext.save()
+
+        let client = StubReplyService { request in
+            XCTAssertEqual(
+                request.recentMessages.map(\.sender),
+                ["user", "other_participant"]
+            )
+            XCTAssertNil(request.recentMessages[0].senderName)
+            XCTAssertEqual(request.recentMessages[1].senderName, "Contact Beta")
+            return SuggestedReplyGenerationResult(
+                historySummary: "Synthetic summary A",
+                replies: ["Synthetic reply A", "Synthetic reply B"],
+                conversationStrategy: "Synthetic strategy A",
+                strategyRationale: "Synthetic rationale A",
+                memoryChanges: [
+                    ChatMemoryChange(
+                        action: .add,
+                        targetMemoryID: nil,
+                        text: "Synthetic memory A",
+                        sourceMessageIDs: [counterpartMessage.id]
+                    )
+                ]
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(
+            aiService: client,
+            repository: repository
+        )
+
+        _ = try await coordinator.generate(chatID: provisionalChatID)
+
+        XCTAssertEqual(
+            try repository.messages(chatID: provisionalChatID).map(\.senderKind),
+            ["unknown", "unknown"]
+        )
+        XCTAssertTrue(try repository.chatMemories(chatID: provisionalChatID).isEmpty)
+        let cache = try XCTUnwrap(
+            repository.suggestedReplyCache(chatID: provisionalChatID)
+        )
+        XCTAssertEqual(cache.replies, ["Synthetic reply A", "Synthetic reply B"])
+        XCTAssertEqual(cache.historySummary, "")
+        XCTAssertEqual(cache.summarizedMessageCount, 0)
+        XCTAssertEqual(
+            try coordinator.cachedReplies(chatID: provisionalChatID)?.source,
+            .cached
+        )
+        XCTAssertTrue(
+            try container.mainContext.fetch(
+                FetchDescriptor<PersonaLearningReceiptRecord>(
+                    predicate: #Predicate { $0.chatID == provisionalChatID }
+                )
+            ).isEmpty
+        )
+    }
+
+    @MainActor
     func testOneUseDraftCachesRepliesWithoutApplyingAnalysisOutput() async throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
