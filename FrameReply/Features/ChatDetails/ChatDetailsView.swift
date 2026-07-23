@@ -171,8 +171,8 @@ struct ChatDetailsView: View {
                             }
                             .font(.system(size: 13, weight: .bold, design: .rounded))
 
-                            NavigationLink(value: FrameReplyRoute.yourNames) {
-                                Text("Manage Your Names")
+                            NavigationLink(value: FrameReplyRoute.namesAndUsernames) {
+                                Text("Manage Names & Usernames")
                                     .font(
                                         .system(size: 13, weight: .bold, design: .rounded)
                                     )

@@ -73,6 +73,27 @@ final class FrameReplyReleaseUITests: XCTestCase {
         XCTAssertTrue(addProvider.waitForExistence(timeout: 3))
     }
 
+    func testNamesAndUsernamesNavigationIsReachable() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let settings = app.buttons["app-tab-settings"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 8))
+        settings.tap()
+
+        let namesAndUsernames = app.buttons["names-and-usernames"]
+        XCTAssertTrue(
+            scrollUntilHittable(namesAndUsernames, swiping: app.swipeUp)
+        )
+        namesAndUsernames.tap()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["names-and-usernames-screen"]
+                .waitForExistence(timeout: 3)
+        )
+        XCTAssertTrue(app.navigationBars["Names & Usernames"].exists)
+    }
+
     func testCriticalControlsRemainReachableAtLargestDynamicType() throws {
         let app = XCUIApplication()
         app.launchArguments += [
@@ -103,6 +124,12 @@ final class FrameReplyReleaseUITests: XCTestCase {
         let settings = app.buttons["app-tab-settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 3))
         settings.tap()
+
+        let namesAndUsernames = app.buttons["names-and-usernames"]
+        XCTAssertTrue(
+            scrollUntilHittable(namesAndUsernames, swiping: app.swipeUp)
+        )
+
         let privacyAndData = app.buttons["privacy-and-data"]
         XCTAssertTrue(
             scrollUntilHittable(privacyAndData, swiping: app.swipeUp)

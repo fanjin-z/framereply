@@ -50,8 +50,8 @@ struct FrameReplyShellView: View {
                         SettingsView(
                             providerStore: providerStore,
                             isActive: isActive,
-                            onYourNamesTap: {
-                                navigationPath.append(.yourNames)
+                            onNamesAndUsernamesTap: {
+                                navigationPath.append(.namesAndUsernames)
                             },
                             onPrivacyAndDataTap: {
                                 navigationPath.append(.privacyAndData)
@@ -109,8 +109,8 @@ struct FrameReplyShellView: View {
                     }
                 case .persona(let personaID):
                     PersonaDetailView(personaID: personaID, providerStore: providerStore)
-                case .yourNames:
-                    YourNamesView()
+                case .namesAndUsernames:
+                    NamesAndUsernamesView()
                 case .privacyAndData:
                     PrivacyAndDataView(providerStore: providerStore)
                 }

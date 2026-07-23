@@ -1,12 +1,12 @@
 //
-//  YourNamesView.swift
+//  NamesAndUsernamesView.swift
 //  FrameReply
 //
 
 import SwiftData
 import SwiftUI
 
-struct YourNamesView: View {
+struct NamesAndUsernamesView: View {
     @Query(sort: \SelfAliasRecord.displayLabel)
     private var aliases: [SelfAliasRecord]
     @Query private var chatContexts: [ChatContextRecord]
@@ -21,7 +21,7 @@ struct YourNamesView: View {
         Form {
             Section {
                 HStack(spacing: 10) {
-                    TextField("Name or username", text: $newName)
+                    TextField("Name, nickname, or username", text: $newName)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .submitLabel(.done)
@@ -31,10 +31,10 @@ struct YourNamesView: View {
                         .disabled(IdentityLabelPolicy.displayLabel(newName) == nil)
                 }
             } header: {
-                Text("Add a name")
+                Text("Add a name you use in chats")
             } footer: {
                 Text(
-                    "Saved names can be suggested when FrameReply needs to identify which sender is you."
+                    "FrameReply uses this to recognize your messages in imported chats."
                 )
             }
 
@@ -43,7 +43,9 @@ struct YourNamesView: View {
                     ContentUnavailableView(
                         "No Saved Names",
                         systemImage: "person.text.rectangle",
-                        description: Text("Names you confirm during import will appear here.")
+                        description: Text(
+                            "Names and usernames you confirm during import will appear here."
+                        )
                     )
                 } else {
                     ForEach(aliases) { alias in
@@ -76,12 +78,13 @@ struct YourNamesView: View {
                     }
                 }
             } header: {
-                Text("Your names")
+                Text("Saved names")
             } footer: {
-                Text("Deleting a name doesn’t change existing messages.")
+                Text("Deleting a saved name doesn’t change existing messages.")
             }
         }
-        .navigationTitle("Your Names")
+        .accessibilityIdentifier("names-and-usernames-screen")
+        .navigationTitle("Names & Usernames")
         .navigationBarTitleDisplayMode(.inline)
         .alert(
             "Rename Name",
@@ -90,7 +93,7 @@ struct YourNamesView: View {
                 set: { if !$0 { aliasBeingRenamed = nil } }
             )
         ) {
-            TextField("Name or username", text: $renameDraft)
+            TextField("Name, nickname, or username", text: $renameDraft)
             Button("Save", action: renameName)
                 .disabled(IdentityLabelPolicy.displayLabel(renameDraft) == nil)
             Button("Cancel", role: .cancel) {
@@ -115,7 +118,7 @@ struct YourNamesView: View {
             Text(
                 "Future imports may ask which sender is you again. Existing messages won’t change.")
         }
-        .alert("Could Not Update Names", isPresented: errorBinding) {
+        .alert("Could Not Update Names & Usernames", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(verbatim: errorMessage ?? String(localized: AppStrings.Common.tryAgain))

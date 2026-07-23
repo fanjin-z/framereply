@@ -74,7 +74,7 @@
     "Add" : {
 
     },
-    "Add a name" : {
+    "Add a name you use in chats" : {
 
     },
     "Add an observation" : {
@@ -372,6 +372,9 @@
     "Could Not Update Names" : {
 
     },
+    "Could Not Update Names & Usernames" : {
+
+    },
     "Couldn’t Delete All Data" : {
 
     },
@@ -441,7 +444,7 @@
     "Delete Persona" : {
 
     },
-    "Deleting a name doesn’t change existing messages." : {
+    "Deleting a saved name doesn’t change existing messages." : {
 
     },
     "Detailed" : {
@@ -1081,6 +1084,9 @@
     "FrameReply uses these names to recognize this person in screenshots and pasted transcripts. Removing one may make a future import require review; existing messages won’t change." : {
 
     },
+    "FrameReply uses this to recognize your messages in imported chats." : {
+
+    },
     "Frequent" : {
 
     },
@@ -1112,6 +1118,9 @@
 
     },
     "Highest-quality interpretation and writing at the highest cost" : {
+
+    },
+    "How FrameReply recognizes you in chats" : {
 
     },
     "Import recent conversation messages." : {
@@ -1240,7 +1249,7 @@
     "Makes this provider active" : {
 
     },
-    "Manage Your Names" : {
+    "Manage Names & Usernames" : {
 
     },
     "Memory: %@" : {
@@ -1267,7 +1276,13 @@
     "Name or username" : {
 
     },
-    "Names you confirm during import will appear here." : {
+    "Name, nickname, or username" : {
+
+    },
+    "Names & Usernames" : {
+
+    },
+    "Names and usernames you confirm during import will appear here." : {
 
     },
     "New Persona" : {
@@ -1895,7 +1910,7 @@
     "Save" : {
 
     },
-    "Saved names can be suggested when FrameReply needs to identify which sender is you." : {
+    "Saved names" : {
 
     },
     "Saves this as a separate memory" : {
@@ -2187,12 +2202,6 @@
 
     },
     "You appear as" : {
-
-    },
-    "Your names" : {
-
-    },
-    "Your Names" : {
 
     }
   },
