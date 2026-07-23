@@ -3,17 +3,16 @@
 //  FrameReply
 //
 
+import Foundation
 import SwiftUI
 
 struct Chat: Identifiable {
     let id: String
     let name: String
     let preview: String
-    let chipTitle: LocalizedStringResource
-    let chipSymbol: String
     let avatarSymbol: String?
     let initials: String
     let gradient: [Color]
-    let isUnread: Bool
+    let updatedAt: Date
     var isProvisional: Bool = false
 }

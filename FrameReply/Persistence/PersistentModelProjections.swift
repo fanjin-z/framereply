@@ -69,12 +69,10 @@ extension Chat {
             id: record.id,
             name: name,
             preview: preview,
-            chipTitle: record.isProvisional ? "Review Import" : "General",
-            chipSymbol: record.isProvisional ? "exclamationmark.bubble" : "number",
             avatarSymbol: nil,
             initials: Self.initials(for: name),
             gradient: Self.gradient(for: record.id),
-            isUnread: false,
+            updatedAt: record.updatedAt,
             isProvisional: record.isProvisional
         )
     }

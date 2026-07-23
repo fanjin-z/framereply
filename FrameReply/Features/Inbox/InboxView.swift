@@ -24,6 +24,7 @@ struct InboxView: View {
     @StateObject private var importModel: InAppScreenshotImportViewModel
     @Query(sort: \ChatRecord.updatedAt, order: .reverse) private var chatRecords: [ChatRecord]
     @Query private var chatContextRecords: [ChatContextRecord]
+    @Query(sort: \PersonaRecord.createdAt) private var personaRecords: [PersonaRecord]
     @Query(filter: #Predicate<ChatMessageRecord> { $0.senderKind == "unknown" })
     private var unknownSenderMessages: [ChatMessageRecord]
 
@@ -41,27 +42,49 @@ struct InboxView: View {
         )
     }
 
-    private var chats: [Chat] {
+    private var chats: [InboxChatCardItem] {
         let usedSelfAliasLabels =
             ProvisionalIdentityResolver.previouslyUsedSelfAliasLabels(
                 in: chatContextRecords
             )
-        let allChats = chatRecords.map { record in
+        let contextsByChatID = Dictionary(
+            uniqueKeysWithValues: chatContextRecords.map { ($0.chatID, $0) }
+        )
+        let personasByID = Dictionary(
+            uniqueKeysWithValues: personaRecords.map { ($0.id, $0.value) }
+        )
+        let defaultPersona =
+            (try? PersonaRepository().defaultPersona())?.value
+            ?? personaRecords.first?.value
+        let allChats = chatRecords.compactMap { record -> InboxChatCardItem? in
             let interpretation = ProvisionalIdentityResolver.resolve(
                 chat: record,
                 messages: unknownSenderMessages.filter { $0.chatID == record.id },
                 previouslyUsedSelfAliasLabels: usedSelfAliasLabels
             )
-            return Chat(record: record, provisionalIdentity: interpretation)
+            let chat = Chat(record: record, provisionalIdentity: interpretation)
+            guard
+                let persona = InboxChatPresentation.persona(
+                    context: contextsByChatID[record.id],
+                    personasByID: personasByID,
+                    fallback: defaultPersona
+                )
+            else {
+                return nil
+            }
+            return InboxChatCardItem(chat: chat, persona: persona)
         }
-        guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
             return allChats
         }
 
-        return allChats.filter { chat in
-            chat.name.localizedCaseInsensitiveContains(searchText)
-                || chat.preview.localizedCaseInsensitiveContains(searchText)
-                || String(localized: chat.chipTitle).localizedCaseInsensitiveContains(searchText)
+        return allChats.filter { item in
+            InboxChatPresentation.matches(
+                query: query,
+                chat: item.chat,
+                persona: item.persona
+            )
         }
     }
 
@@ -109,14 +132,15 @@ struct InboxView: View {
                 }
 
                 VStack(spacing: 16) {
-                    ForEach(chats) { chat in
-                        ChatRow(
-                            chat: chat,
+                    ForEach(chats) { item in
+                        InboxChatCard(
+                            chat: item.chat,
+                            persona: item.persona,
                             onChatTap: {
-                                onChatTap(chat)
+                                onChatTap(item.chat)
                             },
                             onDeleteTap: {
-                                chatPendingDeletion = chat
+                                chatPendingDeletion = item.chat
                                 isDeleteConfirmationPresented = true
                             }
                         )
@@ -276,6 +300,42 @@ struct InboxView: View {
         } catch {
             deleteErrorMessage = error.localizedDescription
         }
+    }
+}
+
+struct InboxChatCardItem: Identifiable {
+    let chat: Chat
+    let persona: Persona
+
+    var id: String { chat.id }
+}
+
+enum InboxChatPresentation {
+    enum Badge: Equatable {
+        case persona(Persona)
+        case reviewImport
+    }
+
+    static func persona(
+        context: ChatContextRecord?,
+        personasByID: [UUID: Persona],
+        fallback: Persona?
+    ) -> Persona? {
+        context.flatMap { personasByID[$0.personaID] } ?? fallback
+    }
+
+    static func badge(for chat: Chat, persona: Persona) -> Badge {
+        chat.isProvisional ? .reviewImport : .persona(persona)
+    }
+
+    static func matches(query: String, chat: Chat, persona: Persona) -> Bool {
+        let matchesReview =
+            chat.isProvisional
+            && String(localized: "Review Import").localizedCaseInsensitiveContains(query)
+        return chat.name.localizedCaseInsensitiveContains(query)
+            || chat.preview.localizedCaseInsensitiveContains(query)
+            || persona.name.localizedCaseInsensitiveContains(query)
+            || matchesReview
     }
 }
 

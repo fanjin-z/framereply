@@ -188,6 +188,9 @@
     "Casual" : {
 
     },
+    "Chat actions for %@" : {
+
+    },
     "Chat Details" : {
 
     },
@@ -300,13 +303,13 @@
     "Choose a new default. Chats using this persona will be reassigned." : {
 
     },
-    "Choose your name to label these messages." : {
-
-    },
     "Choose Screenshots" : {
 
     },
     "Choose which sender is you before keeping this chat." : {
+
+    },
+    "Choose your name to label these messages." : {
 
     },
     "Clear Learned Observations" : {
@@ -318,10 +321,10 @@
     "Close chat history" : {
 
     },
-    "Confirm Identity" : {
+    "Closes Add Messages." : {
 
     },
-    "Closes Add Messages." : {
+    "Confirm Identity" : {
 
     },
     "Connect" : {
@@ -1087,9 +1090,6 @@
     "Future imports may ask which sender is you again. Existing messages won’t change." : {
 
     },
-    "General" : {
-
-    },
     "Generate Replies" : {
 
     },
@@ -1291,10 +1291,10 @@
     "No Saved Names" : {
 
     },
-    "No, This Is Me" : {
+    "No shared or copied message text was provided." : {
 
     },
-    "No shared or copied message text was provided." : {
+    "No, This Is Me" : {
 
     },
     "Not Now" : {
@@ -2108,10 +2108,10 @@
     "This cannot be undone." : {
 
     },
-    "This is the name shown throughout FrameReply." : {
+    "This Is Me" : {
 
     },
-    "This Is Me" : {
+    "This is the name shown throughout FrameReply." : {
 
     },
     "This permanently deletes chats, messages, personas, drafts, provider settings, consent records, and API keys from this device." : {
