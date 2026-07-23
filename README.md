@@ -41,6 +41,7 @@ Report vulnerabilities privately according to [SECURITY.md](SECURITY.md). Use th
 
 ## Documentation
 
+- [Roadmap](docs/roadmap.md)
 - [Development](docs/development.md)
 - [Architecture](docs/architecture.md) and [AI workflows](docs/ai-workflows.md)
 - [Shortcuts](docs/shortcuts.md)

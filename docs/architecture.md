@@ -18,7 +18,7 @@ flowchart TB
     Store -->|Observed state| Entry
 ```
 
-FrameReply is a local-first app with two entry points: its SwiftUI interface and Apple Shortcuts. Both use the same workflows for importing conversations and generating replies.
+FrameReply is an iOS reply assistant that carries forward chat history and person-specific context to generate two user-reviewed draft replies. Users can bring in screenshots or copied messages through the SwiftUI app or Apple Shortcuts; both entry points use the same import and generation workflows.
 
 AI output is always a **proposal**. Local code validates identity, evidence, freshness, and persistence rules before the output can change stored data.
 
