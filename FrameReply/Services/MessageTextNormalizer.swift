@@ -5,7 +5,7 @@
 
 import Foundation
 
-enum MessageTextNormalizer {
+nonisolated enum MessageTextNormalizer {
     static func normalize(_ text: String) -> String {
         text
             .precomposedStringWithCompatibilityMapping
