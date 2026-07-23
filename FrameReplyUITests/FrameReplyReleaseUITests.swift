@@ -9,7 +9,7 @@ final class FrameReplyReleaseUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        XCTAssertTrue(app.buttons["app-tab-inbox"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["app-tab-chats"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["app-tab-personas"].waitForExistence(timeout: 3))
 
         let settings = app.buttons["app-tab-settings"]

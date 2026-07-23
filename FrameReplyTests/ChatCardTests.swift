@@ -3,7 +3,7 @@ import XCTest
 @testable import FrameReply
 
 @MainActor
-final class InboxChatCardTests: XCTestCase {
+final class ChatCardTests: XCTestCase {
     func testChatProjectionCarriesActivityDate() {
         let updatedAt = Date(timeIntervalSince1970: 1_750_000_000)
         let record = ChatRecord(
@@ -33,7 +33,7 @@ final class InboxChatCardTests: XCTestCase {
         ]
 
         XCTAssertEqual(
-            InboxChatPresentation.persona(
+            ChatsPresentation.persona(
                 context: context,
                 personasByID: personasByID,
                 fallback: defaultPersona
@@ -41,7 +41,7 @@ final class InboxChatCardTests: XCTestCase {
             assignedPersona
         )
         XCTAssertEqual(
-            InboxChatPresentation.persona(
+            ChatsPresentation.persona(
                 context: nil,
                 personasByID: personasByID,
                 fallback: defaultPersona
@@ -56,11 +56,11 @@ final class InboxChatCardTests: XCTestCase {
         let reviewChat = makeChat(isProvisional: true)
 
         XCTAssertEqual(
-            InboxChatPresentation.badge(for: normalChat, persona: persona),
+            ChatsPresentation.badge(for: normalChat, persona: persona),
             .persona(persona)
         )
         XCTAssertEqual(
-            InboxChatPresentation.badge(for: reviewChat, persona: persona),
+            ChatsPresentation.badge(for: reviewChat, persona: persona),
             .reviewImport
         )
     }
@@ -75,35 +75,35 @@ final class InboxChatCardTests: XCTestCase {
         let reviewChat = makeChat(isProvisional: true)
 
         XCTAssertTrue(
-            InboxChatPresentation.matches(
+            ChatsPresentation.matches(
                 query: "avery",
                 chat: normalChat,
                 persona: persona
             )
         )
         XCTAssertTrue(
-            InboxChatPresentation.matches(
+            ChatsPresentation.matches(
                 query: "friday",
                 chat: normalChat,
                 persona: persona
             )
         )
         XCTAssertTrue(
-            InboxChatPresentation.matches(
+            ChatsPresentation.matches(
                 query: "thought",
                 chat: normalChat,
                 persona: persona
             )
         )
         XCTAssertTrue(
-            InboxChatPresentation.matches(
+            ChatsPresentation.matches(
                 query: "review",
                 chat: reviewChat,
                 persona: persona
             )
         )
         XCTAssertFalse(
-            InboxChatPresentation.matches(
+            ChatsPresentation.matches(
                 query: "general",
                 chat: normalChat,
                 persona: persona
@@ -127,7 +127,7 @@ final class InboxChatCardTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            InboxChatActivityDateFormatter.style(
+            ChatActivityDateFormatter.style(
                 for: now,
                 relativeTo: now,
                 calendar: calendar
@@ -135,7 +135,7 @@ final class InboxChatCardTests: XCTestCase {
             .time
         )
         XCTAssertEqual(
-            InboxChatActivityDateFormatter.style(
+            ChatActivityDateFormatter.style(
                 for: try date(daysBefore: 3, now: now, calendar: calendar),
                 relativeTo: now,
                 calendar: calendar
@@ -143,7 +143,7 @@ final class InboxChatCardTests: XCTestCase {
             .weekday
         )
         XCTAssertEqual(
-            InboxChatActivityDateFormatter.style(
+            ChatActivityDateFormatter.style(
                 for: try date(daysBefore: 7, now: now, calendar: calendar),
                 relativeTo: now,
                 calendar: calendar
@@ -151,7 +151,7 @@ final class InboxChatCardTests: XCTestCase {
             .monthDay
         )
         XCTAssertEqual(
-            InboxChatActivityDateFormatter.style(
+            ChatActivityDateFormatter.style(
                 for: try XCTUnwrap(
                     calendar.date(
                         from: DateComponents(year: 2025, month: 12, day: 31)
@@ -179,7 +179,7 @@ final class InboxChatCardTests: XCTestCase {
             )
         )
 
-        let text = InboxChatActivityDateFormatter.text(
+        let text = ChatActivityDateFormatter.text(
             for: date,
             relativeTo: date,
             calendar: calendar,

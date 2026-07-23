@@ -1,12 +1,12 @@
 //
-//  InboxChatCard.swift
+//  ChatCard.swift
 //  FrameReply
 //
 
 import Foundation
 import SwiftUI
 
-struct InboxChatCard: View {
+struct ChatCard: View {
     let chat: Chat
     let persona: Persona
     let onChatTap: () -> Void
@@ -72,7 +72,7 @@ struct InboxChatCard: View {
 
                 Spacer(minLength: 4)
 
-                Text(InboxChatActivityDateFormatter.text(for: chat.updatedAt))
+                Text(ChatActivityDateFormatter.text(for: chat.updatedAt))
                     .font(.system(.caption, design: .rounded, weight: .semibold))
                     .foregroundStyle(FrameReplyColor.outline)
                     .lineLimit(1)
@@ -91,7 +91,7 @@ struct InboxChatCard: View {
 
     @ViewBuilder
     private var contextBadge: some View {
-        switch InboxChatPresentation.badge(for: chat, persona: persona) {
+        switch ChatsPresentation.badge(for: chat, persona: persona) {
         case .reviewImport:
             PillChip(
                 title: "Review Import",
@@ -100,7 +100,7 @@ struct InboxChatCard: View {
             )
             .fixedSize(horizontal: true, vertical: false)
         case .persona(let persona):
-            InboxPersonaBadge(persona: persona)
+            ChatPersonaBadge(persona: persona)
         }
     }
 
@@ -112,7 +112,7 @@ struct InboxChatCard: View {
     }
 }
 
-private struct InboxPersonaBadge: View {
+private struct ChatPersonaBadge: View {
     let persona: Persona
 
     var body: some View {
@@ -140,19 +140,19 @@ private struct InboxPersonaBadge: View {
     }
 }
 
-enum InboxChatActivityDateStyle: Equatable {
+enum ChatActivityDateStyle: Equatable {
     case time
     case weekday
     case monthDay
     case shortDate
 }
 
-enum InboxChatActivityDateFormatter {
+enum ChatActivityDateFormatter {
     static func style(
         for date: Date,
         relativeTo now: Date = Date(),
         calendar: Calendar = .current
-    ) -> InboxChatActivityDateStyle {
+    ) -> ChatActivityDateStyle {
         if calendar.isDate(date, inSameDayAs: now) {
             return .time
         }

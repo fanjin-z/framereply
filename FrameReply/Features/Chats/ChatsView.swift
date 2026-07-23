@@ -1,5 +1,5 @@
 //
-//  InboxView.swift
+//  ChatsView.swift
 //  FrameReply
 //
 
@@ -7,7 +7,7 @@ import PhotosUI
 import SwiftData
 import SwiftUI
 
-struct InboxView: View {
+struct ChatsView: View {
     let isActive: Bool
     let onChatTap: (Chat) -> Void
     let onImportCompleted: (String) -> Void
@@ -42,7 +42,7 @@ struct InboxView: View {
         )
     }
 
-    private var chats: [InboxChatCardItem] {
+    private var chats: [ChatCardItem] {
         let usedSelfAliasLabels =
             ProvisionalIdentityResolver.previouslyUsedSelfAliasLabels(
                 in: chatContextRecords
@@ -56,7 +56,7 @@ struct InboxView: View {
         let defaultPersona =
             (try? PersonaRepository().defaultPersona())?.value
             ?? personaRecords.first?.value
-        let allChats = chatRecords.compactMap { record -> InboxChatCardItem? in
+        let allChats = chatRecords.compactMap { record -> ChatCardItem? in
             let interpretation = ProvisionalIdentityResolver.resolve(
                 chat: record,
                 messages: unknownSenderMessages.filter { $0.chatID == record.id },
@@ -64,7 +64,7 @@ struct InboxView: View {
             )
             let chat = Chat(record: record, provisionalIdentity: interpretation)
             guard
-                let persona = InboxChatPresentation.persona(
+                let persona = ChatsPresentation.persona(
                     context: contextsByChatID[record.id],
                     personasByID: personasByID,
                     fallback: defaultPersona
@@ -72,7 +72,7 @@ struct InboxView: View {
             else {
                 return nil
             }
-            return InboxChatCardItem(chat: chat, persona: persona)
+            return ChatCardItem(chat: chat, persona: persona)
         }
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else {
@@ -80,7 +80,7 @@ struct InboxView: View {
         }
 
         return allChats.filter { item in
-            InboxChatPresentation.matches(
+            ChatsPresentation.matches(
                 query: query,
                 chat: item.chat,
                 persona: item.persona
@@ -92,7 +92,7 @@ struct InboxView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 if reviewCount > 0 {
-                    InboxImportReviewNudge(
+                    ChatsImportReviewNudge(
                         text: reviewNudgeText,
                         iconName: reviewNudgeIconName,
                         count: reviewCount,
@@ -104,7 +104,7 @@ struct InboxView: View {
                     .padding(.top, 14)
                 }
 
-                InboxSearchImportRow(
+                ChatsSearchImportRow(
                     searchText: $searchText,
                     isSearchActive: isActive,
                     isImporting: importModel.isLoading,
@@ -115,7 +115,7 @@ struct InboxView: View {
                 .padding(.top, reviewCount > 0 ? 4 : 14)
 
                 if let importErrorMessage {
-                    InboxImportErrorMessage(message: importErrorMessage)
+                    ChatsImportErrorMessage(message: importErrorMessage)
                 }
 
                 if importModel.isLoading {
@@ -133,7 +133,7 @@ struct InboxView: View {
 
                 VStack(spacing: 16) {
                     ForEach(chats) { item in
-                        InboxChatCard(
+                        ChatCard(
                             chat: item.chat,
                             persona: item.persona,
                             onChatTap: {
@@ -303,14 +303,14 @@ struct InboxView: View {
     }
 }
 
-struct InboxChatCardItem: Identifiable {
+struct ChatCardItem: Identifiable {
     let chat: Chat
     let persona: Persona
 
     var id: String { chat.id }
 }
 
-enum InboxChatPresentation {
+enum ChatsPresentation {
     enum Badge: Equatable {
         case persona(Persona)
         case reviewImport
@@ -339,7 +339,7 @@ enum InboxChatPresentation {
     }
 }
 
-private struct InboxImportReviewNudge: View {
+private struct ChatsImportReviewNudge: View {
     let text: String
     let iconName: String
     let count: Int
@@ -410,7 +410,7 @@ private struct InboxImportReviewNudge: View {
     }
 }
 
-private struct InboxSearchImportRow: View {
+private struct ChatsSearchImportRow: View {
     @Binding var searchText: String
     let isSearchActive: Bool
     let isImporting: Bool
@@ -509,7 +509,7 @@ private struct EmptyImportPrompt: View {
     }
 }
 
-private struct InboxImportErrorMessage: View {
+private struct ChatsImportErrorMessage: View {
     let message: String
 
     var body: some View {

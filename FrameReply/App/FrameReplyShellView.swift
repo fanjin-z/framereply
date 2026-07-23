@@ -7,7 +7,7 @@ import SwiftData
 import SwiftUI
 
 struct FrameReplyShellView: View {
-    @State private var selectedTab: AppTab = .inbox
+    @State private var selectedTab: AppTab = .chats
     @StateObject private var providerStore = ProviderStore()
     @ObservedObject private var shortcutNavigation = ShortcutNavigationCenter.shared
     @State private var navigationPath: [FrameReplyRoute] = []
@@ -26,8 +26,8 @@ struct FrameReplyShellView: View {
                     isSwipeEnabled: navigationPath.isEmpty
                 ) { tab, isActive in
                     switch tab {
-                    case .inbox:
-                        InboxView(
+                    case .chats:
+                        ChatsView(
                             isActive: isActive,
                             providerStore: providerStore,
                             onChatTap: { chat in
@@ -120,7 +120,7 @@ struct FrameReplyShellView: View {
         .tint(FrameReplyColor.primary)
         .onChange(of: shortcutNavigation.request) { _, request in
             guard let request else { return }
-            selectedTab = .inbox
+            selectedTab = .chats
             navigationPath = [
                 request.reviewRequired
                     ? .chatImportReview(request.chatID)
@@ -129,7 +129,7 @@ struct FrameReplyShellView: View {
         }
         .task {
             if let request = shortcutNavigation.request {
-                selectedTab = .inbox
+                selectedTab = .chats
                 navigationPath = [
                     request.reviewRequired
                         ? .chatImportReview(request.chatID)

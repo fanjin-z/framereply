@@ -14,7 +14,7 @@ struct ChatAssistantTopBar: View {
         FrameReplyTopBar {
             HStack(spacing: 12) {
                 FrameReplyTopBarBackButton(
-                    accessibilityLabel: "Back to inbox",
+                    accessibilityLabel: "Back to chats",
                     action: onBackTap
                 )
 

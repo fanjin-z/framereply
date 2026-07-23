@@ -6,7 +6,7 @@
 import SwiftUI
 
 enum AppTab: String, CaseIterable, Identifiable {
-    case inbox
+    case chats
     case personas
     case settings
 
@@ -14,7 +14,7 @@ enum AppTab: String, CaseIterable, Identifiable {
 
     var title: LocalizedStringResource {
         switch self {
-        case .inbox: "Inbox"
+        case .chats: "Chats"
         case .personas: "Personas"
         case .settings: "Settings"
         }
@@ -43,7 +43,7 @@ enum AppTab: String, CaseIterable, Identifiable {
 
     var symbolName: String {
         switch self {
-        case .inbox:
+        case .chats:
             "bubble.left"
         case .personas:
             "face.smiling"
