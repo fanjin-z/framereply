@@ -135,6 +135,8 @@ struct FrameReplyShellView: View {
                         ? .chatImportReview(request.chatID)
                         : .chatAssistant(request.chatID)
                 ]
+            } else if providerStore.providers.isEmpty {
+                selectedTab = .settings
             }
         }
     }
