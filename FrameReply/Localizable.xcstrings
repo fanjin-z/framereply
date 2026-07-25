@@ -17,6 +17,26 @@
         }
       }
     },
+    "%@ imported to %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ imported to %2$@"
+          }
+        }
+      }
+    },
+    "%@ imported to %@ · Review required" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ imported to %2$@ · Review required"
+          }
+        }
+      }
+    },
     "%@, %@" : {
       "localizations" : {
         "en" : {
@@ -48,6 +68,51 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld messages"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld replies are ready." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld reply is ready."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld replies are ready."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld replies ready" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld reply ready"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld replies ready"
                 }
               }
             }
@@ -218,6 +283,9 @@
     "Chat Text Replies" : {
 
     },
+    "Chat Title" : {
+
+    },
     "Chat: %@" : {
 
     },
@@ -306,7 +374,13 @@
     "Choose a new default. Chats using this persona will be reassigned." : {
 
     },
+    "Choose a suggested reply." : {
+
+    },
     "Choose Screenshots" : {
+
+    },
+    "Choose Suggested Reply" : {
 
     },
     "Choose which sender is you before keeping this chat." : {
@@ -355,12 +429,6 @@
 
     },
     "Copy" : {
-
-    },
-    "Copy Reply %lld" : {
-
-    },
-    "Copy Suggested Reply" : {
 
     },
     "Could Not Delete Chat" : {
@@ -463,6 +531,9 @@
 
     },
     "Duplicate" : {
+
+    },
+    "Duplicate Import" : {
 
     },
     "e.g. Agree on a time for dinner…" : {
@@ -1189,6 +1260,9 @@
     "Imported chat" : {
 
     },
+    "Imported Message Count" : {
+
+    },
     "Importing Messages" : {
 
     },
@@ -1198,10 +1272,10 @@
     "Imports all compatible text items from the clipboard." : {
 
     },
-    "Imports chat images and generates two suggested replies in one action." : {
+    "Imports chat images, suggests replies, and returns the one you choose." : {
 
     },
-    "Imports chat text and generates two suggested replies in one action." : {
+    "Imports chat text, suggests replies, and returns the one you choose." : {
 
     },
     "Imports one to eight images from the same chat while you optionally add context or draft a reply. The images aren't saved." : {
@@ -1300,6 +1374,9 @@
     "No goal set" : {
 
     },
+    "No new messages added to %@" : {
+
+    },
     "No Saved Names" : {
 
     },
@@ -1346,6 +1423,9 @@
 
     },
     "Open chat details for %@" : {
+
+    },
+    "Open FrameReply to try again." : {
 
     },
     "Open Imported Chat" : {
@@ -1861,7 +1941,13 @@
     "Rename Name" : {
 
     },
-    "Reply" : {
+    "Replies" : {
+
+    },
+    "Replies are unavailable. Open FrameReply to try again." : {
+
+    },
+    "Replies unavailable" : {
 
     },
     "Reply Brief" : {
@@ -1881,6 +1967,9 @@
 
     },
     "Reply Note Added" : {
+
+    },
+    "Reply Number" : {
 
     },
     "Reserved" : {
@@ -1904,6 +1993,9 @@
     "Review messages individually" : {
 
     },
+    "Review Required" : {
+
+    },
     "Save" : {
 
     },
@@ -1925,10 +2017,19 @@
     "Select provider" : {
 
     },
+    "Select Suggested Reply" : {
+
+    },
+    "Select this reply" : {
+
+    },
     "Select up to 8 images" : {
 
     },
     "Selected" : {
+
+    },
+    "Selection Session ID" : {
 
     },
     "Sender unknown" : {
@@ -2081,6 +2182,16 @@
     "Suggested Replies" : {
 
     },
+    "Suggested reply %lld: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Suggested reply %1$lld: %2$@"
+          }
+        }
+      }
+    },
     "Support" : {
 
     },
@@ -2132,6 +2243,9 @@
     "This permanently deletes this chat and its data. This can’t be undone." : {
 
     },
+    "Touch and hold to copy the complete reply" : {
+
+    },
     "Try Again" : {
 
     },
@@ -2151,6 +2265,9 @@
 
     },
     "Use as Display Name" : {
+
+    },
+    "Use Reply" : {
 
     },
     "Used as your name before" : {

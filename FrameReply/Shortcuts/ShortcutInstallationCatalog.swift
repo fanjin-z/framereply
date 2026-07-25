@@ -24,15 +24,13 @@ nonisolated enum ShortcutInstallationCatalog {
     static let images = ShortcutInstallationDefinition(
         id: .images,
         title: AppStrings.Shortcut.imagesInstallationTitle,
-        canonicalURLString:
-            "https://www.icloud.com/shortcuts/93a5b5b855f54f8b96bc3c5117fd9df9"
+        canonicalURLString: "https://www.icloud.com/shortcuts/4f8858f795de4507ad43c36f5d8deb2c"
     )
 
     static let text = ShortcutInstallationDefinition(
         id: .text,
         title: AppStrings.Shortcut.textInstallationTitle,
-        canonicalURLString:
-            "https://www.icloud.com/shortcuts/917551e0808543e4b779064dc2eab55d"
+        canonicalURLString: "https://www.icloud.com/shortcuts/8577cb5408bc42cdbd8fe3dd4dad5a23"
     )
 
     static let all = [images, text]

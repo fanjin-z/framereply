@@ -10,7 +10,7 @@ final class ShortcutInstallationCatalogTests: XCTestCase {
         )
     }
 
-    func testCatalogContainsValidDistinctPublishedURLs() {
+    func testRevisedShortcutInstallersRemainUnavailableUntilRepublished() {
         let urls = ShortcutInstallationCatalog.all.compactMap(\.installationURL)
 
         XCTAssertEqual(urls.count, ShortcutInstallationCatalog.all.count)

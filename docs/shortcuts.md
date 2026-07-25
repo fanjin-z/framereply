@@ -32,25 +32,75 @@ sequenceDiagram
     end
     Action->>Store: Commit analyzed messages
     Action->>Provider: Generate replies with one-use context
-    Action-->>Shortcut: JSON, Siri dialog, and result snippet
+    Action-->>Shortcut: Branded reply confirmation
+    Shortcut-->>Action: Select reply and confirm Use Reply
+    Action-->>Shortcut: One complete reply string
+    Shortcut-->>Shortcut: Copy reply to Clipboard
 ```
 
 The new actions pass context directly to reply generation. Context never becomes chat history, memory, or persona learning. Analysis begins before the context choice is complete, but persistence waits for that choice. Canceling before persistence saves nothing.
 
 Import and reply generation are separate outcomes. A saved import remains successful when reply generation is unavailable or fails.
 
-On iOS 26, the result snippet shows the chat, import/review status, two replies, a copy action for each reply, and **Review Import** or **Open Chat**. The action also returns JSON for downstream automation and a short spoken dialog for Siri.
+The two published personal shortcuts use **Suggest Replies from Chat Images** and **Suggest Replies from Chat Text**. Each action displays a branded confirmation snippet without opening FrameReply. The first reply is initially selected; tapping either reply moves the checkmark and strengthens that card’s outline. **Use Reply** returns only that complete, untruncated reply to the shortcut. The next native **Copy to Clipboard** action copies it.
+
+The snippet’s header action opens the imported chat. When the import needs review, it opens the Review Import flow; otherwise it opens the chat normally. Opening FrameReply intentionally leaves the current app and abandons that reply-selection confirmation. Normal selection and copying remain entirely in the Shortcuts overlay.
 
 The legacy **Analyze Chat Images**, **Analyze Chat Text**, and **Generate Suggested Replies** actions remain executable for existing shortcuts for at least two releases. Do not use them in newly published shortcuts.
 
-## Shortcut Setup Summary
+## FrameReply Images
 
-- **FrameReply Images:** enable **Show in Share Sheet**, accept **Images** only, and set no input to **Continue**. If `Shortcut Input` has a value, store it in `Chat Images`; otherwise take one screenshot and store that output in the same variable. Pass `Chat Images` to **Suggest Replies from Chat Images**.
-- **FrameReply Text:** enable **Show in Share Sheet**, accept **Text** only, and set no input to **Get Clipboard**. Pass `Shortcut Input` to **Suggest Replies from Chat Text**.
+1. Create a shortcut named **FrameReply Images**.
+2. Open **Details**, enable **Show in Share Sheet**, accept **Images** only, and set **If There’s No Input** to **Continue**.
+3. Add an **If** action whose input is `Shortcut Input` and whose condition is **has any value**.
+4. In the **If** branch, set the variable `Chat Images` to `Shortcut Input`.
+5. In the **Otherwise** branch, take one screenshot and set `Chat Images` to the screenshot output.
+6. After **End If**, add **Suggest Replies from Chat Images** and set **Chat Images** to the `Chat Images` variable.
+7. Leave **Ask for Context** enabled unless the shortcut is intentionally noninteractive.
+8. Add **Copy to Clipboard** immediately after it, using the FrameReply action’s result.
+9. Do not add **Choose from List**, **If**, **Show Result**, or a clipboard action from FrameReply.
+
+Final structure:
+
+```text
+Receive Images from Share Sheet
+If Shortcut Input has any value
+    Set Chat Images to Shortcut Input
+Otherwise
+    Take Screenshot
+    Set Chat Images to Screenshot
+End If
+Suggest Replies from Chat Images using Chat Images
+Copy Suggested Reply to Clipboard
+```
+
+Test a normal run and confirm exactly one screenshot is captured. Then share 1–8 images and confirm every selected image is used without taking another screenshot. Select each reply in turn, tap **Use Reply**, and paste it into a long text field to confirm that the complete, untruncated string was copied. Tap the header action separately and confirm it opens the correct chat or review flow.
+
+## FrameReply Text
+
+1. Create a shortcut named **FrameReply Text**.
+2. Open **Details**, enable **Show in Share Sheet**, accept **Text** only, and set **If There’s No Input** to **Get Clipboard**.
+3. Add **Suggest Replies from Chat Text** and set **Chat Text** to `Shortcut Input`.
+4. Leave **Ask for Context** enabled unless the shortcut is intentionally noninteractive.
+5. Add **Copy to Clipboard** immediately after it, using the FrameReply action’s result.
+6. Do not add **Choose from List**, **If**, **Analyze Chat Text**, **Generate Suggested Replies**, or **Show Result**.
+
+Final structure:
+
+```text
+Receive Text from Share Sheet
+If there is no input: Get Clipboard
+Suggest Replies from Chat Text using Shortcut Input
+Copy Suggested Reply to Clipboard
+```
+
+Test both shared plain text and a normal run that reads previously copied message text. After confirming a reply, paste it into the original messaging app and confirm FrameReply was not opened.
+
+For WhatsApp, use **Select messages → Share → Copy**, close the Share Sheet, and then run **FrameReply Text**. Do not select FrameReply directly from WhatsApp’s Share Sheet unless physical-device testing confirms WhatsApp supplies the selected text instead of leaving the shortcut to read the clipboard.
 
 ## Optional Context or Draft
 
-Both end-to-end actions default **Ask for Context** to on. When no value is supplied, they offer **Add** and **Skip** while analysis runs. Choosing Add opens a multiline prompt reading **What do you want to say?** Submitting blank text is treated as Skip; cancelling before persistence stops the shortcut without saving an import.
+Both Suggest Replies actions default **Ask for Context** to on. When no value is supplied, they offer **Add** and **Skip** while analysis runs. Choosing Add opens a multiline prompt reading **What do you want to say?** Submitting blank text is treated as Skip; cancelling before persistence stops the shortcut without saving an import.
 
 Chat import remains successful if suggested replies are temporarily unavailable.
 
@@ -60,12 +110,16 @@ Automation builders can turn **Ask for Context** off or connect a fixed or varia
 
 1. Build or update both shortcuts on the team-controlled device.
 2. Confirm the image shortcut accepts Images only, handles shared and no-input runs, and preserves multiple selected images.
-3. Confirm the text shortcut accepts Text only, imports shared plain text, and reads the clipboard on a normal launch.
-4. Verify WhatsApp's Copy then run workflow. Inspect its direct Share Sheet payload before documenting direct support.
-5. For each shortcut, open **Share**, tap **Copy iCloud Link**, then tap **Copy Link**. Confirm the URL has the form `https://www.icloud.com/shortcuts/<identifier>`.
-6. Install each link on a device where that shortcut is not already installed and run it end to end.
-7. Add the verified URLs to `ShortcutInstallationCatalog`: `images` for **FrameReply Images** and `text` for **FrameReply Text**.
-8. Export fresh recovery copies after any workflow change.
+3. Confirm both shortcuts show one branded confirmation snippet, update the selected card, return the complete reply after **Use Reply**, and copy it through the native clipboard action.
+4. Confirm normal reply selection never opens FrameReply and never shows a result snippet with a Done button.
+5. Confirm the header action opens the correct imported chat and uses Review Import routing when required.
+6. Confirm an unavailable reply result stops before **Copy to Clipboard** instead of clearing or replacing the clipboard.
+7. Confirm the text shortcut accepts Text only, imports shared plain text, and reads the clipboard on a normal launch.
+8. Verify WhatsApp's Copy then run workflow. Inspect its direct Share Sheet payload before documenting direct support.
+9. For each shortcut, open **Share**, tap **Copy iCloud Link**, then tap **Copy Link**. Confirm the URL has the form `https://www.icloud.com/shortcuts/<identifier>`.
+10. Install each link on a device where that shortcut is not already installed and run it end to end.
+11. Add only the two verified URLs to `ShortcutInstallationCatalog`: `images` for **FrameReply Images** and `text` for **FrameReply Text**.
+12. Export fresh recovery copies after any workflow change.
 
 Use **Stop Sharing** in Shortcuts to revoke a public installer. Deleting the local shortcut does not revoke its link.
 
@@ -75,6 +129,8 @@ Apple references:
 - [Limit shortcut input and choose no-input behavior](https://support.apple.com/guide/shortcuts/apd8195f96d6/ios)
 - [Use If actions and If Result](https://support.apple.com/guide/shortcuts/apd83dcd1b51/ios)
 - [Use variables](https://support.apple.com/guide/shortcuts/apdd02c2780c/ios)
+- [Use Copy to Clipboard without opening another app](https://support.apple.com/guide/shortcuts/apd081d9d61f/ios)
+- [Display static and interactive App Intent snippets](https://developer.apple.com/documentation/appintents/displaying-static-and-interactive-snippets)
 - [Share shortcuts through iCloud](https://support.apple.com/guide/shortcuts/apdf01f8c054/ios)
 
 ## Recovery Copies
@@ -96,5 +152,8 @@ If the Back Tap banner covers the conversation title before a screenshot is take
 - **Shared images trigger a screenshot:** confirm the true branch stores `Shortcut Input` in `Chat Images` and that the variable feeds the Suggest Replies action.
 - **Text shortcut does not appear when sharing:** confirm **Show in Share Sheet** is enabled, the accepted input type is **Text**, and the source app actually supplies plain text.
 - **A normal text-shortcut run has no input:** copy usable message text first and confirm the no-input behavior is **Get Clipboard**.
+- **The shortcut shows a branded result with a Done button or copies JSON:** rebuild FrameReply and remove then re-add the Suggest Replies action so Shortcuts refreshes its App Intent metadata. The current action shows **Use Reply** and returns one reply string.
+- **The selected card changes but nothing is copied:** tap **Use Reply**, then confirm native **Copy to Clipboard** immediately follows the Suggest Replies action and uses its output.
+- **Selecting Review opens FrameReply:** this is intentional. Use the reply cards and **Use Reply** to stay in the current app.
 - **WhatsApp shows FrameReply but imports old clipboard text:** use **Share → Copy**, close the Share Sheet, then run **FrameReply Text**; do not use the visible shortcut unless direct input has been verified on that device.
 - **Installer unavailable in a development build:** publish the shortcuts and configure their canonical URLs. Missing URLs do not block app startup.
