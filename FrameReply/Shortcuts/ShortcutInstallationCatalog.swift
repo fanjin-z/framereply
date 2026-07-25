@@ -21,17 +21,18 @@ nonisolated struct ShortcutInstallationDefinition: Sendable {
 }
 
 nonisolated enum ShortcutInstallationCatalog {
-    // Add team-owned iCloud share URLs after both shortcuts are published and verified.
     static let images = ShortcutInstallationDefinition(
         id: .images,
         title: AppStrings.Shortcut.imagesInstallationTitle,
-        canonicalURLString: ""
+        canonicalURLString:
+            "https://www.icloud.com/shortcuts/93a5b5b855f54f8b96bc3c5117fd9df9"
     )
 
     static let text = ShortcutInstallationDefinition(
         id: .text,
         title: AppStrings.Shortcut.textInstallationTitle,
-        canonicalURLString: ""
+        canonicalURLString:
+            "https://www.icloud.com/shortcuts/917551e0808543e4b779064dc2eab55d"
     )
 
     static let all = [images, text]

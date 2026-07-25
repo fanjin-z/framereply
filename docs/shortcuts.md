@@ -43,38 +43,10 @@ On iOS 26, the result snippet shows the chat, import/review status, two replies,
 
 The legacy **Analyze Chat Images**, **Analyze Chat Text**, and **Generate Suggested Replies** actions remain executable for existing shortcuts for at least two releases. Do not use them in newly published shortcuts.
 
-## FrameReply Images
+## Shortcut Setup Summary
 
-Configure **FrameReply Images** to show in the Share Sheet and accept **Images** only. Set its no-input behavior to **Continue**.
-
-```text
-Receive Images from Share Sheet
-              │
-              ▼
-       Were images received?
-          ┌───┴────┐
-         Yes       No
-          │         │
-Use Shortcut Input  Take Screenshot
-          └────┬────┘
-               ▼
-Suggest Replies from Chat Images
-```
-
-The conditional must return all items from `Shortcut Input` in its true branch and the screenshot in its false branch. Connect the conditional result to **Suggest Replies from Chat Images**. The action presents its own result, so do not add Show Result.
-
-## FrameReply Text
-
-Enable **Show in Share Sheet**, accept **Text** only, and set the no-input behavior to **Get Clipboard**. Do not accept **Anything**.
-
-```text
-Receive Text from Share Sheet
-If there is no input: Get Clipboard
-              ↓
-Suggest Replies from Chat Text
-```
-
-Compatible apps can pass shared plain text directly. A normal launch reads the clipboard. WhatsApp may display the shortcut without supplying selected message text, so its supported workflow is **select messages → Share → Copy → run FrameReply Text**. Do not advertise direct WhatsApp sharing unless a physical-device test confirms that `Shortcut Input` contains the selected transcript.
+- **FrameReply Images:** enable **Show in Share Sheet**, accept **Images** only, and set no input to **Continue**. If `Shortcut Input` has a value, store it in `Chat Images`; otherwise take one screenshot and store that output in the same variable. Pass `Chat Images` to **Suggest Replies from Chat Images**.
+- **FrameReply Text:** enable **Show in Share Sheet**, accept **Text** only, and set no input to **Get Clipboard**. Pass `Shortcut Input` to **Suggest Replies from Chat Text**.
 
 ## Optional Context or Draft
 
@@ -90,11 +62,20 @@ Automation builders can turn **Ask for Context** off or connect a fixed or varia
 2. Confirm the image shortcut accepts Images only, handles shared and no-input runs, and preserves multiple selected images.
 3. Confirm the text shortcut accepts Text only, imports shared plain text, and reads the clipboard on a normal launch.
 4. Verify WhatsApp's Copy then run workflow. Inspect its direct Share Sheet payload before documenting direct support.
-5. Publish each shortcut and copy its `https://www.icloud.com/shortcuts/...` URL into `ShortcutInstallationCatalog`.
-6. Install both links on a clean device and run each workflow end to end.
-7. Export fresh recovery copies after any workflow change.
+5. For each shortcut, open **Share**, tap **Copy iCloud Link**, then tap **Copy Link**. Confirm the URL has the form `https://www.icloud.com/shortcuts/<identifier>`.
+6. Install each link on a device where that shortcut is not already installed and run it end to end.
+7. Add the verified URLs to `ShortcutInstallationCatalog`: `images` for **FrameReply Images** and `text` for **FrameReply Text**.
+8. Export fresh recovery copies after any workflow change.
 
 Use **Stop Sharing** in Shortcuts to revoke a public installer. Deleting the local shortcut does not revoke its link.
+
+Apple references:
+
+- [Enable a shortcut in the Share Sheet](https://support.apple.com/guide/shortcuts/apd163eb9f95/ios)
+- [Limit shortcut input and choose no-input behavior](https://support.apple.com/guide/shortcuts/apd8195f96d6/ios)
+- [Use If actions and If Result](https://support.apple.com/guide/shortcuts/apd83dcd1b51/ios)
+- [Use variables](https://support.apple.com/guide/shortcuts/apdd02c2780c/ios)
+- [Share shortcuts through iCloud](https://support.apple.com/guide/shortcuts/apdf01f8c054/ios)
 
 ## Recovery Copies
 
@@ -111,8 +92,8 @@ If the Back Tap banner covers the conversation title before a screenshot is take
 ## Common Failures
 
 - **Image shortcut does not appear when sharing:** confirm **Show in Share Sheet** is enabled and the accepted input type is **Images**.
-- **A tap does not take a screenshot:** confirm no-input behavior is **Continue** and the false branch returns **Take Screenshot**.
-- **Shared images trigger a screenshot:** confirm the true branch returns `Shortcut Input` and feeds the same Suggest Replies action.
+- **A tap does not take a screenshot:** confirm no-input behavior is **Continue** and the false branch stores the **Take Screenshot** output in `Chat Images`.
+- **Shared images trigger a screenshot:** confirm the true branch stores `Shortcut Input` in `Chat Images` and that the variable feeds the Suggest Replies action.
 - **Text shortcut does not appear when sharing:** confirm **Show in Share Sheet** is enabled, the accepted input type is **Text**, and the source app actually supplies plain text.
 - **A normal text-shortcut run has no input:** copy usable message text first and confirm the no-input behavior is **Get Clipboard**.
 - **WhatsApp shows FrameReply but imports old clipboard text:** use **Share → Copy**, close the Share Sheet, then run **FrameReply Text**; do not use the visible shortcut unless direct input has been verified on that device.

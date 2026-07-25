@@ -223,27 +223,23 @@ struct SettingsView: View {
     }
 
     private var shortcutSection: some View {
-        Group {
-            if shouldShowShortcutSection {
-                VStack(alignment: .leading, spacing: 14) {
-                    Label("Shortcuts", systemImage: "bolt.fill")
-                        .font(.system(size: 21, weight: .bold, design: .rounded))
-                        .foregroundStyle(FrameReplyColor.primary)
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Shortcuts", systemImage: "bolt.fill")
+                .font(.system(size: 21, weight: .bold, design: .rounded))
+                .foregroundStyle(FrameReplyColor.primary)
 
-                    shortcutInstallRow(
-                        title: "Image Shortcut",
-                        subtitle: "Import screenshots",
-                        symbol: "photo.on.rectangle.angled",
-                        installation: ShortcutInstallationCatalog.images
-                    )
-                    shortcutInstallRow(
-                        title: "Text Shortcut",
-                        subtitle: "Import copied messages",
-                        symbol: "text.bubble",
-                        installation: ShortcutInstallationCatalog.text
-                    )
-                }
-            }
+            shortcutInstallRow(
+                title: "Image Shortcut",
+                subtitle: "Import screenshots",
+                symbol: "photo.on.rectangle.angled",
+                installation: ShortcutInstallationCatalog.images
+            )
+            shortcutInstallRow(
+                title: "Text Shortcut",
+                subtitle: "Import copied messages",
+                symbol: "text.bubble",
+                installation: ShortcutInstallationCatalog.text
+            )
         }
     }
 
@@ -266,18 +262,16 @@ struct SettingsView: View {
                 )
             )
         } else {
-            #if DEBUG
-                compactShortcutRow(
-                    title: title,
-                    subtitle: subtitle,
-                    symbol: symbol,
-                    trailing: AnyView(
-                        Text("Unavailable")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .foregroundStyle(FrameReplyColor.outline)
-                    )
+            compactShortcutRow(
+                title: title,
+                subtitle: subtitle,
+                symbol: symbol,
+                trailing: AnyView(
+                    Text("Unavailable")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(FrameReplyColor.outline)
                 )
-            #endif
+            )
         }
     }
 
@@ -308,14 +302,6 @@ struct SettingsView: View {
         .padding(.horizontal, 18)
         .frame(minHeight: 62)
         .background(Color.white.opacity(0.42))
-    }
-
-    private var shouldShowShortcutSection: Bool {
-        #if DEBUG
-            true
-        #else
-            ShortcutInstallationCatalog.all.contains { $0.installationURL != nil }
-        #endif
     }
 
     private var addProviderPopup: some View {
