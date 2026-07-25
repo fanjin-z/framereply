@@ -22,9 +22,15 @@ struct ChatImportReviewSheet: View {
 
     private let chatID: String?
     private let onMerged: ((String) -> Void)?
+    private let repository: ChatRepository
 
-    init(chatID: String? = nil, onMerged: ((String) -> Void)? = nil) {
+    init(
+        chatID: String? = nil,
+        repository: ChatRepository,
+        onMerged: ((String) -> Void)? = nil
+    ) {
         self.chatID = chatID
+        self.repository = repository
         self.onMerged = onMerged
         if let chatID {
             let scopedChatID = chatID
@@ -265,7 +271,7 @@ struct ChatImportReviewSheet: View {
     private func confirm(chatID: String, name: String) {
         KeyboardDismissal.dismiss()
         do {
-            try ChatRepository().confirmProvisionalChat(chatID: chatID, name: name)
+            try repository.confirmProvisionalChat(chatID: chatID, name: name)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -274,7 +280,7 @@ struct ChatImportReviewSheet: View {
     private func merge(provisionalChatID: String, targetChatID: String) {
         KeyboardDismissal.dismiss()
         do {
-            try ChatRepository().mergeProvisionalChat(provisionalChatID, into: targetChatID)
+            try repository.mergeProvisionalChat(provisionalChatID, into: targetChatID)
             if onMerged != nil {
                 dismiss()
                 onMerged?(targetChatID)
@@ -308,7 +314,7 @@ struct ChatImportReviewSheet: View {
         messageID: UUID, sender: AnalyzedMessageSender, participantName: String?
     ) {
         do {
-            try ChatRepository().resolveUnknownSender(
+            try repository.resolveUnknownSender(
                 messageID: messageID,
                 as: sender,
                 participantName: participantName
@@ -323,7 +329,7 @@ struct ChatImportReviewSheet: View {
         selectedGroup: UnknownSenderLabelGroup
     ) {
         do {
-            try ChatRepository().resolveUnknownSenderLabels(
+            try repository.resolveUnknownSenderLabels(
                 chatID: reviewGroup.chatID,
                 selfLabel: selectedGroup.displayLabel
             )

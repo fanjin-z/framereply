@@ -34,5 +34,6 @@ struct StrategyRationaleCard: View {
                     }
             }
         }
+        .accessibilityIdentifier("strategy-rationale-card")
     }
 }

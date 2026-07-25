@@ -15,7 +15,6 @@ final class PersonaRepository {
     private static let defaultPersonaKey = "defaultPersonaID"
     private let context: ModelContext
 
-    convenience init() { self.init(container: FrameReplyDataStore.shared) }
     init(container: ModelContainer) { context = container.mainContext }
     init(context: ModelContext) { self.context = context }
 

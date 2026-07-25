@@ -7,6 +7,7 @@ import SwiftData
 import SwiftUI
 
 struct NamesAndUsernamesView: View {
+    private let repository: ChatRepository
     @Query(sort: \SelfAliasRecord.displayLabel)
     private var aliases: [SelfAliasRecord]
     @Query private var chatContexts: [ChatContextRecord]
@@ -16,6 +17,10 @@ struct NamesAndUsernamesView: View {
     @State private var renameDraft = ""
     @State private var aliasPendingDeletion: SelfAliasRecord?
     @State private var errorMessage: String?
+
+    init(repository: ChatRepository) {
+        self.repository = repository
+    }
 
     var body: some View {
         Form {
@@ -139,7 +144,7 @@ struct NamesAndUsernamesView: View {
 
     private func addName() {
         do {
-            _ = try ChatRepository().addSelfAlias(displayLabel: newName)
+            _ = try repository.addSelfAlias(displayLabel: newName)
             newName = ""
         } catch {
             errorMessage = error.localizedDescription
@@ -149,7 +154,7 @@ struct NamesAndUsernamesView: View {
     private func renameName() {
         guard let aliasBeingRenamed else { return }
         do {
-            try ChatRepository().renameSelfAlias(aliasBeingRenamed, displayLabel: renameDraft)
+            try repository.renameSelfAlias(aliasBeingRenamed, displayLabel: renameDraft)
             self.aliasBeingRenamed = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -159,7 +164,7 @@ struct NamesAndUsernamesView: View {
     private func deleteName() {
         guard let aliasPendingDeletion else { return }
         do {
-            try ChatRepository().deleteSelfAlias(aliasPendingDeletion)
+            try repository.deleteSelfAlias(aliasPendingDeletion)
             self.aliasPendingDeletion = nil
         } catch {
             errorMessage = error.localizedDescription

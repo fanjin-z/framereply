@@ -25,6 +25,22 @@ nonisolated struct SuggestedRepliesOutcome: Equatable, Sendable {
     }
 }
 
+@MainActor
+protocol SuggestedRepliesCoordinating {
+    func cachedReplies(
+        chatID: String,
+        localization: LocalizationContext
+    ) throws -> SuggestedRepliesOutcome?
+
+    func generate(
+        chatID: String,
+        draftingInput: String?,
+        force: Bool,
+        localization: LocalizationContext,
+        traceID: ImportTraceID
+    ) async throws -> SuggestedRepliesOutcome
+}
+
 nonisolated enum SuggestedRepliesError: LocalizedError, Sendable {
     case noActiveProvider
     case missingAPIKey
@@ -80,20 +96,19 @@ nonisolated enum SuggestedRepliesError: LocalizedError, Sendable {
 }
 
 @MainActor
-final class SuggestedRepliesCoordinator {
+final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
     static let recentMessageLimit = 20
 
     private let aiService: any AIServiceProviding
     private let repository: ChatRepository
 
-    convenience init() {
-        self.init(providerStore: ProviderStore())
-    }
-
-    convenience init(providerStore: any ProviderConfigurationProviding) {
+    convenience init(
+        providerStore: any ProviderConfigurationProviding,
+        repository: ChatRepository
+    ) {
         self.init(
             aiService: AIService(providerConfiguration: providerStore),
-            repository: ChatRepository()
+            repository: repository
         )
     }
 

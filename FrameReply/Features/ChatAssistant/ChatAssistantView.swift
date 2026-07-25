@@ -10,6 +10,7 @@ import SwiftUI
 struct ChatAssistantView: View {
     let chat: Chat
     @ObservedObject var providerStore: ProviderStore
+    private let repository: ChatRepository
     let onDetailsTap: () -> Void
     let onMergedIntoChat: (String) -> Void
 
@@ -45,12 +46,15 @@ struct ChatAssistantView: View {
     init(
         chat: Chat,
         providerStore: ProviderStore,
+        repository: ChatRepository,
+        suggestedRepliesCoordinator: any SuggestedRepliesCoordinating,
         presentImportReviewOnAppear: Bool = false,
         onDetailsTap: @escaping () -> Void,
         onMergedIntoChat: @escaping (String) -> Void
     ) {
         self.chat = chat
         self.providerStore = providerStore
+        self.repository = repository
         self.onDetailsTap = onDetailsTap
         self.onMergedIntoChat = onMergedIntoChat
         _isReviewPresented = State(initialValue: presentImportReviewOnAppear)
@@ -83,12 +87,13 @@ struct ChatAssistantView: View {
         _suggestedRepliesModel = StateObject(
             wrappedValue: SuggestedRepliesViewModel(
                 chatID: chatID,
-                coordinator: SuggestedRepliesCoordinator(providerStore: providerStore)
+                coordinator: suggestedRepliesCoordinator
             )
         )
         _importModel = StateObject(
             wrappedValue: InAppScreenshotImportViewModel(
                 providerStore: providerStore,
+                repository: repository,
                 destinationChatID: chatID
             )
         )
@@ -308,6 +313,7 @@ struct ChatAssistantView: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
+            .accessibilityIdentifier("chat-assistant-screen")
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             ChatAssistantTopBar(
@@ -356,7 +362,11 @@ struct ChatAssistantView: View {
             )
         }
         .sheet(isPresented: $isReviewPresented) {
-            ChatImportReviewSheet(chatID: chat.id, onMerged: onMergedIntoChat)
+            ChatImportReviewSheet(
+                chatID: chat.id,
+                repository: repository,
+                onMerged: onMergedIntoChat
+            )
         }
         .confirmationDialog(
             "Merge Imported Chat",
@@ -539,7 +549,7 @@ struct ChatAssistantView: View {
 
     private func confirmCurrentChat() {
         do {
-            try ChatRepository().confirmProvisionalChat(
+            try repository.confirmProvisionalChat(
                 chatID: chat.id,
                 name: displayedChat.name
             )
@@ -551,7 +561,7 @@ struct ChatAssistantView: View {
     private func confirmInferredIdentity() {
         guard let provisionalIdentity else { return }
         do {
-            try ChatRepository().resolveUnknownSenderLabels(
+            try repository.resolveUnknownSenderLabels(
                 chatID: chat.id,
                 selfLabel: provisionalIdentity.selfDisplayLabel
             )
@@ -562,7 +572,6 @@ struct ChatAssistantView: View {
 
     private func mergeChat(into targetChatID: String) {
         do {
-            let repository = ChatRepository()
             try repository.mergeProvisionalChat(chat.id, into: targetChatID)
             if try repository.chat(id: chat.id) == nil {
                 onMergedIntoChat(targetChatID)
@@ -574,7 +583,7 @@ struct ChatAssistantView: View {
 
     private func loadChatContext() {
         do {
-            let context = try ChatRepository().ensureChatContext(chatID: chat.id)
+            let context = try repository.ensureChatContext(chatID: chat.id)
             goalDraft = context.currentInteractionGoal
             didLoadContext = true
         } catch {
@@ -585,7 +594,7 @@ struct ChatAssistantView: View {
     private func commitGoal() {
         guard didLoadContext else { return }
         do {
-            if try ChatRepository().updateInteractionGoal(chatID: chat.id, goal: goalDraft) {
+            if try repository.updateInteractionGoal(chatID: chat.id, goal: goalDraft) {
                 goalDraft = String(
                     goalDraft.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500)
                 )
@@ -606,7 +615,7 @@ struct ChatAssistantView: View {
 
     private func assignPersona(_ personaID: UUID) {
         do {
-            if try ChatRepository().assignPersona(personaID: personaID, toChatID: chat.id) {
+            if try repository.assignPersona(personaID: personaID, toChatID: chat.id) {
                 needsReplyRefresh = currentLanguageCache != nil
             }
         } catch {
@@ -619,7 +628,7 @@ struct ChatAssistantView: View {
             return
         }
         do {
-            try ChatRepository().recordImportReviewExposure(chatID: chat.id)
+            try repository.recordImportReviewExposure(chatID: chat.id)
         } catch {
             actionErrorMessage = error.localizedDescription
         }
@@ -627,7 +636,7 @@ struct ChatAssistantView: View {
 
     private func recordMeaningfulReviewAction() {
         do {
-            try ChatRepository().recordImportReviewMeaningfulAction(chatID: chat.id)
+            try repository.recordImportReviewMeaningfulAction(chatID: chat.id)
         } catch {
             actionErrorMessage = error.localizedDescription
         }

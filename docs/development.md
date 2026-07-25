@@ -5,7 +5,7 @@ This guide contains the local setup and validation steps for contributors. Read 
 ## Prerequisites
 
 - macOS with Xcode 26.6 or a compatible newer release.
-- An iOS 26 simulator, or an iPhone or iPad running iOS/iPadOS 26 for device-only behavior.
+- An iOS 26 simulator, or an iPhone running iOS 26 for device-only behavior.
 - Git and the Xcode command-line tools.
 - [pre-commit](https://pre-commit.com/) for the repository hooks.
 
@@ -60,6 +60,16 @@ xcodebuild test \
 If that simulator is unavailable, list installed devices with `xcrun simctl list devices available` and substitute an available iOS 26 simulator name.
 
 Tests, documentation, and screenshots must use synthetic identities and conversations. Never copy a real chat into a fixture or failure attachment.
+
+## App Store screenshots
+
+Generate the six-image iPhone screenshot set with:
+
+```bash
+scripts/capture-app-store-screenshots.sh
+```
+
+Review the generated contact sheet and PNGs under the ignored `build/app-store-screenshots/` directory before uploading them.
 
 ## Formatting and repository checks
 

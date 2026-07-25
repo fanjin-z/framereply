@@ -2,6 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct PersonasView: View {
+    private let repository: PersonaRepository
     let onPersonaTap: (UUID) -> Void
     let onCreateTap: () -> Void
     @Query(sort: \PersonaRecord.createdAt) private var records: [PersonaRecord]
@@ -10,6 +11,16 @@ struct PersonasView: View {
     @State private var deletionError: String?
     @State private var defaultPersonaError: String?
 
+    init(
+        repository: PersonaRepository,
+        onPersonaTap: @escaping (UUID) -> Void,
+        onCreateTap: @escaping () -> Void
+    ) {
+        self.repository = repository
+        self.onPersonaTap = onPersonaTap
+        self.onCreateTap = onCreateTap
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -17,14 +28,15 @@ struct PersonasView: View {
                     ForEach(records) { record in
                         PersonaCard(
                             persona: record.value,
-                            usageCount: (try? PersonaRepository().usageCount(personaID: record.id))
+                            usageCount: (try? repository.usageCount(personaID: record.id))
                                 ?? 0,
                             isDefault: defaultPersonaID == record.id,
                             onTap: { onPersonaTap(record.id) },
                             onSetDefault: { setDefault(record.id) },
-                            onDuplicate: { _ = try? PersonaRepository().duplicate(record) },
+                            onDuplicate: { _ = try? repository.duplicate(record) },
                             onDelete: records.count > 1 ? { personaToDelete = record } : nil
                         )
+                        .accessibilityIdentifier(personaCardIdentifier(record))
                     }
                 }
                 .padding(.top, 14)
@@ -43,7 +55,8 @@ struct PersonasView: View {
             .frame(maxWidth: 720, alignment: .leading).frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
-        .task { defaultPersonaID = try? PersonaRepository().defaultPersonaID() }
+        .accessibilityIdentifier("personas-screen")
+        .task { defaultPersonaID = try? repository.defaultPersonaID() }
         .confirmationDialog(
             deleteTitle,
             isPresented: Binding(
@@ -93,10 +106,17 @@ struct PersonasView: View {
 
     private var deleteTitle: String { "Delete \(personaToDelete?.name ?? "persona")?" }
 
+    private func personaCardIdentifier(_ record: PersonaRecord) -> String {
+        if let builtInID = record.builtInID {
+            return "persona-card-\(builtInID.rawValue)"
+        }
+        return "persona-card-\(record.id.uuidString.lowercased())"
+    }
+
     private func delete(_ record: PersonaRecord, replacement: UUID?) {
         do {
-            try PersonaRepository().delete(record, replacementDefaultID: replacement)
-            defaultPersonaID = try PersonaRepository().defaultPersonaID()
+            try repository.delete(record, replacementDefaultID: replacement)
+            defaultPersonaID = try repository.defaultPersonaID()
         } catch {
             deletionError = error.localizedDescription
         }
@@ -105,7 +125,7 @@ struct PersonasView: View {
 
     private func setDefault(_ personaID: UUID) {
         do {
-            try PersonaRepository().setDefaultPersona(id: personaID)
+            try repository.setDefaultPersona(id: personaID)
             defaultPersonaID = personaID
         } catch {
             defaultPersonaError = error.localizedDescription

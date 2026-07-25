@@ -53,7 +53,9 @@ private nonisolated enum EndToEndShortcutSupport {
         do {
             let images = try ChatImageIntentInput.validatedData(from: chatImages)
             let suppliedInput = try DraftingInputLimits.validated(draftingInput)
-            let coordinator = await MainActor.run { ScreenshotImportCoordinator() }
+            let coordinator = await MainActor.run {
+                AppIntentDependencies.screenshotImportCoordinator()
+            }
 
             async let pendingAnalysis = coordinator.prepare(
                 imageDataList: images,
@@ -97,7 +99,9 @@ private nonisolated enum EndToEndShortcutSupport {
         do {
             let transcriptItems = try transcriptItems(from: chatText)
             let suppliedInput = try DraftingInputLimits.validated(draftingInput)
-            let coordinator = await MainActor.run { ScreenshotImportCoordinator() }
+            let coordinator = await MainActor.run {
+                AppIntentDependencies.screenshotImportCoordinator()
+            }
 
             async let pendingAnalysis = coordinator.prepare(
                 transcriptItems: transcriptItems,
@@ -130,12 +134,12 @@ private nonisolated enum EndToEndShortcutSupport {
         draftingInput: String?,
         localization: LocalizationContext
     ) async throws -> ShortcutResponsePresentation {
-        let coordinator = ScreenshotImportCoordinator()
+        let coordinator = AppIntentDependencies.screenshotImportCoordinator()
         let outcome = try coordinator.commit(prepared)
 
         // This flow carries one-use guidance directly into generation. Mark the
         // legacy handoff as skipped so no context is persisted for synchronization.
-        let repository = ChatRepository(context: ModelContext(FrameReplyDataStore.shared))
+        let repository = AppIntentDependencies.chatRepository()
         _ = try repository.resolveDraftingInput(
             nil,
             importID: outcome.importID,
@@ -146,7 +150,7 @@ private nonisolated enum EndToEndShortcutSupport {
             .stageStarted(traceID: prepared.traceID, stage: .replyGeneration)
         )
         do {
-            let replies = try await SuggestedRepliesCoordinator().generate(
+            let replies = try await AppIntentDependencies.suggestedRepliesCoordinator().generate(
                 chatID: outcome.chatID,
                 draftingInput: draftingInput,
                 force: true,

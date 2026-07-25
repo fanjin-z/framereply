@@ -3,6 +3,8 @@ import SwiftUI
 
 struct CreatePersonaView: View {
     @ObservedObject var providerStore: ProviderStore
+    private let chatRepository: ChatRepository
+    private let personaRepository: PersonaRepository
     let onCreated: (PersonaRecord) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -18,6 +20,18 @@ struct CreatePersonaView: View {
     @State private var isCreating = false
     @State private var analysisError: String?
     @State private var creationError: String?
+
+    init(
+        providerStore: ProviderStore,
+        chatRepository: ChatRepository,
+        personaRepository: PersonaRepository,
+        onCreated: @escaping (PersonaRecord) -> Void
+    ) {
+        self.providerStore = providerStore
+        self.chatRepository = chatRepository
+        self.personaRepository = personaRepository
+        self.onCreated = onCreated
+    }
 
     var body: some View {
         ZStack {
@@ -292,8 +306,11 @@ struct CreatePersonaView: View {
             id: UUID(), name: trimmedName, instructions: instructions,
             observations: preparedObservations, protectedTombstones: []
         )
-        let result = try await PersonaExampleAnalyzer(providerStore: providerStore)
-            .analyze(persona: context, examples: exampleLines)
+        let result = try await PersonaExampleAnalyzer(
+            providerStore: providerStore,
+            repository: chatRepository
+        )
+        .analyze(persona: context, examples: exampleLines)
         draftObservations = preparedObservations
         apply(result.changes)
         examples = ""
@@ -348,7 +365,7 @@ struct CreatePersonaView: View {
                 let clean = observationsIncludingStyle().filter {
                     !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 }
-                let record = try PersonaRepository().create(
+                let record = try personaRepository.create(
                     name: trimmedName, summary: summary, instructions: instructions,
                     observations: clean
                 )

@@ -109,7 +109,10 @@ def add_complete_locale(catalog, language):
         source = localizations.get(source_language)
         if source is None:
             localizations[language] = {
-                "stringUnit": {"state": "translated", "value": key}
+                "stringUnit": {
+                    "state": "translated",
+                    "value": key or "Self-test translation",
+                }
             }
         else:
             localizations[language] = translated_copy(source)

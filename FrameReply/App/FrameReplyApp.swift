@@ -4,7 +4,14 @@ import SwiftUI
 
 @main
 struct FrameReplyApp: App {
-    @StateObject private var startup = AppStartupController()
+    @StateObject private var startup: AppStartupController
+
+    init() {
+        let launchMode = AppLaunchMode.resolve()
+        _startup = StateObject(
+            wrappedValue: AppStartupController(launchMode: launchMode)
+        )
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -17,9 +24,9 @@ struct FrameReplyApp: App {
         switch startup.state {
         case .loading:
             ProgressView("Opening FrameReply…")
-        case .ready(let container):
-            ContentView()
-                .modelContainer(container)
+        case .ready(let runtime):
+            ContentView(runtime: runtime)
+                .modelContainer(runtime.modelContainer)
         case .failed(let message):
             DataStoreRecoveryView(
                 message: message,
@@ -34,24 +41,29 @@ struct FrameReplyApp: App {
 final class AppStartupController: ObservableObject {
     enum State {
         case loading
-        case ready(ModelContainer)
+        case ready(AppRuntime)
         case failed(String)
     }
 
     @Published private(set) var state: State = .loading
+    private let launchMode: AppLaunchMode
 
-    init() {
+    init(launchMode: AppLaunchMode = .standard) {
+        self.launchMode = launchMode
         retry()
     }
 
     func retry() {
         state = .loading
         do {
-            let container = try FrameReplyDataStore.prepareShared()
-            try ChatRepository(container: container).seedIfNeeded()
-            try PersonaRepository(container: container).seedPersonasIfNeeded()
-            try FrameReplyDataStore.protectPersistentStoreFiles()
-            state = .ready(container)
+            #if DEBUG
+                if launchMode.isShowcase {
+                    state = .ready(try AppRuntime.showcase())
+                    return
+                }
+            #endif
+
+            state = .ready(try AppRuntime.live())
         } catch {
             state = .failed(
                 "FrameReply could not open its protected local database. You can retry or permanently reset local chats, personas, and drafts."
@@ -60,6 +72,13 @@ final class AppStartupController: ObservableObject {
     }
 
     func resetLocalData() {
+        #if DEBUG
+            if launchMode.isShowcase {
+                retry()
+                return
+            }
+        #endif
+
         do {
             try FrameReplyDataStore.resetPersistentStore()
             retry()
@@ -67,6 +86,30 @@ final class AppStartupController: ObservableObject {
             state = .failed(
                 "FrameReply could not reset its local database. Restart the device and try again.")
         }
+    }
+}
+
+enum AppLaunchMode: Equatable {
+    case standard
+    #if DEBUG
+        case showcase
+    #endif
+
+    static func resolve(arguments: [String] = ProcessInfo.processInfo.arguments) -> Self {
+        #if DEBUG
+            if arguments.contains("--framereply-showcase") {
+                return .showcase
+            }
+        #endif
+        return .standard
+    }
+
+    var isShowcase: Bool {
+        #if DEBUG
+            self == .showcase
+        #else
+            false
+        #endif
     }
 }
 

@@ -64,7 +64,7 @@ struct SuggestedRepliesSection: View {
                     .glassPanel(cornerRadius: 24)
             } else {
                 VStack(spacing: 14) {
-                    ForEach(replies) { reply in
+                    ForEach(Array(replies.enumerated()), id: \.element.id) { index, reply in
                         SuggestedReplyCard(
                             reply: reply,
                             isCopied: copiedReplyID == reply.id,
@@ -72,6 +72,7 @@ struct SuggestedRepliesSection: View {
                                 onCopy(reply)
                             }
                         )
+                        .accessibilityIdentifier("suggested-reply-\(index + 1)")
                     }
                 }
 
@@ -94,6 +95,5 @@ struct SuggestedRepliesSection: View {
                 }
             }
         }
-        .accessibilityIdentifier("suggested-replies-section")
     }
 }

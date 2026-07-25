@@ -63,10 +63,6 @@ final class ChatRepository {
     private let seedVersion = "1"
     private let seedVersionKey = "sampleSeedVersion"
 
-    convenience init() {
-        self.init(container: FrameReplyDataStore.shared)
-    }
-
     init(container: ModelContainer) {
         context = container.mainContext
         // Persona availability is a store invariant for reply generation and new chats.

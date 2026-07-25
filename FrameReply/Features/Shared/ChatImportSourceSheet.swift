@@ -78,6 +78,7 @@ struct ChatImportSourceSheet: View {
             }
             .scrollIndicators(.hidden)
         }
+        .accessibilityIdentifier("add-messages-screen")
         .presentationDetents(sheetDetents)
         .presentationDragIndicator(.visible)
     }

@@ -1,0 +1,148 @@
+import XCTest
+
+final class FrameReplyShowcaseScreenshotTests: XCTestCase {
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+    }
+
+    func test01SuggestedReplies() {
+        let app = launchShowcase()
+        openMaya(in: app)
+
+        XCTAssertTrue(element("chat-assistant-screen", in: app).waitForExistence(timeout: 5))
+        let replyBrief = element("reply-brief-summary", in: app)
+        XCTAssertTrue(replyBrief.waitForExistence(timeout: 3))
+        XCTAssertTrue(element("suggested-reply-1", in: app).waitForExistence(timeout: 3))
+        let secondReply = element("suggested-reply-2", in: app)
+        XCTAssertTrue(secondReply.waitForExistence(timeout: 3))
+        XCTAssertTrue(secondReply.isHittable)
+
+        capture("01-suggested-replies")
+    }
+
+    func test02AddMessages() {
+        let app = launchShowcase()
+        let addMessages = app.buttons["add-messages"].firstMatch
+        XCTAssertTrue(addMessages.waitForExistence(timeout: 5))
+        addMessages.tap()
+
+        let sheet = element("add-messages-screen", in: app)
+        XCTAssertTrue(sheet.waitForExistence(timeout: 3))
+        sheet.swipeUp()
+        XCTAssertTrue(app.staticTexts["Add Messages"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["choose-screenshots"].isHittable)
+        XCTAssertTrue(app.buttons["paste-copied-messages"].isHittable)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+
+        capture("02-add-messages")
+    }
+
+    func test03ReplyBrief() {
+        let app = launchShowcase()
+        openMaya(in: app)
+
+        let replyBrief = element("reply-brief-summary", in: app)
+        XCTAssertTrue(replyBrief.waitForExistence(timeout: 5))
+        replyBrief.tap()
+
+        XCTAssertTrue(element("reply-brief-dialog", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Shape the next suggested replies"].exists)
+        XCTAssertTrue(app.staticTexts["Current Goal"].exists)
+        XCTAssertTrue(app.buttons["Thoughtful"].exists)
+        XCTAssertTrue(app.buttons["reply-brief-done"].isHittable)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+
+        capture("03-reply-brief")
+    }
+
+    func test04Chats() {
+        let app = launchShowcase()
+
+        XCTAssertTrue(element("chats-screen", in: app).waitForExistence(timeout: 5))
+        for chatID in ["maya", "jordan", "riley", "sam"] {
+            XCTAssertTrue(
+                app.buttons["chat-card-showcase.\(chatID)"].waitForExistence(timeout: 3)
+            )
+        }
+        XCTAssertTrue(app.buttons["chat-card-showcase.sam"].isHittable)
+
+        capture("04-chats")
+    }
+
+    func test05Personas() {
+        let app = launchShowcase()
+        let personasTab = app.buttons["app-tab-personas"]
+        XCTAssertTrue(personasTab.waitForExistence(timeout: 5))
+        personasTab.tap()
+
+        XCTAssertTrue(element("personas-screen", in: app).waitForExistence(timeout: 3))
+        for persona in ["professional", "spark", "thoughtful"] {
+            XCTAssertTrue(
+                element("persona-card-\(persona)", in: app).waitForExistence(timeout: 3)
+            )
+        }
+        XCTAssertTrue(app.buttons["Create New Persona"].isHittable)
+
+        capture("05-personas")
+    }
+
+    func test06ContextAndRationale() {
+        let app = launchShowcase()
+        openMaya(in: app)
+
+        let details = element("open-chat-details", in: app)
+        XCTAssertTrue(details.waitForExistence(timeout: 5))
+        details.tap()
+
+        XCTAssertTrue(element("chat-details-screen", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("strategy-rationale-card", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("chat-memory-card", in: app).waitForExistence(timeout: 3))
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+
+        capture("06-context-and-rationale")
+    }
+
+    private func launchShowcase() -> XCUIApplication {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "--framereply-showcase",
+            "-AppleLanguages",
+            "(en)",
+            "-AppleLocale",
+            "en_US",
+            "-UIPreferredContentSizeCategoryName",
+            "UICTContentSizeCategoryL",
+            "-UIAccessibilityReduceMotionEnabled",
+            "YES"
+        ]
+        app.launch()
+        XCUIDevice.shared.orientation = .portrait
+        let portraitExpectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in app.frame.height > app.frame.width },
+            object: nil
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [portraitExpectation], timeout: 3), .completed)
+        XCTAssertTrue(element("chats-screen", in: app).waitForExistence(timeout: 8))
+        return app
+    }
+
+    private func openMaya(in app: XCUIApplication) {
+        let maya = app.buttons["chat-card-showcase.maya"]
+        XCTAssertTrue(maya.waitForExistence(timeout: 5))
+        maya.tap()
+    }
+
+    private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any)[identifier].firstMatch
+    }
+
+    private func capture(_ name: String) {
+        Thread.sleep(forTimeInterval: 0.35)
+
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+}

@@ -4,6 +4,8 @@ import SwiftUI
 struct PersonaDetailView: View {
     let personaID: UUID
     @ObservedObject var providerStore: ProviderStore
+    private let chatRepository: ChatRepository
+    private let personaRepository: PersonaRepository
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var personas: [PersonaRecord]
@@ -18,9 +20,16 @@ struct PersonaDetailView: View {
     @State private var defaultPersonaID: UUID?
     @State private var showsHistory = false
 
-    init(personaID: UUID, providerStore: ProviderStore) {
+    init(
+        personaID: UUID,
+        providerStore: ProviderStore,
+        chatRepository: ChatRepository,
+        personaRepository: PersonaRepository
+    ) {
         self.personaID = personaID
         self.providerStore = providerStore
+        self.chatRepository = chatRepository
+        self.personaRepository = personaRepository
         _personas = Query(filter: #Predicate<PersonaRecord> { $0.id == personaID })
         _observations = Query(
             filter: #Predicate<PersonaObservationRecord> { $0.personaID == personaID },
@@ -47,7 +56,7 @@ struct PersonaDetailView: View {
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) { topBar }
-        .task { defaultPersonaID = try? PersonaRepository().defaultPersonaID() }
+        .task { defaultPersonaID = try? personaRepository.defaultPersonaID() }
         .interactiveSwipeBackEnabled().navigationBarBackButtonHidden(true).toolbar(
             .hidden, for: .navigationBar)
     }
@@ -67,7 +76,7 @@ struct PersonaDetailView: View {
                         .font(.caption.bold())
                 } else {
                     Button("Set as Default") {
-                        try? PersonaRepository().setDefaultPersona(id: personaID)
+                        try? personaRepository.setDefaultPersona(id: personaID)
                         defaultPersonaID = personaID
                     }
                     .font(.caption.bold())
@@ -129,7 +138,7 @@ struct PersonaDetailView: View {
                     "",
                     isOn: Binding(
                         get: { persona.learningEnabled },
-                        set: { try? PersonaRepository().setLearningEnabled($0, for: persona) }
+                        set: { try? personaRepository.setLearningEnabled($0, for: persona) }
                     )
                 ).labelsHidden()
             }
@@ -146,7 +155,7 @@ struct PersonaDetailView: View {
                 TextField("Add an observation", text: $newObservation, axis: .vertical)
                 Button("Add") {
                     KeyboardDismissal.dismiss()
-                    try? PersonaRepository().addUserObservation(
+                    try? personaRepository.addUserObservation(
                         newObservation, personaID: personaID)
                     newObservation = ""
                 }.disabled(
@@ -160,7 +169,7 @@ struct PersonaDetailView: View {
                 $0.origin == PersonaObservationOrigin.ai.rawValue
             }) {
                 Button("Clear Learned Observations", role: .destructive) {
-                    try? PersonaRepository().clearLearnedObservations(personaID: personaID)
+                    try? personaRepository.clearLearnedObservations(personaID: personaID)
                 }.font(.caption.bold())
             }
         }.padding(22).glassPanel(cornerRadius: 28)
@@ -186,7 +195,7 @@ struct PersonaDetailView: View {
                     Button("Cancel") { editingID = nil }
                     Button("Save") {
                         KeyboardDismissal.dismiss()
-                        try? PersonaRepository().updateObservation(
+                        try? personaRepository.updateObservation(
                             observation, text: observationDraft)
                         editingID = nil
                     }.disabled(
@@ -271,7 +280,7 @@ struct PersonaDetailView: View {
     }
 
     private func archive(_ observation: PersonaObservationRecord) {
-        try? PersonaRepository().archiveObservation(observation)
+        try? personaRepository.archiveObservation(observation)
         editingID = nil
     }
 
@@ -281,7 +290,10 @@ struct PersonaDetailView: View {
         exampleError = nil
         Task {
             do {
-                try await PersonaExampleAnalyzer(providerStore: providerStore).analyze(
+                try await PersonaExampleAnalyzer(
+                    providerStore: providerStore,
+                    repository: chatRepository
+                ).analyze(
                     personaID: personaID, examples: exampleLines
                 )
                 examples = ""

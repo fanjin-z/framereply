@@ -5,9 +5,12 @@ final class PersonaExampleAnalyzer {
     private let aiService: any AIServiceProviding
     private let repository: ChatRepository
 
-    init(providerStore: any ProviderConfigurationProviding) {
+    init(
+        providerStore: any ProviderConfigurationProviding,
+        repository: ChatRepository
+    ) {
         aiService = AIService(providerConfiguration: providerStore)
-        repository = ChatRepository()
+        self.repository = repository
     }
 
     func analyze(

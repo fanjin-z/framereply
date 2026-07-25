@@ -97,12 +97,9 @@ final class InAppScreenshotImportViewModel: ObservableObject {
     private let localization: LocalizationContext
     private var loadID = 0
 
-    convenience init() {
-        self.init(providerStore: ProviderStore())
-    }
-
     convenience init(
         providerStore: any ProviderConfigurationProviding,
+        repository: ChatRepository,
         destinationChatID: String? = nil
     ) {
         self.init(
@@ -111,10 +108,13 @@ final class InAppScreenshotImportViewModel: ObservableObject {
                     providerConfiguration: providerStore,
                     registry: .live(eventReporter: OSLogImportEventReporter())
                 ),
-                repository: ChatRepository(),
+                repository: repository,
                 destinationChatID: destinationChatID
             ),
-            repliesGenerator: SuggestedRepliesCoordinator(providerStore: providerStore)
+            repliesGenerator: SuggestedRepliesCoordinator(
+                providerStore: providerStore,
+                repository: repository
+            )
         )
     }
 

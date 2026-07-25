@@ -6,7 +6,7 @@ permalink: /
 
 # FrameReply
 
-FrameReply is an open-source iOS and iPadOS assistant that helps users draft replies while keeping control of their conversations and provider accounts.
+FrameReply is an open-source iPhone assistant that helps users draft replies while keeping control of their conversations and provider accounts.
 
 ## Project
 

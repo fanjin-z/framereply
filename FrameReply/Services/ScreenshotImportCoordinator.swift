@@ -94,19 +94,6 @@ final class ScreenshotImportCoordinator {
     private let eventReporter: any ImportEventReporting
     private let destinationChatID: String?
 
-    convenience init() {
-        let eventReporter = OSLogImportEventReporter()
-        let providerStore = ProviderStore()
-        self.init(
-            aiService: AIService(
-                providerConfiguration: providerStore,
-                registry: .live(eventReporter: eventReporter)
-            ),
-            repository: ChatRepository(),
-            eventReporter: eventReporter
-        )
-    }
-
     init(
         aiService: any AIServiceProviding,
         repository: ChatRepository,

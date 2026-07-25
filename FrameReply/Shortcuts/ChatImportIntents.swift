@@ -71,7 +71,7 @@ nonisolated struct AnalyzedChatEntity: AppEntity {
 nonisolated struct AnalyzedChatEntityQuery: EntityQuery {
     func entities(for identifiers: [UUID]) async throws -> [AnalyzedChatEntity] {
         try await MainActor.run {
-            let repository = ChatRepository(context: ModelContext(FrameReplyDataStore.shared))
+            let repository = AppIntentDependencies.chatRepository()
             return try identifiers.compactMap { identifier in
                 guard let record = try repository.importRecord(id: identifier),
                     let chat = try repository.chat(id: record.chatID)
@@ -96,7 +96,7 @@ nonisolated enum ChatImportIntentSupport {
     ) async throws -> AnalyzedChatEntity {
         eventReporter.record(.stageStarted(traceID: traceID, stage: .persistence))
         let state = try await MainActor.run {
-            let repository = ChatRepository(context: ModelContext(FrameReplyDataStore.shared))
+            let repository = AppIntentDependencies.chatRepository()
             return try repository.resolveDraftingInput(
                 input,
                 importID: outcome.importID,
@@ -326,7 +326,9 @@ struct AnalyzeChatImagesIntent: AppIntent {
         }
 
         eventReporter.record(.stageStarted(traceID: traceID, stage: .screenshotDecoding))
-        let coordinator = await MainActor.run { ScreenshotImportCoordinator() }
+        let coordinator = await MainActor.run {
+            AppIntentDependencies.screenshotImportCoordinator()
+        }
         do {
             let suppliedInput = try DraftingInputLimits.validated(draftingInput)
             lifecycleReporter.record(
@@ -446,7 +448,9 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
             )
         }
 
-        let coordinator = await MainActor.run { ScreenshotImportCoordinator() }
+        let coordinator = await MainActor.run {
+            AppIntentDependencies.screenshotImportCoordinator()
+        }
         do {
             let suppliedInput = try DraftingInputLimits.validated(draftingInput)
             lifecycleReporter.record(

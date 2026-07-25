@@ -11,6 +11,8 @@ struct ChatsView: View {
     let isActive: Bool
     let onChatTap: (Chat) -> Void
     let onImportCompleted: (String) -> Void
+    private let chatRepository: ChatRepository
+    private let personaRepository: PersonaRepository
     @State private var searchText = ""
     @State private var isReviewPresented = false
     @State private var isImportSourcePresented = false
@@ -30,14 +32,21 @@ struct ChatsView: View {
     init(
         isActive: Bool,
         providerStore: ProviderStore,
+        chatRepository: ChatRepository,
+        personaRepository: PersonaRepository,
         onChatTap: @escaping (Chat) -> Void,
         onImportCompleted: @escaping (String) -> Void
     ) {
         self.isActive = isActive
+        self.chatRepository = chatRepository
+        self.personaRepository = personaRepository
         self.onChatTap = onChatTap
         self.onImportCompleted = onImportCompleted
         _importModel = StateObject(
-            wrappedValue: InAppScreenshotImportViewModel(providerStore: providerStore)
+            wrappedValue: InAppScreenshotImportViewModel(
+                providerStore: providerStore,
+                repository: chatRepository
+            )
         )
     }
 
@@ -53,7 +62,7 @@ struct ChatsView: View {
             uniqueKeysWithValues: personaRecords.map { ($0.id, $0.value) }
         )
         let defaultPersona =
-            (try? PersonaRepository().defaultPersona())?.value
+            (try? personaRepository.defaultPersona())?.value
             ?? personaRecords.first?.value
         let allChats = chatRecords.compactMap { record -> ChatCardItem? in
             let interpretation = ProvisionalIdentityResolver.resolve(
@@ -168,8 +177,9 @@ struct ChatsView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
+        .accessibilityIdentifier("chats-screen")
         .sheet(isPresented: $isReviewPresented) {
-            ChatImportReviewSheet()
+            ChatImportReviewSheet(repository: chatRepository)
         }
         .sheet(isPresented: $isImportSourcePresented) {
             ChatImportSourceSheet(
@@ -299,7 +309,7 @@ struct ChatsView: View {
 
     private func deleteChat(_ chat: Chat) {
         do {
-            try ChatRepository().deleteChat(id: chat.id)
+            try chatRepository.deleteChat(id: chat.id)
             chatToDelete = nil
         } catch {
             deleteErrorMessage = error.localizedDescription

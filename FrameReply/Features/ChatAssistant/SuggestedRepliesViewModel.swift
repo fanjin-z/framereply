@@ -10,10 +10,10 @@ final class SuggestedRepliesViewModel: ObservableObject {
     @Published private(set) var errorMessage: String?
 
     private let chatID: String
-    private let coordinator: SuggestedRepliesCoordinator
+    private let coordinator: any SuggestedRepliesCoordinating
     private var loadID = 0
 
-    init(chatID: String, coordinator: SuggestedRepliesCoordinator) {
+    init(chatID: String, coordinator: any SuggestedRepliesCoordinating) {
         self.chatID = chatID
         self.coordinator = coordinator
     }
@@ -65,7 +65,8 @@ final class SuggestedRepliesViewModel: ObservableObject {
                 chatID: chatID,
                 draftingInput: draftingInput,
                 force: force,
-                localization: localization
+                localization: localization,
+                traceID: ImportTraceID()
             )
             try Task.checkCancellation()
             guard loadID == currentLoadID else { return false }

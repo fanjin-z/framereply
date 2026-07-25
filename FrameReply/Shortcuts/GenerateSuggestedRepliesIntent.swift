@@ -240,8 +240,7 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
         do {
             let consumption = try await DraftingInputBarrier.waitUntilReady {
                 let result = try await MainActor.run {
-                    let repository = ChatRepository(
-                        context: ModelContext(FrameReplyDataStore.shared))
+                    let repository = AppIntentDependencies.chatRepository()
                     guard let record = try repository.importRecord(id: analyzedChat.id),
                         record.chatID == analyzedChat.chatID
                     else {
@@ -318,7 +317,9 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                 )
                 return .result(value: response.json, dialog: "\(response.dialog)")
             }
-            let replyCoordinator = await MainActor.run { SuggestedRepliesCoordinator() }
+            let replyCoordinator = await MainActor.run {
+                AppIntentDependencies.suggestedRepliesCoordinator()
+            }
             let replies = try await replyCoordinator.generate(
                 chatID: analyzedChat.chatID,
                 draftingInput: input,

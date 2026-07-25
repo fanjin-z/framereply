@@ -8,6 +8,7 @@ import SwiftUI
 
 struct ChatDetailsView: View {
     let chat: Chat
+    private let repository: ChatRepository
     let onDeleted: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -24,8 +25,13 @@ struct ChatDetailsView: View {
     @State private var isForgetIdentityConfirmationPresented = false
     @State private var errorMessage: String?
 
-    init(chat: Chat, onDeleted: @escaping () -> Void) {
+    init(
+        chat: Chat,
+        repository: ChatRepository,
+        onDeleted: @escaping () -> Void
+    ) {
         self.chat = chat
+        self.repository = repository
         self.onDeleted = onDeleted
         let chatID = chat.id
         _chatRecords = Query(filter: #Predicate<ChatRecord> { $0.id == chatID })
@@ -206,6 +212,7 @@ struct ChatDetailsView: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
+            .accessibilityIdentifier("chat-details-screen")
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             topBar
@@ -217,7 +224,8 @@ struct ChatDetailsView: View {
             EditParticipantNamesSheet(
                 chatID: chat.id,
                 displayName: displayedChat.name,
-                aliases: participantAliases
+                aliases: participantAliases,
+                repository: repository
             )
         }
         .alert("Rename Chat", isPresented: $isRenamePresented) {
@@ -278,7 +286,7 @@ struct ChatDetailsView: View {
 
     private func renameChat() {
         do {
-            try ChatRepository().renameChat(id: chat.id, name: renameDraft)
+            try repository.renameChat(id: chat.id, name: renameDraft)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -286,7 +294,7 @@ struct ChatDetailsView: View {
 
     private func deleteChat() {
         do {
-            try ChatRepository().deleteChat(id: chat.id)
+            try repository.deleteChat(id: chat.id)
             onDeleted()
         } catch {
             errorMessage = error.localizedDescription
@@ -295,7 +303,7 @@ struct ChatDetailsView: View {
 
     private func forgetImportedIdentity() {
         do {
-            try ChatRepository().forgetImportedSelfLabels(chatID: chat.id)
+            try repository.forgetImportedSelfLabels(chatID: chat.id)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -311,6 +319,7 @@ struct ChatDetailsView: View {
 
 private struct EditParticipantNamesSheet: View {
     let chatID: String
+    private let repository: ChatRepository
 
     @Environment(\.dismiss) private var dismiss
     @State private var displayName: String
@@ -318,8 +327,14 @@ private struct EditParticipantNamesSheet: View {
     @State private var newAlias = ""
     @State private var errorMessage: String?
 
-    init(chatID: String, displayName: String, aliases: [ChatParticipantAlias]) {
+    init(
+        chatID: String,
+        displayName: String,
+        aliases: [ChatParticipantAlias],
+        repository: ChatRepository
+    ) {
         self.chatID = chatID
+        self.repository = repository
         _displayName = State(initialValue: displayName)
         _aliases = State(initialValue: aliases)
     }
@@ -425,7 +440,7 @@ private struct EditParticipantNamesSheet: View {
 
     private func save() {
         do {
-            try ChatRepository().updateParticipantNames(
+            try repository.updateParticipantNames(
                 chatID: chatID,
                 displayName: displayName,
                 aliases: aliases

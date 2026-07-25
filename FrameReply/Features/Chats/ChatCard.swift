@@ -27,6 +27,7 @@ struct ChatCard: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Open Chat Assistant for \(chat.name)")
             .accessibilityValue(accessibilityValue)
+            .accessibilityIdentifier("chat-card-\(chat.id)")
 
             Menu {
                 Button(

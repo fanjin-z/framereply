@@ -52,6 +52,7 @@ struct ChatMemoryCard: View {
         }
         .padding(24)
         .glassPanel(cornerRadius: 30)
+        .accessibilityIdentifier("chat-memory-card")
         .alert("Couldn’t Save Remembered Context", isPresented: saveErrorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
