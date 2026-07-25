@@ -14,8 +14,7 @@ struct ChatsView: View {
     @State private var searchText = ""
     @State private var isReviewPresented = false
     @State private var isImportSourcePresented = false
-    @State private var chatPendingDeletion: Chat?
-    @State private var isDeleteConfirmationPresented = false
+    @State private var chatToDelete: Chat?
     @State private var deleteErrorMessage: String?
     @State private var selectedScreenshotItems: [PhotosPickerItem] = []
     @State private var photoLoadErrorMessage: String?
@@ -140,8 +139,7 @@ struct ChatsView: View {
                                 onChatTap(item.chat)
                             },
                             onDeleteTap: {
-                                chatPendingDeletion = item.chat
-                                isDeleteConfirmationPresented = true
+                                chatToDelete = item.chat
                             }
                         )
                     }
@@ -186,17 +184,16 @@ struct ChatsView: View {
             )
         }
         .confirmationDialog(
-            "Delete chat with \(chatPendingDeletion?.name ?? "this person")?",
-            isPresented: $isDeleteConfirmationPresented,
-            titleVisibility: .visible
-        ) {
+            "Delete chat with \(chatToDelete?.name ?? "this person")?",
+            isPresented: deleteConfirmationBinding,
+            titleVisibility: .visible,
+            presenting: chatToDelete
+        ) { chat in
             Button("Delete Chat", role: .destructive) {
-                deletePendingChat()
+                deleteChat(chat)
             }
-            Button("Cancel") {
-                chatPendingDeletion = nil
-            }
-        } message: {
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
             Text("This permanently deletes this chat and its data. This can’t be undone.")
         }
         .alert("Could Not Delete Chat", isPresented: deleteErrorBinding) {
@@ -235,6 +232,17 @@ struct ChatsView: View {
 
     private var reviewNudgeIconName: String {
         hasUnknownSenderReview ? "person.crop.circle.badge.questionmark" : "tray.and.arrow.down"
+    }
+
+    private var deleteConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: { chatToDelete != nil },
+            set: { isPresented in
+                if !isPresented {
+                    chatToDelete = nil
+                }
+            }
+        )
     }
 
     private var deleteErrorBinding: Binding<Bool> {
@@ -289,14 +297,10 @@ struct ChatsView: View {
         }
     }
 
-    private func deletePendingChat() {
-        guard let chat = chatPendingDeletion else {
-            return
-        }
-
+    private func deleteChat(_ chat: Chat) {
         do {
             try ChatRepository().deleteChat(id: chat.id)
-            chatPendingDeletion = nil
+            chatToDelete = nil
         } catch {
             deleteErrorMessage = error.localizedDescription
         }
