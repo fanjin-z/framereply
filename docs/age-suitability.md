@@ -6,8 +6,12 @@ permalink: /age-suitability
 
 # FrameReply Age Suitability
 
-FrameReply sends user-selected communications to third-party AI providers and can generate unpredictable text based on private conversation content. It is not designed specifically for children and should not be listed in the App Store Kids category.
+**App Store age rating: 13+.** Equivalent ratings may vary by country or region.
 
-FrameReply does not impose a blanket 18+ requirement. Users must satisfy the age, guardian-consent, and paid-account rules of the provider they select. [OpenAI's individual terms](https://openai.com/policies/terms-of-use/) require users to be at least 13, or the local minimum age, with parent or guardian permission when under 18. [Z.ai International's terms](https://docs.z.ai/legal-agreement/terms-of-use) direct minors to review the terms with a guardian. [Zhipu China's user agreement](https://docs.bigmodel.cn/cn/terms/user-agreement) states that its paid platform services are not offered to minors.
+FrameReply is not designed specifically for children and is not listed in the App Store Kids category. It processes conversation text and screenshots selected by the user and generates suggested replies through a user-connected AI provider. Imported or generated text may infrequently contain profanity, references to alcohol, drugs, or medical issues, mature or suggestive themes, or non-explicit sexual content.
 
-The App Store age rating should be determined from Apple's current questionnaire and the app's actual content capabilities. Users must review AI-generated replies before sending them and must not upload a minor's personal information without all legally required authorization.
+AI-generated content may be inaccurate, inappropriate, or unexpected. Review every suggestion before using or sending it.
+
+Users must satisfy the selected provider's minimum-age, guardian-consent, account, and payment requirements. Some provider services may not be available to minors. FrameReply does not verify age or provide parental controls.
+
+Only process content you are authorized to use. A minor's personal information must not be uploaded without all legally required authorization. See the [Privacy Policy](privacy.md) and [Terms of Use](terms.md).
