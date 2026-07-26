@@ -671,7 +671,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Allow provider sharing in Settings → Privacy & Data first."
+            "value" : "Delete and reconnect the provider in Settings → Model Providers."
           }
         }
       }
@@ -979,7 +979,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Allow provider sharing in Settings → Privacy & Data first."
+            "value" : "Delete and reconnect the provider in Settings → Model Providers."
           }
         }
       }

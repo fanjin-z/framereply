@@ -6,9 +6,9 @@ permalink: /privacy
 
 # FrameReply Privacy Policy
 
-Effective July 15, 2026
+Effective July 27, 2026
 
-FrameReply is an open-source iOS and iPadOS app. The project maintainer is the data controller for the limited processing described here. FrameReply does not operate an application server and does not use advertising, analytics, or tracking SDKs.
+FrameReply is an open-source iPhone app. The project maintainer is the data controller for the limited processing described here. FrameReply does not operate an application server and does not use advertising, analytics, or tracking SDKs.
 
 ## Data FrameReply handles
 
@@ -30,13 +30,13 @@ Provider usage can be linked to the provider account represented by the user's A
 
 ## Consent and lawful use
 
-The user must affirm that they consent to provider processing and have permission or another lawful basis to upload the selected conversation and participant information. Consent is stored locally by provider and policy version. It can be revoked in **Settings → Privacy & Data**. Revocation blocks new AI requests until consent is granted again.
+The user must affirm that they consent to provider processing and have permission or another lawful basis to upload the selected conversation and participant information. Consent is stored locally by provider and policy version. To withdraw consent, choose **Delete** from the provider menu in **Settings → Model Providers**. This removes the locally stored API key and consent.
 
 ## Retention and deletion
 
 Local data remains until the user deletes an individual chat/provider or chooses **Delete All Local Data**. Full deletion removes chats, messages, personas, context, drafts, consent records, provider settings, and API keys from the device. Reinstall detection purges orphaned FrameReply provider keys left in the Keychain.
 
-Provider-side retention is controlled by the selected provider. Use the provider's account and privacy controls for provider-side requests.
+Deleting a provider does not revoke the key or delete provider-held data. Use the provider's account and privacy controls for those actions.
 
 ## Tracking and disclosure
 

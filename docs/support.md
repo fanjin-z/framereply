@@ -14,8 +14,8 @@ Do not send API keys, real conversations, unredacted screenshots, or other sensi
 
 ## Before requesting help
 
-- Confirm the device runs iOS or iPadOS 26 or later.
-- Confirm the active provider has valid data-sharing consent in **Settings → Privacy & Data**.
+- Confirm the iPhone runs iOS 26 or later.
+- If consent is unavailable, delete and reconnect the provider in **Settings → Model Providers**.
 - Confirm the provider key is active and has quota.
 - Retry on a stable network and with a smaller image selection.
 - For Shortcut issues, follow the [Shortcut troubleshooting guide](shortcuts.md).

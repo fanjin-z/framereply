@@ -2,7 +2,7 @@
 
 > Stay in chat. Keep the thread
 
-FrameReply is an open-source iPhone and iPad assistant that gives you two thoughtful reply ideas without pulling you out of the conversation. Run it through Shortcuts, carry forward chat history and person-specific context, and shape each draft around your goal and voice.
+FrameReply is an open-source iPhone assistant that gives you two thoughtful reply ideas without pulling you out of the conversation. Run it through Shortcuts, carry forward chat history and person-specific context, and shape each draft around your goal and voice.
 
 ## How it works
 
@@ -30,7 +30,7 @@ Read the [Privacy Policy](docs/privacy.md), [Terms](docs/terms.md), and [Age Sui
 
 ## Requirements
 
-- iOS or iPadOS 26 or later.
+- An iPhone running iOS 26 or later.
 - A user-owned API key for OpenAI or Z.ai. Provider usage may incur charges billed by that provider.
 
 ## Build and contribute

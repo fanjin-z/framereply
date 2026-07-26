@@ -22,15 +22,14 @@ commitment to a particular feature, release, or delivery date.
   the device Keychain.
 - Require provider consent, protect the local database, exclude it from backups,
   and provide controls for deleting saved data and credentials.
-- Support iPhone and iPad with automated tests and contributor, architecture,
-  privacy, support, and Shortcut documentation.
+- Support iPhone with automated tests and contributor, architecture, privacy,
+  support, and Shortcut documentation.
 
 ## Now — First public release
 
 - Publish both team-owned Shortcuts and verify their installation links on a fresh
   device.
-- Validate image and copied-text workflows end to end on physical iPhones and
-  iPads.
+- Validate image and copied-text workflows end to end on physical iPhones.
 - Run a focused TestFlight pilot and resolve release-blocking import, provider,
   reliability, and recovery issues.
 - Complete App Store submission material, privacy disclosures, accessibility
@@ -49,9 +48,8 @@ commitment to a particular feature, release, or delivery date.
 ## Vision — Longer-term direction
 
 - Make FrameReply the most thoughtful context-aware reply companion for iPhone
-  and iPad while preserving user review before anything is sent.
+  while preserving user review before anything is sent.
 - Support more communication workflows and provider choices without compromising
   clear data-flow and privacy boundaries.
 - Build contributor-friendly extension points for providers, import formats, and
   personalization strategies.
-
