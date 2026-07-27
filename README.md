@@ -2,6 +2,8 @@
 
 > Stay in chat. Keep the thread
 
+**Join public beta:** [![Join on TestFlight](https://img.shields.io/badge/TestFlight-0D96F6?logo=appstore&logoColor=white)](https://testflight.apple.com/join/WhN35A6x)
+
 FrameReply is an open-source iPhone assistant that gives you two thoughtful reply ideas without pulling you out of the conversation. Run it through Shortcuts, carry forward chat history and person-specific context, and shape each draft around your goal and voice.
 
 ## How it works

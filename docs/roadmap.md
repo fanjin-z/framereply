@@ -20,11 +20,11 @@ commitment to a particular feature, release, or delivery date.
 - Store data locally and connect directly to OpenAI or Z.ai with user-owned
   credentials and explicit consent.
 
-## Now — App Store review
+## Now — Public beta and App Store review
 
-FrameReply has been submitted to the App Store and is pending review.
 
-- Respond to App Review feedback and resolve release blockers.
+- Turn public beta feedback into prioritized fixes and resolve release blockers.
+- Respond to App Review feedback.
 - Ship and support the first public version.
 
 ## Next — Early post-launch improvements
