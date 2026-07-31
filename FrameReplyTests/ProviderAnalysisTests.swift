@@ -66,14 +66,15 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(standard.instructions.contains("merge existingHistorySummary"))
         XCTAssertTrue(
             standard.instructions.contains(
-                "appLanguage is the supported language selected for FrameReply in iOS Settings"
+                "Write conversationStrategy, strategyRationale, memoryChanges.text, and personaObservationChanges.text in appLanguage"
             )
         )
         XCTAssertTrue(
             standard.instructions.contains(
-                "Suggested reply bodies and historySummary follow the language and script"
+                "Match reply bodies and historySummary to the language and script"
             )
         )
+        XCTAssertTrue(standard.instructions.contains("For reply bodies only"))
         XCTAssertTrue(
             standard.instructions.contains(
                 "one compact, self-contained statement of at most 120 characters"
@@ -106,14 +107,26 @@ final class ProviderAnalysisTests: XCTestCase {
         )
         XCTAssertTrue(
             drafting.instructions.contains(
-                "appLanguage is the supported language selected for FrameReply in iOS Settings"
+                "Write conversationStrategy and strategyRationale in appLanguage"
             )
         )
         XCTAssertTrue(
             drafting.instructions.contains(
-                "regardless of the conversation language"
+                "Match reply bodies to the latest relevant conversation language and script"
             )
         )
+        XCTAssertTrue(
+            persona.instructions.contains(
+                "Write personaObservationChanges.text in appLanguage"
+            )
+        )
+        for contract in [standard, drafting, persona] {
+            XCTAssertEqual(
+                contract.instructions.components(separatedBy: "in appLanguage").count - 1,
+                1
+            )
+            XCTAssertFalse(contract.instructions.contains("selected for FrameReply"))
+        }
 
         let memoryChanges = try XCTUnwrap(
             summaryProperties["memoryChanges"] as? [String: Any]
