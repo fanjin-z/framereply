@@ -378,11 +378,11 @@ final class ChatRepository {
 
     func suggestedReplyCache(
         chatID: String,
-        presentationLanguageIdentifier: String = LocalizationContext.current.languageIdentifier
+        appLanguage: String = LocalizationContext.current.languageIdentifier
     ) throws -> SuggestedReplyCacheRecord? {
         let key = SuggestedReplyCacheRecord.makeKey(
             chatID: chatID,
-            presentationLanguageIdentifier: presentationLanguageIdentifier
+            appLanguage: appLanguage
         )
         return try context.fetch(
             FetchDescriptor<SuggestedReplyCacheRecord>(
@@ -537,7 +537,7 @@ final class ChatRepository {
 
     func saveSuggestedReplyGeneration(
         chatID: String,
-        presentationLanguageIdentifier: String,
+        appLanguage: String,
         chatMemories: [ChatMemory],
         personaID: UUID,
         personaObservationChanges: [PersonaObservationChange],
@@ -592,13 +592,13 @@ final class ChatRepository {
             let cache: SuggestedReplyCacheRecord
             if let existing = try suggestedReplyCache(
                 chatID: chatID,
-                presentationLanguageIdentifier: presentationLanguageIdentifier
+                appLanguage: appLanguage
             ) {
                 cache = existing
             } else {
                 cache = SuggestedReplyCacheRecord(
                     chatID: chatID,
-                    presentationLanguageIdentifier: presentationLanguageIdentifier,
+                    appLanguage: appLanguage,
                     historySummary: "",
                     summarizedMessageCount: 0,
                     summarizedPrefixFingerprint: "",
@@ -628,7 +628,7 @@ final class ChatRepository {
     /// summaries, chat memory, or persona learning.
     func saveSuggestedRepliesOnly(
         chatID: String,
-        presentationLanguageIdentifier: String,
+        appLanguage: String,
         replies: [String],
         conversationStrategy: String,
         strategyRationale: String,
@@ -641,13 +641,13 @@ final class ChatRepository {
             let cache: SuggestedReplyCacheRecord
             if let existing = try suggestedReplyCache(
                 chatID: chatID,
-                presentationLanguageIdentifier: presentationLanguageIdentifier
+                appLanguage: appLanguage
             ) {
                 cache = existing
             } else {
                 cache = SuggestedReplyCacheRecord(
                     chatID: chatID,
-                    presentationLanguageIdentifier: presentationLanguageIdentifier,
+                    appLanguage: appLanguage,
                     historySummary: "",
                     summarizedMessageCount: 0,
                     summarizedPrefixFingerprint: "",

@@ -1,6 +1,6 @@
 import Foundation
 
-/// The language used for FrameReply-owned presentation text.
+/// The language used for FrameReply-owned localized content.
 ///
 /// Keep this value explicit at boundaries that run outside SwiftUI (AI workflows,
 /// App Intents, and response builders). Imported and user-authored content does

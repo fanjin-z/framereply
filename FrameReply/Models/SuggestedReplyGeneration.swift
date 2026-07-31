@@ -52,7 +52,8 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
     let recentMessages: [SuggestedReplyPromptMessage]
     let draftingInput: String?
     let previousConversationStrategy: String?
-    let presentationLanguageIdentifier: String
+    /// Supported FrameReply localization tag, such as "en" or "zh-Hans".
+    let appLanguage: String
     let traceID: ImportTraceID
 
     init(
@@ -66,7 +67,7 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
         recentMessages: [SuggestedReplyPromptMessage],
         draftingInput: String? = nil,
         previousConversationStrategy: String? = nil,
-        presentationLanguageIdentifier: String,
+        appLanguage: String,
         traceID: ImportTraceID
     ) {
         self.task = task
@@ -79,7 +80,7 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
         self.recentMessages = recentMessages
         self.draftingInput = draftingInput
         self.previousConversationStrategy = previousConversationStrategy
-        self.presentationLanguageIdentifier = presentationLanguageIdentifier
+        self.appLanguage = appLanguage
         self.traceID = traceID
     }
 }
@@ -306,7 +307,13 @@ nonisolated enum SuggestedReplyResultDecoder {
         let ids = try decodeIDs(sourceValues, path: "\(path).evidenceMessageIDs")
         let target = try nullableUUID(from: object["targetMemoryID"], path: path)
         let text = try nullableString(from: object["text"], path: path)
-        try validate(action: action.rawValue, target: target, text: text, path: path)
+        try validate(
+            action: action.rawValue,
+            target: target,
+            text: text,
+            maxTextLength: ChatMemoryLimits.maximumAITextLength,
+            path: path
+        )
         return ChatMemoryChange(
             action: action, targetMemoryID: target, text: text, sourceMessageIDs: ids)
     }
@@ -323,21 +330,32 @@ nonisolated enum SuggestedReplyResultDecoder {
         let ids = try decodeIDs(sourceValues, path: "\(path).evidenceMessageIDs")
         let target = try nullableUUID(from: object["targetObservationID"], path: path)
         let text = try nullableString(from: object["text"], path: path)
-        try validate(action: action.rawValue, target: target, text: text, path: path)
+        try validate(
+            action: action.rawValue,
+            target: target,
+            text: text,
+            maxTextLength: 240,
+            path: path
+        )
         return PersonaObservationChange(
             action: action, targetObservationID: target, text: text, sourceMessageIDs: ids)
     }
 
-    private static func validate(action: String, target: UUID?, text: String?, path: String) throws
-    {
+    private static func validate(
+        action: String,
+        target: UUID?,
+        text: String?,
+        maxTextLength: Int,
+        path: String
+    ) throws {
         let value = text?.trimmingCharacters(in: .whitespacesAndNewlines)
         switch action {
         case "add":
-            guard target == nil, let value, !value.isEmpty, value.count <= 240 else {
+            guard target == nil, let value, !value.isEmpty, value.count <= maxTextLength else {
                 throw schema(path)
             }
         case "update":
-            guard target != nil, let value, !value.isEmpty, value.count <= 240 else {
+            guard target != nil, let value, !value.isEmpty, value.count <= maxTextLength else {
                 throw schema(path)
             }
         case "archive": guard target != nil, text == nil else { throw schema(path) }

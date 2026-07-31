@@ -529,7 +529,7 @@ final class ChatPersistenceTests: XCTestCase {
         container.mainContext.insert(
             SuggestedReplyCacheRecord(
                 chatID: chatID,
-                presentationLanguageIdentifier: "en",
+                appLanguage: "en",
                 historySummary: "Summary",
                 summarizedMessageCount: 0,
                 summarizedPrefixFingerprint: "fingerprint",

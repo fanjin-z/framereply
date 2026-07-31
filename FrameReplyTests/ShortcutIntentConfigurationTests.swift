@@ -283,7 +283,7 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
                 diagnosticID: "trace-123",
                 chatID: "chat-123",
                 chatTitle: "natalie",
-                presentationLanguageIdentifier: "en",
+                appLanguage: "en",
                 importID: nil,
                 matchedExisting: false,
                 reviewRequired: false,

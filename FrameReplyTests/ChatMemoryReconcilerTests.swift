@@ -119,4 +119,58 @@ final class ChatMemoryReconcilerTests: XCTestCase {
 
         XCTAssertTrue(mixedEvidenceResult.isEmpty)
     }
+
+    func testEnforcesReadableAIMemoryLimitWithoutChangingExistingManualMemory() throws {
+        let evidenceID = UUID()
+        let manualMemory = ChatMemory(
+            text: String(repeating: "u", count: ChatMemoryLimits.maximumAITextLength + 40)
+        )
+        let aiMemory = ChatMemory(
+            text: "Likes tea",
+            origin: .ai,
+            certainty: .aiInferred
+        )
+        let acceptedText = String(
+            repeating: "a", count: ChatMemoryLimits.maximumAITextLength
+        )
+        let rejectedText = String(
+            repeating: "b", count: ChatMemoryLimits.maximumAITextLength + 1
+        )
+
+        let result = ChatMemoryReconciler.reconcile(
+            memories: [manualMemory, aiMemory],
+            changes: [
+                ChatMemoryChange(
+                    action: .add,
+                    targetMemoryID: nil,
+                    text: acceptedText,
+                    sourceMessageIDs: [evidenceID]
+                ),
+                ChatMemoryChange(
+                    action: .add,
+                    targetMemoryID: nil,
+                    text: rejectedText,
+                    sourceMessageIDs: [evidenceID]
+                ),
+                ChatMemoryChange(
+                    action: .update,
+                    targetMemoryID: aiMemory.id,
+                    text: rejectedText,
+                    sourceMessageIDs: [evidenceID]
+                )
+            ],
+            allowedOtherParticipantSourceMessageIDs: [evidenceID]
+        )
+
+        XCTAssertEqual(
+            try XCTUnwrap(result.first { $0.id == manualMemory.id }).text,
+            manualMemory.text
+        )
+        XCTAssertEqual(
+            try XCTUnwrap(result.first { $0.id == aiMemory.id }).text,
+            aiMemory.text
+        )
+        XCTAssertNotNil(result.first { $0.text == acceptedText })
+        XCTAssertNil(result.first { $0.text == rejectedText })
+    }
 }

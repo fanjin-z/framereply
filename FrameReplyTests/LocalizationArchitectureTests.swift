@@ -85,13 +85,13 @@ final class LocalizationArchitectureTests: XCTestCase {
         XCTAssertFalse(record.localizedText.isEmpty)
     }
 
-    func testReplyCachesAreIsolatedByPresentationLanguage() throws {
+    func testReplyCachesAreIsolatedByAppLanguage() throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
 
         try repository.saveSuggestedRepliesOnly(
             chatID: "chat",
-            presentationLanguageIdentifier: "en",
+            appLanguage: "en",
             replies: ["A", "B"],
             conversationStrategy: "English strategy",
             strategyRationale: "English rationale",
@@ -100,7 +100,7 @@ final class LocalizationArchitectureTests: XCTestCase {
         )
         try repository.saveSuggestedRepliesOnly(
             chatID: "chat",
-            presentationLanguageIdentifier: "es",
+            appLanguage: "es",
             replies: ["A", "B"],
             conversationStrategy: "Estrategia",
             strategyRationale: "Explicación",
@@ -110,17 +110,17 @@ final class LocalizationArchitectureTests: XCTestCase {
 
         XCTAssertEqual(
             try repository.suggestedReplyCache(
-                chatID: "chat", presentationLanguageIdentifier: "en")?.conversationStrategy,
+                chatID: "chat", appLanguage: "en")?.conversationStrategy,
             "English strategy"
         )
         XCTAssertEqual(
             try repository.suggestedReplyCache(
-                chatID: "chat", presentationLanguageIdentifier: "es")?.conversationStrategy,
+                chatID: "chat", appLanguage: "es")?.conversationStrategy,
             "Estrategia"
         )
         XCTAssertNil(
             try repository.suggestedReplyCache(
-                chatID: "chat", presentationLanguageIdentifier: "zh-Hans")
+                chatID: "chat", appLanguage: "zh-Hans")
         )
     }
 }

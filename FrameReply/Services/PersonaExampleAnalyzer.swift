@@ -50,7 +50,7 @@ final class PersonaExampleAnalyzer {
             existingHistorySummary: "",
             olderMessagesToSummarize: [],
             recentMessages: [],
-            presentationLanguageIdentifier: localization.languageIdentifier,
+            appLanguage: localization.languageIdentifier,
             traceID: ImportTraceID()
         )
         let result = try await aiService.generateSuggestedReplies(request, using: provider)

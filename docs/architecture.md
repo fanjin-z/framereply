@@ -78,9 +78,9 @@ See [AI Workflows](ai-workflows.md) for the matching algorithm and the state rul
 
 ## Localization boundaries
 
-`Localizable.xcstrings` is the app-owned presentation source of truth. `LocalizationContext` carries a resolved supported language into coordinators and prompt construction; there is no mutable global language manager.
+`Localizable.xcstrings` is the source of truth for FrameReply-owned localized content. SwiftUI's locale reflects the supported per-app language selected in iOS Settings, and `LocalizationContext` resolves that locale into coordinators and prompt construction. Adding another app localization makes that language eligible without introducing a mutable global language manager.
 
-Persistent identity is language-independent: chat titles are optional verbatim content, built-in personas and seed observations use stable IDs with optional user overrides, and suggested-reply caches use chat plus presentation language as their identity. Localized fallbacks are resolved only by projections. Imported text, names, user edits, provider brands, reply bodies, protocol fields, and diagnostic identifiers remain verbatim.
+Persistent identity is language-independent: chat titles are optional verbatim content, built-in personas and seed observations use stable IDs with optional user overrides, and suggested-reply caches use chat plus app language as their identity. Localized fallbacks are resolved only by projections. FrameReply-authored strategy, rationale, and AI chat memory use the resolved app language; imported text, names, user edits, provider brands, reply bodies, protocol fields, and diagnostic identifiers remain verbatim.
 
 ## Glossary
 
@@ -89,7 +89,7 @@ Persistent identity is language-independent: chat titles are optional verbatim c
 | **Provisional chat** | A newly imported conversation whose identity has not been confirmed. |
 | **Unknown sender** | A message whose owner cannot be established safely from visible or remembered evidence. |
 | **Participant alias** | A previously observed name for the same participant, scoped to one chat. |
-| **Chat memory** | Durable, chat-specific context supported by messages from the other participant. |
+| **Chat memory** | A short, atomic, chat-specific fact or confirmed shared plan supported by the other participant. AI-authored memory uses the app language; manual memory remains verbatim. |
 | **Persona observation** | A reusable writing-style pattern learned from the user's own messages or supplied explicitly. |
 | **One-use drafting input** | Optional context or a rough draft used for one generation without becoming history, memory, or persona learning. |
 

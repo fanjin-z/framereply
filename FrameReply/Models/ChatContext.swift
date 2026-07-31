@@ -55,6 +55,10 @@ nonisolated enum ChatMemoryStatus: String, Codable, Equatable, Sendable {
     case superseded
 }
 
+nonisolated enum ChatMemoryLimits {
+    static let maximumAITextLength = 120
+}
+
 nonisolated struct ChatMemory: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     var text: String
@@ -194,7 +198,7 @@ nonisolated enum ChatMemoryReconciler {
     private static func cleaned(_ text: String?) -> String? {
         guard let text else { return nil }
         let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        return value.isEmpty || value.count > 240 ? nil : value
+        return value.isEmpty || value.count > ChatMemoryLimits.maximumAITextLength ? nil : value
     }
 
     private static func activeEquivalent(

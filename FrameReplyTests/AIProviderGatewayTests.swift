@@ -77,7 +77,7 @@ final class AIProviderGatewayTests: XCTestCase {
             existingHistorySummary: "",
             olderMessagesToSummarize: [],
             recentMessages: [],
-            presentationLanguageIdentifier: "en",
+            appLanguage: "en",
             traceID: ImportTraceID()
         )
     }

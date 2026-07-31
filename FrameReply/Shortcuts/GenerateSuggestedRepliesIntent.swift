@@ -24,7 +24,7 @@ nonisolated struct ShortcutResponsePayload: Codable, Equatable, Sendable {
     let diagnosticID: String
     let chatID: String?
     let chatTitle: String?
-    let presentationLanguageIdentifier: String
+    let appLanguage: String
     let importID: UUID?
     let matchedExisting: Bool?
     let reviewRequired: Bool?
@@ -41,7 +41,7 @@ nonisolated struct ShortcutResponsePayload: Codable, Equatable, Sendable {
         diagnosticID: String,
         chatID: String?,
         chatTitle: String?,
-        presentationLanguageIdentifier: String,
+        appLanguage: String,
         importID: UUID?,
         matchedExisting: Bool?,
         reviewRequired: Bool?,
@@ -57,7 +57,7 @@ nonisolated struct ShortcutResponsePayload: Codable, Equatable, Sendable {
         self.diagnosticID = diagnosticID
         self.chatID = chatID
         self.chatTitle = chatTitle
-        self.presentationLanguageIdentifier = presentationLanguageIdentifier
+        self.appLanguage = appLanguage
         self.importID = importID
         self.matchedExisting = matchedExisting
         self.reviewRequired = reviewRequired
@@ -148,7 +148,7 @@ nonisolated enum ShortcutResponseBuilder {
                 diagnosticID: outcome.diagnosticID,
                 chatID: outcome.chatID,
                 chatTitle: outcome.chatTitle,
-                presentationLanguageIdentifier: localization.languageIdentifier,
+                appLanguage: localization.languageIdentifier,
                 importID: outcome.importID,
                 matchedExisting: outcome.matchedExisting,
                 reviewRequired: outcome.reviewRequired,
@@ -177,7 +177,7 @@ nonisolated enum ShortcutResponseBuilder {
                 diagnosticID: traceID.diagnosticID,
                 chatID: nil,
                 chatTitle: nil,
-                presentationLanguageIdentifier: localization.languageIdentifier,
+                appLanguage: localization.languageIdentifier,
                 importID: nil,
                 matchedExisting: nil,
                 reviewRequired: nil,

@@ -321,7 +321,7 @@
                 context.insert(
                     SuggestedReplyCacheRecord(
                         chatID: scenario.id,
-                        presentationLanguageIdentifier: "en",
+                        appLanguage: "en",
                         historySummary: "",
                         summarizedMessageCount: 0,
                         summarizedPrefixFingerprint: "",

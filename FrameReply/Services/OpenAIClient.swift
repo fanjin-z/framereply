@@ -334,7 +334,7 @@ struct OpenAIClient: AIProviderAdapter {
             "reasoning": ["effort": "none"],
             "store": false,
             "prompt_cache_key":
-                "\(contract.name)-v\(contract.version)-\(model.rawValue)-\(generationRequest.presentationLanguageIdentifier)",
+                "\(contract.name)-v\(contract.version)-\(model.rawValue)-\(generationRequest.appLanguage)",
             "text": [
                 "verbosity": "low",
                 "format": [

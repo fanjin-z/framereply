@@ -120,7 +120,7 @@ Provider-proposed learning is filtered locally:
 
 | Proposed change | Required evidence | Purpose |
 | --- | --- | --- |
-| Chat memory | Eligible messages from the other participant | Retain durable facts relevant to this relationship. |
+| Chat memory | Eligible messages from the other participant | Retain one readable, atomic fact or confirmed shared plan per item in the app language. |
 | Persona observation | Repeated, previously unprocessed user-authored messages | Learn reusable writing style rather than conversation facts. |
 
 Unsupported, duplicate, protected, or stale changes are ignored. Valid summaries, memory, persona observations, learning receipts, and cache state are persisted together.

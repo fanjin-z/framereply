@@ -11,7 +11,7 @@ final class ShortcutResponsePayloadTests: XCTestCase {
             diagnosticID: "ABC12345",
             chatID: "chat-id",
             chatTitle: "Sarah",
-            presentationLanguageIdentifier: "en",
+            appLanguage: "en",
             importID: UUID(uuidString: "00000000-0000-0000-0000-000000000001"),
             matchedExisting: true,
             reviewRequired: false,
@@ -26,7 +26,7 @@ final class ShortcutResponsePayloadTests: XCTestCase {
         XCTAssertEqual(object["status"] as? String, "success")
         XCTAssertEqual(object["chatID"] as? String, "chat-id")
         XCTAssertEqual(object["chatTitle"] as? String, "Sarah")
-        XCTAssertEqual(object["presentationLanguageIdentifier"] as? String, "en")
+        XCTAssertEqual(object["appLanguage"] as? String, "en")
         XCTAssertEqual(object["diagnosticID"] as? String, "ABC12345")
         XCTAssertEqual(object["matchedExisting"] as? Bool, true)
         XCTAssertEqual(object["insertedMessageCount"] as? Int, 2)

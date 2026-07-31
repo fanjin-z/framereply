@@ -669,7 +669,7 @@ struct ChatAssistantView: View {
 
     private var currentLanguageCache: SuggestedReplyCacheRecord? {
         suggestedReplyCacheRecords.first {
-            $0.presentationLanguageIdentifier == localizationContext.languageIdentifier
+            $0.appLanguage == localizationContext.languageIdentifier
         }
     }
 }

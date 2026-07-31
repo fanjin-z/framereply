@@ -118,7 +118,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         container.mainContext.insert(
             SuggestedReplyCacheRecord(
                 chatID: chatID,
-                presentationLanguageIdentifier: "en",
+                appLanguage: "en",
                 historySummary: "Existing summary",
                 summarizedMessageCount: 7,
                 summarizedPrefixFingerprint: "existing-prefix",
@@ -231,6 +231,70 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         client.context = .zhipuDefaultReplies
         _ = try await coordinator.generate(chatID: chatID)
         XCTAssertEqual(client.requests.count, 4)
+    }
+
+    @MainActor
+    func testAppLanguageReachesGenerationAndLegacyPromptCacheIsRegenerated()
+        async throws
+    {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "localized-prompt-version-chat"
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
+        try container.mainContext.save()
+
+        let client = StubReplyService()
+        let coordinator = SuggestedRepliesCoordinator(
+            aiService: client,
+            repository: repository
+        )
+        let localization = LocalizationContext(languageIdentifier: "fr")
+
+        _ = try await coordinator.generate(
+            chatID: chatID,
+            localization: localization
+        )
+
+        XCTAssertEqual(client.requests.map(\.appLanguage), ["fr"])
+        let firstCache = try XCTUnwrap(
+            repository.suggestedReplyCache(
+                chatID: chatID,
+                appLanguage: "fr"
+            )
+        )
+        XCTAssertEqual(firstCache.promptVersion, SuggestedReplyPrompt.version)
+        firstCache.promptVersion = SuggestedReplyPrompt.version - 1
+        try container.mainContext.save()
+
+        XCTAssertNil(
+            try coordinator.cachedReplies(
+                chatID: chatID,
+                localization: localization
+            )
+        )
+        _ = try await coordinator.generate(
+            chatID: chatID,
+            localization: localization
+        )
+
+        XCTAssertEqual(
+            client.requests.map(\.appLanguage),
+            ["fr", "fr"]
+        )
+        XCTAssertEqual(
+            try repository.suggestedReplyCache(
+                chatID: chatID,
+                appLanguage: "fr"
+            )?.promptVersion,
+            SuggestedReplyPrompt.version
+        )
+        XCTAssertNil(
+            try repository.suggestedReplyCache(
+                chatID: chatID,
+                appLanguage: "en"
+            )
+        )
     }
 
     @MainActor
@@ -445,6 +509,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let chatID = "other-participant-owned-memory-chat"
         let userMessage = makeMessage(chatID: chatID, index: 0)
         let otherParticipantMessage = makeMessage(chatID: chatID, index: 1)
+        otherParticipantMessage.text = "Yes, dinner Tuesday at 7 works."
         let otherMessage = makeMessage(chatID: chatID, index: 2)
         otherMessage.senderKind = "group_participant"
         otherMessage.senderName = "Alex"
@@ -480,6 +545,12 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                     ChatMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
+                        text: "Dinner together Tuesday at 7 PM",
+                        sourceMessageIDs: [otherParticipantMessage.id]
+                    ),
+                    ChatMemoryChange(
+                        action: .add,
+                        targetMemoryID: nil,
                         text: "No partner hotels in Beijing",
                         sourceMessageIDs: [userMessage.id]
                     ),
@@ -510,8 +581,11 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
 
         let activeMemories = try repository.chatContextValue(chatID: chatID).chatMemories
             .filter { $0.status == .active }
-        XCTAssertEqual(activeMemories.map(\.text), ["Asked about partner hotels in Beijing"])
-        XCTAssertEqual(activeMemories.first?.origin, .ai)
+        XCTAssertEqual(
+            Set(activeMemories.map(\.text)),
+            ["Asked about partner hotels in Beijing", "Dinner together Tuesday at 7 PM"]
+        )
+        XCTAssertTrue(activeMemories.allSatisfy { $0.origin == .ai })
     }
 
     @MainActor

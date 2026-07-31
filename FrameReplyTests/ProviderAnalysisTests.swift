@@ -11,7 +11,7 @@ final class ProviderAnalysisTests: XCTestCase {
 
     func testFiveContractsHaveExactClosedRootKeys() throws {
         XCTAssertEqual(ChatScreenshotPrompt.version, 1)
-        XCTAssertEqual(SuggestedReplyPrompt.version, 3)
+        XCTAssertEqual(SuggestedReplyPrompt.version, 4)
 
         let screenshot = ChatScreenshotPrompt.contract(for: makeRequest())
         let shared = ChatScreenshotPrompt.contract(
@@ -64,6 +64,83 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(summarySchema["type"] as? [String], ["string", "null"])
         XCTAssertTrue(standard.instructions.contains("olderMessagesToSummarize is empty"))
         XCTAssertTrue(standard.instructions.contains("merge existingHistorySummary"))
+        XCTAssertTrue(
+            standard.instructions.contains(
+                "appLanguage is the supported language selected for FrameReply in iOS Settings"
+            )
+        )
+        XCTAssertTrue(
+            standard.instructions.contains(
+                "Suggested reply bodies and historySummary follow the language and script"
+            )
+        )
+        XCTAssertTrue(
+            standard.instructions.contains(
+                "one compact, self-contained statement of at most 120 characters"
+            )
+        )
+        XCTAssertTrue(
+            standard.instructions.contains(
+                "understood without reopening the source messages"
+            )
+        )
+        XCTAssertTrue(
+            standard.instructions.contains(
+                "Summarize the item in new wording"
+            )
+        )
+        XCTAssertTrue(
+            standard.instructions.contains(
+                "Do not quote or reproduce the source, write a keyword list"
+            )
+        )
+        XCTAssertTrue(
+            standard.instructions.contains(
+                "must be confirmed by the other participant"
+            )
+        )
+        XCTAssertTrue(
+            standard.instructions.contains(
+                "do not rewrite them merely to translate or shorten them"
+            )
+        )
+        XCTAssertTrue(
+            drafting.instructions.contains(
+                "appLanguage is the supported language selected for FrameReply in iOS Settings"
+            )
+        )
+        XCTAssertTrue(
+            drafting.instructions.contains(
+                "regardless of the conversation language"
+            )
+        )
+
+        let memoryChanges = try XCTUnwrap(
+            summaryProperties["memoryChanges"] as? [String: Any]
+        )
+        let memoryItems = try XCTUnwrap(memoryChanges["items"] as? [String: Any])
+        let memoryProperties = try XCTUnwrap(
+            memoryItems["properties"] as? [String: Any]
+        )
+        let memoryText = try XCTUnwrap(memoryProperties["text"] as? [String: Any])
+        XCTAssertEqual(
+            memoryText["maxLength"] as? Int,
+            ChatMemoryLimits.maximumAITextLength
+        )
+
+        let observationChanges = try XCTUnwrap(
+            summaryProperties["personaObservationChanges"] as? [String: Any]
+        )
+        let observationItems = try XCTUnwrap(
+            observationChanges["items"] as? [String: Any]
+        )
+        let observationProperties = try XCTUnwrap(
+            observationItems["properties"] as? [String: Any]
+        )
+        let observationText = try XCTUnwrap(
+            observationProperties["text"] as? [String: Any]
+        )
+        XCTAssertEqual(observationText["maxLength"] as? Int, 240)
     }
 
     func testTaskInputsContainOnlyDataUsedByTheirContract() {
@@ -71,6 +148,8 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(standard.contains("chatMemories"))
         XCTAssertTrue(standard.contains("personaLearningMessages"))
         XCTAssertTrue(standard.contains("recentMessages"))
+        XCTAssertTrue(standard.contains("\"appLanguage\":\"en\""))
+        XCTAssertFalse(standard.contains("presentationLanguageIdentifier"))
         for removed in ["chatName", "personaName", "certainty", "origin"] {
             XCTAssertFalse(standard.contains("\"\(removed)\""))
         }
@@ -78,6 +157,7 @@ final class ProviderAnalysisTests: XCTestCase {
         let drafting = SuggestedReplyPrompt.input(for: makeReplyRequest(task: .drafting))
         XCTAssertTrue(drafting.contains("draftingInput"))
         XCTAssertTrue(drafting.contains("recentMessages"))
+        XCTAssertTrue(drafting.contains("\"appLanguage\":\"en\""))
         XCTAssertFalse(drafting.contains("personaLearningMessages"))
         XCTAssertFalse(drafting.contains("summaryMode"))
 
@@ -85,6 +165,7 @@ final class ProviderAnalysisTests: XCTestCase {
             for: makeReplyRequest(task: .personaStyleLearning))
         XCTAssertTrue(persona.contains("personaLearningMessages"))
         XCTAssertTrue(persona.contains("activeObservations"))
+        XCTAssertTrue(persona.contains("\"appLanguage\":\"en\""))
         XCTAssertFalse(persona.contains("recentMessages"))
         XCTAssertFalse(persona.contains("chatMemories"))
         XCTAssertFalse(persona.contains("draftingInput"))
@@ -137,7 +218,7 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(replyFormat["name"] as? String, "suggested_reply_drafting")
         XCTAssertEqual(
             replyBody["prompt_cache_key"] as? String,
-            "suggested_reply_drafting-v3-gpt-5.6-luna-en")
+            "suggested_reply_drafting-v4-gpt-5.6-luna-en")
         let schema = try XCTUnwrap(replyFormat["schema"] as? [String: Any])
         XCTAssertEqual(
             Set(try XCTUnwrap(schema["properties"] as? [String: Any]).keys),
@@ -249,6 +330,51 @@ final class ProviderAnalysisTests: XCTestCase {
                 task: .personaStyleLearning))
     }
 
+    func testSuggestedReplyDecoderUsesSeparateMemoryAndObservationTextLimits() throws {
+        let memoryEvidence = UUID()
+        let personaEvidence = [UUID(), UUID()]
+        let acceptedMemory = String(repeating: "m", count: ChatMemoryLimits.maximumAITextLength)
+        let rejectedMemory = String(
+            repeating: "m", count: ChatMemoryLimits.maximumAITextLength + 1
+        )
+        let acceptedObservation = String(repeating: "o", count: 200)
+        let content = jsonString([
+            "historySummary": NSNull(),
+            "replies": ["First", "Second"],
+            "conversationStrategy": "Continue",
+            "strategyRationale": "The latest message supports a direct answer.",
+            "memoryChanges": [
+                [
+                    "action": "add", "targetMemoryID": NSNull(), "text": acceptedMemory,
+                    "evidenceMessageIDs": [memoryEvidence.uuidString]
+                ],
+                [
+                    "action": "update", "targetMemoryID": UUID().uuidString,
+                    "text": rejectedMemory,
+                    "evidenceMessageIDs": [memoryEvidence.uuidString]
+                ]
+            ],
+            "personaObservationChanges": [
+                [
+                    "action": "add", "targetObservationID": NSNull(),
+                    "text": acceptedObservation,
+                    "evidenceMessageIDs": personaEvidence.map(\.uuidString)
+                ]
+            ]
+        ])
+
+        let decoded = try SuggestedReplyResultDecoder.decodeResult(
+            content: content, finishReason: "stop", task: .standard
+        )
+
+        XCTAssertTrue(decoded.recovered)
+        XCTAssertEqual(decoded.value.memoryChanges.map(\.text), [acceptedMemory])
+        XCTAssertEqual(
+            decoded.value.personaObservationChanges.map(\.text),
+            [acceptedObservation]
+        )
+    }
+
     @MainActor
     func testOpenAIUsesOneStandardContractAndOneRequestForRecoveredOrFatalOutput() async throws {
         let recoveredJSON = jsonString([
@@ -273,7 +399,7 @@ final class ProviderAnalysisTests: XCTestCase {
         let body = try jsonBody(AnalysisURLProtocolStub.requests[0])
         XCTAssertEqual(
             body["prompt_cache_key"] as? String,
-            "suggested_reply-v3-gpt-5.6-terra-en")
+            "suggested_reply-v4-gpt-5.6-terra-en")
         XCTAssertEqual(
             ((body["text"] as? [String: Any])?["format"] as? [String: Any])?["name"]
                 as? String,
@@ -508,7 +634,7 @@ final class ProviderAnalysisTests: XCTestCase {
             ],
             draftingInput: task == .drafting ? "Make it warmer" : nil,
             previousConversationStrategy: "Confirm the plan.",
-            presentationLanguageIdentifier: "en",
+            appLanguage: "en",
             traceID: ImportTraceID())
     }
 

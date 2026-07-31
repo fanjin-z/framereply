@@ -391,7 +391,8 @@ final class ChatMemoryRecord {
 final class SuggestedReplyCacheRecord {
     @Attribute(.unique) var key: String
     var chatID: String
-    var presentationLanguageIdentifier: String
+    @Attribute(originalName: "presentationLanguageIdentifier")
+    var appLanguage: String
     var historySummary: String
     var summarizedMessageCount: Int
     var summarizedPrefixFingerprint: String
@@ -404,7 +405,7 @@ final class SuggestedReplyCacheRecord {
 
     init(
         chatID: String,
-        presentationLanguageIdentifier: String,
+        appLanguage: String,
         historySummary: String,
         summarizedMessageCount: Int,
         summarizedPrefixFingerprint: String,
@@ -416,9 +417,9 @@ final class SuggestedReplyCacheRecord {
         generatedAt: Date = Date()
     ) {
         self.key = Self.makeKey(
-            chatID: chatID, presentationLanguageIdentifier: presentationLanguageIdentifier)
+            chatID: chatID, appLanguage: appLanguage)
         self.chatID = chatID
-        self.presentationLanguageIdentifier = presentationLanguageIdentifier
+        self.appLanguage = appLanguage
         self.historySummary = historySummary
         self.summarizedMessageCount = summarizedMessageCount
         self.summarizedPrefixFingerprint = summarizedPrefixFingerprint
@@ -430,8 +431,8 @@ final class SuggestedReplyCacheRecord {
         self.generatedAt = generatedAt
     }
 
-    static func makeKey(chatID: String, presentationLanguageIdentifier: String) -> String {
-        "\(chatID)|\(presentationLanguageIdentifier.lowercased())"
+    static func makeKey(chatID: String, appLanguage: String) -> String {
+        "\(chatID)|\(appLanguage.lowercased())"
     }
 }
 

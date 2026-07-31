@@ -494,7 +494,7 @@ final class SelfAliasPersistenceTests: XCTestCase {
         container.mainContext.insert(
             SuggestedReplyCacheRecord(
                 chatID: provisional.chatID,
-                presentationLanguageIdentifier: "en",
+                appLanguage: "en",
                 historySummary: "Synthetic summary A",
                 summarizedMessageCount: 0,
                 summarizedPrefixFingerprint: "synthetic-prefix-a",
