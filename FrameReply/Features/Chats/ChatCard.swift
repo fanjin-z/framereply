@@ -10,30 +10,27 @@ struct ChatCard: View {
     let chat: Chat
     let persona: Persona
     let onChatTap: () -> Void
-    let onDeleteTap: () -> Void
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 48
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Button(action: onChatTap) {
-                HStack(alignment: .top, spacing: 12) {
-                    avatar
-                    details
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+        Button(action: onChatTap) {
+            HStack(alignment: .top, spacing: 12) {
+                avatar
+                details
+                activityLabel
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Open Chat Assistant for \(chat.name)")
-            .accessibilityValue(accessibilityValue)
-            .accessibilityIdentifier("chat-card-\(chat.id)")
-
-            trailingMetadata
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Open Chat Assistant for \(chat.name)")
+        .accessibilityValue(accessibilityValue)
+        .accessibilityIdentifier("chat-card-\(chat.id)")
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.top, 10)
+        .padding(.bottom, 7)
         .frame(minHeight: 84)
     }
 
@@ -65,37 +62,13 @@ struct ChatCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var trailingMetadata: some View {
-        VStack(alignment: .trailing, spacing: 0) {
-            Text(activityText)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(FrameReplyColor.outline)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .accessibilityHidden(true)
-
-            Spacer(minLength: 0)
-
-            Menu {
-                Button(
-                    "Delete Chat",
-                    systemImage: "trash",
-                    role: .destructive,
-                    action: onDeleteTap
-                )
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 17, weight: .semibold))
-                    .rotationEffect(.degrees(90))
-                    .foregroundStyle(FrameReplyColor.outline)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Chat actions for \(chat.name)")
-            .accessibilityIdentifier("chat-actions-\(chat.id)")
-        }
-        .frame(minHeight: 64)
+    private var activityLabel: some View {
+        Text(activityText)
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .foregroundStyle(FrameReplyColor.outline)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .accessibilityHidden(true)
     }
 
     @ViewBuilder

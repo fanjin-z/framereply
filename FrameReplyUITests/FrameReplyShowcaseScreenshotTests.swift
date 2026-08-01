@@ -118,11 +118,10 @@ final class FrameReplyShowcaseScreenshotTests: XCTestCase {
         clearSearch.tap()
         XCTAssertTrue(app.buttons["chat-card-showcase.maya"].waitForExistence(timeout: 3))
 
-        let actions = app.buttons["chat-actions-showcase.maya"]
-        XCTAssertTrue(actions.waitForExistence(timeout: 3))
-        actions.tap()
+        let maya = app.buttons["chat-card-showcase.maya"]
+        maya.swipeLeft()
 
-        let deleteChat = app.buttons["Delete Chat"]
+        let deleteChat = app.buttons["chat-delete-showcase.maya"]
         XCTAssertTrue(deleteChat.waitForExistence(timeout: 3))
         deleteChat.tap()
 
@@ -130,6 +129,8 @@ final class FrameReplyShowcaseScreenshotTests: XCTestCase {
         XCTAssertTrue(confirmation.waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Delete chat with Maya?"].waitForExistence(timeout: 3))
         XCTAssertTrue(confirmation.buttons["Delete Chat"].exists)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
+        XCTAssertFalse(confirmation.waitForExistence(timeout: 2))
     }
 
     func test08ChatsRemainUsableAtAccessibilityTextSize() {
@@ -140,7 +141,6 @@ final class FrameReplyShowcaseScreenshotTests: XCTestCase {
         let maya = app.buttons["chat-card-showcase.maya"]
         XCTAssertTrue(maya.waitForExistence(timeout: 5))
         XCTAssertTrue(maya.isHittable)
-        XCTAssertTrue(app.buttons["chat-actions-showcase.maya"].isHittable)
         XCTAssertTrue(app.buttons["add-messages"].firstMatch.isHittable)
 
         capture("07-chats-accessibility")

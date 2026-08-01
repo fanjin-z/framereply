@@ -102,6 +102,10 @@ final class FrameReplyReleaseUITests: XCTestCase {
         ]
         app.launch()
 
+        let chats = app.buttons["app-tab-chats"]
+        XCTAssertTrue(chats.waitForExistence(timeout: 8))
+        chats.tap()
+
         let addMessages = app.buttons["add-messages"].firstMatch
         XCTAssertTrue(addMessages.waitForExistence(timeout: 8))
         addMessages.tap()

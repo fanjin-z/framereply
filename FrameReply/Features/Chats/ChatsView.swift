@@ -97,57 +97,66 @@ struct ChatsView: View {
     }
 
     var body: some View {
-        ScrollView {
+        List {
             let visibleChats = chats
 
-            VStack(alignment: .leading, spacing: 12) {
-                ChatsSearchImportRow(
-                    searchText: $searchText,
-                    isSearchActive: isActive,
-                    isImporting: importModel.isLoading,
-                    onImportTap: {
-                        isImportSourcePresented = true
+            ChatsSearchImportRow(
+                searchText: $searchText,
+                isSearchActive: isActive,
+                isImporting: importModel.isLoading,
+                onImportTap: {
+                    isImportSourcePresented = true
+                }
+            )
+            .listRowInsets(EdgeInsets(top: 14, leading: 24, bottom: 6, trailing: 24))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+
+            if reviewCount > 0 {
+                ChatsImportReviewNudge(
+                    text: reviewNudgeText,
+                    iconName: reviewNudgeIconName,
+                    count: reviewCount,
+                    isAccented: hasUnknownSenderReview,
+                    onTap: {
+                        isReviewPresented = true
                     }
                 )
-                .padding(.horizontal, 24)
-                .padding(.top, 14)
+                .listRowInsets(EdgeInsets(top: 6, leading: 24, bottom: 6, trailing: 24))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            }
 
-                if reviewCount > 0 {
-                    ChatsImportReviewNudge(
-                        text: reviewNudgeText,
-                        iconName: reviewNudgeIconName,
-                        count: reviewCount,
-                        isAccented: hasUnknownSenderReview,
-                        onTap: {
-                            isReviewPresented = true
-                        }
+            if let importErrorMessage {
+                ChatsImportErrorMessage(message: importErrorMessage)
+                    .listRowInsets(
+                        EdgeInsets(top: 6, leading: 24, bottom: 6, trailing: 24)
                     )
-                    .padding(.horizontal, 24)
-                }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
 
-                if let importErrorMessage {
-                    ChatsImportErrorMessage(message: importErrorMessage)
-                        .padding(.horizontal, 24)
-                }
+            if importModel.isLoading {
+                ScreenshotImportStatusCard(
+                    symbolName: "sparkles",
+                    message: importModel.phase == .analyzing
+                        ? "Analyzing messages…"
+                        : "Generating replies…",
+                    isLoading: true,
+                    onCancel: {
+                        importTask?.cancel()
+                    }
+                )
+                .listRowInsets(EdgeInsets(top: 6, leading: 24, bottom: 6, trailing: 24))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            }
 
-                if importModel.isLoading {
-                    ScreenshotImportStatusCard(
-                        symbolName: "sparkles",
-                        message: importModel.phase == .analyzing
-                            ? "Analyzing messages…"
-                            : "Generating replies…",
-                        isLoading: true,
-                        onCancel: {
-                            importTask?.cancel()
-                        }
-                    )
-                    .padding(.horizontal, 24)
-                }
-
-                if visibleChats.isEmpty {
-                    let isSearchEmpty = searchText.trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    ).isEmpty
+            if visibleChats.isEmpty {
+                let isSearchEmpty = searchText.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                ).isEmpty
+                Group {
                     if chatRecords.isEmpty && isSearchEmpty {
                         EmptyImportPrompt(
                             isLoading: importModel.isLoading,
@@ -155,43 +164,60 @@ struct ChatsView: View {
                                 isImportSourcePresented = true
                             }
                         )
-                        .padding(.horizontal, 24)
                     } else {
                         EmptySearchState()
-                            .padding(.horizontal, 24)
                     }
-                } else {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(visibleChats.enumerated()), id: \.element.id) {
-                            index, item in
-                            ChatCard(
-                                chat: item.chat,
-                                persona: item.persona,
-                                onChatTap: {
-                                    onChatTap(item.chat)
-                                },
-                                onDeleteTap: {
-                                    chatToDelete = item.chat
-                                }
-                            )
-
-                            if index < visibleChats.count - 1 {
-                                Rectangle()
-                                    .fill(FrameReplyColor.outlineVariant.opacity(0.42))
-                                    .frame(height: 1)
-                                    .padding(.leading, 76)
-                                    .padding(.trailing, 16)
-                                    .accessibilityHidden(true)
-                            }
+                }
+                .listRowInsets(EdgeInsets(top: 6, leading: 24, bottom: 6, trailing: 24))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            } else {
+                ForEach(Array(visibleChats.enumerated()), id: \.element.id) { index, item in
+                    ChatCard(
+                        chat: item.chat,
+                        persona: item.persona,
+                        onChatTap: {
+                            onChatTap(item.chat)
+                        }
+                    )
+                    .contextMenu {
+                        Button("Delete Chat", systemImage: "trash", role: .destructive) {
+                            chatToDelete = item.chat
                         }
                     }
-                    .glassPanel(cornerRadius: 0)
+                    .accessibilityAction(named: "Delete Chat") {
+                        chatToDelete = item.chat
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            chatToDelete = item.chat
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        .accessibilityIdentifier("chat-delete-\(item.id)")
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(chatListRowBackground)
+                    .listRowSeparator(
+                        index < visibleChats.count - 1 ? .visible : .hidden,
+                        edges: .bottom
+                    )
+                    .listRowSeparatorTint(FrameReplyColor.outlineVariant.opacity(0.42))
                 }
             }
-            .padding(.bottom, 94)
-            .frame(maxWidth: 720, alignment: .leading)
-            .frame(maxWidth: .infinity)
+
+            Color.clear
+                .frame(height: 94)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
         }
+        .listStyle(.plain)
+        .listRowSpacing(0)
+        .scrollContentBackground(.hidden)
+        .contentMargins(.top, 0, for: .scrollContent)
+        .frame(maxWidth: 720)
+        .frame(maxWidth: .infinity)
         .scrollIndicators(.hidden)
         .accessibilityIdentifier("chats-screen")
         .sheet(isPresented: $isReviewPresented) {
@@ -236,6 +262,12 @@ struct ChatsView: View {
                 await importSelectedScreenshots(items)
             }
         }
+    }
+
+    private var chatListRowBackground: some View {
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .overlay(Color.white.opacity(0.48))
     }
 
     private var reviewCount: Int {
