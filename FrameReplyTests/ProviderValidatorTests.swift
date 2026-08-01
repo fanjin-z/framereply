@@ -65,6 +65,31 @@ final class ProviderValidatorTests: XCTestCase {
             (openAIBody["reasoning"] as? [String: Any])?["effort"] as? String,
             "none"
         )
+
+        URLProtocolStub.reset()
+        URLProtocolStub.stub(
+            statusCode: 200,
+            body:
+                #"{"id":"gen_1","model":"qwen/qwen3.7-plus","choices":[{"message":{"content":"{\"status\":\"ok\"}"},"finish_reason":"stop"}]}"#
+        )
+
+        try await OpenRouterClient(session: makeSession()).validate(
+            apiKey: "sk-or-test",
+            model: .qwen37Plus
+        )
+
+        XCTAssertEqual(URLProtocolStub.requests.count, 1)
+        let openRouterRequest = try XCTUnwrap(URLProtocolStub.requests.first)
+        let openRouterBody = try jsonBody(openRouterRequest)
+        XCTAssertEqual(openRouterBody["model"] as? String, "qwen/qwen3.7-plus")
+        let routing = try XCTUnwrap(openRouterBody["provider"] as? [String: Any])
+        XCTAssertEqual(routing["allow_fallbacks"] as? Bool, false)
+        XCTAssertEqual(routing["require_parameters"] as? Bool, true)
+        XCTAssertEqual(routing["data_collection"] as? String, "deny")
+        let format = try XCTUnwrap(openRouterBody["response_format"] as? [String: Any])
+        XCTAssertEqual(format["type"] as? String, "json_schema")
+        let jsonSchema = try XCTUnwrap(format["json_schema"] as? [String: Any])
+        XCTAssertEqual(jsonSchema["strict"] as? Bool, true)
     }
 
     @MainActor
@@ -79,6 +104,12 @@ final class ProviderValidatorTests: XCTestCase {
             model: .gpt56Luna,
             body:
                 #"{"id":"resp_1","status":"incomplete","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
+        )
+        await assertInvalidResponse(
+            from: OpenRouterClient(session: makeSession()),
+            model: .qwen37Plus,
+            body:
+                #"{"id":"gen_1","model":"openrouter/auto","choices":[{"message":{"content":"{\"status\":\"ok\"}"},"finish_reason":"stop"}]}"#
         )
     }
 
@@ -113,6 +144,34 @@ final class ProviderValidatorTests: XCTestCase {
         await assertHTTPError(
             .providerUnavailable, statusCode: 500, validator: OpenAIClient(session: makeSession()),
             model: .gpt56Luna)
+        let openRouter = OpenRouterClient(session: makeSession())
+        await assertHTTPError(
+            .invalidKey, statusCode: 401, validator: openRouter, model: .qwen37Plus)
+        await assertHTTPError(
+            .insufficientBalance, statusCode: 402, validator: openRouter, model: .qwen37Plus)
+        await assertHTTPError(
+            .rateLimited, statusCode: 429, validator: openRouter, model: .qwen37Plus)
+        await assertHTTPError(
+            .providerUnavailable, statusCode: 503, validator: openRouter, model: .qwen37Plus)
+
+        URLProtocolStub.stub(
+            statusCode: 403,
+            body: #"{"error":{"code":403,"message":"No endpoints match policy"}}"#
+        )
+        do {
+            try await openRouter.validate(apiKey: "key", model: .qwen37Plus)
+            XCTFail("Expected invalid request")
+        } catch let error as ProviderConnectionError {
+            guard case .invalidRequest(let details) = error else {
+                return XCTFail("Expected invalidRequest, got \(error)")
+            }
+            XCTAssertEqual(details.provider, ProviderPlatform.openRouter.rawValue)
+            XCTAssertEqual(details.httpStatus, 403)
+            XCTAssertEqual(details.providerCode, "403")
+            XCTAssertTrue(details.message.contains("required model, privacy"))
+        } catch {
+            XCTFail("Expected ProviderConnectionError, got \(error)")
+        }
 
         URLProtocolStub.stub(
             statusCode: 400,

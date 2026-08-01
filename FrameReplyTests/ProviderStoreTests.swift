@@ -49,6 +49,19 @@ final class ProviderStoreTests: XCTestCase {
             .gpt56Sol
         )
         XCTAssertEqual(
+            registry.profile(for: .openRouter, selectedTier: .advanced),
+            ProviderModelProfile(
+                screenshotAnalysisModel: .qwen37Plus,
+                transcriptAnalysisModel: .qwen37Plus,
+                suggestedReplyModel: .qwen37Plus
+            )
+        )
+        XCTAssertTrue(
+            [ProviderTier.basic, .best].allSatisfy {
+                registry.profile(for: .openRouter, selectedTier: $0) == nil
+            }
+        )
+        XCTAssertEqual(
             registry.profile(for: .zaiInternational, selectedTier: .basic)?.screenshotAnalysisModel,
             .glm46VFlash
         )
@@ -78,7 +91,12 @@ final class ProviderStoreTests: XCTestCase {
             .glm47
         )
 
-        XCTAssertEqual(ProviderPlatform.allCases, [.openAI, .zaiInternational, .zhipuChina])
+        XCTAssertEqual(
+            ProviderPlatform.allCases,
+            [.openAI, .openRouter, .zaiInternational, .zhipuChina]
+        )
+        XCTAssertEqual(ProviderPlatform.openRouter.supportedTiers, [.advanced])
+        XCTAssertEqual(ProviderPlatform.openRouter.displayName, "OpenRouter")
         XCTAssertEqual(
             ProviderPlatform.zaiInternational.supportedTiers,
             [.basic, .advanced, .best]
@@ -96,7 +114,6 @@ final class ProviderStoreTests: XCTestCase {
             ProviderPlatform.zaiInternational.modelSummary(for: .advanced),
             "glm-4.6v-flashx"
         )
-
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         try saveProviders(makeProviders(), to: defaults)

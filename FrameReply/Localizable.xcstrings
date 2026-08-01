@@ -1903,6 +1903,17 @@
         }
       }
     },
+    "provider.destination.openrouter" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "OpenRouter, which currently forwards the request to Alibaba Cloud International for Qwen3.7 Plus"
+          }
+        }
+      }
+    },
     "provider.destination.zai-international" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {

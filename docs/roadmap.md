@@ -17,7 +17,7 @@ commitment to a particular feature, release, or delivery date.
   preserve conversation history.
 - Generate two user-reviewed reply ideas shaped by goals, personas, and chat
   context.
-- Store data locally and connect directly to OpenAI or Z.ai with user-owned
+- Store data locally and connect directly to OpenAI, OpenRouter, or Z.ai with user-owned
   credentials and explicit consent.
 
 ## Now — Public beta and App Store review

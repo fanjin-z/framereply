@@ -9,6 +9,8 @@ nonisolated struct ProviderDataConsentDisclosure: Equatable, Sendable {
         switch provider {
         case .openAI:
             String(localized: AppStrings.Provider.openAIDestination)
+        case .openRouter:
+            String(localized: AppStrings.Provider.openRouterDestination)
         case .zaiInternational:
             String(localized: AppStrings.Provider.zaiInternationalDestination)
         case .zhipuChina:
@@ -20,6 +22,8 @@ nonisolated struct ProviderDataConsentDisclosure: Equatable, Sendable {
         switch provider {
         case .openAI:
             URL(string: "https://openai.com/policies/privacy-policy/")!
+        case .openRouter:
+            URL(string: "https://openrouter.ai/privacy")!
         case .zaiInternational:
             URL(string: "https://docs.z.ai/legal-agreement/privacy-policy")!
         case .zhipuChina:

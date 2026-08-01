@@ -6,7 +6,7 @@ permalink: /privacy
 
 # FrameReply Privacy Policy
 
-Effective July 27, 2026
+Effective August 1, 2026
 
 FrameReply is an open-source iPhone app. The project maintainer is the data controller for the limited processing described here. FrameReply does not operate an application server and does not use advertising, analytics, or tracking SDKs.
 
@@ -21,10 +21,11 @@ API keys are stored in Apple's Keychain using device-only protection. Extracted 
 After explicit provider-specific consent, FrameReply sends selected content directly from the device to the active provider solely to analyze a conversation or generate replies. FrameReply does not receive a copy through a developer-operated server.
 
 - OpenAI requests use the Responses API with `store: false`. OpenAI may still retain request data for abuse monitoring or other purposes described in its [API data controls](https://developers.openai.com/api/docs/guides/your-data) and [privacy policy](https://openai.com/policies/privacy-policy/).
+- OpenRouter requests use the fixed `qwen/qwen3.7-plus` model. They pass through OpenRouter and are forwarded to Alibaba Cloud International. FrameReply denies provider data collection in each request and disables fallback routing, but this endpoint may still retain request data under its policies. Review the [OpenRouter privacy policy](https://openrouter.ai/privacy), [provider logging information](https://openrouter.ai/docs/guides/privacy/provider-logging/), and [Alibaba Cloud privacy policy](https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-privacy-policy).
 - Z.ai International processing and retention are described in its [privacy policy](https://docs.z.ai/legal-agreement/privacy-policy).
 - Zhipu China processing and retention are described in its [privacy policy](https://docs.bigmodel.cn/cn/terms/privacy-policy).
 
-Z.ai International and Zhipu China use separate API endpoints and billing accounts. FrameReply does not restrict either option by the user's location. Provider terms and practices can change; review the selected provider's policy before consenting.
+OpenRouter and Alibaba Cloud International are separate processors in the OpenRouter data path. Z.ai International and Zhipu China use separate API endpoints and billing accounts. FrameReply does not restrict these options by the user's location. Provider terms and practices can change; review the selected provider's policy before consenting.
 
 Provider usage can be linked to the provider account represented by the user's API key. The provider may charge that account. FrameReply does not sell provider access and contains no provider credit-purchase flow.
 

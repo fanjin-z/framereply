@@ -351,6 +351,55 @@ final class ProviderAnalysisTests: XCTestCase {
             })
     }
 
+    @MainActor
+    func testOpenRouterPinsQwenAndUsesStrictPrivateRoutingForScreenshots() async throws {
+        AnalysisURLProtocolStub.responses = [
+            (200, openRouterResponse(content: validScreenshotAnalysisJSON()))
+        ]
+
+        let result = try await OpenRouterClient(session: makeSession()).analyzeChatScreenshot(
+            makeRequest(), apiKey: "sk-or-test", model: .qwen37Plus)
+
+        XCTAssertEqual(result.messages.map(\.text), ["Hello"])
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+        let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
+        XCTAssertEqual(request.url?.path, "/api/v1/chat/completions")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-or-test")
+        let body = try jsonBody(request)
+        XCTAssertEqual(body["model"] as? String, "qwen/qwen3.7-plus")
+        let routing = try XCTUnwrap(body["provider"] as? [String: Any])
+        XCTAssertEqual(routing["allow_fallbacks"] as? Bool, false)
+        XCTAssertEqual(routing["require_parameters"] as? Bool, true)
+        XCTAssertEqual(routing["data_collection"] as? String, "deny")
+        let responseFormat = try XCTUnwrap(body["response_format"] as? [String: Any])
+        XCTAssertEqual(responseFormat["type"] as? String, "json_schema")
+        let jsonSchema = try XCTUnwrap(responseFormat["json_schema"] as? [String: Any])
+        XCTAssertEqual(jsonSchema["strict"] as? Bool, true)
+        let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
+        let content = try XCTUnwrap(messages.last?["content"] as? [[String: Any]])
+        let image = try XCTUnwrap(content.first { $0["type"] as? String == "image_url" })
+        let imageURL = try XCTUnwrap(image["image_url"] as? [String: Any])
+        XCTAssertTrue(try XCTUnwrap(imageURL["url"] as? String).hasPrefix("data:image/png;base64,"))
+    }
+
+    @MainActor
+    func testOpenRouterRejectsRecoveredOutputWithoutRetry() async throws {
+        var output = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(validScreenshotAnalysisJSON().utf8))
+                as? [String: Any]
+        )
+        output["extra"] = true
+        AnalysisURLProtocolStub.responses = [
+            (200, openRouterResponse(content: jsonString(output)))
+        ]
+
+        await assertThrowsErrorAsync {
+            _ = try await OpenRouterClient(session: self.makeSession()).analyzeChatScreenshot(
+                self.makeRequest(), apiKey: "key", model: .qwen37Plus)
+        }
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+    }
+
     func testSuggestedReplyDecoderRecoversOptionalAnalysisFieldsAndPreservesCoreReplies() throws {
         let content = jsonString([
             "historySummary": 42,
@@ -877,6 +926,16 @@ final class ProviderAnalysisTests: XCTestCase {
             ]
         }
         return jsonString(object)
+    }
+
+    private func openRouterResponse(content: String) -> String {
+        jsonString([
+            "id": "gen_test",
+            "model": "qwen/qwen3.7-plus",
+            "choices": [
+                ["message": ["content": content], "finish_reason": "stop"]
+            ]
+        ])
     }
 
     private func zaiResponse(

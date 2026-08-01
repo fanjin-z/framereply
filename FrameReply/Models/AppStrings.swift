@@ -518,6 +518,11 @@ nonisolated enum AppStrings {
             "provider.destination.openai",
             defaultValue: "OpenAI in the United States or another region selected by OpenAI"
         )
+        static let openRouterDestination = LocalizedStringResource(
+            "provider.destination.openrouter",
+            defaultValue:
+                "OpenRouter, which currently forwards the request to Alibaba Cloud International for Qwen3.7 Plus"
+        )
         static let zaiInternationalDestination = LocalizedStringResource(
             "provider.destination.zai-international",
             defaultValue: "Z.ai International, which generally processes API data in Singapore"

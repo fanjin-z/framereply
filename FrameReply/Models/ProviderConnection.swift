@@ -7,6 +7,7 @@ import Foundation
 
 nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
     case openAI
+    case openRouter
     case zaiInternational
     case zhipuChina
 
@@ -20,6 +21,8 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
         switch self {
         case .openAI:
             "OpenAI"
+        case .openRouter:
+            "OpenRouter"
         case .zaiInternational:
             "Z.ai International"
         case .zhipuChina:
@@ -31,6 +34,8 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
         switch self {
         case .openAI:
             "waveform"
+        case .openRouter:
+            "network"
         case .zaiInternational:
             "sparkles.rectangle.stack"
         case .zhipuChina:
@@ -38,7 +43,9 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
         }
     }
 
-    var supportedTiers: [ProviderTier] { ProviderTier.allCases }
+    var supportedTiers: [ProviderTier] {
+        self == .openRouter ? [.advanced] : ProviderTier.allCases
+    }
     var defaultTier: ProviderTier { .advanced }
 
     func models(for tier: ProviderTier) -> (analysis: ProviderModel, replies: ProviderModel) {
@@ -49,6 +56,8 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
             (.gpt56Terra, .gpt56Terra)
         case (.openAI, .best):
             (.gpt56Sol, .gpt56Sol)
+        case (.openRouter, _):
+            (.qwen37Plus, .qwen37Plus)
         case (.zaiInternational, .basic):
             (.glm46VFlash, .glm47Flash)
         case (.zaiInternational, .advanced):
@@ -79,6 +88,7 @@ enum ProviderModel: String, Codable {
     case glm47FlashX = "glm-4.7-flashx"
     case glm47Flash = "glm-4.7-flash"
     case glm47 = "glm-4.7"
+    case qwen37Plus = "qwen/qwen3.7-plus"
 
 }
 

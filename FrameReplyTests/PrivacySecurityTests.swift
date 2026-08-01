@@ -22,6 +22,16 @@ final class PrivacySecurityTests: XCTestCase {
         XCTAssertTrue(disclosure.permissionMessage.contains("analyze chats and create replies"))
     }
 
+    func testOpenRouterDisclosureNamesBothProcessorsAndDoesNotClaimZeroRetention() {
+        let disclosure = ProviderDataConsentDisclosure(provider: .openRouter)
+
+        XCTAssertTrue(disclosure.destinationDescription.contains("OpenRouter"))
+        XCTAssertTrue(disclosure.destinationDescription.contains("Alibaba Cloud International"))
+        XCTAssertTrue(disclosure.destinationDescription.contains("Qwen3.7 Plus"))
+        XCTAssertFalse(disclosure.summary.localizedCaseInsensitiveContains("zero retention"))
+        XCTAssertEqual(disclosure.privacyPolicyURL.host, "openrouter.ai")
+    }
+
     @MainActor
     func testProviderConsentIsVersionedAndCanBeWithdrawn() throws {
         let suiteName = "PrivacySecurityTests.\(UUID().uuidString)"
