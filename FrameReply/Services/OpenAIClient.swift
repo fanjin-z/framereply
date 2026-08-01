@@ -300,7 +300,10 @@ struct OpenAIClient: AIProviderAdapter {
         guard Self.supportedModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
-        let contract = SuggestedReplyPrompt.contract(for: generationRequest.task)
+        let contract = SuggestedReplyPrompt.contract(
+            for: generationRequest.task,
+            appLanguage: generationRequest.appLanguage
+        )
         let maxTokens = 3_200
         eventReporter.record(
             .providerAttempt(

@@ -16,9 +16,10 @@ final class ProviderAnalysisTests: XCTestCase {
         let screenshot = ChatScreenshotPrompt.contract(for: makeRequest())
         let shared = ChatScreenshotPrompt.contract(
             for: ChatImportAnalysisRequest(transcriptItems: ["Alice: Hi"], candidates: []))
-        let standard = SuggestedReplyPrompt.contract(for: .standard)
-        let drafting = SuggestedReplyPrompt.contract(for: .drafting)
-        let persona = SuggestedReplyPrompt.contract(for: .personaStyleLearning)
+        let standard = SuggestedReplyPrompt.contract(for: .standard, appLanguage: "en")
+        let drafting = SuggestedReplyPrompt.contract(for: .drafting, appLanguage: "en")
+        let persona = SuggestedReplyPrompt.contract(
+            for: .personaStyleLearning, appLanguage: "en")
 
         try assertContract(
             screenshot,
@@ -66,14 +67,22 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(standard.instructions.contains("merge existingHistorySummary"))
         XCTAssertTrue(
             standard.instructions.contains(
-                "Write conversationStrategy, strategyRationale, memoryChanges.text, and personaObservationChanges.text in appLanguage"
+                "Write conversationStrategy, strategyRationale, and every non-null personaObservationChanges.text in English (en), regardless of the language in conversation_data."
             )
         )
         XCTAssertTrue(
             standard.instructions.contains(
-                "Match reply bodies and historySummary to the language and script"
+                "Match each reply to the language and script of the latest relevant conversation messages."
             )
         )
+        XCTAssertTrue(
+            standard.instructions.contains(
+                "Match historySummary to the messages it summarizes and every non-null memoryChanges.text to its cited evidence."
+            )
+        )
+        XCTAssertTrue(standard.instructions.contains("use the dominant relevant one"))
+        XCTAssertTrue(
+            standard.instructions.contains("Preserve proper names, URLs, and identifiers"))
         XCTAssertTrue(standard.instructions.contains("For reply bodies only"))
         XCTAssertTrue(
             standard.instructions.contains(
@@ -107,12 +116,12 @@ final class ProviderAnalysisTests: XCTestCase {
         )
         XCTAssertTrue(
             drafting.instructions.contains(
-                "Write conversationStrategy and strategyRationale in appLanguage"
+                "Write conversationStrategy and strategyRationale in English (en), regardless of the language in conversation_data."
             )
         )
         XCTAssertTrue(
             drafting.instructions.contains(
-                "Match reply bodies to the latest relevant conversation language and script"
+                "Match each reply to the language and script of the latest relevant conversation messages"
             )
         )
         for instructions in [standard.instructions, drafting.instructions] {
@@ -137,15 +146,17 @@ final class ProviderAnalysisTests: XCTestCase {
         )
         XCTAssertTrue(
             persona.instructions.contains(
-                "Write personaObservationChanges.text in appLanguage"
+                "Write every non-null personaObservationChanges.text in English (en), regardless of the language in conversation_data."
             )
         )
         for contract in [standard, drafting, persona] {
             XCTAssertEqual(
-                contract.instructions.components(separatedBy: "in appLanguage").count - 1,
+                contract.instructions.components(separatedBy: "English (en)").count - 1,
                 1
             )
-            XCTAssertFalse(contract.instructions.contains("selected for FrameReply"))
+            XCTAssertFalse(contract.instructions.contains("appLanguage"))
+            XCTAssertFalse(contract.instructions.lowercased().contains("app-owned"))
+            XCTAssertFalse(contract.instructions.contains("silently verify"))
         }
 
         let memoryChanges = try XCTUnwrap(
@@ -160,6 +171,7 @@ final class ProviderAnalysisTests: XCTestCase {
             memoryText["maxLength"] as? Int,
             ChatMemoryLimits.maximumAITextLength
         )
+        XCTAssertNil(memoryText["description"])
 
         let observationChanges = try XCTUnwrap(
             summaryProperties["personaObservationChanges"] as? [String: Any]
@@ -174,6 +186,18 @@ final class ProviderAnalysisTests: XCTestCase {
             observationProperties["text"] as? [String: Any]
         )
         XCTAssertEqual(observationText["maxLength"] as? Int, 240)
+        XCTAssertNil(observationText["description"])
+
+        let strategy = try XCTUnwrap(
+            summaryProperties["conversationStrategy"] as? [String: Any]
+        )
+        XCTAssertNil(strategy["description"])
+        XCTAssertEqual(
+            summarySchema["description"] as? String,
+            "Updated compact older-message context, or null when no safe update is available."
+        )
+        let replies = try XCTUnwrap(summaryProperties["replies"] as? [String: Any])
+        XCTAssertNil(replies["description"])
     }
 
     func testTaskInputsContainOnlyDataUsedByTheirContract() {
@@ -181,7 +205,7 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(standard.contains("chatMemories"))
         XCTAssertTrue(standard.contains("personaLearningMessages"))
         XCTAssertTrue(standard.contains("recentMessages"))
-        XCTAssertTrue(standard.contains("\"appLanguage\":\"en\""))
+        XCTAssertFalse(standard.contains("appLanguage"))
         XCTAssertFalse(standard.contains("presentationLanguageIdentifier"))
         for removed in ["chatName", "personaName", "certainty", "origin"] {
             XCTAssertFalse(standard.contains("\"\(removed)\""))
@@ -190,7 +214,7 @@ final class ProviderAnalysisTests: XCTestCase {
         let drafting = SuggestedReplyPrompt.input(for: makeReplyRequest(task: .drafting))
         XCTAssertTrue(drafting.contains("draftingInput"))
         XCTAssertTrue(drafting.contains("recentMessages"))
-        XCTAssertTrue(drafting.contains("\"appLanguage\":\"en\""))
+        XCTAssertFalse(drafting.contains("appLanguage"))
         XCTAssertFalse(drafting.contains("personaLearningMessages"))
         XCTAssertFalse(drafting.contains("summaryMode"))
 
@@ -198,10 +222,57 @@ final class ProviderAnalysisTests: XCTestCase {
             for: makeReplyRequest(task: .personaStyleLearning))
         XCTAssertTrue(persona.contains("personaLearningMessages"))
         XCTAssertTrue(persona.contains("activeObservations"))
-        XCTAssertTrue(persona.contains("\"appLanguage\":\"en\""))
+        XCTAssertFalse(persona.contains("appLanguage"))
         XCTAssertFalse(persona.contains("recentMessages"))
         XCTAssertFalse(persona.contains("chatMemories"))
         XCTAssertFalse(persona.contains("draftingInput"))
+    }
+
+    func testSuggestedReplyContractsResolveAppLanguageForMixedLanguageData() throws {
+        for task in [
+            SuggestedReplyTask.standard, .drafting, .personaStyleLearning
+        ] {
+            let englishSchema = try schemaText(
+                SuggestedReplyPrompt.contract(for: task, appLanguage: "en").schema)
+            for (identifier, descriptor) in [
+                ("en", "English (en)"),
+                ("en-US", "English (United States) (en-US)"),
+                ("zh-Hans", "Chinese, Simplified (zh-Hans)")
+            ] {
+                let contract = SuggestedReplyPrompt.contract(
+                    for: task, appLanguage: identifier)
+                XCTAssertEqual(
+                    contract.instructions.components(separatedBy: descriptor).count - 1,
+                    1,
+                    identifier
+                )
+                let schema = try schemaText(contract.schema)
+                XCTAssertEqual(schema, englishSchema, identifier)
+                XCTAssertFalse(schema.contains(descriptor), identifier)
+            }
+        }
+
+        let mixedLanguageRequests = [
+            makeReplyRequest(
+                task: .standard, recentMessageText: "晚饭七点？",
+                personaLearningText: "当然"),
+            makeReplyRequest(
+                task: .drafting, recentMessageText: "明日の七時？",
+                personaLearningText: "もちろん"),
+            makeReplyRequest(
+                task: .personaStyleLearning, recentMessageText: "¿Cena a las siete?",
+                personaLearningText: "Claro")
+        ]
+        for request in mixedLanguageRequests {
+            let contract = SuggestedReplyPrompt.contract(
+                for: request.task, appLanguage: request.appLanguage)
+            let input = SuggestedReplyPrompt.input(for: request)
+            XCTAssertTrue(contract.instructions.contains("English (en)"))
+            XCTAssertFalse(input.contains("appLanguage"))
+        }
+        XCTAssertTrue(SuggestedReplyPrompt.input(for: mixedLanguageRequests[0]).contains("晚饭七点？"))
+        XCTAssertTrue(SuggestedReplyPrompt.input(for: mixedLanguageRequests[1]).contains("明日の七時？"))
+        XCTAssertTrue(SuggestedReplyPrompt.input(for: mixedLanguageRequests[2]).contains("Claro"))
     }
 
     @MainActor
@@ -252,13 +323,21 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(
             replyBody["prompt_cache_key"] as? String,
             "suggested_reply_drafting-v4-gpt-5.6-luna-en")
+        XCTAssertTrue(
+            try XCTUnwrap(replyBody["instructions"] as? String).contains(
+                "Write conversationStrategy and strategyRationale in English (en)")
+        )
         let schema = try XCTUnwrap(replyFormat["schema"] as? [String: Any])
+        let replyProperties = try XCTUnwrap(schema["properties"] as? [String: Any])
         XCTAssertEqual(
-            Set(try XCTUnwrap(schema["properties"] as? [String: Any]).keys),
+            Set(replyProperties.keys),
             ["replies", "conversationStrategy", "strategyRationale"])
+        let strategySchema = try XCTUnwrap(
+            replyProperties["conversationStrategy"] as? [String: Any]
+        )
+        XCTAssertNil(strategySchema["description"])
         let replyItems = try XCTUnwrap(
-            try XCTUnwrap(schema["properties"] as? [String: Any])["replies"]
-                as? [String: Any]
+            replyProperties["replies"] as? [String: Any]
         )
         XCTAssertEqual(replyItems["minItems"] as? Int, 0)
         XCTAssertEqual(replyItems["maxItems"] as? Int, 2)
@@ -581,9 +660,21 @@ final class ProviderAnalysisTests: XCTestCase {
                 (first["response_format"] as? [String: Any])?["type"] as? String,
                 "json_object")
             let firstMessages = try XCTUnwrap(first["messages"] as? [[String: Any]])
+            let systemInstructions = try XCTUnwrap(
+                firstMessages.first?["content"] as? String
+            )
             XCTAssertTrue(
-                try XCTUnwrap(firstMessages.first?["content"] as? String).contains(
-                    "Return JSON matching this exact schema"))
+                systemInstructions.contains("Return JSON matching this exact schema"))
+            XCTAssertTrue(
+                systemInstructions.contains(
+                    "Write conversationStrategy, strategyRationale, and every non-null personaObservationChanges.text in English (en)"
+                )
+            )
+            XCTAssertEqual(
+                systemInstructions.components(separatedBy: "English (en)").count - 1,
+                1
+            )
+            XCTAssertFalse(systemInstructions.lowercased().contains("app-owned"))
             XCTAssertEqual(firstMessages.count, 2)
 
             AnalysisURLProtocolStub.reset()
@@ -683,7 +774,10 @@ final class ProviderAnalysisTests: XCTestCase {
     private func makeReplyRequest(
         task: SuggestedReplyTask,
         hasOlderMessages: Bool = false,
-        existingHistorySummary: String = "Earlier context"
+        existingHistorySummary: String = "Earlier context",
+        appLanguage: String = "en",
+        recentMessageText: String = "Dinner at 7?",
+        personaLearningText: String = "Sure"
     ) -> SuggestedReplyGenerationRequest {
         let olderMessages =
             hasOlderMessages
@@ -708,18 +802,19 @@ final class ProviderAnalysisTests: XCTestCase {
                 ], protectedTombstones: []),
             personaLearningMessages: [
                 SuggestedReplyPromptMessage(
-                    id: UUID(), sender: "user", senderName: nil, text: "Sure", timeLabel: "")
+                    id: UUID(), sender: "user", senderName: nil,
+                    text: personaLearningText, timeLabel: "")
             ],
             existingHistorySummary: existingHistorySummary,
             olderMessagesToSummarize: olderMessages,
             recentMessages: [
                 SuggestedReplyPromptMessage(
                     id: UUID(), sender: "other_participant", senderName: "Sarah",
-                    text: "Dinner at 7?", timeLabel: "6:00 PM")
+                    text: recentMessageText, timeLabel: "6:00 PM")
             ],
             draftingInput: task == .drafting ? "Make it warmer" : nil,
             previousConversationStrategy: "Confirm the plan.",
-            appLanguage: "en",
+            appLanguage: appLanguage,
             traceID: ImportTraceID())
     }
 

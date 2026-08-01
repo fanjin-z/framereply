@@ -224,7 +224,10 @@ struct ZAIClient: AIProviderAdapter {
         guard Self.textModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
-        let contract = SuggestedReplyPrompt.contract(for: generationRequest.task)
+        let contract = SuggestedReplyPrompt.contract(
+            for: generationRequest.task,
+            appLanguage: generationRequest.appLanguage
+        )
 
         let maxTokens = 3_200
         let attempt = 1
