@@ -102,7 +102,53 @@ final class FrameReplyShowcaseScreenshotTests: XCTestCase {
         capture("06-context-and-rationale")
     }
 
-    private func launchShowcase() -> XCUIApplication {
+    func test07ChatsSearchAndActions() {
+        let app = launchShowcase()
+
+        let search = app.textFields["chats-search-field"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("Jordan")
+
+        XCTAssertTrue(app.buttons["chat-card-showcase.jordan"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["chat-card-showcase.maya"].exists)
+
+        let clearSearch = app.buttons["clear-chat-search"]
+        XCTAssertTrue(clearSearch.waitForExistence(timeout: 3))
+        clearSearch.tap()
+        XCTAssertTrue(app.buttons["chat-card-showcase.maya"].waitForExistence(timeout: 3))
+
+        let actions = app.buttons["chat-actions-showcase.maya"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 3))
+        actions.tap()
+
+        let deleteChat = app.buttons["Delete Chat"]
+        XCTAssertTrue(deleteChat.waitForExistence(timeout: 3))
+        deleteChat.tap()
+
+        let confirmation = app.sheets.firstMatch
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Delete chat with Maya?"].waitForExistence(timeout: 3))
+        XCTAssertTrue(confirmation.buttons["Delete Chat"].exists)
+    }
+
+    func test08ChatsRemainUsableAtAccessibilityTextSize() {
+        let app = launchShowcase(
+            contentSizeCategory: "UICTContentSizeCategoryAccessibilityExtraExtraExtraLarge"
+        )
+
+        let maya = app.buttons["chat-card-showcase.maya"]
+        XCTAssertTrue(maya.waitForExistence(timeout: 5))
+        XCTAssertTrue(maya.isHittable)
+        XCTAssertTrue(app.buttons["chat-actions-showcase.maya"].isHittable)
+        XCTAssertTrue(app.buttons["add-messages"].firstMatch.isHittable)
+
+        capture("07-chats-accessibility")
+    }
+
+    private func launchShowcase(
+        contentSizeCategory: String = "UICTContentSizeCategoryL"
+    ) -> XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launchArguments += [
@@ -112,7 +158,7 @@ final class FrameReplyShowcaseScreenshotTests: XCTestCase {
             "-AppleLocale",
             "en_US",
             "-UIPreferredContentSizeCategoryName",
-            "UICTContentSizeCategoryL",
+            contentSizeCategory,
             "-UIAccessibilityReduceMotionEnabled",
             "YES"
         ]

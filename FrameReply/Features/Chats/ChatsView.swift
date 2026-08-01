@@ -98,7 +98,20 @@ struct ChatsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
+            let visibleChats = chats
+
+            VStack(alignment: .leading, spacing: 12) {
+                ChatsSearchImportRow(
+                    searchText: $searchText,
+                    isSearchActive: isActive,
+                    isImporting: importModel.isLoading,
+                    onImportTap: {
+                        isImportSourcePresented = true
+                    }
+                )
+                .padding(.horizontal, 24)
+                .padding(.top, 14)
+
                 if reviewCount > 0 {
                     ChatsImportReviewNudge(
                         text: reviewNudgeText,
@@ -109,21 +122,12 @@ struct ChatsView: View {
                             isReviewPresented = true
                         }
                     )
-                    .padding(.top, 14)
+                    .padding(.horizontal, 24)
                 }
-
-                ChatsSearchImportRow(
-                    searchText: $searchText,
-                    isSearchActive: isActive,
-                    isImporting: importModel.isLoading,
-                    onImportTap: {
-                        isImportSourcePresented = true
-                    }
-                )
-                .padding(.top, reviewCount > 0 ? 4 : 14)
 
                 if let importErrorMessage {
                     ChatsImportErrorMessage(message: importErrorMessage)
+                        .padding(.horizontal, 24)
                 }
 
                 if importModel.isLoading {
@@ -137,41 +141,53 @@ struct ChatsView: View {
                             importTask?.cancel()
                         }
                     )
+                    .padding(.horizontal, 24)
                 }
 
-                VStack(spacing: 16) {
-                    ForEach(chats) { item in
-                        ChatCard(
-                            chat: item.chat,
-                            persona: item.persona,
-                            onChatTap: {
-                                onChatTap(item.chat)
-                            },
-                            onDeleteTap: {
-                                chatToDelete = item.chat
+                if visibleChats.isEmpty {
+                    let isSearchEmpty = searchText.trimmingCharacters(
+                        in: .whitespacesAndNewlines
+                    ).isEmpty
+                    if chatRecords.isEmpty && isSearchEmpty {
+                        EmptyImportPrompt(
+                            isLoading: importModel.isLoading,
+                            onImportTap: {
+                                isImportSourcePresented = true
                             }
                         )
+                        .padding(.horizontal, 24)
+                    } else {
+                        EmptySearchState()
+                            .padding(.horizontal, 24)
                     }
-
-                    if chats.isEmpty {
-                        let isSearchEmpty = searchText.trimmingCharacters(
-                            in: .whitespacesAndNewlines
-                        ).isEmpty
-                        if chatRecords.isEmpty && isSearchEmpty {
-                            EmptyImportPrompt(
-                                isLoading: importModel.isLoading,
-                                onImportTap: {
-                                    isImportSourcePresented = true
+                } else {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(visibleChats.enumerated()), id: \.element.id) {
+                            index, item in
+                            ChatCard(
+                                chat: item.chat,
+                                persona: item.persona,
+                                onChatTap: {
+                                    onChatTap(item.chat)
+                                },
+                                onDeleteTap: {
+                                    chatToDelete = item.chat
                                 }
                             )
-                        } else {
-                            EmptySearchState()
+
+                            if index < visibleChats.count - 1 {
+                                Rectangle()
+                                    .fill(FrameReplyColor.outlineVariant.opacity(0.42))
+                                    .frame(height: 1)
+                                    .padding(.leading, 76)
+                                    .padding(.trailing, 16)
+                                    .accessibilityHidden(true)
+                            }
                         }
                     }
+                    .glassPanel(cornerRadius: 0)
                 }
-                .padding(.top, 4)
             }
-            .padding(.horizontal, 24)
             .padding(.bottom, 94)
             .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity)
@@ -440,10 +456,10 @@ private struct ChatsSearchImportRow: View {
                     Circle()
                         .fill(FrameReplyColor.primary)
                         .shadow(
-                            color: FrameReplyColor.primaryContainer.opacity(0.24),
-                            radius: 14,
+                            color: FrameReplyColor.primaryContainer.opacity(0.18),
+                            radius: 10,
                             x: 0,
-                            y: 8
+                            y: 6
                         )
 
                     if isImporting {
@@ -455,9 +471,9 @@ private struct ChatsSearchImportRow: View {
                             .foregroundStyle(.white)
                     }
                 }
-                .frame(width: 46, height: 46)
+                .frame(width: 44, height: 44)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SoftPressButtonStyle())
             .disabled(isImporting)
             .accessibilityLabel("Add messages")
             .accessibilityIdentifier("add-messages")
@@ -516,7 +532,7 @@ private struct EmptyImportPrompt: View {
             .disabled(isLoading)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 34)
+        .padding(.vertical, 28)
         .glassPanel(cornerRadius: 26)
         .accessibilityLabel("Add messages")
         .accessibilityIdentifier("add-messages")

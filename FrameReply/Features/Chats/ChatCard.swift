@@ -12,12 +12,13 @@ struct ChatCard: View {
     let onChatTap: () -> Void
     let onDeleteTap: () -> Void
 
-    @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 50
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 48
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {
             Button(action: onChatTap) {
-                HStack(spacing: 14) {
+                HStack(alignment: .top, spacing: 12) {
                     avatar
                     details
                 }
@@ -29,6 +30,52 @@ struct ChatCard: View {
             .accessibilityValue(accessibilityValue)
             .accessibilityIdentifier("chat-card-\(chat.id)")
 
+            trailingMetadata
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .frame(minHeight: 84)
+    }
+
+    private var avatar: some View {
+        AvatarMark(
+            initials: chat.initials,
+            symbolName: chat.avatarSymbol,
+            colors: chat.gradient,
+            size: min(avatarSize, 60)
+        )
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(chat.name)
+                .font(.system(.body, design: .rounded, weight: .semibold))
+                .foregroundStyle(FrameReplyColor.onSurface)
+                .lineLimit(textLineLimit)
+                .layoutPriority(2)
+
+            Text(chat.preview)
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(FrameReplyColor.onSurfaceVariant.opacity(0.84))
+                .lineLimit(textLineLimit)
+
+            contextBadge
+                .padding(.top, 3)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var trailingMetadata: some View {
+        VStack(alignment: .trailing, spacing: 0) {
+            Text(activityText)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(FrameReplyColor.outline)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .accessibilityHidden(true)
+
+            Spacer(minLength: 0)
+
             Menu {
                 Button(
                     "Delete Chat",
@@ -38,56 +85,17 @@ struct ChatCard: View {
                 )
             } label: {
                 Image(systemName: "ellipsis")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 17, weight: .semibold))
                     .rotationEffect(.degrees(90))
                     .foregroundStyle(FrameReplyColor.outline)
                     .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Chat actions for \(chat.name)")
+            .accessibilityIdentifier("chat-actions-\(chat.id)")
         }
-        .padding(.vertical, 12)
-        .padding(.leading, 18)
-        .padding(.trailing, 10)
-        .frame(minHeight: 108)
-        .glassPanel(cornerRadius: 22)
-    }
-
-    private var avatar: some View {
-        AvatarMark(
-            initials: chat.initials,
-            symbolName: chat.avatarSymbol,
-            colors: chat.gradient,
-            size: avatarSize
-        )
-    }
-
-    private var details: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(chat.name)
-                    .font(.system(.body, design: .rounded, weight: .semibold))
-                    .foregroundStyle(FrameReplyColor.onSurface)
-                    .lineLimit(1)
-                    .layoutPriority(1)
-
-                Spacer(minLength: 4)
-
-                Text(ChatActivityDateFormatter.text(for: chat.updatedAt))
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
-                    .foregroundStyle(FrameReplyColor.outline)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-            }
-
-            contextBadge
-
-            Text(chat.preview)
-                .font(.system(.subheadline, design: .rounded))
-                .foregroundStyle(FrameReplyColor.onSurfaceVariant.opacity(0.82))
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: 64)
     }
 
     @ViewBuilder
@@ -107,9 +115,17 @@ struct ChatCard: View {
 
     private var accessibilityValue: String {
         if chat.isProvisional {
-            return "\(chat.preview), Review Import"
+            return "\(chat.preview), \(activityText), Review Import"
         }
-        return "\(chat.preview), \(persona.name) persona"
+        return "\(chat.preview), \(activityText), \(persona.name) persona"
+    }
+
+    private var activityText: String {
+        ChatActivityDateFormatter.text(for: chat.updatedAt)
+    }
+
+    private var textLineLimit: Int {
+        dynamicTypeSize.isAccessibilitySize ? 2 : 1
     }
 }
 
@@ -117,25 +133,25 @@ private struct ChatPersonaBadge: View {
     let persona: Persona
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: persona.symbolName)
-                .font(.system(size: 10, weight: .semibold))
+        HStack(spacing: 0) {
+            HStack(spacing: 4) {
+                Image(systemName: persona.symbolName)
+                    .font(.system(size: 10, weight: .semibold))
 
-            Text(verbatim: persona.name)
-                .font(.system(.caption2, design: .rounded, weight: .semibold))
-                .tracking(0.3)
-                .lineLimit(1)
-        }
-        .foregroundStyle(persona.accent.opacity(0.9))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
-        .background {
-            Capsule(style: .continuous)
-                .fill(persona.accent.opacity(0.12))
-                .overlay {
-                    Capsule(style: .continuous)
-                        .stroke(persona.accent.opacity(0.16), lineWidth: 1)
-                }
+                Text(verbatim: persona.name)
+                    .font(.system(.caption2, design: .rounded, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .foregroundStyle(persona.accent.opacity(0.9))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(persona.accent.opacity(0.11))
+            }
+
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
