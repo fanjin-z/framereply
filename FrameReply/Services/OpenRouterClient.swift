@@ -136,18 +136,21 @@ struct OpenRouterClient: AIProviderAdapter {
                 throw StructuredOutputFailure(
                     kind: .schemaMismatch, codingPath: "response.choices")
             }
+            try StrictStructuredOutputValidator.validate(
+                content: choice.message.content,
+                schema: contract.schema
+            )
             let decoded = try ChatImportAnalysisDecoder.decodeResult(
                 content: choice.message.content,
                 finishReason: choice.finishReason,
                 isSharedTranscript: analysisRequest.sharedTranscript != nil,
                 candidateIDs: Set(analysisRequest.candidates.map(\.id))
             )
-            guard decoded.recovered == false else {
-                throw StructuredOutputFailure(
-                    kind: .schemaMismatch, codingPath: "response.choices[0].message.content")
-            }
             recordContractValidation(
-                contract, traceID: analysisRequest.traceID, category: "valid")
+                contract,
+                traceID: analysisRequest.traceID,
+                category: decoded.recovered ? "recovered" : "valid"
+            )
             return decoded.value
         } catch let failure as StructuredOutputFailure {
             recordStructuredFailure(
@@ -223,17 +226,20 @@ struct OpenRouterClient: AIProviderAdapter {
                 throw StructuredOutputFailure(
                     kind: .schemaMismatch, codingPath: "response.choices")
             }
+            try StrictStructuredOutputValidator.validate(
+                content: choice.message.content,
+                schema: contract.schema
+            )
             let decoded = try SuggestedReplyResultDecoder.decodeResult(
                 content: choice.message.content,
                 finishReason: choice.finishReason,
                 task: generationRequest.task
             )
-            guard decoded.recovered == false else {
-                throw StructuredOutputFailure(
-                    kind: .schemaMismatch, codingPath: "response.choices[0].message.content")
-            }
             recordContractValidation(
-                contract, traceID: generationRequest.traceID, category: "valid")
+                contract,
+                traceID: generationRequest.traceID,
+                category: decoded.recovered ? "recovered" : "valid"
+            )
             return decoded.value
         } catch let failure as StructuredOutputFailure {
             recordStructuredFailure(

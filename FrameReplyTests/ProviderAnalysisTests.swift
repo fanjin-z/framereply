@@ -383,7 +383,20 @@ final class ProviderAnalysisTests: XCTestCase {
     }
 
     @MainActor
-    func testOpenRouterRejectsRecoveredOutputWithoutRetry() async throws {
+    func testOpenRouterAcceptsSemanticRecoveryButRejectsExtraFieldsWithoutRetry() async throws {
+        var recoverable = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(validScreenshotAnalysisJSON().utf8))
+                as? [String: Any]
+        )
+        recoverable["conversationTitle"] = ""
+        AnalysisURLProtocolStub.responses = [
+            (200, openRouterResponse(content: jsonString(recoverable)))
+        ]
+
+        _ = try await OpenRouterClient(session: makeSession()).analyzeChatScreenshot(
+            makeRequest(), apiKey: "key", model: .qwen37Plus)
+
+        AnalysisURLProtocolStub.reset()
         var output = try XCTUnwrap(
             JSONSerialization.jsonObject(with: Data(validScreenshotAnalysisJSON().utf8))
                 as? [String: Any]

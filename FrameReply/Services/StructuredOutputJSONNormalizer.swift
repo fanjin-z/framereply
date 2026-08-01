@@ -1,3 +1,4 @@
+import CoreFoundation
 import Foundation
 
 nonisolated struct StructuredOutputDecodingResult<Value> {
@@ -123,5 +124,132 @@ nonisolated enum StructuredOutputJSONNormalizer {
             index = text.index(after: index)
         }
         return depth == 0 ? candidates : []
+    }
+}
+
+nonisolated enum StrictStructuredOutputValidator {
+    static func validate(content: String?, schema: [String: Any]) throws {
+        let text = content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !text.isEmpty, let data = text.data(using: .utf8) else {
+            throw StructuredOutputFailure(kind: .emptyResponse, codingPath: nil)
+        }
+
+        let value: Any
+        do {
+            value = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            throw StructuredOutputFailure(kind: .invalidJSON, codingPath: nil)
+        }
+        try validate(value, against: schema, path: "root")
+    }
+
+    private static func validate(_ value: Any, against schema: [String: Any], path: String) throws {
+        let allowedTypes: [String]
+        if let type = schema["type"] as? String {
+            allowedTypes = [type]
+        } else {
+            allowedTypes = schema["type"] as? [String] ?? []
+        }
+        let actualType = jsonType(of: value)
+        let typeMatches =
+            allowedTypes.contains(actualType)
+            || (actualType == "integer" && allowedTypes.contains("number"))
+        if !allowedTypes.isEmpty, !typeMatches {
+            throw schemaMismatch(path)
+        }
+
+        if let allowedValues = schema["enum"] as? [Any],
+            !allowedValues.contains(where: { jsonValuesEqual($0, value) })
+        {
+            throw schemaMismatch(path)
+        }
+
+        if let object = value as? [String: Any] {
+            try validateObject(object, against: schema, path: path)
+        } else if let array = value as? [Any] {
+            try validateArray(array, against: schema, path: path)
+        } else if let string = value as? String {
+            if let minimum = schema["minLength"] as? Int, string.count < minimum {
+                throw schemaMismatch(path)
+            }
+            if let maximum = schema["maxLength"] as? Int, string.count > maximum {
+                throw schemaMismatch(path)
+            }
+        } else if let number = numericValue(value) {
+            if let minimum = numericValue(schema["minimum"]), number < minimum {
+                throw schemaMismatch(path)
+            }
+            if let maximum = numericValue(schema["maximum"]), number > maximum {
+                throw schemaMismatch(path)
+            }
+        }
+    }
+
+    private static func validateObject(
+        _ object: [String: Any],
+        against schema: [String: Any],
+        path: String
+    ) throws {
+        let properties = schema["properties"] as? [String: Any] ?? [:]
+        let required = Set(schema["required"] as? [String] ?? [])
+        if let missing = required.subtracting(object.keys).sorted().first {
+            throw schemaMismatch("\(path).\(missing)")
+        }
+        if schema["additionalProperties"] as? Bool == false,
+            let extra = Set(object.keys).subtracting(properties.keys).sorted().first
+        {
+            throw schemaMismatch("\(path).\(extra)")
+        }
+        for key in object.keys.sorted() {
+            guard let propertySchema = properties[key] as? [String: Any],
+                let propertyValue = object[key]
+            else { continue }
+            try validate(propertyValue, against: propertySchema, path: "\(path).\(key)")
+        }
+    }
+
+    private static func validateArray(
+        _ array: [Any],
+        against schema: [String: Any],
+        path: String
+    ) throws {
+        if let minimum = schema["minItems"] as? Int, array.count < minimum {
+            throw schemaMismatch(path)
+        }
+        if let maximum = schema["maxItems"] as? Int, array.count > maximum {
+            throw schemaMismatch(path)
+        }
+        guard let itemSchema = schema["items"] as? [String: Any] else { return }
+        for (index, item) in array.enumerated() {
+            try validate(item, against: itemSchema, path: "\(path)[\(index)]")
+        }
+    }
+
+    private static func jsonType(of value: Any) -> String {
+        if value is NSNull { return "null" }
+        if value is [String: Any] { return "object" }
+        if value is [Any] { return "array" }
+        if value is String { return "string" }
+        if let number = value as? NSNumber {
+            if CFGetTypeID(number) == CFBooleanGetTypeID() { return "boolean" }
+            return number.doubleValue.rounded() == number.doubleValue ? "integer" : "number"
+        }
+        return "unknown"
+    }
+
+    private static func numericValue(_ value: Any?) -> Double? {
+        guard let number = value as? NSNumber,
+            CFGetTypeID(number) != CFBooleanGetTypeID()
+        else { return nil }
+        return number.doubleValue
+    }
+
+    private static func jsonValuesEqual(_ lhs: Any, _ rhs: Any) -> Bool {
+        if lhs is NSNull, rhs is NSNull { return true }
+        return (lhs as? NSObject)?.isEqual(rhs) == true
+    }
+
+    private static func schemaMismatch(_ path: String) -> StructuredOutputFailure {
+        StructuredOutputFailure(kind: .schemaMismatch, codingPath: path)
     }
 }
