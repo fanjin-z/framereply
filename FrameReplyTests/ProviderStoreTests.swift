@@ -98,6 +98,10 @@ final class ProviderStoreTests: XCTestCase {
         XCTAssertEqual(ProviderPlatform.openRouter.supportedTiers, [.advanced])
         XCTAssertEqual(ProviderPlatform.openRouter.displayName, "OpenRouter")
         XCTAssertEqual(
+            ProviderPlatform.openRouter.modelSummary(for: .advanced),
+            "Qwen3.7 Plus"
+        )
+        XCTAssertEqual(
             ProviderPlatform.zaiInternational.supportedTiers,
             [.basic, .advanced, .best]
         )
@@ -108,11 +112,11 @@ final class ProviderStoreTests: XCTestCase {
         XCTAssertTrue(ProviderPlatform.allCases.allSatisfy { $0.defaultTier == .advanced })
         XCTAssertEqual(
             ProviderPlatform.openAI.modelSummary(for: .advanced),
-            "gpt-5.6-terra"
+            "GPT-5.6 Terra"
         )
         XCTAssertEqual(
             ProviderPlatform.zaiInternational.modelSummary(for: .advanced),
-            "glm-4.6v-flashx"
+            "GLM-4.6V FlashX"
         )
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }

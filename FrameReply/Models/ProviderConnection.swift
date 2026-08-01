@@ -74,7 +74,7 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
     }
 
     func modelSummary(for tier: ProviderTier) -> String {
-        models(for: tier).analysis.rawValue
+        models(for: tier).analysis.displayName
     }
 }
 
@@ -90,6 +90,30 @@ enum ProviderModel: String, Codable {
     case glm47 = "glm-4.7"
     case qwen37Plus = "qwen/qwen3.7-plus"
 
+    nonisolated var displayName: String {
+        switch self {
+        case .gpt56Luna:
+            "GPT-5.6 Luna"
+        case .gpt56Terra:
+            "GPT-5.6 Terra"
+        case .gpt56Sol:
+            "GPT-5.6 Sol"
+        case .glm46VFlashX:
+            "GLM-4.6V FlashX"
+        case .glm46VFlash:
+            "GLM-4.6V Flash"
+        case .glm46V:
+            "GLM-4.6V"
+        case .glm47FlashX:
+            "GLM-4.7 FlashX"
+        case .glm47Flash:
+            "GLM-4.7 Flash"
+        case .glm47:
+            "GLM-4.7"
+        case .qwen37Plus:
+            "Qwen3.7 Plus"
+        }
+    }
 }
 
 enum ProviderTier: String, Codable, CaseIterable, Identifiable, Sendable {
