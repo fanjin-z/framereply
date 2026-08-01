@@ -134,6 +134,14 @@ nonisolated enum ShortcutResponseBuilder {
                 ),
                 locale: localization.locale
             )
+        } else if let repliesOutcome, let replies, replies.isEmpty {
+            dialog = AppStrings.resolve(
+                AppStrings.Shortcut.waitRecommendation(
+                    message: message,
+                    strategy: repliesOutcome.conversationStrategy
+                ),
+                locale: localization.locale
+            )
         } else {
             dialog = AppStrings.resolve(
                 AppStrings.Shortcut.repliesUnavailable(message: message),

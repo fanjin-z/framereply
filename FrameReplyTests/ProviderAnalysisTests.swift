@@ -115,6 +115,26 @@ final class ProviderAnalysisTests: XCTestCase {
                 "Match reply bodies to the latest relevant conversation language and script"
             )
         )
+        for instructions in [standard.instructions, drafting.instructions] {
+            XCTAssertEqual(
+                instructions.components(separatedBy: "Sender and turn rules").count - 1,
+                1
+            )
+            for rule in [
+                #"Sender roles are relative to the intended reply author: "user" is that person"#,
+                #"Latest "other_participant" or "group_participant": return exactly two replies"#,
+                "Otherwise return replies [], including uncertain completion or a style-only draftingInput",
+                "omits the wait instruction, and does not predict the response",
+                #"without misattributing "user" messages"#
+            ] {
+                XCTAssertTrue(instructions.contains(rule), rule)
+            }
+        }
+        XCTAssertTrue(
+            standard.instructions.contains(
+                "conversationStrategy is a concise direction for the next 1–3 conversational turns"
+            )
+        )
         XCTAssertTrue(
             persona.instructions.contains(
                 "Write personaObservationChanges.text in appLanguage"
@@ -236,6 +256,12 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(
             Set(try XCTUnwrap(schema["properties"] as? [String: Any]).keys),
             ["replies", "conversationStrategy", "strategyRationale"])
+        let replyItems = try XCTUnwrap(
+            try XCTUnwrap(schema["properties"] as? [String: Any])["replies"]
+                as? [String: Any]
+        )
+        XCTAssertEqual(replyItems["minItems"] as? Int, 0)
+        XCTAssertEqual(replyItems["maxItems"] as? Int, 2)
         XCTAssertTrue(
             reporter.events.contains { event in
                 guard
@@ -246,11 +272,12 @@ final class ProviderAnalysisTests: XCTestCase {
             })
     }
 
-    func testSuggestedReplyDecoderRecoversSecondaryFieldsAndPreservesCoreReplies() throws {
+    func testSuggestedReplyDecoderRecoversOptionalAnalysisFieldsAndPreservesCoreReplies() throws {
         let content = jsonString([
             "historySummary": 42,
-            "replies": [" First ", NSNull(), "first", " Second ", "Third"],
-            "conversationStrategy": NSNull(),
+            "replies": [" First ", " Second "],
+            "conversationStrategy": " Continue after they respond. ",
+            "strategyRationale": " The response determines the next step. ",
             "memoryChanges": "invalid",
             "extra": true
         ])
@@ -260,8 +287,8 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(decoded.recovered)
         XCTAssertEqual(decoded.value.replies, ["First", "Second"])
         XCTAssertNil(decoded.value.historySummary)
-        XCTAssertEqual(decoded.value.conversationStrategy, "")
-        XCTAssertEqual(decoded.value.strategyRationale, "")
+        XCTAssertEqual(decoded.value.conversationStrategy, "Continue after they respond.")
+        XCTAssertEqual(decoded.value.strategyRationale, "The response determines the next step.")
         XCTAssertTrue(decoded.value.memoryChanges.isEmpty)
         XCTAssertTrue(decoded.value.personaObservationChanges.isEmpty)
         XCTAssertFalse(decoded.value.personaObservationChangesAvailable)
@@ -292,10 +319,53 @@ final class ProviderAnalysisTests: XCTestCase {
             try SuggestedReplyResultDecoder.decode(
                 content: validStandardRepliesJSON(), finishReason: "stop", task: .standard
             ).historySummary)
+        let wait = try SuggestedReplyResultDecoder.decode(
+            content: jsonString([
+                "historySummary": NSNull(),
+                "replies": [],
+                "conversationStrategy": "After a response, continue with the current topic.",
+                "strategyRationale": "The future response determines the useful next step.",
+                "memoryChanges": [],
+                "personaObservationChanges": []
+            ]),
+            finishReason: "stop",
+            task: .standard
+        )
+        XCTAssertTrue(wait.replies.isEmpty)
+        for invalidReplies: [Any] in [
+            ["only one"],
+            ["same", " same "],
+            ["one", "two", "three"]
+        ] {
+            XCTAssertThrowsError(
+                try SuggestedReplyResultDecoder.decode(
+                    content: jsonString([
+                        "historySummary": NSNull(),
+                        "replies": invalidReplies,
+                        "conversationStrategy": "Continue.",
+                        "strategyRationale": "The context supports continuing.",
+                        "memoryChanges": [],
+                        "personaObservationChanges": []
+                    ]),
+                    finishReason: "stop",
+                    task: .standard
+                )
+            )
+        }
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
-                content: jsonString(["replies": ["same", " same "]]),
-                finishReason: "stop", task: .standard))
+                content: jsonString([
+                    "historySummary": NSNull(),
+                    "replies": [],
+                    "conversationStrategy": "",
+                    "strategyRationale": "The response determines the next step.",
+                    "memoryChanges": [],
+                    "personaObservationChanges": []
+                ]),
+                finishReason: "stop",
+                task: .standard
+            )
+        )
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
                 content: "\(valid)\n\(valid)", finishReason: "stop", task: .standard))
@@ -392,7 +462,9 @@ final class ProviderAnalysisTests: XCTestCase {
     func testOpenAIUsesOneStandardContractAndOneRequestForRecoveredOrFatalOutput() async throws {
         let recoveredJSON = jsonString([
             "replies": [" First ", "Second"],
-            "historySummary": NSNull()
+            "historySummary": NSNull(),
+            "conversationStrategy": "Continue after the response.",
+            "strategyRationale": "The response determines the next step."
         ])
         let reporter = SpyImportEventReporter()
         AnalysisURLProtocolStub.responses = [
@@ -488,7 +560,7 @@ final class ProviderAnalysisTests: XCTestCase {
             AnalysisURLProtocolStub.reset()
             let recoveredReporter = SpyImportEventReporter()
             AnalysisURLProtocolStub.responses = [
-                (200, zaiResponse(content: #"{"replies":["First","Second"]}"#))
+                (200, zaiResponse(content: "Result:\n\(validStandardRepliesJSON())"))
             ]
             let recovered = try await ZAIClient(
                 region: region,

@@ -233,6 +233,12 @@ extension ShortcutReplyConfirmingIntent {
         from response: ShortcutResponsePresentation
     ) async throws -> String {
         let replies = ShortcutReplyChoiceBuilder.values(from: response)
+        if replies.isEmpty,
+            response.payload.replyStatus != .failed,
+            response.payload.suggestedReplies?.isEmpty == true
+        {
+            return response.dialog
+        }
         guard !replies.isEmpty else {
             throw ShortcutExecutionError(
                 message: String(

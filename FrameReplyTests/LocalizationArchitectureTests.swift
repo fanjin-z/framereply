@@ -39,6 +39,33 @@ final class LocalizationArchitectureTests: XCTestCase {
         XCTAssertEqual(value, "Project Team — also Alex")
     }
 
+    func testSuccessfulWaitPresentationUsesLocalizedResources() {
+        let locale = Locale(identifier: "en")
+
+        XCTAssertEqual(
+            AppStrings.resolve(AppStrings.Replies.waitSectionMessage, locale: locale),
+            "You sent the latest message. No reply is needed yet."
+        )
+        XCTAssertEqual(
+            AppStrings.resolve(
+                AppStrings.Replies.waitStrategy(
+                    direction: "After they respond, continue with one relevant question."
+                ),
+                locale: locale
+            ),
+            "Wait for a response first. After they respond, continue with one relevant question."
+        )
+        XCTAssertEqual(
+            AppStrings.resolve(
+                AppStrings.Replies.waitRationale(
+                    reason: "Their response determines the useful next step."
+                ),
+                locale: locale
+            ),
+            "You sent the latest message, so another message now may be premature. Their response determines the useful next step."
+        )
+    }
+
     func testLegalLinksAlwaysUseCanonicalEnglishDestinations() {
         let documents: [(AppLegalDocument, String)] = [
             (.privacy, "privacy"),

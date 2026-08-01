@@ -156,7 +156,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         )
 
         XCTAssertEqual(service.requests.first?.draftingInput, "Use this once")
-        XCTAssertEqual(service.requests.first?.previousConversationStrategy, "Previous strategy")
+        XCTAssertNil(service.requests.first?.previousConversationStrategy)
         let cache = try XCTUnwrap(repository.suggestedReplyCache(chatID: chatID))
         XCTAssertEqual(cache.replies, ["Draft A", "Draft B"])
         XCTAssertEqual(cache.conversationStrategy, "Draft strategy")
@@ -231,6 +231,199 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         client.context = .zhipuDefaultReplies
         _ = try await coordinator.generate(chatID: chatID)
         XCTAssertEqual(client.requests.count, 4)
+    }
+
+    @MainActor
+    func testCompletedOutgoingTurnStoresLocalWaitGuidanceAndNoReplies() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "synthetic-outgoing-wait-chat"
+        let outgoing = makeMessage(chatID: chatID, index: 0)
+        outgoing.text = "Could you share an update?"
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(outgoing)
+        try container.mainContext.save()
+
+        let service = StubReplyService { _ in
+            SuggestedReplyGenerationResult(
+                historySummary: nil,
+                replies: [],
+                conversationStrategy:
+                    "After a response, acknowledge the update and continue with one relevant question.",
+                strategyRationale:
+                    "The future response determines which part of the topic needs attention."
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+
+        let outcome = try await coordinator.generate(chatID: chatID)
+
+        XCTAssertTrue(outcome.replies.isEmpty)
+        XCTAssertEqual(
+            outcome.conversationStrategy,
+            "Wait for a response first. After a response, acknowledge the update and continue with one relevant question."
+        )
+        XCTAssertEqual(
+            outcome.strategyRationale,
+            "You sent the latest message, so another message now may be premature. The future response determines which part of the topic needs attention."
+        )
+        let cache = try XCTUnwrap(repository.suggestedReplyCache(chatID: chatID))
+        XCTAssertTrue(cache.replies.isEmpty)
+        XCTAssertEqual(cache.conversationStrategy, outcome.conversationStrategy)
+        XCTAssertEqual(cache.strategyRationale, outcome.strategyRationale)
+        XCTAssertEqual(
+            try coordinator.cachedReplies(chatID: chatID)?.conversationStrategy,
+            outcome.conversationStrategy
+        )
+    }
+
+    @MainActor
+    func testIncompleteOutgoingTurnKeepsTwoUserAuthoredFollowUps() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "synthetic-outgoing-follow-up-chat"
+        let outgoing = makeMessage(chatID: chatID, index: 0)
+        outgoing.text = "One more detail:"
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(outgoing)
+        try container.mainContext.save()
+
+        let service = StubReplyService { request in
+            XCTAssertEqual(request.recentMessages.last?.sender, "user")
+            return SuggestedReplyGenerationResult(
+                historySummary: nil,
+                replies: ["The first detail.", "The same detail, phrased differently."],
+                conversationStrategy: "Finish the point, then leave room for a response.",
+                strategyRationale: "The trailing message clearly introduces missing content."
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+
+        let outcome = try await coordinator.generate(chatID: chatID)
+
+        XCTAssertEqual(
+            outcome.replies,
+            ["The first detail.", "The same detail, phrased differently."]
+        )
+        XCTAssertEqual(
+            outcome.conversationStrategy,
+            "Finish the point, then leave room for a response."
+        )
+        XCTAssertEqual(
+            outcome.strategyRationale,
+            "The trailing message clearly introduces missing content."
+        )
+        XCTAssertEqual(
+            try repository.suggestedReplyCache(chatID: chatID)?.replies,
+            outcome.replies
+        )
+    }
+
+    @MainActor
+    func testIncomingDirectAndGroupTurnsAcceptExactlyTwoUserReplies() async throws {
+        let cases: [(ChatConversationKind, String, String)] = [
+            (.direct, "other_participant", "synthetic-direct-incoming-chat"),
+            (.group, "group_participant", "synthetic-group-incoming-chat")
+        ]
+
+        for (conversationKind, senderKind, chatID) in cases {
+            let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+            let repository = ChatRepository(container: container)
+            let chat = ChatRecord(
+                id: chatID,
+                title: "Contact",
+                previewText: "Synthetic incoming message",
+                conversationKind: conversationKind
+            )
+            let incoming = ChatMessageRecord(
+                chatID: chatID,
+                senderKind: senderKind,
+                senderName: "Contact",
+                text: "Can you confirm the plan?",
+                timeLabel: "",
+                sortIndex: 0
+            )
+            container.mainContext.insert(chat)
+            container.mainContext.insert(incoming)
+            try container.mainContext.save()
+
+            let service = StubReplyService { request in
+                XCTAssertEqual(request.recentMessages.last?.sender, senderKind)
+                return SuggestedReplyGenerationResult(
+                    historySummary: nil,
+                    replies: ["Yes, that works.", "That plan works for me."],
+                    conversationStrategy: "Confirm the plan and keep the next step specific.",
+                    strategyRationale: "The latest incoming turn asks for confirmation."
+                )
+            }
+            let coordinator = SuggestedRepliesCoordinator(
+                aiService: service,
+                repository: repository
+            )
+
+            let outcome = try await coordinator.generate(chatID: chatID)
+
+            XCTAssertEqual(outcome.replies, ["Yes, that works.", "That plan works for me."])
+            XCTAssertEqual(service.requests.count, 1)
+        }
+    }
+
+    @MainActor
+    func testIncomingTurnRejectsSuccessfulEmptyReplyResult() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "synthetic-incoming-empty-chat"
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(makeMessage(chatID: chatID, index: 1))
+        try container.mainContext.save()
+
+        let service = StubReplyService { _ in
+            SuggestedReplyGenerationResult(
+                historySummary: nil,
+                replies: [],
+                conversationStrategy: "Continue after the response.",
+                strategyRationale: "The current message needs a direct reply."
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+
+        do {
+            _ = try await coordinator.generate(chatID: chatID)
+            XCTFail("Expected an incoming empty-reply result to be rejected")
+        } catch let error as SuggestedRepliesError {
+            XCTAssertEqual(error.code, "reply_schema_mismatch")
+        }
+        XCTAssertNil(try repository.suggestedReplyCache(chatID: chatID))
+    }
+
+    @MainActor
+    func testUnknownLatestSenderSkipsProviderGeneration() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "synthetic-unknown-sender-chat"
+        let message = ChatMessageRecord(
+            chatID: chatID,
+            senderKind: "unknown",
+            senderName: nil,
+            text: "Synthetic unresolved message",
+            timeLabel: "",
+            sortIndex: 0
+        )
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(message)
+        try container.mainContext.save()
+
+        let service = StubReplyService()
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+
+        do {
+            _ = try await coordinator.generate(chatID: chatID)
+            XCTFail("Expected sender review to be required")
+        } catch let error as SuggestedRepliesError {
+            XCTAssertEqual(error.code, "sender_review_required")
+        }
+        XCTAssertTrue(service.requests.isEmpty)
+        XCTAssertNil(try coordinator.cachedReplies(chatID: chatID))
     }
 
     @MainActor
@@ -357,7 +550,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertEqual(client.requests.count, 2)
         XCTAssertEqual(client.requests[1].olderMessagesToSummarize.map(\.text), ["Message 2"])
         XCTAssertEqual(client.requests[1].existingHistorySummary, "Summary through Message 1")
-        XCTAssertEqual(client.requests[1].previousConversationStrategy, "Strategy 1")
+        XCTAssertNil(client.requests[1].previousConversationStrategy)
 
         let cache = try XCTUnwrap(repository.suggestedReplyCache(chatID: chatID))
         XCTAssertEqual(cache.summarizedMessageCount, 3)
@@ -513,9 +706,11 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let otherMessage = makeMessage(chatID: chatID, index: 2)
         otherMessage.senderKind = "group_participant"
         otherMessage.senderName = "Alex"
+        otherMessage.sortIndex = 3
         let unknownMessage = makeMessage(chatID: chatID, index: 3)
         unknownMessage.senderKind = "unknown"
         unknownMessage.senderName = nil
+        unknownMessage.sortIndex = 2
 
         container.mainContext.insert(makeChat(id: chatID))
         for message in [userMessage, otherParticipantMessage, otherMessage, unknownMessage] {
@@ -526,7 +721,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let client = StubReplyService { request in
             XCTAssertEqual(
                 request.recentMessages.map(\.sender),
-                ["user", "other_participant", "group_participant", "unknown"]
+                ["user", "other_participant", "unknown", "group_participant"]
             )
             return SuggestedReplyGenerationResult(
                 historySummary: request.existingHistorySummary,

@@ -124,6 +124,12 @@ struct ChatAssistantView: View {
         suggestedRepliesModel.conversationStrategy.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var isWaitingForResponse: Bool {
+        suggestedRepliesModel.replies.isEmpty
+            && !conversationStrategy.isEmpty
+            && messages.last?.isFromUser == true
+    }
+
     private var currentChatRecord: ChatRecord? {
         currentChatRecords.first
     }
@@ -296,6 +302,7 @@ struct ChatAssistantView: View {
                         copiedReplyID: copiedReplyID,
                         isLoading: suggestedRepliesModel.isLoading,
                         needsRefresh: needsReplyRefresh,
+                        isWaitingForResponse: isWaitingForResponse,
                         errorMessage: suggestedRepliesModel.errorMessage,
                         onCopy: copyReply,
                         onRetry: generateReplies,

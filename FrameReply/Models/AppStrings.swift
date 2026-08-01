@@ -43,6 +43,33 @@ nonisolated enum AppStrings {
         }
     }
 
+    enum Replies {
+        static let waitSectionMessage = LocalizedStringResource(
+            "replies.wait.section-message",
+            defaultValue: "You sent the latest message. No reply is needed yet.",
+            comment: "Shown instead of reply cards when the user's latest message should stand."
+        )
+
+        static func waitStrategy(direction: String) -> LocalizedStringResource {
+            LocalizedStringResource(
+                "replies.wait.strategy",
+                defaultValue: "Wait for a response first. \(direction)",
+                comment:
+                    "Conversation strategy for a completed outgoing turn. The value is an AI-generated conditional direction for after a response."
+            )
+        }
+
+        static func waitRationale(reason: String) -> LocalizedStringResource {
+            LocalizedStringResource(
+                "replies.wait.rationale",
+                defaultValue:
+                    "You sent the latest message, so another message now may be premature. \(reason)",
+                comment:
+                    "Rationale for waiting after a completed outgoing turn. The value explains the conditional longer-term strategy."
+            )
+        }
+    }
+
     enum Errors {
         enum AI {
             static let noProvider = LocalizedStringResource(
@@ -225,6 +252,10 @@ nonisolated enum AppStrings {
             static let chatNotFound = LocalizedStringResource(
                 "error.replies.chat-not-found",
                 defaultValue: "This chat is no longer available."
+            )
+            static let senderReviewRequired = LocalizedStringResource(
+                "error.replies.sender-review-required",
+                defaultValue: "Review who sent the latest message before generating replies."
             )
             static let unsupportedProvider = LocalizedStringResource(
                 "error.replies.unsupported-provider",
@@ -598,6 +629,18 @@ nonisolated enum AppStrings {
                 "shortcut.replies.unavailable",
                 defaultValue:
                     "\(message) Suggested replies are unavailable; open FrameReply to retry."
+            )
+        }
+
+        static func waitRecommendation(
+            message: String,
+            strategy: String
+        ) -> LocalizedStringResource {
+            LocalizedStringResource(
+                "shortcut.replies.wait",
+                defaultValue: "\(message)\n\nConversation strategy:\n\(strategy)",
+                comment:
+                    "Shortcut result when no immediate reply is needed. The second value is the composed conversation strategy."
             )
         }
 

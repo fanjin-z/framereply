@@ -47,6 +47,7 @@ nonisolated enum SuggestedRepliesError: LocalizedError, Sendable {
     case consentRequired
     case noMessages
     case chatNotFound
+    case senderReviewRequired
     case unsupportedProvider
     case invalidProviderResponse
 
@@ -62,6 +63,8 @@ nonisolated enum SuggestedRepliesError: LocalizedError, Sendable {
             String(localized: AppStrings.Errors.Replies.noMessages)
         case .chatNotFound:
             String(localized: AppStrings.Errors.Replies.chatNotFound)
+        case .senderReviewRequired:
+            String(localized: AppStrings.Errors.Replies.senderReviewRequired)
         case .unsupportedProvider:
             String(localized: AppStrings.Errors.Replies.unsupportedProvider)
         case .invalidProviderResponse:
@@ -76,6 +79,7 @@ nonisolated enum SuggestedRepliesError: LocalizedError, Sendable {
         case .consentRequired: "provider_consent_required"
         case .noMessages: "no_messages"
         case .chatNotFound: "chat_not_found"
+        case .senderReviewRequired: "sender_review_required"
         case .unsupportedProvider: "unsupported_provider"
         case .invalidProviderResponse: "reply_schema_mismatch"
         }
@@ -132,6 +136,11 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
         let messages = try repository.messages(chatID: chatID)
         guard !messages.isEmpty else { return nil }
         let provisionalIdentity = try repository.provisionalIdentityInterpretation(chatID: chatID)
+        let latestSenderKind = effectiveSenderKind(
+            for: messages[messages.count - 1],
+            provisionalIdentity: provisionalIdentity
+        )
+        guard latestSenderKind != "unknown" else { return nil }
 
         let chatContext = try repository.chatContextValue(chatID: chatID)
         let persona = try repository.personaPromptContext(personaID: chatContext.personaID)
@@ -160,7 +169,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
         )
         guard cache.inputFingerprint == inputFingerprint,
             cache.promptVersion == SuggestedReplyPrompt.version,
-            cache.replies.count == 2
+            replyCountIsValid(cache.replies.count, latestSenderKind: latestSenderKind)
         else {
             return nil
         }
@@ -180,12 +189,6 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
         traceID: ImportTraceID = ImportTraceID()
     ) async throws -> SuggestedRepliesOutcome {
         let oneUseInput = try DraftingInputLimits.validated(draftingInput)
-        let providerContext: AIProviderExecutionContext
-        do {
-            providerContext = try aiService.activeContext(requiring: .suggestedReplies)
-        } catch let error as AIServiceError {
-            throw SuggestedRepliesError(error)
-        }
         guard try repository.chat(id: chatID) != nil else {
             throw SuggestedRepliesError.chatNotFound
         }
@@ -195,6 +198,20 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             throw SuggestedRepliesError.noMessages
         }
         let provisionalIdentity = try repository.provisionalIdentityInterpretation(chatID: chatID)
+        let latestSenderKind = effectiveSenderKind(
+            for: messages[messages.count - 1],
+            provisionalIdentity: provisionalIdentity
+        )
+        guard latestSenderKind != "unknown" else {
+            throw SuggestedRepliesError.senderReviewRequired
+        }
+
+        let providerContext: AIProviderExecutionContext
+        do {
+            providerContext = try aiService.activeContext(requiring: .suggestedReplies)
+        } catch let error as AIServiceError {
+            throw SuggestedRepliesError(error)
+        }
 
         let chatContext = try repository.chatContextValue(chatID: chatID)
         let persona = try repository.personaPromptContext(personaID: chatContext.personaID)
@@ -223,7 +240,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             let cache,
             cache.inputFingerprint == inputFingerprint,
             cache.promptVersion == SuggestedReplyPrompt.version,
-            cache.replies.count == 2
+            replyCountIsValid(cache.replies.count, latestSenderKind: latestSenderKind)
         {
             return SuggestedRepliesOutcome(
                 replies: cache.replies,
@@ -242,6 +259,9 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
         )
         let previousConversationStrategy =
             provisionalIdentity == nil
+                && oneUseInput == nil
+                && cache?.promptVersion == SuggestedReplyPrompt.version
+                && cache?.inputFingerprint == inputFingerprint
             ? cache?.conversationStrategy
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             : nil
@@ -282,6 +302,10 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             throw error
         }
         try Task.checkCancellation()
+        guard replyCountIsValid(generated.replies.count, latestSenderKind: latestSenderKind)
+        else {
+            throw SuggestedRepliesError.invalidProviderResponse
+        }
         guard
             try inputIsCurrent(
                 chatID: chatID,
@@ -291,6 +315,21 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             )
         else {
             throw CancellationError()
+        }
+        let presentedConversationStrategy: String
+        let presentedStrategyRationale: String
+        if latestSenderKind == "user", generated.replies.isEmpty {
+            presentedConversationStrategy = AppStrings.resolve(
+                AppStrings.Replies.waitStrategy(direction: generated.conversationStrategy),
+                locale: localization.locale
+            )
+            presentedStrategyRationale = AppStrings.resolve(
+                AppStrings.Replies.waitRationale(reason: generated.strategyRationale),
+                locale: localization.locale
+            )
+        } else {
+            presentedConversationStrategy = generated.conversationStrategy
+            presentedStrategyRationale = generated.strategyRationale
         }
 
         let historySummary: String
@@ -336,15 +375,15 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
                 chatID: chatID,
                 appLanguage: localization.languageIdentifier,
                 replies: generated.replies,
-                conversationStrategy: generated.conversationStrategy,
-                strategyRationale: generated.strategyRationale,
+                conversationStrategy: presentedConversationStrategy,
+                strategyRationale: presentedStrategyRationale,
                 inputFingerprint: inputFingerprint,
                 promptVersion: SuggestedReplyPrompt.version
             )
             return SuggestedRepliesOutcome(
                 replies: generated.replies,
-                conversationStrategy: generated.conversationStrategy,
-                strategyRationale: generated.strategyRationale,
+                conversationStrategy: presentedConversationStrategy,
+                strategyRationale: presentedStrategyRationale,
                 source: .generated
             )
         }
@@ -373,16 +412,16 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             summarizedMessageCount: summarizedMessageCount,
             summarizedPrefixFingerprint: summarizedPrefixFingerprint,
             replies: generated.replies,
-            conversationStrategy: generated.conversationStrategy,
-            strategyRationale: generated.strategyRationale,
+            conversationStrategy: presentedConversationStrategy,
+            strategyRationale: presentedStrategyRationale,
             inputFingerprint: persistedFingerprint,
             promptVersion: SuggestedReplyPrompt.version
         )
 
         return SuggestedRepliesOutcome(
             replies: generated.replies,
-            conversationStrategy: generated.conversationStrategy,
-            strategyRationale: generated.strategyRationale,
+            conversationStrategy: presentedConversationStrategy,
+            strategyRationale: presentedStrategyRationale,
             source: .generated
         )
     }
@@ -460,6 +499,24 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             text: message.text,
             timeLabel: message.timeLabel
         )
+    }
+
+    private func effectiveSenderKind(
+        for message: ChatMessageRecord,
+        provisionalIdentity: ProvisionalIdentityInterpretation?
+    ) -> String {
+        provisionalIdentity?.senderKind(for: message) ?? message.senderKind
+    }
+
+    private func replyCountIsValid(_ count: Int, latestSenderKind: String) -> Bool {
+        switch latestSenderKind {
+        case "user":
+            count == 0 || count == 2
+        case "other_participant", "group_participant":
+            count == 2
+        default:
+            false
+        }
     }
 
     private func fingerprint(

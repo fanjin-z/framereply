@@ -188,31 +188,29 @@ nonisolated enum SuggestedReplyResultDecoder {
         let strategyRationale: String
         if task == .standard || task == .drafting {
             guard let values = object["replies"] as? [Any] else { throw schema("replies") }
+            guard values.isEmpty || values.count == 2 else { throw schema("replies") }
             var seen: Set<String> = []
             var validReplies: [String] = []
             for value in values {
-                guard let string = value as? String else {
-                    recovered = true
-                    continue
-                }
+                guard let string = value as? String else { throw schema("replies") }
                 let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
                 let identity = trimmed.lowercased()
                 guard !trimmed.isEmpty, trimmed.count <= 500, seen.insert(identity).inserted else {
-                    recovered = true
-                    continue
+                    throw schema("replies")
                 }
-                if validReplies.count < 2 {
-                    validReplies.append(trimmed)
-                } else {
-                    recovered = true
-                }
+                validReplies.append(trimmed)
             }
-            guard validReplies.count == 2 else { throw schema("replies") }
             replies = validReplies
-            (conversationStrategy, recovered) = recoveredString(
-                from: object["conversationStrategy"], maxLength: 500, recovered: recovered)
-            (strategyRationale, recovered) = recoveredString(
-                from: object["strategyRationale"], maxLength: 700, recovered: recovered)
+            conversationStrategy = try requiredString(
+                from: object["conversationStrategy"],
+                maxLength: 500,
+                path: "conversationStrategy"
+            )
+            strategyRationale = try requiredString(
+                from: object["strategyRationale"],
+                maxLength: 700,
+                path: "strategyRationale"
+            )
         } else {
             replies = []
             conversationStrategy = ""
@@ -383,15 +381,15 @@ nonisolated enum SuggestedReplyResultDecoder {
         return string.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static func recoveredString(
+    private static func requiredString(
         from value: Any?,
         maxLength: Int,
-        recovered: Bool
-    ) -> (String, Bool) {
-        guard let string = value as? String else { return ("", true) }
+        path: String
+    ) throws -> String {
+        guard let string = value as? String else { throw schema(path) }
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.count <= maxLength else { return ("", true) }
-        return (trimmed, recovered)
+        guard !trimmed.isEmpty, trimmed.count <= maxLength else { throw schema(path) }
+        return trimmed
     }
 
     private static func schema(_ path: String) -> StructuredOutputFailure {

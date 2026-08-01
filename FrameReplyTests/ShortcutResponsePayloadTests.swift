@@ -58,6 +58,26 @@ final class ShortcutResponsePayloadTests: XCTestCase {
         XCTAssertTrue(response.json.contains("\"diagnosticID\":\"ABCDEF12\""))
     }
 
+    func testSuccessfulWaitIsDistinctFromReplyGenerationFailure() {
+        let response = ShortcutResponseBuilder.success(
+            outcome(matchedExisting: true, reviewRequired: false, duplicate: false, count: 1),
+            repliesOutcome: SuggestedRepliesOutcome(
+                replies: [],
+                conversationStrategy:
+                    "Wait for a response first. After a response, continue with the current topic.",
+                strategyRationale:
+                    "You sent the latest message, so another message now may be premature.",
+                source: .generated
+            )
+        )
+
+        XCTAssertEqual(response.payload.replyStatus, .generated)
+        XCTAssertEqual(response.payload.suggestedReplies, [])
+        XCTAssertNil(response.payload.replyErrorCode)
+        XCTAssertTrue(response.dialog.contains("Conversation strategy:"))
+        XCTAssertTrue(response.dialog.contains("Wait for a response first."))
+    }
+
     private func outcome(
         matchedExisting: Bool,
         reviewRequired: Bool,

@@ -1017,6 +1017,17 @@
         }
       }
     },
+    "error.replies.sender-review-required" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Review who sent the latest message before generating replies."
+          }
+        }
+      }
+    },
     "error.replies.unsupported-provider" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {
@@ -1950,6 +1961,42 @@
     "Replies unavailable" : {
 
     },
+    "replies.wait.rationale" : {
+      "comment" : "Rationale for waiting after a completed outgoing turn. The value explains the conditional longer-term strategy.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "You sent the latest message, so another message now may be premature. %@"
+          }
+        }
+      }
+    },
+    "replies.wait.section-message" : {
+      "comment" : "Shown instead of reply cards when the user's latest message should stand.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "You sent the latest message. No reply is needed yet."
+          }
+        }
+      }
+    },
+    "replies.wait.strategy" : {
+      "comment" : "Conversation strategy for a completed outgoing turn. The value is an AI-generated conditional direction for after a response.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Wait for a response first. %@"
+          }
+        }
+      }
+    },
     "Reply Brief" : {
 
     },
@@ -2139,6 +2186,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%@ Suggested replies are unavailable; open FrameReply to retry."
+          }
+        }
+      }
+    },
+    "shortcut.replies.wait" : {
+      "comment" : "Shortcut result when no immediate reply is needed. The second value is the composed conversation strategy.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@\n\nConversation strategy:\n%2$@"
           }
         }
       }
