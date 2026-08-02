@@ -24,10 +24,8 @@ After explicit provider-specific consent, FrameReply sends selected content dire
 - OpenRouter requests use the fixed `qwen/qwen3.7-plus` model. They pass through OpenRouter and are forwarded to Alibaba Cloud International. FrameReply denies provider data collection in each request and disables fallback routing, but this endpoint may still retain request data under its policies. Review the [OpenRouter privacy policy](https://openrouter.ai/privacy), [provider logging information](https://openrouter.ai/docs/guides/privacy/provider-logging/), and [Alibaba Cloud privacy policy](https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-privacy-policy).
 - MiniMax International processing and retention are described in its [privacy policy](https://platform.minimax.io/protocol/privacy-policy).
 - MiniMax (China) processing and retention are described in its [privacy policy](https://platform.minimaxi.com/zh/protocol/privacy-policy).
-- Z.ai International processing and retention are described in its [privacy policy](https://docs.z.ai/legal-agreement/privacy-policy).
-- Zhipu China processing and retention are described in its [privacy policy](https://docs.bigmodel.cn/cn/terms/privacy-policy).
 
-OpenRouter and Alibaba Cloud International are separate processors in the OpenRouter data path. MiniMax International and MiniMax (China) use separate API endpoints and billing accounts. Z.ai International and Zhipu China also use separate API endpoints and billing accounts. FrameReply does not restrict these options by the user's location. Provider terms and practices can change; review the selected provider's policy before consenting.
+OpenRouter and Alibaba Cloud International are separate processors in the OpenRouter data path. MiniMax International and MiniMax (China) use separate API endpoints and billing accounts. FrameReply does not restrict these options by the user's location. Provider terms and practices can change; review the selected provider's policy before consenting.
 
 Provider usage can be linked to the provider account represented by the user's API key. The provider may charge that account. FrameReply does not sell provider access and contains no provider credit-purchase flow.
 
@@ -37,7 +35,7 @@ The user must affirm that they consent to provider processing and have permissio
 
 ## Retention and deletion
 
-Local data remains until the user deletes an individual chat/provider or chooses **Delete All Local Data**. Full deletion removes chats, messages, personas, context, drafts, consent records, provider settings, and API keys from the device. Reinstall detection purges orphaned FrameReply provider keys left in the Keychain.
+Local data remains until the user deletes an individual chat/provider or chooses **Delete All Local Data**. Full deletion removes chats, messages, personas, context, drafts, consent records, provider settings, and API keys for currently supported providers from the device. Reinstall detection purges orphaned keys for currently supported providers from the Keychain.
 
 Deleting a provider does not revoke the key or delete provider-held data. Use the provider's account and privacy controls for those actions.
 

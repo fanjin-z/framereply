@@ -540,15 +540,6 @@ nonisolated enum AppStrings {
             "provider.destination.minimax-china",
             defaultValue: "MiniMax Open Platform in mainland China"
         )
-        static let zaiInternationalDestination = LocalizedStringResource(
-            "provider.destination.zai-international",
-            defaultValue: "Z.ai International, which generally processes API data in Singapore"
-        )
-        static let zhipuChinaDestination = LocalizedStringResource(
-            "provider.destination.zhipu-china",
-            defaultValue: "Zhipu AI in mainland China"
-        )
-
         static func consentTitle(providerName: String) -> LocalizedStringResource {
             LocalizedStringResource(
                 "provider.consent.title",

@@ -24,4 +24,4 @@ Use a [public GitHub issue](https://github.com/fanjin-z/framereply/issues/new/ch
 
 Use GitHub private vulnerability reporting for security or privacy-sensitive reports. Include the app version, device/OS version, reproducible steps, and redacted diagnostics.
 
-FrameReply cannot refund or adjust charges from OpenAI, Z.ai, or another provider. Contact that provider for billing and account support.
+FrameReply cannot refund or adjust charges from an AI provider. Contact that provider for billing and account support.

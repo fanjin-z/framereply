@@ -33,7 +33,7 @@ Read the [Privacy Policy](docs/privacy.md), [Terms](docs/terms.md), and [Age Sui
 ## Requirements
 
 - An iPhone running iOS 26 or later.
-- A user-owned API key for OpenAI, OpenRouter, MiniMax, or Z.ai. Provider usage may incur charges billed by that provider.
+- A user-owned API key for OpenAI, OpenRouter, or MiniMax. Provider usage may incur charges billed by that provider.
 
 ## Build and contribute
 

@@ -228,7 +228,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         _ = try await coordinator.generate(chatID: chatID)
         XCTAssertEqual(client.requests.count, 3)
 
-        client.context = .zhipuDefaultReplies
+        client.context = .miniMaxChinaDefaultReplies
         _ = try await coordinator.generate(chatID: chatID)
         XCTAssertEqual(client.requests.count, 4)
     }
@@ -537,7 +537,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertEqual(client.requests[0].recentMessages.count, 20)
         XCTAssertEqual(
             client.requests[0].chatMemories.map(\.text), ["Met at university", "Vegetarian"])
-        XCTAssertEqual(client.models, [.glm47FlashX])
+        XCTAssertEqual(client.models, [.miniMaxM3])
 
         let cached = try await coordinator.generate(chatID: chatID)
         XCTAssertEqual(cached.source, .cached)
@@ -818,7 +818,7 @@ private final class StubReplyService: AIServiceProviding {
         context: AIProviderExecutionContext? = nil,
         handler: Handler? = nil
     ) {
-        self.context = context ?? .zaiDefaultReplies
+        self.context = context ?? .miniMaxInternationalDefaultReplies
         self.handler = handler
     }
 
@@ -863,19 +863,19 @@ private final class StubReplyService: AIServiceProviding {
 }
 
 extension AIProviderExecutionContext {
-    fileprivate static var zaiDefaultReplies: AIProviderExecutionContext {
+    fileprivate static var miniMaxInternationalDefaultReplies: AIProviderExecutionContext {
         AIProviderExecutionContext(
-            platform: .zaiInternational,
+            platform: .miniMaxInternational,
             capability: .suggestedReplies,
-            effectiveModel: .glm47FlashX
+            effectiveModel: .miniMaxM3
         )
     }
 
-    fileprivate static var zhipuDefaultReplies: AIProviderExecutionContext {
+    fileprivate static var miniMaxChinaDefaultReplies: AIProviderExecutionContext {
         AIProviderExecutionContext(
-            platform: .zhipuChina,
+            platform: .miniMaxChina,
             capability: .suggestedReplies,
-            effectiveModel: .glm47FlashX
+            effectiveModel: .miniMaxM3
         )
     }
 }

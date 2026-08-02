@@ -8,14 +8,14 @@ import XCTest
 
 final class PrivacySecurityTests: XCTestCase {
     func testProviderPermissionCopyNamesRecipientDataAndPurpose() {
-        let disclosure = ProviderDataConsentDisclosure(provider: .zhipuChina)
+        let disclosure = ProviderDataConsentDisclosure(provider: .miniMaxChina)
 
         XCTAssertEqual(
             disclosure.permissionTitle,
-            "Share chat content with \(ProviderPlatform.zhipuChina.displayName)?"
+            "Share chat content with \(ProviderPlatform.miniMaxChina.displayName)?"
         )
         XCTAssertTrue(
-            disclosure.permissionMessage.contains(ProviderPlatform.zhipuChina.displayName)
+            disclosure.permissionMessage.contains(ProviderPlatform.miniMaxChina.displayName)
         )
         XCTAssertTrue(disclosure.permissionMessage.contains("messages, images, names, and drafts"))
         XCTAssertTrue(disclosure.permissionMessage.contains("third-party AI provider"))
@@ -82,14 +82,17 @@ final class PrivacySecurityTests: XCTestCase {
             )
         )
         for host in ["api.minimax.io", "api.minimaxi.com"] {
-            XCTAssertNoThrow(try ProviderNetworkSession.validateHTTPS(
-                URLRequest(url: URL(string: "https://\(host)/v1/chat/completions")!),
-                allowedHost: host
-            ))
-            XCTAssertThrowsError(try ProviderNetworkSession.validateHTTPS(
-                URLRequest(url: URL(string: "https://\(host).attacker.example/v1/chat/completions")!),
-                allowedHost: host
-            ))
+            XCTAssertNoThrow(
+                try ProviderNetworkSession.validateHTTPS(
+                    URLRequest(url: URL(string: "https://\(host)/v1/chat/completions")!),
+                    allowedHost: host
+                ))
+            XCTAssertThrowsError(
+                try ProviderNetworkSession.validateHTTPS(
+                    URLRequest(
+                        url: URL(string: "https://\(host).attacker.example/v1/chat/completions")!),
+                    allowedHost: host
+                ))
         }
         XCTAssertThrowsError(
             try ProviderNetworkSession.validateHTTPS(

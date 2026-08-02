@@ -15,10 +15,6 @@ nonisolated struct ProviderDataConsentDisclosure: Equatable, Sendable {
             String(localized: AppStrings.Provider.miniMaxInternationalDestination)
         case .miniMaxChina:
             String(localized: AppStrings.Provider.miniMaxChinaDestination)
-        case .zaiInternational:
-            String(localized: AppStrings.Provider.zaiInternationalDestination)
-        case .zhipuChina:
-            String(localized: AppStrings.Provider.zhipuChinaDestination)
         }
     }
 
@@ -32,10 +28,6 @@ nonisolated struct ProviderDataConsentDisclosure: Equatable, Sendable {
             URL(string: "https://platform.minimax.io/protocol/privacy-policy")!
         case .miniMaxChina:
             URL(string: "https://platform.minimaxi.com/zh/protocol/privacy-policy")!
-        case .zaiInternational:
-            URL(string: "https://docs.z.ai/legal-agreement/privacy-policy")!
-        case .zhipuChina:
-            URL(string: "https://docs.bigmodel.cn/cn/terms/privacy-policy")!
         }
     }
 

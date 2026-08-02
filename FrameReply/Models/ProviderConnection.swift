@@ -10,8 +10,6 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
     case openRouter
     case miniMaxInternational
     case miniMaxChina
-    case zaiInternational
-    case zhipuChina
 
     static var availableCases: [ProviderPlatform] { allCases }
 
@@ -29,10 +27,6 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
             String(localized: AppStrings.Provider.miniMaxInternationalName)
         case .miniMaxChina:
             String(localized: AppStrings.Provider.miniMaxChinaName)
-        case .zaiInternational:
-            "Z.ai International"
-        case .zhipuChina:
-            "智谱 (国内)"
         }
     }
 
@@ -42,7 +36,7 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
             "waveform"
         case .openRouter:
             "network"
-        case .miniMaxInternational, .miniMaxChina, .zaiInternational, .zhipuChina:
+        case .miniMaxInternational, .miniMaxChina:
             "sparkles.rectangle.stack"
         }
     }
@@ -51,7 +45,7 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
         switch self {
         case .openRouter, .miniMaxInternational, .miniMaxChina:
             [.advanced]
-        case .openAI, .zaiInternational, .zhipuChina:
+        case .openAI:
             ProviderTier.allCases
         }
     }
@@ -69,18 +63,6 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
             (.qwen37Plus, .qwen37Plus)
         case (.miniMaxInternational, _), (.miniMaxChina, _):
             (.miniMaxM3, .miniMaxM3)
-        case (.zaiInternational, .basic):
-            (.glm46VFlash, .glm47Flash)
-        case (.zaiInternational, .advanced):
-            (.glm46VFlashX, .glm47FlashX)
-        case (.zaiInternational, .best):
-            (.glm46V, .glm47)
-        case (.zhipuChina, .basic):
-            (.glm46VFlash, .glm47Flash)
-        case (.zhipuChina, .advanced):
-            (.glm46VFlashX, .glm47FlashX)
-        case (.zhipuChina, .best):
-            (.glm46V, .glm47)
         }
     }
 
@@ -93,12 +75,6 @@ enum ProviderModel: String, Codable {
     case gpt56Luna = "gpt-5.6-luna"
     case gpt56Terra = "gpt-5.6-terra"
     case gpt56Sol = "gpt-5.6-sol"
-    case glm46VFlashX = "glm-4.6v-flashx"
-    case glm46VFlash = "glm-4.6v-flash"
-    case glm46V = "glm-4.6v"
-    case glm47FlashX = "glm-4.7-flashx"
-    case glm47Flash = "glm-4.7-flash"
-    case glm47 = "glm-4.7"
     case qwen37Plus = "qwen/qwen3.7-plus"
     case miniMaxM3 = "MiniMax-M3"
 
@@ -110,18 +86,6 @@ enum ProviderModel: String, Codable {
             "GPT-5.6 Terra"
         case .gpt56Sol:
             "GPT-5.6 Sol"
-        case .glm46VFlashX:
-            "GLM-4.6V FlashX"
-        case .glm46VFlash:
-            "GLM-4.6V Flash"
-        case .glm46V:
-            "GLM-4.6V"
-        case .glm47FlashX:
-            "GLM-4.7 FlashX"
-        case .glm47Flash:
-            "GLM-4.7 Flash"
-        case .glm47:
-            "GLM-4.7"
         case .qwen37Plus:
             "Qwen3.7 Plus"
         case .miniMaxM3:

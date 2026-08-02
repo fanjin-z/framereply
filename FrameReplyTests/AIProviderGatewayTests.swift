@@ -14,36 +14,36 @@ final class AIProviderGatewayTests: XCTestCase {
         )
 
         try await service.validate(
-            platform: .zaiInternational,
+            platform: .openAI,
             selectedTier: .advanced,
             apiKey: "validation-key"
         )
-        XCTAssertEqual(adapter.validatedModels, [.glm46VFlashX])
+        XCTAssertEqual(adapter.validatedModels, [.gpt56Luna])
 
         let analysisContext = try service.activeContext(requiring: .screenshotAnalysis)
-        XCTAssertEqual(analysisContext.effectiveModel, .glm46VFlashX)
+        XCTAssertEqual(analysisContext.effectiveModel, .gpt56Luna)
         _ = try await service.analyzeChatScreenshot(
             ChatScreenshotAnalysisRequest(imageData: Data([1]), candidates: []),
             using: analysisContext
         )
 
         let transcriptContext = try service.activeContext(requiring: .transcriptAnalysis)
-        XCTAssertEqual(transcriptContext.effectiveModel, .glm47FlashX)
+        XCTAssertEqual(transcriptContext.effectiveModel, .gpt56Terra)
         _ = try await service.analyzeChatScreenshot(
             ChatScreenshotAnalysisRequest(transcriptItems: ["Alex: Hello"], candidates: []),
             using: transcriptContext
         )
 
         let replyContext = try service.activeContext(requiring: .suggestedReplies)
-        XCTAssertEqual(replyContext.effectiveModel, .glm47FlashX)
+        XCTAssertEqual(replyContext.effectiveModel, .gpt56Sol)
         let result = try await service.generateSuggestedReplies(
             makeReplyRequest(),
             using: replyContext
         )
 
         XCTAssertEqual(result.replies, ["First", "Second"])
-        XCTAssertEqual(adapter.analysisModels, [.glm46VFlashX, .glm47FlashX])
-        XCTAssertEqual(adapter.replyModels, [.glm47FlashX])
+        XCTAssertEqual(adapter.analysisModels, [.gpt56Luna, .gpt56Terra])
+        XCTAssertEqual(adapter.replyModels, [.gpt56Sol])
         XCTAssertEqual(
             adapter.apiKeys, ["validation-key", "saved-key", "saved-key", "saved-key"])
     }
@@ -86,7 +86,7 @@ final class AIProviderGatewayTests: XCTestCase {
 @MainActor
 private final class GatewayProviderConfiguration: ProviderConfigurationProviding {
     let activeProvider: ProviderConnection? = ProviderConnection(
-        platform: .zaiInternational,
+        platform: .openAI,
         tier: .advanced
     )
     private let hasConsent: Bool
@@ -105,7 +105,7 @@ private final class GatewayProviderConfiguration: ProviderConfigurationProviding
 }
 
 private final class RecordingProviderAdapter: @MainActor AIProviderAdapter {
-    let platform = ProviderPlatform.zaiInternational
+    let platform = ProviderPlatform.openAI
     private(set) var validatedModels: [ProviderModel] = []
     private(set) var analysisModels: [ProviderModel] = []
     private(set) var replyModels: [ProviderModel] = []
@@ -114,9 +114,9 @@ private final class RecordingProviderAdapter: @MainActor AIProviderAdapter {
     func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile? {
         guard selectedTier == .advanced else { return nil }
         return ProviderModelProfile(
-            screenshotAnalysisModel: .glm46VFlashX,
-            transcriptAnalysisModel: .glm47FlashX,
-            suggestedReplyModel: .glm47FlashX
+            screenshotAnalysisModel: .gpt56Luna,
+            transcriptAnalysisModel: .gpt56Terra,
+            suggestedReplyModel: .gpt56Sol
         )
     }
 

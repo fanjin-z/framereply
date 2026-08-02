@@ -1958,28 +1958,6 @@
         }
       }
     },
-    "provider.destination.zai-international" : {
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Z.ai International, which generally processes API data in Singapore"
-          }
-        }
-      }
-    },
-    "provider.destination.zhipu-china" : {
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Zhipu AI in mainland China"
-          }
-        }
-      }
-    },
     "Recent Chat" : {
 
     },

@@ -13,33 +13,6 @@ final class ProviderValidatorTests: XCTestCase {
     func testProvidersUseOneSelectedModelProbe() async throws {
         URLProtocolStub.stub(
             statusCode: 200,
-            body: #"{"choices":[{"index":0,"message":{"content":"OK"},"finish_reason":"stop"}]}"#
-        )
-
-        try await ZAIClient(region: .international, session: makeSession()).validate(
-            apiKey: "zai-key",
-            model: .glm46VFlashX
-        )
-
-        XCTAssertEqual(URLProtocolStub.requests.count, 1)
-        let zaiRequest = try XCTUnwrap(URLProtocolStub.requests.first)
-        XCTAssertEqual(zaiRequest.url?.path, "/api/paas/v4/chat/completions")
-        XCTAssertFalse(zaiRequest.url?.path.contains("balance") == true)
-        XCTAssertEqual(zaiRequest.value(forHTTPHeaderField: "Authorization"), "Bearer zai-key")
-
-        let zaiBody = try jsonBody(zaiRequest)
-        XCTAssertEqual(zaiBody["model"] as? String, "glm-4.6v-flashx")
-        XCTAssertEqual(zaiBody["max_tokens"] as? Int, 64)
-        XCTAssertEqual((zaiBody["thinking"] as? [String: Any])?["type"] as? String, "disabled")
-        XCTAssertEqual(zaiBody["do_sample"] as? Bool, false)
-        let messages = try XCTUnwrap(zaiBody["messages"] as? [[String: Any]])
-        let content = try XCTUnwrap(messages.first?["content"] as? [[String: Any]])
-        XCTAssertEqual(content.first?["type"] as? String, "text")
-        XCTAssertEqual(content.first?["text"] as? String, "Reply exactly: OK.")
-
-        URLProtocolStub.reset()
-        URLProtocolStub.stub(
-            statusCode: 200,
             body:
                 #"{"id":"resp_1","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
         )
@@ -126,11 +99,6 @@ final class ProviderValidatorTests: XCTestCase {
     @MainActor
     func testProvidersRejectMalformedResponses() async {
         await assertInvalidResponse(
-            from: ZAIClient(region: .china, session: makeSession()),
-            model: .glm46VFlash,
-            body: #"{"choices":[]}"#
-        )
-        await assertInvalidResponse(
             from: OpenAIClient(session: makeSession()),
             model: .gpt56Luna,
             body:
@@ -152,15 +120,6 @@ final class ProviderValidatorTests: XCTestCase {
 
     @MainActor
     func testProvidersMapHTTPFailures() async {
-        let validator = ZAIClient(region: .international, session: makeSession())
-        await assertHTTPError(
-            .invalidKey, statusCode: 401, validator: validator, model: .glm46VFlashX)
-        await assertHTTPError(
-            .insufficientBalance, statusCode: 402, validator: validator, model: .glm46VFlashX)
-        await assertHTTPError(
-            .rateLimited, statusCode: 429, validator: validator, model: .glm46VFlashX)
-        await assertHTTPError(
-            .providerUnavailable, statusCode: 503, validator: validator, model: .glm46VFlashX)
         await assertHTTPError(
             .invalidKey, statusCode: 401, validator: OpenAIClient(session: makeSession()),
             model: .gpt56Luna)
@@ -234,35 +193,6 @@ final class ProviderValidatorTests: XCTestCase {
             XCTFail("Expected ProviderConnectionError, got \(error)")
         }
 
-        URLProtocolStub.stub(
-            statusCode: 400,
-            body:
-                #"{"error":{"code":1214,"message":"Invalid API parameter, please check the documentation."}}"#
-        )
-
-        do {
-            try await ZAIClient(region: .china, session: makeSession()).validate(
-                apiKey: "key",
-                model: .glm46V
-            )
-            XCTFail("Expected invalid request")
-        } catch let error as ProviderConnectionError {
-            guard case .invalidRequest(let details) = error else {
-                return XCTFail("Expected invalidRequest, got \(error)")
-            }
-            XCTAssertEqual(details.provider, ProviderPlatform.zhipuChina.rawValue)
-            XCTAssertEqual(details.httpStatus, 400)
-            XCTAssertEqual(details.providerCode, "1214")
-            XCTAssertEqual(error.shortcutErrorCode, "provider_invalid_request")
-            XCTAssertEqual(details.message, "智谱 (国内) rejected an API parameter.")
-            XCTAssertEqual(
-                error.localizedDescription,
-                "The provider could not process this request. Check the configuration and try again."
-            )
-            XCTAssertFalse(String(describing: details).contains("key"))
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
     }
 
     @MainActor
