@@ -194,6 +194,22 @@ nonisolated struct ShortcutLifecycleReporter: Sendable {
 }
 
 nonisolated enum ChatImportDebugLogger {
+    static func fieldRecoveries(
+        _ recoveries: [StructuredOutputFieldRecovery],
+        traceID: ImportTraceID,
+        provider: String,
+        model: String,
+        attempt: Int
+    ) {
+        #if DEBUG
+            for recovery in recoveries {
+                Swift.print(
+                    "[ChatImportAI][field-recovered] trace=\(traceID.diagnosticID) provider=\(provider) model=\(model) attempt=\(attempt) path=\(recovery.path) original_code_points=\(recovery.originalCodePointCount) final_code_points=\(recovery.finalCodePointCount)"
+                )
+            }
+        #endif
+    }
+
     static func structuredOutputFailure(
         _ failure: StructuredOutputFailure,
         traceID: ImportTraceID,
@@ -201,7 +217,8 @@ nonisolated enum ChatImportDebugLogger {
         model: String,
         attempt: Int,
         finishReason: String?,
-        content: String?
+        content: String?,
+        includeRawContent: Bool = false
     ) {
         #if DEBUG
             let finish = finishReason ?? "none"
@@ -209,7 +226,20 @@ nonisolated enum ChatImportDebugLogger {
             Swift.print(
                 "[ChatImportAI][decode-failed] trace=\(traceID.diagnosticID) provider=\(provider) model=\(model) attempt=\(attempt) finish=\(finish) kind=\(failure.kind.rawValue) path=\(path)"
             )
-            Swift.print("[ChatImportAI][content-redacted] present=\(content?.isEmpty == false)")
+            if includeRawContent {
+                let output = content ?? "<nil>"
+                Swift.print(
+                    "[ChatImportAI][raw-json-output-begin] trace=\(traceID.diagnosticID) utf8_bytes=\(output.lengthOfBytes(using: .utf8))"
+                )
+                Swift.print(output)
+                Swift.print(
+                    "[ChatImportAI][raw-json-output-end] trace=\(traceID.diagnosticID)"
+                )
+            } else {
+                Swift.print(
+                    "[ChatImportAI][content-redacted] present=\(content?.isEmpty == false)"
+                )
+            }
         #endif
     }
 

@@ -115,7 +115,7 @@ struct MiniMaxClient: AIProviderAdapter {
         let body = requestBody(
             model: model,
             messages: [
-                ["role": "system", "content": contract.instructions(for: .jsonObject)],
+                ["role": "system", "content": contract.instructions(for: .promptedJSONObject)],
                 ["role": "user", "content": userMessageContent]
             ],
             maxCompletionTokens: maxTokens
@@ -241,7 +241,7 @@ struct MiniMaxClient: AIProviderAdapter {
         let body = requestBody(
             model: model,
             messages: [
-                ["role": "system", "content": contract.instructions(for: .jsonObject)],
+                ["role": "system", "content": contract.instructions(for: .promptedJSONObject)],
                 ["role": "user", "content": SuggestedReplyPrompt.input(for: generationRequest)]
             ],
             maxCompletionTokens: maxTokens
@@ -291,6 +291,13 @@ struct MiniMaxClient: AIProviderAdapter {
                 finishReason: choice.finishReason,
                 task: generationRequest.task
             )
+            ChatImportDebugLogger.fieldRecoveries(
+                decoded.fieldRecoveries,
+                traceID: generationRequest.traceID,
+                provider: region.providerID,
+                model: model.rawValue,
+                attempt: attempt
+            )
             recordContractValidation(
                 contract, traceID: generationRequest.traceID, attempt: attempt,
                 category: decoded.recovered ? "recovered" : "valid")
@@ -298,6 +305,15 @@ struct MiniMaxClient: AIProviderAdapter {
         } catch let failure as StructuredOutputFailure {
             recordContractValidation(
                 contract, traceID: generationRequest.traceID, attempt: attempt, category: "fatal")
+            ChatImportDebugLogger.structuredOutputFailure(
+                failure,
+                traceID: generationRequest.traceID,
+                provider: region.providerID,
+                model: model.rawValue,
+                attempt: attempt,
+                finishReason: choice?.finishReason,
+                content: choice?.message.content ?? String(data: data, encoding: .utf8),
+            )
             eventReporter.record(.structuredOutputFailure(
                 traceID: generationRequest.traceID,
                 provider: region.providerID,

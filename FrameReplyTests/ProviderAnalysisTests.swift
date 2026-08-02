@@ -11,7 +11,7 @@ final class ProviderAnalysisTests: XCTestCase {
 
     func testFiveContractsHaveExactClosedRootKeys() throws {
         XCTAssertEqual(ChatScreenshotPrompt.version, 1)
-        XCTAssertEqual(SuggestedReplyPrompt.version, 4)
+        XCTAssertEqual(SuggestedReplyPrompt.version, 5)
 
         let screenshot = ChatScreenshotPrompt.contract(for: makeRequest())
         let shared = ChatScreenshotPrompt.contract(
@@ -84,11 +84,8 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(
             standard.instructions.contains("Preserve proper names, URLs, and identifiers"))
         XCTAssertTrue(standard.instructions.contains("For reply bodies only"))
-        XCTAssertTrue(
-            standard.instructions.contains(
-                "one compact, self-contained statement of at most 120 characters"
-            )
-        )
+        XCTAssertFalse(standard.instructions.contains("maximum of 120 Unicode code points"))
+        XCTAssertFalse(standard.instructions.contains("maximum of 240 Unicode code points"))
         XCTAssertTrue(
             standard.instructions.contains(
                 "understood without reopening the source messages"
@@ -145,6 +142,14 @@ final class ProviderAnalysisTests: XCTestCase {
             )
         )
         XCTAssertTrue(
+            standard.instructions.contains(
+                "strategyRationale is a concise user-facing explanation of evidence, assumptions, and uncertainty"
+            )
+        )
+        XCTAssertFalse(standard.instructions.contains("only decisive conversation evidence"))
+        XCTAssertFalse(standard.instructions.contains("material uncertainty"))
+        XCTAssertFalse(drafting.instructions.contains("Strategy rules"))
+        XCTAssertTrue(
             persona.instructions.contains(
                 "Write every non-null personaObservationChanges.text in English (en), regardless of the language in conversation_data."
             )
@@ -169,7 +174,7 @@ final class ProviderAnalysisTests: XCTestCase {
         let memoryText = try XCTUnwrap(memoryProperties["text"] as? [String: Any])
         XCTAssertEqual(
             memoryText["maxLength"] as? Int,
-            ChatMemoryLimits.maximumAITextLength
+            ChatMemoryLimits.maximumAITextCodePoints
         )
         XCTAssertNil(memoryText["description"])
 
@@ -185,13 +190,28 @@ final class ProviderAnalysisTests: XCTestCase {
         let observationText = try XCTUnwrap(
             observationProperties["text"] as? [String: Any]
         )
-        XCTAssertEqual(observationText["maxLength"] as? Int, 240)
+        XCTAssertEqual(
+            observationText["maxLength"] as? Int,
+            PersonaLimits.maximumObservationTextCodePoints
+        )
         XCTAssertNil(observationText["description"])
 
         let strategy = try XCTUnwrap(
             summaryProperties["conversationStrategy"] as? [String: Any]
         )
+        XCTAssertEqual(
+            strategy["maxLength"] as? Int,
+            SuggestedReplyTextLimits.conversationStrategyMaximumCodePoints
+        )
         XCTAssertNil(strategy["description"])
+        let rationale = try XCTUnwrap(
+            summaryProperties["strategyRationale"] as? [String: Any]
+        )
+        XCTAssertEqual(
+            rationale["maxLength"] as? Int,
+            SuggestedReplyTextLimits.strategyRationaleMaximumCodePoints
+        )
+        XCTAssertNil(rationale["description"])
         XCTAssertEqual(
             summarySchema["description"] as? String,
             "Updated compact older-message context, or null when no safe update is available."
@@ -205,6 +225,18 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(standard.contains("chatMemories"))
         XCTAssertTrue(standard.contains("personaLearningMessages"))
         XCTAssertTrue(standard.contains("recentMessages"))
+        XCTAssertTrue(standard.contains("<text_length_limits>"))
+        XCTAssertTrue(
+            standard.contains(
+                "strategyRationale: maximum 450 Unicode code points"))
+        XCTAssertTrue(
+            standard.contains(
+                "Each non-null memoryChanges.text: maximum 120 Unicode code points"))
+        XCTAssertTrue(
+            standard.contains(
+                "Each non-null personaObservationChanges.text: maximum 240 Unicode code points"))
+        XCTAssertFalse(standard.contains("exactly one short sentence"))
+        XCTAssertFalse(standard.contains("do not instruct the user to wait"))
         XCTAssertFalse(standard.contains("appLanguage"))
         XCTAssertFalse(standard.contains("presentationLanguageIdentifier"))
         for removed in ["chatName", "personaName", "certainty", "origin"] {
@@ -214,6 +246,7 @@ final class ProviderAnalysisTests: XCTestCase {
         let drafting = SuggestedReplyPrompt.input(for: makeReplyRequest(task: .drafting))
         XCTAssertTrue(drafting.contains("draftingInput"))
         XCTAssertTrue(drafting.contains("recentMessages"))
+        XCTAssertTrue(drafting.contains("<text_length_limits>"))
         XCTAssertFalse(drafting.contains("appLanguage"))
         XCTAssertFalse(drafting.contains("personaLearningMessages"))
         XCTAssertFalse(drafting.contains("summaryMode"))
@@ -226,6 +259,70 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertFalse(persona.contains("recentMessages"))
         XCTAssertFalse(persona.contains("chatMemories"))
         XCTAssertFalse(persona.contains("draftingInput"))
+        XCTAssertTrue(persona.contains("<text_length_limits>"))
+        XCTAssertTrue(
+            persona.contains(
+                "Each non-null personaObservationChanges.text: maximum 240 Unicode code points"))
+    }
+
+    func testProviderSchemaPreservesCanonicalSchemaAndHumanizesOnlyTextLengths() throws {
+        let contract = SuggestedReplyPrompt.contract(for: .standard, appLanguage: "en")
+        let canonicalBefore = try schemaText(contract.schema)
+
+        let providerSchema = contract.providerSchema
+        let providerProperties = try XCTUnwrap(
+            providerSchema["properties"] as? [String: Any]
+        )
+        let providerStrategy = try XCTUnwrap(
+            providerProperties["conversationStrategy"] as? [String: Any]
+        )
+        XCTAssertNil(providerStrategy["minLength"])
+        XCTAssertNil(providerStrategy["maxLength"])
+        let strategyDescription = try XCTUnwrap(
+            providerStrategy["description"] as? String)
+        XCTAssertEqual(
+            strategyDescription.components(
+                separatedBy: "300 Unicode code points"
+            ).count - 1,
+            1
+        )
+        XCTAssertTrue(
+            strategyDescription.contains("Minimum length: 1 Unicode code point"))
+
+        let providerReplies = try XCTUnwrap(
+            providerProperties["replies"] as? [String: Any]
+        )
+        XCTAssertEqual(providerReplies["minItems"] as? Int, 0)
+        XCTAssertEqual(providerReplies["maxItems"] as? Int, 2)
+        XCTAssertNil(providerReplies["description"])
+        let replyItems = try XCTUnwrap(providerReplies["items"] as? [String: Any])
+        XCTAssertNil(replyItems["minLength"])
+        XCTAssertNil(replyItems["maxLength"])
+        XCTAssertTrue(
+            try XCTUnwrap(replyItems["description"] as? String).contains(
+                "Maximum length: 500 Unicode code points")
+        )
+
+        let providerMemoryChanges = try XCTUnwrap(
+            providerProperties["memoryChanges"] as? [String: Any])
+        XCTAssertEqual(providerMemoryChanges["maxItems"] as? Int, 8)
+        let providerMemoryItems = try XCTUnwrap(
+            providerMemoryChanges["items"] as? [String: Any])
+        let providerMemoryProperties = try XCTUnwrap(
+            providerMemoryItems["properties"] as? [String: Any])
+        let providerMemoryText = try XCTUnwrap(
+            providerMemoryProperties["text"] as? [String: Any])
+        XCTAssertNil(providerMemoryText["maxLength"])
+        XCTAssertEqual(
+            providerMemoryText["description"] as? String,
+            "Maximum length: 120 Unicode code points."
+        )
+
+        XCTAssertEqual(contract.instructions(for: .nativeJSONSchema), contract.instructions)
+        XCTAssertTrue(
+            contract.instructions(for: .promptedJSONObject).contains(
+                "Maximum length: 450 Unicode code points"))
+        XCTAssertEqual(try schemaText(contract.schema), canonicalBefore)
     }
 
     func testSuggestedReplyContractsResolveAppLanguageForMixedLanguageData() throws {
@@ -322,7 +419,7 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(replyFormat["name"] as? String, "suggested_reply_drafting")
         XCTAssertEqual(
             replyBody["prompt_cache_key"] as? String,
-            "suggested_reply_drafting-v4-gpt-5.6-luna-en")
+            "suggested_reply_drafting-v5-gpt-5.6-luna-en")
         XCTAssertTrue(
             try XCTUnwrap(replyBody["instructions"] as? String).contains(
                 "Write conversationStrategy and strategyRationale in English (en)")
@@ -335,7 +432,10 @@ final class ProviderAnalysisTests: XCTestCase {
         let strategySchema = try XCTUnwrap(
             replyProperties["conversationStrategy"] as? [String: Any]
         )
-        XCTAssertNil(strategySchema["description"])
+        XCTAssertNil(strategySchema["maxLength"])
+        XCTAssertTrue(
+            try XCTUnwrap(strategySchema["description"] as? String).contains(
+                "Maximum length: 300 Unicode code points"))
         let replyItems = try XCTUnwrap(
             replyProperties["replies"] as? [String: Any]
         )
@@ -411,6 +511,33 @@ final class ProviderAnalysisTests: XCTestCase {
                 self.makeRequest(), apiKey: "key", model: .qwen37Plus)
         }
         XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+    }
+
+    @MainActor
+    func testOpenRouterUsesStructuralSchemaProjectionForSuggestedReplies() async throws {
+        AnalysisURLProtocolStub.responses = [
+            (200, openRouterResponse(content: validDraftingJSON()))
+        ]
+
+        _ = try await OpenRouterClient(session: makeSession()).generateSuggestedReplies(
+            makeReplyRequest(task: .drafting), apiKey: "key", model: .qwen37Plus)
+
+        let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
+        let responseFormat = try XCTUnwrap(body["response_format"] as? [String: Any])
+        let jsonSchema = try XCTUnwrap(responseFormat["json_schema"] as? [String: Any])
+        let schema = try XCTUnwrap(jsonSchema["schema"] as? [String: Any])
+        let properties = try XCTUnwrap(schema["properties"] as? [String: Any])
+        let strategy = try XCTUnwrap(
+            properties["conversationStrategy"] as? [String: Any]
+        )
+        XCTAssertNil(strategy["maxLength"])
+        XCTAssertTrue(
+            try XCTUnwrap(strategy["description"] as? String).contains(
+                "Maximum length: 300 Unicode code points"))
+        XCTAssertEqual(
+            (body["provider"] as? [String: Any])?["require_parameters"] as? Bool,
+            true
+        )
     }
 
     func testSuggestedReplyDecoderRecoversOptionalAnalysisFieldsAndPreservesCoreReplies() throws {
@@ -512,6 +639,166 @@ final class ProviderAnalysisTests: XCTestCase {
                 content: "\(valid)\n\(valid)", finishReason: "stop", task: .standard))
     }
 
+    func testSuggestedReplyDecoderUsesUnicodeCodePointLimits() throws {
+        let exactStrategy = String(repeating: "s", count: 300)
+        let exactRationale = String(repeating: "界", count: 448) + "e\u{301}"
+        XCTAssertEqual(exactRationale.count, 449)
+        XCTAssertEqual(exactRationale.unicodeScalars.count, 450)
+
+        let exact = try SuggestedReplyResultDecoder.decodeResult(
+            content: jsonString([
+                "historySummary": NSNull(),
+                "replies": [],
+                "conversationStrategy": exactStrategy,
+                "strategyRationale": exactRationale,
+                "memoryChanges": [],
+                "personaObservationChanges": []
+            ]),
+            finishReason: "stop",
+            task: .standard
+        )
+        XCTAssertFalse(exact.recovered)
+        XCTAssertEqual(exact.value.conversationStrategy, exactStrategy)
+        XCTAssertEqual(exact.value.strategyRationale, exactRationale)
+
+        let precomposed = String(repeating: "é", count: 450)
+        XCTAssertEqual(precomposed.count, 450)
+        XCTAssertEqual(precomposed.unicodeScalars.count, 450)
+        let precomposedResult = try SuggestedReplyResultDecoder.decode(
+            content: jsonString([
+                "replies": [],
+                "conversationStrategy": "Continue after a response.",
+                "strategyRationale": precomposed
+            ]),
+            finishReason: "stop",
+            task: .drafting
+        )
+        XCTAssertEqual(precomposedResult.strategyRationale, precomposed)
+
+        let overlongCombining = String(repeating: "界", count: 449) + "e\u{301}"
+        XCTAssertEqual(overlongCombining.count, 450)
+        XCTAssertEqual(overlongCombining.unicodeScalars.count, 451)
+        let recovered = try SuggestedReplyResultDecoder.decodeResult(
+            content: jsonString([
+                "replies": [],
+                "conversationStrategy": "Continue after a response.",
+                "strategyRationale": overlongCombining
+            ]),
+            finishReason: "stop",
+            task: .drafting
+        )
+        XCTAssertTrue(recovered.recovered)
+        XCTAssertEqual(recovered.value.strategyRationale, String(repeating: "界", count: 449))
+        XCTAssertEqual(
+            recovered.fieldRecoveries,
+            [
+                StructuredOutputFieldRecovery(
+                    path: "strategyRationale",
+                    originalCodePointCount: 451,
+                    finalCodePointCount: 449
+                )
+            ]
+        )
+
+        let completeStrategy = String(repeating: "s", count: 280) + "."
+        let recoveredStrategy = try SuggestedReplyResultDecoder.decodeResult(
+            content: jsonString([
+                "replies": [],
+                "conversationStrategy": completeStrategy + String(repeating: "t", count: 40),
+                "strategyRationale": "The latest message determines the next step."
+            ]),
+            finishReason: "stop",
+            task: .drafting
+        )
+        XCTAssertEqual(recoveredStrategy.value.conversationStrategy, completeStrategy)
+        XCTAssertEqual(recoveredStrategy.fieldRecoveries.first?.path, "conversationStrategy")
+        XCTAssertEqual(recoveredStrategy.fieldRecoveries.first?.originalCodePointCount, 321)
+        XCTAssertEqual(recoveredStrategy.fieldRecoveries.first?.finalCodePointCount, 281)
+    }
+
+    func testSuggestedReplyDecoderShortensAtSentenceThenWordBoundaryWithoutSplittingEmoji() throws {
+        let completeSentence = String(repeating: "a", count: 430) + "."
+        let sentenceRecovery = try SuggestedReplyResultDecoder.decodeResult(
+            content: jsonString([
+                "replies": [],
+                "conversationStrategy": "Continue after a response.",
+                "strategyRationale": completeSentence + " " + String(repeating: "b", count: 100)
+            ]),
+            finishReason: "stop",
+            task: .drafting
+        )
+        XCTAssertEqual(sentenceRecovery.value.strategyRationale, completeSentence)
+        XCTAssertEqual(sentenceRecovery.value.strategyRationale.unicodeScalars.count, 431)
+
+        let words = String(repeating: "evidence ", count: 100)
+        let wordRecovery = try SuggestedReplyResultDecoder.decodeResult(
+            content: jsonString([
+                "replies": [],
+                "conversationStrategy": "Continue after a response.",
+                "strategyRationale": words
+            ]),
+            finishReason: "stop",
+            task: .drafting
+        )
+        XCTAssertTrue(wordRecovery.value.strategyRationale.hasSuffix("…"))
+        XCTAssertLessThanOrEqual(
+            wordRecovery.value.strategyRationale.unicodeScalars.count,
+            SuggestedReplyTextLimits.strategyRationaleMaximumCodePoints
+        )
+
+        let family = "👨‍👩‍👧‍👦"
+        XCTAssertGreaterThan(family.unicodeScalars.count, 1)
+        let emojiRecovery = try SuggestedReplyResultDecoder.decodeResult(
+            content: jsonString([
+                "replies": [],
+                "conversationStrategy": "Continue after a response.",
+                "strategyRationale": String(repeating: "x", count: 449) + family
+            ]),
+            finishReason: "stop",
+            task: .drafting
+        )
+        XCTAssertEqual(emojiRecovery.value.strategyRationale, String(repeating: "x", count: 449))
+        XCTAssertFalse(emojiRecovery.value.strategyRationale.contains("👨"))
+
+        let cjkSentence = String(repeating: "证", count: 400) + "。"
+        let cjkRecovery = try SuggestedReplyResultDecoder.decodeResult(
+            content: jsonString([
+                "replies": [],
+                "conversationStrategy": "继续。",
+                "strategyRationale": cjkSentence + String(repeating: "据", count: 100)
+            ]),
+            finishReason: "stop",
+            task: .drafting
+        )
+        XCTAssertEqual(cjkRecovery.value.strategyRationale, cjkSentence)
+    }
+
+    func testSuggestedReplyDecoderStillRejectsMissingEmptyAndWrongTypeStrategyFields() throws {
+        for rationale: Any in [NSNull(), "", 42] {
+            XCTAssertThrowsError(
+                try SuggestedReplyResultDecoder.decode(
+                    content: jsonString([
+                        "replies": [],
+                        "conversationStrategy": "Continue after a response.",
+                        "strategyRationale": rationale
+                    ]),
+                    finishReason: "stop",
+                    task: .drafting
+                )
+            )
+        }
+        XCTAssertThrowsError(
+            try SuggestedReplyResultDecoder.decode(
+                content: jsonString([
+                    "replies": [],
+                    "strategyRationale": "The latest message determines the next step."
+                ]),
+                finishReason: "stop",
+                task: .drafting
+            )
+        )
+    }
+
     func testSuggestedReplyDecoderRetainsOnlyValidLearningChanges() throws {
         let memoryEvidence = UUID()
         let personaEvidence = [UUID(), UUID()]
@@ -557,11 +844,16 @@ final class ProviderAnalysisTests: XCTestCase {
     func testSuggestedReplyDecoderUsesSeparateMemoryAndObservationTextLimits() throws {
         let memoryEvidence = UUID()
         let personaEvidence = [UUID(), UUID()]
-        let acceptedMemory = String(repeating: "m", count: ChatMemoryLimits.maximumAITextLength)
-        let rejectedMemory = String(
-            repeating: "m", count: ChatMemoryLimits.maximumAITextLength + 1
-        )
-        let acceptedObservation = String(repeating: "o", count: 200)
+        let acceptedMemory = String(repeating: "界", count: 118) + "e\u{301}"
+        let rejectedMemory = String(repeating: "界", count: 119) + "e\u{301}"
+        XCTAssertEqual(acceptedMemory.unicodeScalars.count, 120)
+        XCTAssertEqual(rejectedMemory.count, 120)
+        XCTAssertEqual(rejectedMemory.unicodeScalars.count, 121)
+        let acceptedObservation = String(repeating: "界", count: 240)
+        let family = "👨‍👩‍👧‍👦"
+        let rejectedObservation = String(repeating: "o", count: 239) + family
+        XCTAssertEqual(rejectedObservation.count, 240)
+        XCTAssertGreaterThan(rejectedObservation.unicodeScalars.count, 240)
         let content = jsonString([
             "historySummary": NSNull(),
             "replies": ["First", "Second"],
@@ -583,6 +875,11 @@ final class ProviderAnalysisTests: XCTestCase {
                     "action": "add", "targetObservationID": NSNull(),
                     "text": acceptedObservation,
                     "evidenceMessageIDs": personaEvidence.map(\.uuidString)
+                ],
+                [
+                    "action": "add", "targetObservationID": NSNull(),
+                    "text": rejectedObservation,
+                    "evidenceMessageIDs": personaEvidence.map(\.uuidString)
                 ]
             ]
         ])
@@ -597,6 +894,38 @@ final class ProviderAnalysisTests: XCTestCase {
             decoded.value.personaObservationChanges.map(\.text),
             [acceptedObservation]
         )
+        XCTAssertEqual(
+            decoded.fieldRecoveries,
+            [
+                StructuredOutputFieldRecovery(
+                    path: "memoryChanges[1].text",
+                    originalCodePointCount: 121,
+                    finalCodePointCount: 0
+                ),
+                StructuredOutputFieldRecovery(
+                    path: "personaObservationChanges[1].text",
+                    originalCodePointCount: rejectedObservation.unicodeScalars.count,
+                    finalCodePointCount: 0
+                )
+            ]
+        )
+
+        let personaOnly = try SuggestedReplyResultDecoder.decodeResult(
+            content: jsonString([
+                "personaObservationChanges": [
+                    [
+                        "action": "add", "targetObservationID": NSNull(),
+                        "text": rejectedObservation,
+                        "evidenceMessageIDs": personaEvidence.map(\.uuidString)
+                    ]
+                ]
+            ]),
+            finishReason: "stop",
+            task: .personaStyleLearning
+        )
+        XCTAssertTrue(personaOnly.recovered)
+        XCTAssertTrue(personaOnly.value.personaObservationChanges.isEmpty)
+        XCTAssertEqual(personaOnly.fieldRecoveries.first?.finalCodePointCount, 0)
     }
 
     @MainActor
@@ -625,7 +954,7 @@ final class ProviderAnalysisTests: XCTestCase {
         let body = try jsonBody(AnalysisURLProtocolStub.requests[0])
         XCTAssertEqual(
             body["prompt_cache_key"] as? String,
-            "suggested_reply-v4-gpt-5.6-terra-en")
+            "suggested_reply-v5-gpt-5.6-terra-en")
         XCTAssertEqual(
             ((body["text"] as? [String: Any])?["format"] as? [String: Any])?["name"]
                 as? String,
@@ -737,13 +1066,16 @@ final class ProviderAnalysisTests: XCTestCase {
             XCTAssertEqual(content.last?["type"] as? String, "text")
             XCTAssertEqual(providerAttempts(in: reporter.events), [1])
             XCTAssertTrue(hasValidationCategory("valid", in: reporter.events))
-            XCTAssertTrue(reporter.events.contains { event in
-                guard case .providerResponse(
-                    _, let eventProvider, "MiniMax-M3", 1, _, 200, "req-test", "stop", _,
-                    100, 20, 60
-                ) = event else { return false }
-                return eventProvider == provider
-            })
+            XCTAssertTrue(
+                reporter.events.contains { event in
+                    guard
+                        case .providerResponse(
+                            _, let eventProvider, "MiniMax-M3", 1, _, 200, "req-test", "stop", _,
+                            100, 20, 60
+                        ) = event
+                    else { return false }
+                    return eventProvider == provider
+                })
         }
     }
 
@@ -777,8 +1109,71 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(replies.replies, ["First", "Second"])
         let replyBody = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
         XCTAssertEqual(replyBody["max_completion_tokens"] as? Int, 3_200)
+        XCTAssertNil(replyBody["response_format"])
         let replyMessages = try XCTUnwrap(replyBody["messages"] as? [[String: Any]])
         XCTAssertTrue(replyMessages.allSatisfy { $0["content"] is String })
+        let replySystem = try XCTUnwrap(replyMessages.first?["content"] as? String)
+        XCTAssertTrue(replySystem.contains("Maximum length: 450 Unicode code points"))
+        let replyInput = try XCTUnwrap(replyMessages.last?["content"] as? String)
+        XCTAssertTrue(replyInput.contains("<text_length_limits>"))
+        XCTAssertTrue(
+            replyInput.contains(
+                "strategyRationale: maximum 450 Unicode code points"))
+    }
+
+    @MainActor
+    func testMiniMaxReportedOverlongRationaleFixtureRecoversOnlyThatField() async throws {
+        let evidenceID = UUID()
+        let strategy =
+            "Wait for Adel's next message; no follow-up is needed since the user's last turn already wrapped up the exchange with a clear \"See you then!\". Only reply if Adel writes again."
+        let rationale =
+            "The latest turn is from the user (9:50 PM), which already closed the September overlap discussion with \"See you then!\". Adel responded earlier confirming arrival after Sept 15 for 1.5+ months, and the user acknowledged that timing. Because the user's message is complete—not trailing off or asking an unresolved question—the protocol says to return replies [] rather than fabricate follow-ups. The strategy therefore focuses on waiting, and the only durable memory worth adding is Adel's confirmed Da Nang window, which is directly supported by his own message. currentInteractionGoal is empty, and no draft or style request was given, so I am not steering toward a new topic. Persona observations are unchanged because the recent messages are short and don't reveal new writing patterns beyond what's already captured."
+        XCTAssertGreaterThan(rationale.unicodeScalars.count, 450)
+        let payload = jsonString([
+            "historySummary": NSNull(),
+            "replies": [],
+            "conversationStrategy": strategy,
+            "strategyRationale": rationale,
+            "memoryChanges": [
+                [
+                    "action": "add",
+                    "targetMemoryID": NSNull(),
+                    "text":
+                        "Adel will be in Da Nang after September 15 for at least 1.5 months; tickets are not yet booked.",
+                    "evidenceMessageIDs": [evidenceID.uuidString]
+                ]
+            ],
+            "personaObservationChanges": []
+        ])
+        let reporter = SpyImportEventReporter()
+        AnalysisURLProtocolStub.responses = [
+            (200, miniMaxResponse(content: "```json\n\(payload)\n```"))
+        ]
+
+        let result = try await MiniMaxClient(
+            region: .china,
+            session: makeSession(),
+            eventReporter: reporter
+        ).generateSuggestedReplies(
+            makeReplyRequest(task: .standard),
+            apiKey: "key",
+            model: .miniMaxM3
+        )
+
+        XCTAssertTrue(result.replies.isEmpty)
+        XCTAssertEqual(result.conversationStrategy, strategy)
+        XCTAssertEqual(result.memoryChanges.count, 1)
+        XCTAssertEqual(
+            result.memoryChanges.first?.text,
+            "Adel will be in Da Nang after September 15 for at least 1.5 months; tickets are not yet booked."
+        )
+        XCTAssertLessThan(
+            result.strategyRationale.unicodeScalars.count,
+            rationale.unicodeScalars.count
+        )
+        XCTAssertLessThanOrEqual(result.strategyRationale.unicodeScalars.count, 450)
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+        XCTAssertTrue(hasValidationCategory("recovered", in: reporter.events))
     }
 
     @MainActor
@@ -800,6 +1195,25 @@ final class ProviderAnalysisTests: XCTestCase {
             XCTAssertEqual(recovered.replies, ["First", "Second"])
             XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
             XCTAssertTrue(hasValidationCategory("recovered", in: recoveredReporter.events))
+            let recoveredBody = try jsonBody(AnalysisURLProtocolStub.requests[0])
+            XCTAssertNil(recoveredBody["response_format"])
+            let recoveredMessages = try XCTUnwrap(
+                recoveredBody["messages"] as? [[String: Any]])
+            let recoveredSystem = try XCTUnwrap(
+                recoveredMessages.first?["content"] as? String)
+            XCTAssertTrue(
+                recoveredSystem.contains("Maximum length: 120 Unicode code points"))
+            XCTAssertTrue(
+                recoveredSystem.contains("Maximum length: 240 Unicode code points"))
+            let recoveredInput = try XCTUnwrap(
+                recoveredMessages.last?["content"] as? String)
+            XCTAssertTrue(
+                recoveredInput.contains(
+                    "Each non-null memoryChanges.text: maximum 120 Unicode code points"))
+            XCTAssertTrue(
+                recoveredInput.contains(
+                    "Each non-null personaObservationChanges.text: maximum 240 Unicode code points"
+                ))
 
             AnalysisURLProtocolStub.reset()
             let fatalReporter = SpyImportEventReporter()
@@ -863,6 +1277,12 @@ final class ProviderAnalysisTests: XCTestCase {
             )
             XCTAssertTrue(
                 systemInstructions.contains("Return JSON matching this exact schema"))
+            XCTAssertTrue(
+                systemInstructions.contains("Maximum length: 450 Unicode code points"))
+            XCTAssertTrue(
+                systemInstructions.contains("Maximum length: 120 Unicode code points"))
+            XCTAssertTrue(
+                systemInstructions.contains("Maximum length: 240 Unicode code points"))
             XCTAssertTrue(
                 systemInstructions.contains(
                     "Write conversationStrategy, strategyRationale, and every non-null personaObservationChanges.text in English (en)"

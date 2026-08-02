@@ -123,19 +123,19 @@ final class ChatMemoryReconcilerTests: XCTestCase {
     func testEnforcesReadableAIMemoryLimitWithoutChangingExistingManualMemory() throws {
         let evidenceID = UUID()
         let manualMemory = ChatMemory(
-            text: String(repeating: "u", count: ChatMemoryLimits.maximumAITextLength + 40)
+            text: String(
+                repeating: "u", count: ChatMemoryLimits.maximumAITextCodePoints + 40)
         )
         let aiMemory = ChatMemory(
             text: "Likes tea",
             origin: .ai,
             certainty: .aiInferred
         )
-        let acceptedText = String(
-            repeating: "a", count: ChatMemoryLimits.maximumAITextLength
-        )
-        let rejectedText = String(
-            repeating: "b", count: ChatMemoryLimits.maximumAITextLength + 1
-        )
+        let acceptedText = String(repeating: "a", count: 118) + "e\u{301}"
+        let rejectedText = String(repeating: "b", count: 119) + "e\u{301}"
+        XCTAssertEqual(acceptedText.unicodeScalars.count, 120)
+        XCTAssertEqual(rejectedText.count, 120)
+        XCTAssertEqual(rejectedText.unicodeScalars.count, 121)
 
         let result = ChatMemoryReconciler.reconcile(
             memories: [manualMemory, aiMemory],

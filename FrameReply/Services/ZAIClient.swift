@@ -116,7 +116,7 @@ struct ZAIClient: AIProviderAdapter {
         let body: [String: Any] = [
             "model": model.rawValue,
             "messages": [
-                ["role": "system", "content": contract.instructions(for: .jsonObject)],
+                ["role": "system", "content": contract.instructions(for: .promptedJSONObject)],
                 ["role": "user", "content": userContent]
             ],
             "max_tokens": maxTokens,
@@ -243,7 +243,7 @@ struct ZAIClient: AIProviderAdapter {
         let body: [String: Any] = [
             "model": model.rawValue,
             "messages": [
-                ["role": "system", "content": contract.instructions(for: .jsonObject)],
+                ["role": "system", "content": contract.instructions(for: .promptedJSONObject)],
                 ["role": "user", "content": SuggestedReplyPrompt.input(for: generationRequest)]
             ],
             "max_tokens": maxTokens,
@@ -289,6 +289,13 @@ struct ZAIClient: AIProviderAdapter {
                 content: choice.message.content,
                 finishReason: choice.finishReason,
                 task: generationRequest.task
+            )
+            ChatImportDebugLogger.fieldRecoveries(
+                decoded.fieldRecoveries,
+                traceID: generationRequest.traceID,
+                provider: region.providerID,
+                model: model.rawValue,
+                attempt: attempt
             )
             recordContractValidation(
                 contract, traceID: generationRequest.traceID, attempt: attempt,

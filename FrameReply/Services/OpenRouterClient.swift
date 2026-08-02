@@ -101,13 +101,18 @@ struct OpenRouterClient: AIProviderAdapter {
         request.httpBody = try JSONSerialization.data(withJSONObject: [
             "model": model.rawValue,
             "messages": [
-                ["role": "system", "content": contract.instructions(for: .strictJSONSchema)],
+                [
+                    "role": "system",
+                    "content": contract.instructions(for: .nativeJSONSchema)
+                ],
                 ["role": "user", "content": userContent]
             ],
             "max_tokens": maxTokens,
             "reasoning": ["effort": "none"],
             "stream": false,
-            "response_format": strictResponseFormat(name: contract.name, schema: contract.schema),
+            "response_format": strictResponseFormat(
+                name: contract.name,
+                schema: contract.providerSchema),
             "provider": routingPolicy
         ])
 
@@ -138,7 +143,7 @@ struct OpenRouterClient: AIProviderAdapter {
             }
             try StrictStructuredOutputValidator.validate(
                 content: choice.message.content,
-                schema: contract.schema
+                schema: contract.providerSchema
             )
             let decoded = try ChatImportAnalysisDecoder.decodeResult(
                 content: choice.message.content,
@@ -191,13 +196,18 @@ struct OpenRouterClient: AIProviderAdapter {
         request.httpBody = try JSONSerialization.data(withJSONObject: [
             "model": model.rawValue,
             "messages": [
-                ["role": "system", "content": contract.instructions(for: .strictJSONSchema)],
+                [
+                    "role": "system",
+                    "content": contract.instructions(for: .nativeJSONSchema)
+                ],
                 ["role": "user", "content": SuggestedReplyPrompt.input(for: generationRequest)]
             ],
             "max_tokens": maxTokens,
             "reasoning": ["effort": "none"],
             "stream": false,
-            "response_format": strictResponseFormat(name: contract.name, schema: contract.schema),
+            "response_format": strictResponseFormat(
+                name: contract.name,
+                schema: contract.providerSchema),
             "provider": routingPolicy
         ])
 
@@ -228,12 +238,19 @@ struct OpenRouterClient: AIProviderAdapter {
             }
             try StrictStructuredOutputValidator.validate(
                 content: choice.message.content,
-                schema: contract.schema
+                schema: contract.providerSchema
             )
             let decoded = try SuggestedReplyResultDecoder.decodeResult(
                 content: choice.message.content,
                 finishReason: choice.finishReason,
                 task: generationRequest.task
+            )
+            ChatImportDebugLogger.fieldRecoveries(
+                decoded.fieldRecoveries,
+                traceID: generationRequest.traceID,
+                provider: platform.rawValue,
+                model: model.rawValue,
+                attempt: attempt
             )
             recordContractValidation(
                 contract,

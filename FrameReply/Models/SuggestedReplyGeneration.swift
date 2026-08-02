@@ -41,6 +41,11 @@ nonisolated enum SuggestedReplyTask: String, Equatable, Sendable {
     case personaStyleLearning
 }
 
+nonisolated enum SuggestedReplyTextLimits {
+    static let conversationStrategyMaximumCodePoints = 300
+    static let strategyRationaleMaximumCodePoints = 450
+}
+
 nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
     let task: SuggestedReplyTask
     let chatMemories: [ChatMemory]
@@ -122,6 +127,10 @@ protocol SuggestedReplyGenerating {
 }
 
 nonisolated enum SuggestedReplyResultDecoder {
+    private struct DroppedOverlongField: Error {
+        let recovery: StructuredOutputFieldRecovery
+    }
+
     static func decode(
         content: String?,
         finishReason: String?,
@@ -145,6 +154,7 @@ nonisolated enum SuggestedReplyResultDecoder {
         let object = normalized.object
         guard !object.isEmpty else { throw schema("root") }
         var recovered = normalized.recovered
+        var fieldRecoveries: [StructuredOutputFieldRecovery] = []
 
         let knownKeys: Set<String>
         switch task {
@@ -167,7 +177,7 @@ nonisolated enum SuggestedReplyResultDecoder {
         if task == .standard {
             if let value = object["historySummary"] as? String {
                 let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty, trimmed.count <= 2_000 {
+                if !trimmed.isEmpty, trimmed.unicodeScalars.count <= 2_000 {
                     summary = trimmed
                 } else {
                     summary = nil
@@ -195,22 +205,37 @@ nonisolated enum SuggestedReplyResultDecoder {
                 guard let string = value as? String else { throw schema("replies") }
                 let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
                 let identity = trimmed.lowercased()
-                guard !trimmed.isEmpty, trimmed.count <= 500, seen.insert(identity).inserted else {
+                guard !trimmed.isEmpty, trimmed.unicodeScalars.count <= 500,
+                    seen.insert(identity).inserted
+                else {
                     throw schema("replies")
                 }
                 validReplies.append(trimmed)
             }
             replies = validReplies
-            conversationStrategy = try requiredString(
+            let strategy = try requiredBoundedString(
                 from: object["conversationStrategy"],
-                maxLength: 500,
+                maximumCodePoints:
+                    SuggestedReplyTextLimits.conversationStrategyMaximumCodePoints,
                 path: "conversationStrategy"
             )
-            strategyRationale = try requiredString(
+            conversationStrategy = strategy.value
+            if let recovery = strategy.recovery {
+                fieldRecoveries.append(recovery)
+            }
+            let rationale = try requiredBoundedString(
                 from: object["strategyRationale"],
-                maxLength: 700,
+                maximumCodePoints:
+                    SuggestedReplyTextLimits.strategyRationaleMaximumCodePoints,
                 path: "strategyRationale"
             )
+            strategyRationale = rationale.value
+            if let recovery = rationale.recovery {
+                fieldRecoveries.append(recovery)
+            }
+            if !fieldRecoveries.isEmpty {
+                recovered = true
+            }
         } else {
             replies = []
             conversationStrategy = ""
@@ -222,9 +247,18 @@ nonisolated enum SuggestedReplyResultDecoder {
             if let values = object["memoryChanges"] as? [Any] {
                 var decoded: [ChatMemoryChange] = []
                 for (index, value) in values.enumerated() {
-                    guard decoded.count < 8, let item = value as? [String: Any],
-                        let change = try? decodeMemoryChange(item, index: index)
-                    else {
+                    guard decoded.count < 8, let item = value as? [String: Any] else {
+                        recovered = true
+                        continue
+                    }
+                    let change: ChatMemoryChange
+                    do {
+                        change = try decodeMemoryChange(item, index: index)
+                    } catch let dropped as DroppedOverlongField {
+                        fieldRecoveries.append(dropped.recovery)
+                        recovered = true
+                        continue
+                    } catch {
                         recovered = true
                         continue
                     }
@@ -249,11 +283,24 @@ nonisolated enum SuggestedReplyResultDecoder {
         if task == .standard || task == .personaStyleLearning {
             if let values = object["personaObservationChanges"] as? [Any] {
                 var decoded: [PersonaObservationChange] = []
+                var hasMalformedObservationChange = false
                 for (index, value) in values.enumerated() {
                     guard decoded.count < PersonaLimits.maximumActiveObservations,
-                        let item = value as? [String: Any],
-                        let change = try? decodeObservationChange(item, index: index)
+                        let item = value as? [String: Any]
                     else {
+                        hasMalformedObservationChange = true
+                        recovered = true
+                        continue
+                    }
+                    let change: PersonaObservationChange
+                    do {
+                        change = try decodeObservationChange(item, index: index)
+                    } catch let dropped as DroppedOverlongField {
+                        fieldRecoveries.append(dropped.recovery)
+                        recovered = true
+                        continue
+                    } catch {
+                        hasMalformedObservationChange = true
                         recovered = true
                         continue
                     }
@@ -264,7 +311,9 @@ nonisolated enum SuggestedReplyResultDecoder {
                     }
                     decoded.append(change)
                 }
-                if task == .personaStyleLearning, !values.isEmpty, decoded.isEmpty {
+                if task == .personaStyleLearning, !values.isEmpty, decoded.isEmpty,
+                    hasMalformedObservationChange
+                {
                     throw schema("personaObservationChanges")
                 }
                 observations = decoded
@@ -289,7 +338,8 @@ nonisolated enum SuggestedReplyResultDecoder {
                 memoryChanges: memories, personaObservationChanges: observations,
                 personaObservationChangesAvailable: observationsAvailable
             ),
-            recovered: recovered
+            recovered: recovered,
+            fieldRecoveries: fieldRecoveries
         )
     }
 
@@ -309,7 +359,7 @@ nonisolated enum SuggestedReplyResultDecoder {
             action: action.rawValue,
             target: target,
             text: text,
-            maxTextLength: ChatMemoryLimits.maximumAITextLength,
+            maximumTextCodePoints: ChatMemoryLimits.maximumAITextCodePoints,
             path: path
         )
         return ChatMemoryChange(
@@ -332,7 +382,7 @@ nonisolated enum SuggestedReplyResultDecoder {
             action: action.rawValue,
             target: target,
             text: text,
-            maxTextLength: 240,
+            maximumTextCodePoints: PersonaLimits.maximumObservationTextCodePoints,
             path: path
         )
         return PersonaObservationChange(
@@ -343,22 +393,38 @@ nonisolated enum SuggestedReplyResultDecoder {
         action: String,
         target: UUID?,
         text: String?,
-        maxTextLength: Int,
+        maximumTextCodePoints: Int,
         path: String
     ) throws {
         let value = text?.trimmingCharacters(in: .whitespacesAndNewlines)
         switch action {
         case "add":
-            guard target == nil, let value, !value.isEmpty, value.count <= maxTextLength else {
-                throw schema(path)
-            }
+            guard target == nil, let value, !value.isEmpty else { throw schema(path) }
+            try validateMaximumCodePoints(
+                value, maximumCodePoints: maximumTextCodePoints, path: "\(path).text")
         case "update":
-            guard target != nil, let value, !value.isEmpty, value.count <= maxTextLength else {
-                throw schema(path)
-            }
+            guard target != nil, let value, !value.isEmpty else { throw schema(path) }
+            try validateMaximumCodePoints(
+                value, maximumCodePoints: maximumTextCodePoints, path: "\(path).text")
         case "archive": guard target != nil, text == nil else { throw schema(path) }
         default: throw schema(path)
         }
+    }
+
+    private static func validateMaximumCodePoints(
+        _ value: String,
+        maximumCodePoints: Int,
+        path: String
+    ) throws {
+        let count = value.unicodeScalars.count
+        guard count > maximumCodePoints else { return }
+        throw DroppedOverlongField(
+            recovery: StructuredOutputFieldRecovery(
+                path: path,
+                originalCodePointCount: count,
+                finalCodePointCount: 0
+            )
+        )
     }
 
     private static func decodeIDs(_ values: [String], path: String) throws -> [UUID] {
@@ -381,15 +447,82 @@ nonisolated enum SuggestedReplyResultDecoder {
         return string.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static func requiredString(
+    private struct BoundedStringResult {
+        let value: String
+        let recovery: StructuredOutputFieldRecovery?
+    }
+
+    private static func requiredBoundedString(
         from value: Any?,
-        maxLength: Int,
+        maximumCodePoints: Int,
         path: String
-    ) throws -> String {
+    ) throws -> BoundedStringResult {
         guard let string = value as? String else { throw schema(path) }
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.count <= maxLength else { throw schema(path) }
-        return trimmed
+        guard !trimmed.isEmpty else { throw schema(path) }
+
+        let originalCount = trimmed.unicodeScalars.count
+        guard originalCount > maximumCodePoints else {
+            return BoundedStringResult(value: trimmed, recovery: nil)
+        }
+
+        let shortened = shorten(
+            trimmed,
+            maximumCodePoints: maximumCodePoints
+        )
+        guard !shortened.isEmpty else { throw schema(path) }
+        return BoundedStringResult(
+            value: shortened,
+            recovery: StructuredOutputFieldRecovery(
+                path: path,
+                originalCodePointCount: originalCount,
+                finalCodePointCount: shortened.unicodeScalars.count
+            )
+        )
+    }
+
+    private static func shorten(_ value: String, maximumCodePoints: Int) -> String {
+        let hardPrefix = graphemeSafePrefix(value, maximumCodePoints: maximumCodePoints)
+        let sentenceTerminators: Set<Character> = [".", "!", "?", "。", "！", "？"]
+        if let sentenceEnd = hardPrefix.lastIndex(where: sentenceTerminators.contains) {
+            let end = hardPrefix.index(after: sentenceEnd)
+            let sentence = hardPrefix[..<end]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !sentence.isEmpty {
+                return sentence
+            }
+        }
+
+        let ellipsis = "…"
+        let wordPrefix = graphemeSafePrefix(
+            value,
+            maximumCodePoints: max(0, maximumCodePoints - ellipsis.unicodeScalars.count)
+        )
+        if let boundary = wordPrefix.lastIndex(where: { $0.isWhitespace }) {
+            let atBoundary = wordPrefix[..<boundary]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !atBoundary.isEmpty {
+                return atBoundary + ellipsis
+            }
+        }
+
+        return hardPrefix.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func graphemeSafePrefix(
+        _ value: String,
+        maximumCodePoints: Int
+    ) -> String {
+        guard maximumCodePoints > 0 else { return "" }
+        var result = ""
+        var count = 0
+        for character in value {
+            let characterCount = character.unicodeScalars.count
+            guard count + characterCount <= maximumCodePoints else { break }
+            result.append(character)
+            count += characterCount
+        }
+        return result
     }
 
     private static func schema(_ path: String) -> StructuredOutputFailure {

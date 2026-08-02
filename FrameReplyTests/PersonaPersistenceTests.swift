@@ -206,6 +206,44 @@ final class PersonaPersistenceTests: XCTestCase {
         XCTAssertFalse(all.contains { $0.text == "Uses lots of exclamation marks!" })
     }
 
+    func testAIObservationPersistenceUsesUnicodeCodePointLimit() throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let personas = PersonaRepository(container: container)
+        let chats = ChatRepository(container: container)
+        try personas.seedPersonasIfNeeded()
+        let personaID = try personas.defaultPersonaID()
+        let evidenceIDs = [UUID(), UUID()]
+        let accepted = String(repeating: "a", count: 238) + "e\u{301}"
+        let rejected = String(repeating: "b", count: 239) + "e\u{301}"
+        XCTAssertEqual(accepted.unicodeScalars.count, 240)
+        XCTAssertEqual(rejected.count, 240)
+        XCTAssertEqual(rejected.unicodeScalars.count, 241)
+
+        try chats.savePersonaExampleAnalysis(
+            personaID: personaID,
+            changes: [
+                PersonaObservationChange(
+                    action: .add,
+                    targetObservationID: nil,
+                    text: accepted,
+                    sourceMessageIDs: evidenceIDs
+                ),
+                PersonaObservationChange(
+                    action: .add,
+                    targetObservationID: nil,
+                    text: rejected,
+                    sourceMessageIDs: evidenceIDs
+                )
+            ],
+            sampleMessageIDs: Set(evidenceIDs),
+            sampleCount: evidenceIDs.count
+        )
+
+        let observations = try personas.observations(personaID: personaID)
+        XCTAssertTrue(observations.contains { $0.text == accepted })
+        XCTAssertFalse(observations.contains { $0.text == rejected })
+    }
+
     private func message(chatID: String, sender: String, createdAt: Date) -> ChatMessageRecord {
         ChatMessageRecord(
             chatID: chatID, senderKind: sender, text: "Example",

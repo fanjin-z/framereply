@@ -1,8 +1,8 @@
 import Foundation
 
-enum StructuredOutputCapability: Equatable {
-    case strictJSONSchema
-    case jsonObject
+enum StructuredOutputMode: Equatable {
+    case nativeJSONSchema
+    case promptedJSONObject
 }
 
 struct AIOutputContract {
@@ -11,14 +11,65 @@ struct AIOutputContract {
     let instructions: String
     let schema: [String: Any]
 
-    func instructions(for capability: StructuredOutputCapability) -> String {
-        guard capability == .jsonObject,
-            let data = try? JSONSerialization.data(withJSONObject: schema, options: [.sortedKeys]),
+    func instructions(for mode: StructuredOutputMode) -> String {
+        guard mode == .promptedJSONObject,
+            let data = try? JSONSerialization.data(
+                withJSONObject: providerSchema, options: [.sortedKeys]),
             let compactSchema = String(data: data, encoding: .utf8)
         else {
             return instructions
         }
         return "\(instructions)\nReturn JSON matching this exact schema: \(compactSchema)"
+    }
+
+    var providerSchema: [String: Any] {
+        Self.movingTextLengthsIntoDescriptions(in: schema)
+    }
+
+    private static func movingTextLengthsIntoDescriptions(
+        in schema: [String: Any]
+    ) -> [String: Any] {
+        var providerSchema: [String: Any] = [:]
+        var lengthDescriptions: [String] = []
+        for key in schema.keys.sorted() {
+            guard let value = schema[key] else { continue }
+            if let description = textLengthDescription(keyword: key, value: value) {
+                lengthDescriptions.append(description)
+                continue
+            }
+            providerSchema[key] = movingTextLengthsIntoDescriptions(in: value)
+        }
+
+        if !lengthDescriptions.isEmpty {
+            let existing = (providerSchema["description"] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            providerSchema["description"] =
+                ([existing].compactMap { $0 } + lengthDescriptions)
+                .joined(separator: " ")
+        }
+        return providerSchema
+    }
+
+    private static func movingTextLengthsIntoDescriptions(in value: Any) -> Any {
+        if let object = value as? [String: Any] {
+            return movingTextLengthsIntoDescriptions(in: object)
+        }
+        if let array = value as? [Any] {
+            return array.map { movingTextLengthsIntoDescriptions(in: $0) }
+        }
+        return value
+    }
+
+    private static func textLengthDescription(keyword: String, value: Any) -> String? {
+        let unit = (value as? Int) == 1 ? "Unicode code point" : "Unicode code points"
+        switch keyword {
+        case "minLength":
+            return "Minimum length: \(value) \(unit)."
+        case "maxLength":
+            return "Maximum length: \(value) \(unit)."
+        default:
+            return nil
+        }
     }
 }
 

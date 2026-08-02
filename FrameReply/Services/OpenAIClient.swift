@@ -107,7 +107,7 @@ struct OpenAIClient: AIProviderAdapter {
         request.httpBody = try JSONSerialization.data(
             withJSONObject: [
                 "model": model.rawValue,
-                "instructions": contract.instructions(for: .strictJSONSchema),
+                "instructions": contract.instructions(for: .nativeJSONSchema),
                 "input": [
                     [
                         "role": "user",
@@ -123,7 +123,7 @@ struct OpenAIClient: AIProviderAdapter {
                         "type": "json_schema",
                         "name": contract.name,
                         "strict": true,
-                        "schema": contract.schema
+                        "schema": contract.providerSchema
                     ]
                 ]
             ]
@@ -321,7 +321,7 @@ struct OpenAIClient: AIProviderAdapter {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: [
             "model": model.rawValue,
-            "instructions": contract.instructions(for: .strictJSONSchema),
+            "instructions": contract.instructions(for: .nativeJSONSchema),
             "input": [
                 [
                     "role": "user",
@@ -344,7 +344,7 @@ struct OpenAIClient: AIProviderAdapter {
                     "type": "json_schema",
                     "name": contract.name,
                     "strict": true,
-                    "schema": contract.schema
+                    "schema": contract.providerSchema
                 ]
             ]
         ])
@@ -421,6 +421,13 @@ struct OpenAIClient: AIProviderAdapter {
                 content: completion.outputText,
                 finishReason: nil,
                 task: generationRequest.task
+            )
+            ChatImportDebugLogger.fieldRecoveries(
+                decoded.fieldRecoveries,
+                traceID: generationRequest.traceID,
+                provider: "openai",
+                model: model.rawValue,
+                attempt: 1
             )
             recordContractValidation(
                 contract, traceID: generationRequest.traceID, provider: "openai",

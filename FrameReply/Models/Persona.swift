@@ -235,4 +235,5 @@ nonisolated enum PersonaQuickSetup {
 
 nonisolated enum PersonaLimits {
     static let maximumActiveObservations = 20
+    static let maximumObservationTextCodePoints = 240
 }

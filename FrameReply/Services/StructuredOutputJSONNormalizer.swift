@@ -4,6 +4,23 @@ import Foundation
 nonisolated struct StructuredOutputDecodingResult<Value> {
     let value: Value
     let recovered: Bool
+    let fieldRecoveries: [StructuredOutputFieldRecovery]
+
+    init(
+        value: Value,
+        recovered: Bool,
+        fieldRecoveries: [StructuredOutputFieldRecovery] = []
+    ) {
+        self.value = value
+        self.recovered = recovered
+        self.fieldRecoveries = fieldRecoveries
+    }
+}
+
+nonisolated struct StructuredOutputFieldRecovery: Equatable, Sendable {
+    let path: String
+    let originalCodePointCount: Int
+    let finalCodePointCount: Int
 }
 
 nonisolated enum StructuredOutputJSONNormalizer {
@@ -169,10 +186,14 @@ nonisolated enum StrictStructuredOutputValidator {
         } else if let array = value as? [Any] {
             try validateArray(array, against: schema, path: path)
         } else if let string = value as? String {
-            if let minimum = schema["minLength"] as? Int, string.count < minimum {
+            if let minimum = schema["minLength"] as? Int,
+                string.unicodeScalars.count < minimum
+            {
                 throw schemaMismatch(path)
             }
-            if let maximum = schema["maxLength"] as? Int, string.count > maximum {
+            if let maximum = schema["maxLength"] as? Int,
+                string.unicodeScalars.count > maximum
+            {
                 throw schemaMismatch(path)
             }
         } else if let number = numericValue(value) {
