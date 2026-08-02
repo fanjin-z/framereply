@@ -11,6 +11,7 @@ FrameReply is an open-source iPhone assistant that helps users draft replies whi
 ## Project
 
 - [Roadmap](roadmap.md)
+- [AI provider costs and model choice](ai-provider-costs.md)
 
 ## Policies and support
 

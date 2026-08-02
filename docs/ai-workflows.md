@@ -27,6 +27,8 @@ Chat import and reply generation share this execution model. They share provider
 
 This boundary is deliberate: model confidence or valid JSON alone never makes a result trusted application state.
 
+For current provider rates, illustrative per-operation estimates, and model-selection guidance, see [AI Provider Costs and Model Choice](ai-provider-costs.md).
+
 ## Chat import and reconciliation
 
 ```mermaid
