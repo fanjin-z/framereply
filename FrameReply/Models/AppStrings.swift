@@ -514,6 +514,14 @@ nonisolated enum AppStrings {
     }
 
     enum Provider {
+        static let miniMaxInternationalName = LocalizedStringResource(
+            "provider.name.minimax-international",
+            defaultValue: "MiniMax International"
+        )
+        static let miniMaxChinaName = LocalizedStringResource(
+            "provider.name.minimax-china",
+            defaultValue: "MiniMax (China)"
+        )
         static let openAIDestination = LocalizedStringResource(
             "provider.destination.openai",
             defaultValue: "OpenAI in the United States or another region selected by OpenAI"
@@ -522,6 +530,15 @@ nonisolated enum AppStrings {
             "provider.destination.openrouter",
             defaultValue:
                 "OpenRouter, which currently forwards the request to Alibaba Cloud International for Qwen3.7 Plus"
+        )
+        static let miniMaxInternationalDestination = LocalizedStringResource(
+            "provider.destination.minimax-international",
+            defaultValue:
+                "MiniMax International, operated outside mainland China"
+        )
+        static let miniMaxChinaDestination = LocalizedStringResource(
+            "provider.destination.minimax-china",
+            defaultValue: "MiniMax Open Platform in mainland China"
         )
         static let zaiInternationalDestination = LocalizedStringResource(
             "provider.destination.zai-international",

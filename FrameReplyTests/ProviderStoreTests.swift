@@ -61,6 +61,20 @@ final class ProviderStoreTests: XCTestCase {
                 registry.profile(for: .openRouter, selectedTier: $0) == nil
             }
         )
+        for platform in [ProviderPlatform.miniMaxInternational, .miniMaxChina] {
+            XCTAssertEqual(platform.supportedTiers, [.advanced])
+            XCTAssertEqual(
+                registry.profile(for: platform, selectedTier: .advanced),
+                ProviderModelProfile(
+                    screenshotAnalysisModel: .miniMaxM3,
+                    transcriptAnalysisModel: .miniMaxM3,
+                    suggestedReplyModel: .miniMaxM3
+                )
+            )
+            XCTAssertNil(registry.profile(for: platform, selectedTier: .basic))
+            XCTAssertNil(registry.profile(for: platform, selectedTier: .best))
+            XCTAssertEqual(platform.modelSummary(for: .advanced), "MiniMax M3")
+        }
         XCTAssertEqual(
             registry.profile(for: .zaiInternational, selectedTier: .basic)?.screenshotAnalysisModel,
             .glm46VFlash
@@ -93,7 +107,10 @@ final class ProviderStoreTests: XCTestCase {
 
         XCTAssertEqual(
             ProviderPlatform.allCases,
-            [.openAI, .openRouter, .zaiInternational, .zhipuChina]
+            [
+                .openAI, .openRouter, .miniMaxInternational, .miniMaxChina,
+                .zaiInternational, .zhipuChina
+            ]
         )
         XCTAssertEqual(ProviderPlatform.openRouter.supportedTiers, [.advanced])
         XCTAssertEqual(ProviderPlatform.openRouter.displayName, "OpenRouter")
@@ -108,6 +125,10 @@ final class ProviderStoreTests: XCTestCase {
         XCTAssertNotEqual(
             ProviderPlatform.zaiInternational.keychainAccount,
             ProviderPlatform.zhipuChina.keychainAccount
+        )
+        XCTAssertNotEqual(
+            ProviderPlatform.miniMaxInternational.keychainAccount,
+            ProviderPlatform.miniMaxChina.keychainAccount
         )
         XCTAssertTrue(ProviderPlatform.allCases.allSatisfy { $0.defaultTier == .advanced })
         XCTAssertEqual(
@@ -212,6 +233,38 @@ final class ProviderStoreTests: XCTestCase {
         XCTAssertNil(try keychain.get(account: ProviderPlatform.openAI.keychainAccount))
 
         try assertRemovingActiveProviderSelectsFollowingProviderAndPersists()
+    }
+
+    @MainActor
+    func testMiniMaxRegionalConnectionsPersistActivateAndRemoveIndependently() throws {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        try saveProviders([
+            ProviderConnection(platform: .miniMaxInternational, tier: .advanced),
+            ProviderConnection(platform: .miniMaxChina, tier: .advanced)
+        ], to: defaults)
+        defaults.set("miniMaxChina", forKey: ProviderStoreTestKey.activePlatform)
+        let keychain = TestKeychainStore()
+        try keychain.set("international-key", for: ProviderPlatform.miniMaxInternational.keychainAccount)
+        try keychain.set("china-key", for: ProviderPlatform.miniMaxChina.keychainAccount)
+
+        let store = ProviderStore(
+            userDefaults: defaults, registry: .live(), keychain: keychain)
+        XCTAssertEqual(store.providers.map(\.platform), [.miniMaxInternational, .miniMaxChina])
+        XCTAssertEqual(store.activePlatform, .miniMaxChina)
+
+        try store.remove(platform: .miniMaxInternational)
+
+        XCTAssertEqual(store.providers.map(\.platform), [.miniMaxChina])
+        XCTAssertEqual(store.activePlatform, .miniMaxChina)
+        XCTAssertNil(try keychain.get(account: ProviderPlatform.miniMaxInternational.keychainAccount))
+        XCTAssertEqual(
+            try keychain.get(account: ProviderPlatform.miniMaxChina.keychainAccount), "china-key")
+
+        let reloaded = ProviderStore(
+            userDefaults: defaults, registry: .live(), keychain: keychain)
+        XCTAssertEqual(reloaded.providers.map(\.platform), [.miniMaxChina])
+        XCTAssertEqual(reloaded.activePlatform, .miniMaxChina)
     }
 
     @MainActor

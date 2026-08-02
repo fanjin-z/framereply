@@ -693,6 +693,142 @@ final class ProviderAnalysisTests: XCTestCase {
     }
 
     @MainActor
+    func testBothMiniMaxRegionsUseM3ScreenshotWireContractAndReportUsage() async throws {
+        for (region, host, provider) in [
+            (MiniMaxClient.Region.international, "api.minimax.io", "miniMaxInternational"),
+            (.china, "api.minimaxi.com", "miniMaxChina")
+        ] {
+            AnalysisURLProtocolStub.reset()
+            let reporter = SpyImportEventReporter()
+            AnalysisURLProtocolStub.responses = [
+                (200, miniMaxResponse(content: validScreenshotAnalysisJSON(), includeUsage: true))
+            ]
+
+            let result = try await MiniMaxClient(
+                region: region, session: makeSession(), eventReporter: reporter
+            ).analyzeChatScreenshot(
+                makeRequest(), apiKey: "key", model: .miniMaxM3)
+
+            XCTAssertEqual(result.messages.first?.text, "Hello")
+            XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+            let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
+            XCTAssertEqual(request.url?.scheme, "https")
+            XCTAssertEqual(request.url?.host, host)
+            XCTAssertEqual(request.url?.path, "/v1/chat/completions")
+            let body = try jsonBody(request)
+            XCTAssertEqual(body["model"] as? String, "MiniMax-M3")
+            XCTAssertEqual(body["service_tier"] as? String, "standard")
+            XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
+            XCTAssertEqual(body["temperature"] as? Int, 0)
+            XCTAssertEqual(body["stream"] as? Bool, false)
+            XCTAssertEqual(body["max_completion_tokens"] as? Int, 4_000)
+            XCTAssertNil(body["response_format"])
+
+            let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
+            XCTAssertEqual(messages.count, 2)
+            let system = try XCTUnwrap(messages[0]["content"] as? String)
+            XCTAssertTrue(system.contains("Return JSON matching this exact schema"))
+            let content = try XCTUnwrap(messages[1]["content"] as? [[String: Any]])
+            XCTAssertEqual(content.first?["type"] as? String, "image_url")
+            let image = try XCTUnwrap(content.first?["image_url"] as? [String: Any])
+            XCTAssertEqual(image["detail"] as? String, "high")
+            XCTAssertTrue(
+                try XCTUnwrap(image["url"] as? String).hasPrefix("data:image/png;base64,"))
+            XCTAssertEqual(content.last?["type"] as? String, "text")
+            XCTAssertEqual(providerAttempts(in: reporter.events), [1])
+            XCTAssertTrue(hasValidationCategory("valid", in: reporter.events))
+            XCTAssertTrue(reporter.events.contains { event in
+                guard case .providerResponse(
+                    _, let eventProvider, "MiniMax-M3", 1, _, 200, "req-test", "stop", _,
+                    100, 20, 60
+                ) = event else { return false }
+                return eventProvider == provider
+            })
+        }
+    }
+
+    @MainActor
+    func testMiniMaxTranscriptAndRepliesAreTextOnlyAndUseTaskTokenCaps() async throws {
+        AnalysisURLProtocolStub.responses = [
+            (200, miniMaxResponse(content: #"{"messages":[{"text":"你好"}]}"#))
+        ]
+        let transcriptRequest = ChatImportAnalysisRequest(
+            transcriptItems: ["Alice: 你好"], candidates: [])
+
+        let analysis = try await MiniMaxClient(
+            region: .china, session: makeSession()
+        ).analyzeChatScreenshot(
+            transcriptRequest, apiKey: "key", model: .miniMaxM3)
+
+        XCTAssertEqual(analysis.messages.first?.text, "你好")
+        let transcriptBody = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
+        let transcriptMessages = try XCTUnwrap(transcriptBody["messages"] as? [[String: Any]])
+        XCTAssertTrue(transcriptMessages[1]["content"] is String)
+
+        AnalysisURLProtocolStub.reset()
+        AnalysisURLProtocolStub.responses = [
+            (200, miniMaxResponse(content: validDraftingJSON()))
+        ]
+        let replies = try await MiniMaxClient(
+            region: .international, session: makeSession()
+        ).generateSuggestedReplies(
+            makeReplyRequest(task: .drafting), apiKey: "key", model: .miniMaxM3)
+
+        XCTAssertEqual(replies.replies, ["First", "Second"])
+        let replyBody = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
+        XCTAssertEqual(replyBody["max_completion_tokens"] as? Int, 3_200)
+        let replyMessages = try XCTUnwrap(replyBody["messages"] as? [[String: Any]])
+        XCTAssertTrue(replyMessages.allSatisfy { $0["content"] is String })
+    }
+
+    @MainActor
+    func testBothMiniMaxRegionsUseOneRequestForRecoveredAndFatalReplies() async throws {
+        for (region, provider) in [
+            (MiniMaxClient.Region.international, "miniMaxInternational"),
+            (.china, "miniMaxChina")
+        ] {
+            AnalysisURLProtocolStub.reset()
+            let recoveredReporter = SpyImportEventReporter()
+            AnalysisURLProtocolStub.responses = [
+                (200, miniMaxResponse(content: "Result:\n\(validStandardRepliesJSON())"))
+            ]
+            let recovered = try await MiniMaxClient(
+                region: region, session: makeSession(), eventReporter: recoveredReporter
+            ).generateSuggestedReplies(
+                makeReplyRequest(task: .standard), apiKey: "key", model: .miniMaxM3)
+
+            XCTAssertEqual(recovered.replies, ["First", "Second"])
+            XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+            XCTAssertTrue(hasValidationCategory("recovered", in: recoveredReporter.events))
+
+            AnalysisURLProtocolStub.reset()
+            let fatalReporter = SpyImportEventReporter()
+            AnalysisURLProtocolStub.responses = [
+                (200, miniMaxResponse(content: "{}")),
+                (200, miniMaxResponse(content: validStandardRepliesJSON()))
+            ]
+            await assertThrowsErrorAsync(
+                {
+                    _ = try await MiniMaxClient(
+                        region: region,
+                        session: self.makeSession(),
+                        eventReporter: fatalReporter
+                    ).generateSuggestedReplies(
+                        self.makeReplyRequest(task: .standard),
+                        apiKey: "key",
+                        model: .miniMaxM3
+                    )
+                },
+                errorHandler: {
+                    self.assertStructuredOutputError($0, provider: provider, codingPath: "root")
+                })
+            XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+            XCTAssertEqual(providerAttempts(in: fatalReporter.events), [1])
+            XCTAssertTrue(hasValidationCategory("fatal", in: fatalReporter.events))
+        }
+    }
+
+    @MainActor
     func testBothZAIRegionsUseOneRequestForRecoveredAndFatalReplies() async throws {
         for (region, provider) in [
             (ZAIClient.Region.international, "zaiInternational"),
@@ -963,6 +1099,31 @@ final class ProviderAnalysisTests: XCTestCase {
                     "finish_reason": finishReason
                 ]
             ]
+        ]
+        if includeUsage {
+            object["usage"] = [
+                "prompt_tokens": 100, "completion_tokens": 20,
+                "prompt_tokens_details": ["cached_tokens": 60]
+            ]
+        }
+        return jsonString(object)
+    }
+
+    private func miniMaxResponse(
+        content: String?,
+        finishReason: String = "stop",
+        includeUsage: Bool = false
+    ) -> String {
+        var object: [String: Any] = [
+            "id": "m3_test",
+            "model": "MiniMax-M3",
+            "choices": [
+                [
+                    "message": ["content": content.map { $0 as Any } ?? NSNull()],
+                    "finish_reason": finishReason
+                ]
+            ],
+            "base_resp": ["status_code": 0, "status_msg": "success"]
         ]
         if includeUsage {
             object["usage"] = [

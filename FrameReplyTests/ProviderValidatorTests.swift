@@ -90,6 +90,37 @@ final class ProviderValidatorTests: XCTestCase {
         XCTAssertEqual(format["type"] as? String, "json_schema")
         let jsonSchema = try XCTUnwrap(format["json_schema"] as? [String: Any])
         XCTAssertEqual(jsonSchema["strict"] as? Bool, true)
+
+        for (region, host) in [
+            (MiniMaxClient.Region.international, "api.minimax.io"),
+            (.china, "api.minimaxi.com")
+        ] {
+            URLProtocolStub.reset()
+            URLProtocolStub.stub(
+                statusCode: 200,
+                body:
+                    #"{"id":"m3_1","model":"MiniMax-M3","choices":[{"message":{"content":"OK"},"finish_reason":"stop"}],"base_resp":{"status_code":0,"status_msg":"success"}}"#
+            )
+
+            try await MiniMaxClient(region: region, session: makeSession()).validate(
+                apiKey: "minimax-key", model: .miniMaxM3)
+
+            XCTAssertEqual(URLProtocolStub.requests.count, 1)
+            let request = try XCTUnwrap(URLProtocolStub.requests.first)
+            XCTAssertEqual(request.url?.scheme, "https")
+            XCTAssertEqual(request.url?.host, host)
+            XCTAssertEqual(request.url?.path, "/v1/chat/completions")
+            XCTAssertEqual(
+                request.value(forHTTPHeaderField: "Authorization"), "Bearer minimax-key")
+            let body = try jsonBody(request)
+            XCTAssertEqual(body["model"] as? String, "MiniMax-M3")
+            XCTAssertEqual(body["service_tier"] as? String, "standard")
+            XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
+            XCTAssertEqual(body["temperature"] as? Int, 0)
+            XCTAssertEqual(body["stream"] as? Bool, false)
+            XCTAssertEqual(body["max_completion_tokens"] as? Int, 64)
+            XCTAssertNil(body["response_format"])
+        }
     }
 
     @MainActor
@@ -110,6 +141,12 @@ final class ProviderValidatorTests: XCTestCase {
             model: .qwen37Plus,
             body:
                 #"{"id":"gen_1","model":"openrouter/auto","choices":[{"message":{"content":"{\"status\":\"ok\"}"},"finish_reason":"stop"}]}"#
+        )
+        await assertInvalidResponse(
+            from: MiniMaxClient(region: .international, session: makeSession()),
+            model: .miniMaxM3,
+            body:
+                #"{"id":"m3_1","model":"MiniMax-M2.7","choices":[{"message":{"content":"OK"},"finish_reason":"stop"}]}"#
         )
     }
 
@@ -153,6 +190,30 @@ final class ProviderValidatorTests: XCTestCase {
             .rateLimited, statusCode: 429, validator: openRouter, model: .qwen37Plus)
         await assertHTTPError(
             .providerUnavailable, statusCode: 503, validator: openRouter, model: .qwen37Plus)
+
+        let miniMax = MiniMaxClient(region: .china, session: makeSession())
+        await assertHTTPError(.invalidKey, statusCode: 401, validator: miniMax, model: .miniMaxM3)
+        await assertHTTPError(
+            .insufficientBalance, statusCode: 200,
+            body: #"{"base_resp":{"status_code":1008,"status_msg":"insufficient balance"}}"#,
+            validator: miniMax, model: .miniMaxM3)
+        await assertHTTPError(
+            .rateLimited, statusCode: 200,
+            body: #"{"base_resp":{"status_code":1002,"status_msg":"rate limited"}}"#,
+            validator: miniMax, model: .miniMaxM3)
+        await assertHTTPError(
+            .providerUnavailable, statusCode: 200,
+            body: #"{"base_resp":{"status_code":1013,"status_msg":"internal error"}}"#,
+            validator: miniMax, model: .miniMaxM3)
+        await assertHTTPError(
+            .invalidRequest, statusCode: 200,
+            body: #"{"base_resp":{"status_code":2013,"status_msg":"invalid parameter"}}"#,
+            validator: miniMax, model: .miniMaxM3)
+        await assertHTTPError(
+            .invalidRequest, statusCode: 200,
+            body:
+                #"{"id":"m3_1","model":"MiniMax-M3","choices":[{"message":{"content":""},"finish_reason":"content_filter"}],"base_resp":{"status_code":0}}"#,
+            validator: miniMax, model: .miniMaxM3)
 
         URLProtocolStub.stub(
             statusCode: 403,
@@ -260,6 +321,7 @@ private enum ProviderErrorKind: Equatable {
     case insufficientBalance
     case rateLimited
     case providerUnavailable
+    case invalidRequest
     case invalidResponse
     case other
 
@@ -278,6 +340,8 @@ private enum ProviderErrorKind: Equatable {
             self = .rateLimited
         case .providerUnavailable:
             self = .providerUnavailable
+        case .invalidRequest:
+            self = .invalidRequest
         case .invalidResponse:
             self = .invalidResponse
         default:

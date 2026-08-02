@@ -8,6 +8,8 @@ import Foundation
 nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Identifiable {
     case openAI
     case openRouter
+    case miniMaxInternational
+    case miniMaxChina
     case zaiInternational
     case zhipuChina
 
@@ -23,6 +25,10 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
             "OpenAI"
         case .openRouter:
             "OpenRouter"
+        case .miniMaxInternational:
+            String(localized: AppStrings.Provider.miniMaxInternationalName)
+        case .miniMaxChina:
+            String(localized: AppStrings.Provider.miniMaxChinaName)
         case .zaiInternational:
             "Z.ai International"
         case .zhipuChina:
@@ -36,15 +42,18 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
             "waveform"
         case .openRouter:
             "network"
-        case .zaiInternational:
-            "sparkles.rectangle.stack"
-        case .zhipuChina:
+        case .miniMaxInternational, .miniMaxChina, .zaiInternational, .zhipuChina:
             "sparkles.rectangle.stack"
         }
     }
 
     var supportedTiers: [ProviderTier] {
-        self == .openRouter ? [.advanced] : ProviderTier.allCases
+        switch self {
+        case .openRouter, .miniMaxInternational, .miniMaxChina:
+            [.advanced]
+        case .openAI, .zaiInternational, .zhipuChina:
+            ProviderTier.allCases
+        }
     }
     var defaultTier: ProviderTier { .advanced }
 
@@ -58,6 +67,8 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
             (.gpt56Sol, .gpt56Sol)
         case (.openRouter, _):
             (.qwen37Plus, .qwen37Plus)
+        case (.miniMaxInternational, _), (.miniMaxChina, _):
+            (.miniMaxM3, .miniMaxM3)
         case (.zaiInternational, .basic):
             (.glm46VFlash, .glm47Flash)
         case (.zaiInternational, .advanced):
@@ -89,6 +100,7 @@ enum ProviderModel: String, Codable {
     case glm47Flash = "glm-4.7-flash"
     case glm47 = "glm-4.7"
     case qwen37Plus = "qwen/qwen3.7-plus"
+    case miniMaxM3 = "MiniMax-M3"
 
     nonisolated var displayName: String {
         switch self {
@@ -112,6 +124,8 @@ enum ProviderModel: String, Codable {
             "GLM-4.7"
         case .qwen37Plus:
             "Qwen3.7 Plus"
+        case .miniMaxM3:
+            "MiniMax M3"
         }
     }
 }

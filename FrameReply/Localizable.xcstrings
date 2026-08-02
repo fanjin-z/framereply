@@ -1903,6 +1903,28 @@
         }
       }
     },
+    "provider.destination.minimax-china" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "MiniMax Open Platform in mainland China"
+          }
+        }
+      }
+    },
+    "provider.destination.minimax-international" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "MiniMax International, operated outside mainland China"
+          }
+        }
+      }
+    },
     "provider.destination.openrouter" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {
@@ -1910,6 +1932,28 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "OpenRouter, which currently forwards the request to Alibaba Cloud International for Qwen3.7 Plus"
+          }
+        }
+      }
+    },
+    "provider.name.minimax-china" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "MiniMax (China)"
+          }
+        }
+      }
+    },
+    "provider.name.minimax-international" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "MiniMax International"
           }
         }
       }

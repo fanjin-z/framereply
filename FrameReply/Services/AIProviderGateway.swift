@@ -65,6 +65,8 @@ struct AIProviderRegistry {
         let adapters: [any AIProviderAdapter] = [
             OpenAIClient(eventReporter: eventReporter),
             OpenRouterClient(eventReporter: eventReporter),
+            MiniMaxClient(region: .international, eventReporter: eventReporter),
+            MiniMaxClient(region: .china, eventReporter: eventReporter),
             ZAIClient(region: .international, eventReporter: eventReporter),
             ZAIClient(region: .china, eventReporter: eventReporter)
         ]
