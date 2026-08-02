@@ -26,14 +26,14 @@ AI-generated suggestions are drafts. You stay in control of what gets sent.
 
 Chats, extracted messages, personas, remembered context, drafts, and generated replies are stored in FrameReply's protected local database and excluded from device backups. API keys are stored in the device Keychain. FrameReply has no proxy server, advertising, analytics, or tracking.
 
-When you request analysis or suggestions, FrameReply asks for consent before sending selected screenshots or text, participant information, and relevant context directly to the provider endpoint you choose. OpenRouter connections are forwarded by OpenRouter to Alibaba Cloud International for Qwen3.7 Plus. Source images are normalized and discarded after processing. Provider processing, retention, and charges remain governed by the involved providers.
+When you request analysis or suggestions, FrameReply asks for consent before sending selected screenshots or text, participant information, and relevant context directly to the provider endpoint you choose. MiniMax International and MiniMax (China) connect directly to separate regional endpoints. OpenRouter connections are forwarded by OpenRouter to Alibaba Cloud International for Qwen3.7 Plus. Source images are normalized and discarded after processing. Provider processing, retention, and charges remain governed by the involved providers.
 
 Read the [Privacy Policy](docs/privacy.md), [Terms](docs/terms.md), and [Age Suitability](docs/age-suitability.md) pages for the complete details.
 
 ## Requirements
 
 - An iPhone running iOS 26 or later.
-- A user-owned API key for OpenAI, OpenRouter, or Z.ai. Provider usage may incur charges billed by that provider.
+- A user-owned API key for OpenAI, OpenRouter, MiniMax, or Z.ai. Provider usage may incur charges billed by that provider.
 
 ## Build and contribute
 
