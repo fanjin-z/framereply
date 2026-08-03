@@ -7,6 +7,7 @@ import SwiftUI
 
 struct ConversationUpdateComposer: View {
     @Binding var replyGuidance: String
+    @FocusState.Binding var isGuidanceFocused: Bool
     let isImporting: Bool
     let isUpdatingReplies: Bool
     let onAddMessagesTap: () -> Void
@@ -14,7 +15,6 @@ struct ConversationUpdateComposer: View {
 
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @FocusState private var isGuidanceFocused: Bool
 
     private var trimmedGuidance: String {
         replyGuidance.trimmingCharacters(in: .whitespacesAndNewlines)

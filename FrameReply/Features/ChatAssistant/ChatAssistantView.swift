@@ -27,6 +27,7 @@ struct ChatAssistantView: View {
     @State private var importTask: Task<Void, Never>?
     @State private var replyGuidance = ""
     @State private var goalDraft = ""
+    @FocusState private var isReplyGuidanceFocused: Bool
     @State private var didLoadContext = false
     @State private var needsReplyRefresh = false
     @State private var copiedReplyID: UUID?
@@ -304,6 +305,12 @@ struct ChatAssistantView: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
+            .highPriorityGesture(
+                TapGesture().onEnded {
+                    isReplyGuidanceFocused = false
+                },
+                including: isReplyGuidanceFocused ? .all : .subviews
+            )
             .accessibilityIdentifier("chat-assistant-screen")
         }
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -318,6 +325,7 @@ struct ChatAssistantView: View {
         .safeAreaBar(edge: .bottom, spacing: 0) {
             ConversationUpdateComposer(
                 replyGuidance: $replyGuidance,
+                isGuidanceFocused: $isReplyGuidanceFocused,
                 isImporting: importModel.isLoading,
                 isUpdatingReplies: suggestedRepliesModel.isLoading,
                 onAddMessagesTap: {

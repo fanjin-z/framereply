@@ -219,6 +219,49 @@ final class FrameReplyShowcaseScreenshotTests: XCTestCase {
         capture("09-reply-guidance-accessibility")
     }
 
+    func test11ConversationContentConsumesFirstTapWhileGuidanceIsFocused() {
+        let app = launchShowcase()
+        openMaya(in: app)
+
+        let guidance = element("reply-guidance-field", in: app)
+        let replyBrief = element("reply-brief-summary", in: app)
+        let replyBriefDialog = element("reply-brief-dialog", in: app)
+
+        XCTAssertTrue(guidance.waitForExistence(timeout: 3))
+        XCTAssertTrue(replyBrief.waitForExistence(timeout: 3))
+
+        guidance.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+
+        replyBrief.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 2))
+        XCTAssertFalse(replyBriefDialog.exists)
+
+        replyBrief.tap()
+        XCTAssertTrue(replyBriefDialog.waitForExistence(timeout: 3))
+    }
+
+    func test12HistoryConsumesFirstTapWhileGuidanceIsFocused() {
+        let app = launchShowcase()
+        openMaya(in: app)
+
+        let guidance = element("reply-guidance-field", in: app)
+        let viewAllHistory = element("recent-chat-view-all", in: app)
+
+        XCTAssertTrue(guidance.waitForExistence(timeout: 3))
+        XCTAssertTrue(viewAllHistory.waitForExistence(timeout: 3))
+
+        guidance.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+
+        viewAllHistory.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 2))
+        XCTAssertFalse(app.staticTexts["Chat History"].exists)
+
+        viewAllHistory.tap()
+        XCTAssertTrue(app.staticTexts["Chat History"].waitForExistence(timeout: 3))
+    }
+
     private func launchShowcase(
         contentSizeCategory: String = "UICTContentSizeCategoryL"
     ) -> XCUIApplication {
