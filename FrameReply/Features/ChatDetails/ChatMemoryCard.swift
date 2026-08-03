@@ -21,7 +21,7 @@ struct ChatMemoryCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 14) {
             SectionHeader(symbolName: "brain", title: "Remembered Context") {
                 Text("Auto-saved")
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
@@ -33,8 +33,6 @@ struct ChatMemoryCard: View {
                             .fill(Color.white.opacity(0.46))
                     }
             }
-
-            memoryComposer
 
             if activeMemories.isEmpty {
                 Text("Nothing saved yet. Add a detail you would like to remember.")
@@ -49,9 +47,11 @@ struct ChatMemoryCard: View {
                     }
                 }
             }
+
+            memoryComposer
         }
-        .padding(24)
-        .glassPanel(cornerRadius: 30)
+        .padding(22)
+        .glassPanel(cornerRadius: 28)
         .accessibilityIdentifier("chat-memory-card")
         .alert("Couldn’t Save Remembered Context", isPresented: saveErrorBinding) {
             Button("OK", role: .cancel) {}
@@ -61,57 +61,35 @@ struct ChatMemoryCard: View {
     }
 
     private var memoryComposer: some View {
-        VStack(alignment: .trailing, spacing: 10) {
-            ZStack(alignment: .topLeading) {
-                TextEditor(text: $draft)
-                    .font(.system(size: 15, weight: .regular, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurface)
-                    .lineSpacing(4)
-                    .scrollContentBackground(.hidden)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .frame(minHeight: 104)
-                    .accessibilityLabel("New remembered context for \(chatName)")
-
-                if draft.isEmpty {
-                    Text(
-                        "e.g. We met at university, they prefer vegetarian restaurants…"
-                    )
-                    .font(.system(size: 15, weight: .regular, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurface.opacity(0.62))
-                    .lineSpacing(4)
-                    .padding(.horizontal, 15)
-                    .padding(.vertical, 16)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-                }
-            }
-            .background {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(FrameReplyColor.secondaryContainer.opacity(0.28))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke(Color.white.opacity(0.38), lineWidth: 1)
-                    }
-            }
+        HStack(alignment: .bottom, spacing: 10) {
+            TextField(
+                "e.g. We met at university, they prefer vegetarian restaurants…",
+                text: $draft,
+                axis: .vertical
+            )
+            .font(.system(size: 15, weight: .regular, design: .rounded))
+            .foregroundStyle(FrameReplyColor.onSurface)
+            .lineSpacing(4)
+            .lineLimit(1...)
+            .frame(minHeight: 42, alignment: .topLeading)
+            .accessibilityLabel("New remembered context for \(chatName)")
 
             Button(action: addMemory) {
-                Label("Add", systemImage: "plus")
+                Text("Add")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .padding(.horizontal, 17)
-                    .frame(minHeight: 38)
                     .foregroundStyle(
                         trimmedDraft.isEmpty ? FrameReplyColor.outline : FrameReplyColor.primary
                     )
-                    .background {
-                        Capsule(style: .continuous)
-                            .fill(Color.white.opacity(0.48))
-                    }
             }
             .buttonStyle(SoftPressButtonStyle())
             .disabled(trimmedDraft.isEmpty)
             .accessibilityHint("Saves this as a separate memory")
         }
+        .padding(14)
+        .background(
+            FrameReplyColor.secondaryContainer.opacity(0.2),
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
     }
 
     @ViewBuilder
@@ -125,21 +103,19 @@ struct ChatMemoryCard: View {
                     .frame(minHeight: 82)
                     .accessibilityLabel("Edit memory")
 
-                HStack {
-                    Button("Delete", role: .destructive) {
-                        deleteMemory(memory.id)
-                    }
-
+                HStack(spacing: 12) {
                     Spacer()
 
                     Button("Cancel") {
                         editingMemoryID = nil
                     }
+                    .frame(minWidth: 72, minHeight: 44)
 
                     Button("Save") {
                         saveMemory(memory.id)
                     }
                     .disabled(editingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .frame(minWidth: 72, minHeight: 44)
                 }
                 .font(.system(size: 13, weight: .bold, design: .rounded))
             }
@@ -248,11 +224,7 @@ extension View {
     fileprivate func memoryRowBackground() -> some View {
         background {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(FrameReplyColor.secondaryContainer.opacity(0.32))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color.white.opacity(0.34), lineWidth: 1)
-                }
+                .fill(FrameReplyColor.secondaryContainer.opacity(0.28))
         }
     }
 }
