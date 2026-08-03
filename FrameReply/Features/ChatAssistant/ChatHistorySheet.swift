@@ -95,6 +95,7 @@ struct ChatHistorySheet: View {
                     }
                     .padding(.vertical, 4)
                 }
+                .defaultScrollAnchor(.bottom, for: .initialOffset)
                 .scrollIndicators(.hidden)
             }
             .padding(24)
