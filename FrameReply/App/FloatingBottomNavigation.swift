@@ -9,10 +9,14 @@ struct FloatingBottomNavigation: View {
     @Binding var selectedTab: AppTab
 
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
+    @Namespace private var selectionNamespace
+    @ScaledMetric(relativeTo: .caption) private var symbolSize: CGFloat = 22
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(AppTab.allCases) { tab in
+                let isSelected = selectedTab == tab
+
                 Button {
                     if accessibilityReduceMotion {
                         selectedTab = tab
@@ -22,44 +26,55 @@ struct FloatingBottomNavigation: View {
                         }
                     }
                 } label: {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 4) {
                         Image(
-                            systemName: selectedTab == tab
+                            systemName: isSelected
                                 ? "\(tab.symbolName).fill" : tab.symbolName
                         )
-                        .font(.system(size: 23, weight: .medium))
-                        .frame(height: 24)
+                        .font(.system(size: symbolSize, weight: .semibold))
+                        .frame(minHeight: 24)
 
                         Text(tab.title)
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .tracking(0.4)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .allowsTightening(true)
                     }
                     .foregroundStyle(
-                        selectedTab == tab ? FrameReplyColor.primary : Color.black.opacity(0.78)
+                        isSelected
+                            ? FrameReplyColor.primary : FrameReplyColor.onSurfaceVariant
                     )
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: 44)
-                    .frame(minHeight: 50)
+                    .padding(.vertical, 5)
+                    .contentShape(Capsule(style: .continuous))
                     .background {
-                        if selectedTab == tab {
+                        if isSelected {
                             Capsule(style: .continuous)
-                                .fill(FrameReplyColor.primaryContainer.opacity(0.8))
-                                .shadow(
-                                    color: FrameReplyColor.primaryContainer.opacity(0.4),
-                                    radius: 15,
-                                    x: 0, y: 8)
+                                .fill(FrameReplyColor.primaryContainer.opacity(0.42))
+                                .overlay {
+                                    Capsule(style: .continuous)
+                                        .stroke(Color.white.opacity(0.36), lineWidth: 0.5)
+                                }
+                                .matchedGeometryEffect(
+                                    id: "selected-tab",
+                                    in: selectionNamespace
+                                )
                         }
                     }
                 }
                 .buttonStyle(SoftPressButtonStyle())
+                .accessibilityLabel(Text(tab.title))
+                .accessibilityValue(isSelected ? Text("Current tab") : Text(""))
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
                 .accessibilityIdentifier("app-tab-\(tab.rawValue)")
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
         .frame(maxWidth: 560)
-        .frame(minHeight: 66)
-        .glassPanel(cornerRadius: 34)
+        .frame(minHeight: 64)
+        .contentShape(Capsule(style: .continuous))
+        .glassEffect(.regular, in: Capsule(style: .continuous))
     }
 }

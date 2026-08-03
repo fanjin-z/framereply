@@ -74,6 +74,7 @@ struct FrameReplyShellView: View {
                         )
                     }
                 }
+                .ignoresSafeArea(.container, edges: .bottom)
 
                 FloatingBottomNavigation(selectedTab: $selectedTab)
                     .padding(.horizontal, 22)

@@ -36,6 +36,40 @@ final class FrameReplyReleaseUITests: XCTestCase {
         )
     }
 
+    func testBottomNavigationExposesSelectedTabState() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let chats = app.buttons["app-tab-chats"]
+        let personas = app.buttons["app-tab-personas"]
+        let settings = app.buttons["app-tab-settings"]
+
+        XCTAssertTrue(chats.waitForExistence(timeout: 8))
+        XCTAssertTrue(personas.waitForExistence(timeout: 3))
+        XCTAssertTrue(settings.waitForExistence(timeout: 3))
+
+        chats.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["chats-screen"]
+                .waitForExistence(timeout: 3)
+        )
+        XCTAssertEqual(chats.value as? String, "Current tab")
+        XCTAssertNotEqual(personas.value as? String, "Current tab")
+        XCTAssertNotEqual(settings.value as? String, "Current tab")
+
+        personas.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["personas-screen"]
+                .waitForExistence(timeout: 3)
+        )
+        XCTAssertNotEqual(chats.value as? String, "Current tab")
+        XCTAssertEqual(personas.value as? String, "Current tab")
+
+        settings.tap()
+        XCTAssertNotEqual(personas.value as? String, "Current tab")
+        XCTAssertEqual(settings.value as? String, "Current tab")
+    }
+
     func testProviderConsentCanBeCancelledWithoutSaving() throws {
         let app = XCUIApplication()
         app.launchArguments += [
