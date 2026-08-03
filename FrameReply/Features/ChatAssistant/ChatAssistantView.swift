@@ -17,7 +17,6 @@ struct ChatAssistantView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
     @State private var isHistoryPresented = false
-    @State private var isReplyNotePresented = false
     @State private var isReplyBriefPresented = false
     @State private var isImportSourcePresented = false
     @State private var isReviewPresented = false
@@ -25,10 +24,8 @@ struct ChatAssistantView: View {
     @State private var actionErrorMessage: String?
     @State private var selectedScreenshotItems: [PhotosPickerItem] = []
     @State private var photoLoadErrorMessage: String?
-    @State private var importDraftingInput = ""
     @State private var importTask: Task<Void, Never>?
-    @State private var replyNote = ""
-    @State private var lastSubmittedReplyNote = ""
+    @State private var replyGuidance = ""
     @State private var goalDraft = ""
     @State private var didLoadContext = false
     @State private var needsReplyRefresh = false
@@ -256,19 +253,6 @@ struct ChatAssistantView: View {
                             }
                         )
 
-                        ConversationUpdateControls(
-                            isImporting: importModel.isLoading,
-                            hasReplyNote: !replyNote.trimmingCharacters(
-                                in: .whitespacesAndNewlines
-                            ).isEmpty,
-                            onAddMessagesTap: {
-                                isImportSourcePresented = true
-                            },
-                            onReplyNoteTap: {
-                                isReplyNotePresented = true
-                            }
-                        )
-
                         if importModel.isLoading {
                             ScreenshotImportStatusCard(
                                 symbolName: "sparkles",
@@ -331,6 +315,17 @@ struct ChatAssistantView: View {
                 onDetailsTap: onDetailsTap
             )
         }
+        .safeAreaBar(edge: .bottom, spacing: 0) {
+            ConversationUpdateComposer(
+                replyGuidance: $replyGuidance,
+                isImporting: importModel.isLoading,
+                isUpdatingReplies: suggestedRepliesModel.isLoading,
+                onAddMessagesTap: {
+                    isImportSourcePresented = true
+                },
+                onSubmitGuidance: submitReplyGuidance
+            )
+        }
         .overlay {
             if isReplyBriefPresented {
                 ReplyBriefDialog(
@@ -353,13 +348,10 @@ struct ChatAssistantView: View {
                 provisionalIdentity: provisionalIdentity
             )
         }
-        .sheet(isPresented: $isReplyNotePresented) {
-            AddReplyNoteSheet(note: $replyNote)
-        }
         .sheet(isPresented: $isImportSourcePresented) {
             ChatImportSourceSheet(
                 screenshotSelection: $selectedScreenshotItems,
-                draftingInput: $importDraftingInput,
+                draftingInput: $replyGuidance,
                 onPaste: { items in
                     importTask?.cancel()
                     importTask = Task {
@@ -410,11 +402,6 @@ struct ChatAssistantView: View {
             importTask?.cancel()
             importTask = Task {
                 await importSelectedScreenshots(items)
-            }
-        }
-        .onChange(of: isReplyNotePresented) { wasPresented, isPresented in
-            if wasPresented && !isPresented {
-                handleReplyNoteDismissal()
             }
         }
         .onChange(of: contextRevisionKey) { oldValue, newValue in
@@ -486,7 +473,7 @@ struct ChatAssistantView: View {
 
         do {
             let imageDataList = try await ChatScreenshotPhotoLoader.loadData(from: items)
-            let draftingInput = importDraftingInput
+            let draftingInput = replyGuidance
             if let result = await importModel.importScreenshots(
                 imageDataList,
                 draftingInput: draftingInput
@@ -494,7 +481,7 @@ struct ChatAssistantView: View {
                 suggestedRepliesModel.loadCached(localization: localizationContext)
                 needsReplyRefresh = false
                 if result.replies != nil {
-                    importDraftingInput = ""
+                    clearReplyGuidance(ifMatching: draftingInput)
                 }
                 recordMeaningfulReviewAction()
             }
@@ -508,7 +495,7 @@ struct ChatAssistantView: View {
         guard !items.isEmpty else { return }
         photoLoadErrorMessage = nil
 
-        let draftingInput = importDraftingInput
+        let draftingInput = replyGuidance
         if let result = await importModel.importCopiedMessages(
             items,
             draftingInput: draftingInput
@@ -516,7 +503,7 @@ struct ChatAssistantView: View {
             suggestedRepliesModel.loadCached(localization: localizationContext)
             needsReplyRefresh = false
             if result.replies != nil {
-                importDraftingInput = ""
+                clearReplyGuidance(ifMatching: draftingInput)
             }
             recordMeaningfulReviewAction()
         }
@@ -533,19 +520,45 @@ struct ChatAssistantView: View {
 
     private func generateReplies() {
         Task {
-            let draftingInput = replyNote.trimmingCharacters(in: .whitespacesAndNewlines)
             if await suggestedRepliesModel.generate(
-                draftingInput: draftingInput.isEmpty ? nil : draftingInput,
+                draftingInput: nil,
                 localization: localizationContext
             ) {
                 needsReplyRefresh = false
-                if !draftingInput.isEmpty {
-                    replyNote = ""
-                    lastSubmittedReplyNote = ""
-                }
                 recordMeaningfulReviewAction()
             }
         }
+    }
+
+    private func submitReplyGuidance() {
+        let submittedGuidance = replyGuidance.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !submittedGuidance.isEmpty,
+            !suggestedRepliesModel.isLoading,
+            !importModel.isLoading
+        else {
+            return
+        }
+
+        Task {
+            if await suggestedRepliesModel.generate(
+                draftingInput: submittedGuidance,
+                localization: localizationContext
+            ) {
+                needsReplyRefresh = false
+                clearReplyGuidance(ifMatching: submittedGuidance)
+                recordMeaningfulReviewAction()
+            }
+        }
+    }
+
+    private func clearReplyGuidance(ifMatching submittedGuidance: String) {
+        guard
+            replyGuidance.trimmingCharacters(in: .whitespacesAndNewlines)
+                == submittedGuidance.trimmingCharacters(in: .whitespacesAndNewlines)
+        else {
+            return
+        }
+        replyGuidance = ""
     }
 
     private func loadCachedReplies() {
@@ -646,27 +659,6 @@ struct ChatAssistantView: View {
             try repository.recordImportReviewMeaningfulAction(chatID: chat.id)
         } catch {
             actionErrorMessage = error.localizedDescription
-        }
-    }
-
-    private func handleReplyNoteDismissal() {
-        let trimmedNote = replyNote.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedNote.isEmpty, trimmedNote != lastSubmittedReplyNote else {
-            return
-        }
-        lastSubmittedReplyNote = trimmedNote
-        recordMeaningfulReviewAction()
-        guard !messageRecords.isEmpty else { return }
-        Task {
-            if await suggestedRepliesModel.generate(
-                draftingInput: trimmedNote,
-                localization: localizationContext
-            ) {
-                needsReplyRefresh = false
-                replyNote = ""
-                lastSubmittedReplyNote = ""
-                recordMeaningfulReviewAction()
-            }
         }
     }
 

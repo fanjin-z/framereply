@@ -30,9 +30,9 @@ nonisolated enum DraftingInputError: LocalizedError, Equatable, Sendable {
         switch self {
         case .tooLong(let maximum):
             if maximum == DraftingInputLimits.maximumCharacterCount {
-                String(localized: AppStrings.Shortcut.contextTooLong)
+                String(localized: AppStrings.Shortcut.replyGuidanceTooLong)
             } else {
-                "Keep context under \(maximum) characters."
+                "Keep reply guidance under \(maximum) characters."
             }
         }
     }

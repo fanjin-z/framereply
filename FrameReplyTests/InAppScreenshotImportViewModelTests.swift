@@ -87,7 +87,7 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
 
         XCTAssertNil(result)
         XCTAssertTrue(importer.receivedImageDataList.isEmpty)
-        XCTAssertEqual(viewModel.errorMessage, "Keep context under 500 characters.")
+        XCTAssertEqual(viewModel.errorMessage, "Keep reply guidance under 500 characters.")
         XCTAssertTrue(replies.requests.isEmpty)
     }
 

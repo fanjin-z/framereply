@@ -301,15 +301,15 @@ struct SuggestRepliesFromChatImagesIntent: ShortcutReplyConfirmingIntent {
     var chatImages: [IntentFile]
 
     @Parameter(
-        title: "Context or Draft",
-        description: "Optional one-use direction or rough draft.",
+        title: "Reply Guidance",
+        description: "One-use context, direction, tone, or a rough draft for the next replies.",
         inputOptions: String.IntentInputOptions(multiline: true)
     )
     var draftingInput: String?
 
     @Parameter(
-        title: "Ask for Context",
-        description: "Ask whether to add context when none is supplied.",
+        title: "Ask for Reply Guidance",
+        description: "Ask whether to add reply guidance when none is supplied.",
         default: true
     )
     var askForContext: Bool
@@ -331,15 +331,15 @@ struct SuggestRepliesFromChatImagesIntent: ShortcutReplyConfirmingIntent {
             if draftingInput != nil {
                 return suppliedInput
             } else if askForContext {
-                let add = IntentChoiceOption(title: AppStrings.Shortcut.addContextOrDraft)
+                let add = IntentChoiceOption(title: AppStrings.Shortcut.addReplyGuidance)
                 let skip = IntentChoiceOption(title: AppStrings.Shortcut.skip)
                 let choice = try await requestChoice(
                     between: [add, skip],
-                    dialog: IntentDialog(AppStrings.Shortcut.imagesContextChoice)
+                    dialog: IntentDialog(AppStrings.Shortcut.imagesReplyGuidanceChoice)
                 )
                 if choice == add {
                     let requested = try await $draftingInput.requestValue(
-                        IntentDialog(AppStrings.Shortcut.imagesContextPrompt)
+                        IntentDialog(AppStrings.Shortcut.imagesReplyGuidancePrompt)
                     )
                     return try DraftingInputLimits.validated(requested)
                 }
@@ -366,15 +366,15 @@ struct SuggestRepliesFromChatTextIntent: ShortcutReplyConfirmingIntent {
     var chatText: [String]
 
     @Parameter(
-        title: "Context or Draft",
-        description: "Optional one-use direction or rough draft.",
+        title: "Reply Guidance",
+        description: "One-use context, direction, tone, or a rough draft for the next replies.",
         inputOptions: String.IntentInputOptions(multiline: true)
     )
     var draftingInput: String?
 
     @Parameter(
-        title: "Ask for Context",
-        description: "Ask whether to add context when none is supplied.",
+        title: "Ask for Reply Guidance",
+        description: "Ask whether to add reply guidance when none is supplied.",
         default: true
     )
     var askForContext: Bool
@@ -396,15 +396,15 @@ struct SuggestRepliesFromChatTextIntent: ShortcutReplyConfirmingIntent {
             if draftingInput != nil {
                 return suppliedInput
             } else if askForContext {
-                let add = IntentChoiceOption(title: AppStrings.Shortcut.addContextOrDraft)
+                let add = IntentChoiceOption(title: AppStrings.Shortcut.addReplyGuidance)
                 let skip = IntentChoiceOption(title: AppStrings.Shortcut.skip)
                 let choice = try await requestChoice(
                     between: [add, skip],
-                    dialog: IntentDialog(AppStrings.Shortcut.textContextChoice)
+                    dialog: IntentDialog(AppStrings.Shortcut.textReplyGuidanceChoice)
                 )
                 if choice == add {
                     let requested = try await $draftingInput.requestValue(
-                        IntentDialog(AppStrings.Shortcut.textContextPrompt)
+                        IntentDialog(AppStrings.Shortcut.textReplyGuidancePrompt)
                     )
                     return try DraftingInputLimits.validated(requested)
                 }

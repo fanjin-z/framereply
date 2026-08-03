@@ -135,7 +135,7 @@ final class FrameReplyShowcaseScreenshotTests: XCTestCase {
 
     func test08ChatsRemainUsableAtAccessibilityTextSize() {
         let app = launchShowcase(
-            contentSizeCategory: "UICTContentSizeCategoryAccessibilityExtraExtraExtraLarge"
+            contentSizeCategory: "UICTContentSizeCategoryAccessibilityXXXL"
         )
 
         let maya = app.buttons["chat-card-showcase.maya"]
@@ -144,6 +144,79 @@ final class FrameReplyShowcaseScreenshotTests: XCTestCase {
         XCTAssertTrue(app.buttons["add-messages"].firstMatch.isHittable)
 
         capture("07-chats-accessibility")
+    }
+
+    func test09ReplyGuidanceComposerIsPersistentAndSharesImportInput() {
+        let app = launchShowcase()
+        openMaya(in: app)
+
+        let addMessages = app.buttons["assistant-add-messages"]
+        let guidance = element("reply-guidance-field", in: app)
+        let submit = app.buttons["submit-reply-guidance"]
+
+        XCTAssertTrue(addMessages.waitForExistence(timeout: 3))
+        XCTAssertTrue(addMessages.isHittable, addMessages.debugDescription)
+        XCTAssertTrue(guidance.isHittable)
+        XCTAssertFalse(submit.exists)
+        let singleLineHeight = guidance.frame.height
+        capture("08-reply-guidance")
+
+        func tapGuidanceSurface(horizontal: CGFloat, vertical: CGFloat) {
+            let addFrame = addMessages.frame
+            let fieldLeft = addFrame.maxX + 12
+            let fieldRight = app.frame.maxX - 24
+            let point = CGPoint(
+                x: fieldLeft + ((fieldRight - fieldLeft) * horizontal),
+                y: addFrame.minY + (44 * vertical)
+            )
+            app.coordinate(
+                withNormalizedOffset: CGVector(
+                    dx: point.x / app.frame.width,
+                    dy: point.y / app.frame.height
+                )
+            ).tap()
+        }
+
+        app.swipeUp()
+        XCTAssertTrue(addMessages.isHittable)
+        XCTAssertTrue(guidance.isHittable)
+
+        tapGuidanceSurface(horizontal: 0.03, vertical: 0.12)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+        guidance.typeText("Make it warmer\nKeep it concise")
+        XCTAssertGreaterThan(guidance.frame.height, singleLineHeight)
+        XCTAssertTrue(submit.waitForExistence(timeout: 3))
+        XCTAssertTrue(submit.isHittable)
+
+        submit.tap()
+        XCTAssertTrue(submit.waitForNonExistence(timeout: 3))
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+
+        tapGuidanceSurface(horizontal: 0.97, vertical: 0.88)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+        guidance.typeText("Use this import context")
+        XCTAssertTrue(submit.waitForExistence(timeout: 3))
+
+        addMessages.tap()
+        XCTAssertTrue(element("add-messages-screen", in: app).waitForExistence(timeout: 3))
+        let importedGuidance = element("import-reply-guidance", in: app)
+        XCTAssertTrue(importedGuidance.waitForExistence(timeout: 3))
+        XCTAssertEqual(importedGuidance.value as? String, "Use this import context")
+    }
+
+    func test10ReplyGuidanceComposerAdaptsAtAccessibilityTextSize() {
+        let app = launchShowcase(
+            contentSizeCategory: "UICTContentSizeCategoryAccessibilityXXXL"
+        )
+        openMaya(in: app)
+
+        let addMessages = app.buttons["assistant-add-messages"]
+        XCTAssertTrue(addMessages.waitForExistence(timeout: 3))
+        XCTAssertTrue(addMessages.isHittable, addMessages.debugDescription)
+        XCTAssertGreaterThan(addMessages.frame.width, 100)
+        XCTAssertTrue(element("reply-guidance-field", in: app).isHittable)
+
+        capture("09-reply-guidance-accessibility")
     }
 
     private func launchShowcase(

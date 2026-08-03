@@ -145,9 +145,6 @@
     "Add an observation" : {
 
     },
-    "Add context or a draft?" : {
-
-    },
     "Add messages" : {
 
     },
@@ -160,10 +157,10 @@
     "Add Provider" : {
 
     },
-    "Add Reply Note" : {
+    "Add reply guidance?" : {
 
     },
-    "Add what happened offline, what you want to accomplish, or anything the screenshot might miss..." : {
+    "Add reply guidance…" : {
 
     },
     "Advanced" : {
@@ -211,10 +208,10 @@
     "Are you %@?" : {
 
     },
-    "Ask for Context" : {
+    "Ask for Reply Guidance" : {
 
     },
-    "Ask whether to add context when none is supplied." : {
+    "Ask whether to add reply guidance when none is supplied." : {
 
     },
     "Auto-saved" : {
@@ -413,12 +410,6 @@
     "Connecting..." : {
 
     },
-    "Context or draft" : {
-
-    },
-    "Context or Draft" : {
-
-    },
     "Conversation Strategy" : {
 
     },
@@ -516,9 +507,6 @@
 
     },
     "Detailed" : {
-
-    },
-    "Direction, tone, or a rough draft…" : {
 
     },
     "Display name" : {
@@ -1056,7 +1044,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "The optional context for this analyzed chat is no longer available. Run an Analyze action again."
+            "value" : "The reply guidance for this analyzed chat is no longer available. Run an Analyze action again."
           }
         }
       }
@@ -1274,10 +1262,13 @@
     "Imported Message Count" : {
 
     },
+    "Importing messages" : {
+
+    },
     "Importing Messages" : {
 
     },
-    "Importing…" : {
+    "Importing messages…" : {
 
     },
     "Imports all compatible text items from the clipboard." : {
@@ -1289,13 +1280,13 @@
     "Imports chat text, suggests replies, and returns the one you choose." : {
 
     },
-    "Imports one to eight images from the same chat while you optionally add context or draft a reply. The images aren't saved." : {
+    "Imports one to eight images from the same chat while you optionally add reply guidance. The images aren't saved." : {
 
     },
     "Imports Reviewed" : {
 
     },
-    "Imports shared or copied chat text while you optionally add context or draft a reply. Imported messages are stored locally; the source transcript is not retained separately." : {
+    "Imports shared or copied chat text while you optionally add reply guidance. Imported messages are stored locally; the source transcript is not retained separately." : {
 
     },
     "Install" : {
@@ -1310,7 +1301,7 @@
     "Keep" : {
 
     },
-    "Keep context under 500 characters." : {
+    "Keep reply guidance under 500 characters." : {
 
     },
     "Learned from %lld messages." : {
@@ -1424,6 +1415,9 @@
     "One to eight images from the same chat." : {
 
     },
+    "One-use context, direction, tone, or a rough draft for the next replies." : {
+
+    },
     "Only share content you have permission to use." : {
 
     },
@@ -1448,19 +1442,13 @@
     "Opens full chat history" : {
 
     },
+    "Opens screenshot and pasted-text import options." : {
+
+    },
     "Opens the photo library to select up to eight chat screenshots." : {
 
     },
-    "Optional context or a rough reply used once for this generation." : {
-
-    },
-    "Optional one-use direction or rough draft." : {
-
-    },
     "Optional: paste 3–10 messages you wrote, one per line." : {
-
-    },
-    "Optionally add direction, tone, or a rough draft for these replies." : {
 
     },
     "Options for %@" : {
@@ -1892,17 +1880,6 @@
         }
       }
     },
-    "provider.destination.openai" : {
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "OpenAI in the United States or another region selected by OpenAI"
-          }
-        }
-      }
-    },
     "provider.destination.minimax-china" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {
@@ -1921,6 +1898,17 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "MiniMax International, operated outside mainland China"
+          }
+        }
+      }
+    },
+    "provider.destination.openai" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "OpenAI in the United States or another region selected by OpenAI"
           }
         }
       }
@@ -2043,10 +2031,10 @@
         }
       }
     },
-    "Reply Length" : {
+    "Reply Guidance" : {
 
     },
-    "Reply Note Added" : {
+    "Reply Length" : {
 
     },
     "Reply Number" : {
@@ -2350,6 +2338,12 @@
     "Update Replies" : {
 
     },
+    "Update replies with guidance" : {
+
+    },
+    "Updating replies with guidance" : {
+
+    },
     "Use %@" : {
 
     },
@@ -2365,7 +2359,7 @@
     "Used as your name before" : {
 
     },
-    "Used once for the next set of replies" : {
+    "Uses this guidance once to create a new set of replies." : {
 
     },
     "Very casual" : {
@@ -2395,7 +2389,7 @@
     "Warmth" : {
 
     },
-    "What do you want to say?" : {
+    "What should the next replies take into account?" : {
 
     },
     "Which name is yours?" : {

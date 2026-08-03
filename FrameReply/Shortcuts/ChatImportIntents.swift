@@ -280,7 +280,7 @@ struct AnalyzeChatImagesIntent: AppIntent {
     // Static App Intents metadata cannot be indirected through AppStrings.
     static let title: LocalizedStringResource = "Analyze Chat Images"
     static let description = IntentDescription(
-        "Imports one to eight images from the same chat while you optionally add context or draft a reply. The images aren't saved."
+        "Imports one to eight images from the same chat while you optionally add reply guidance. The images aren't saved."
     )
     static let openAppWhenRun = false
 
@@ -294,8 +294,8 @@ struct AnalyzeChatImagesIntent: AppIntent {
     var chatImages: [IntentFile]?
 
     @Parameter(
-        title: "Context or Draft",
-        description: "Optional context or a rough reply used once for this generation.",
+        title: "Reply Guidance",
+        description: "One-use context, direction, tone, or a rough draft for the next replies.",
         inputOptions: String.IntentInputOptions(multiline: true)
     )
     var draftingInput: String?
@@ -349,11 +349,11 @@ struct AnalyzeChatImagesIntent: AppIntent {
             } else if #available(iOS 26.0, *) {
                 lifecycleReporter.record(
                     .inputChoiceDisplayed, operationID: traceID.value, startedAt: startedAt)
-                let add = IntentChoiceOption(title: AppStrings.Shortcut.addContextOrDraft)
+                let add = IntentChoiceOption(title: AppStrings.Shortcut.addReplyGuidance)
                 let skip = IntentChoiceOption(title: AppStrings.Shortcut.skip)
                 let choice = try await requestChoice(
                     between: [add, skip],
-                    dialog: IntentDialog(AppStrings.Shortcut.imagesContextChoice)
+                    dialog: IntentDialog(AppStrings.Shortcut.imagesReplyGuidanceChoice)
                 )
                 if choice == skip {
                     input = nil
@@ -362,7 +362,7 @@ struct AnalyzeChatImagesIntent: AppIntent {
                         .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                     input = try DraftingInputLimits.validated(
                         try await $draftingInput.requestValue(
-                            IntentDialog(AppStrings.Shortcut.imagesContextPrompt)
+                            IntentDialog(AppStrings.Shortcut.imagesReplyGuidancePrompt)
                         )
                     )
                 }
@@ -371,7 +371,7 @@ struct AnalyzeChatImagesIntent: AppIntent {
                     .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                 input = try DraftingInputLimits.validated(
                     try await $draftingInput.requestValue(
-                        IntentDialog(AppStrings.Shortcut.imagesLegacyContextPrompt)
+                        IntentDialog(AppStrings.Shortcut.imagesLegacyReplyGuidancePrompt)
                     )
                 )
             }
@@ -406,7 +406,7 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
     // Static App Intents metadata cannot be indirected through AppStrings.
     static let title: LocalizedStringResource = "Analyze Chat Text"
     static let description = IntentDescription(
-        "Imports shared or copied chat text while you optionally add context or draft a reply. Imported messages are stored locally; the source transcript is not retained separately."
+        "Imports shared or copied chat text while you optionally add reply guidance. Imported messages are stored locally; the source transcript is not retained separately."
     )
     static let openAppWhenRun = false
 
@@ -418,8 +418,8 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
     var copiedMessages: [String]?
 
     @Parameter(
-        title: "Context or Draft",
-        description: "Optional context or a rough reply used once for this generation.",
+        title: "Reply Guidance",
+        description: "One-use context, direction, tone, or a rough draft for the next replies.",
         inputOptions: String.IntentInputOptions(multiline: true)
     )
     var draftingInput: String?
@@ -471,11 +471,11 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
             } else if #available(iOS 26.0, *) {
                 lifecycleReporter.record(
                     .inputChoiceDisplayed, operationID: traceID.value, startedAt: startedAt)
-                let add = IntentChoiceOption(title: AppStrings.Shortcut.addContextOrDraft)
+                let add = IntentChoiceOption(title: AppStrings.Shortcut.addReplyGuidance)
                 let skip = IntentChoiceOption(title: AppStrings.Shortcut.skip)
                 let choice = try await requestChoice(
                     between: [add, skip],
-                    dialog: IntentDialog(AppStrings.Shortcut.textContextChoice)
+                    dialog: IntentDialog(AppStrings.Shortcut.textReplyGuidanceChoice)
                 )
                 if choice == skip {
                     input = nil
@@ -484,7 +484,7 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
                         .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                     input = try DraftingInputLimits.validated(
                         try await $draftingInput.requestValue(
-                            IntentDialog(AppStrings.Shortcut.textContextPrompt)
+                            IntentDialog(AppStrings.Shortcut.textReplyGuidancePrompt)
                         )
                     )
                 }
@@ -493,7 +493,7 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
                     .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                 input = try DraftingInputLimits.validated(
                     try await $draftingInput.requestValue(
-                        IntentDialog(AppStrings.Shortcut.textLegacyContextPrompt)
+                        IntentDialog(AppStrings.Shortcut.textLegacyReplyGuidancePrompt)
                     )
                 )
             }

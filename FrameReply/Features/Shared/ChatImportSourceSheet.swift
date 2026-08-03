@@ -93,7 +93,7 @@ struct ChatImportSourceSheet: View {
     private var draftingInputEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Context or draft")
+                Text("Reply Guidance")
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurface)
 
@@ -115,7 +115,7 @@ struct ChatImportSourceSheet: View {
 
             ZStack(alignment: .topLeading) {
                 if draftingInput.isEmpty {
-                    Text("Direction, tone, or a rough draft…")
+                    Text("Add reply guidance…")
                         .font(.system(size: 15, design: .rounded))
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant.opacity(0.72))
                         .padding(.horizontal, 5)
@@ -128,11 +128,11 @@ struct ChatImportSourceSheet: View {
                     .foregroundStyle(FrameReplyColor.onSurface)
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 84, maxHeight: 112)
-                    .accessibilityLabel("Context or draft")
+                    .accessibilityLabel("Reply Guidance")
                     .accessibilityHint(
-                        "Optionally add direction, tone, or a rough draft for these replies."
+                        "One-use context, direction, tone, or a rough draft for the next replies."
                     )
-                    .accessibilityIdentifier("import-context-or-draft")
+                    .accessibilityIdentifier("import-reply-guidance")
             }
             .padding(10)
             .background {
