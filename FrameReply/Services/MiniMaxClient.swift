@@ -88,7 +88,7 @@ struct MiniMaxClient: AIProviderAdapter {
         model: ProviderModel
     ) async throws -> ChatImportAnalysis {
         try requireSupported(model)
-        let contract = ChatScreenshotPrompt.contract(for: analysisRequest)
+        let contract = ChatImportPrompt.contract(for: analysisRequest)
         let images = try analysisRequest.imageDataList.map(ScreenshotImagePayload.init(data:))
         let candidateIDs = Set(analysisRequest.candidates.map(\.id))
         let maxTokens = 4_000
@@ -97,11 +97,11 @@ struct MiniMaxClient: AIProviderAdapter {
                 "type": "image_url",
                 "image_url": ["url": image.dataURL, "detail": "high"]
             ]
-        } + [["type": "text", "text": ChatScreenshotPrompt.input(for: analysisRequest)]]
+        } + [["type": "text", "text": ChatImportPrompt.input(for: analysisRequest)]]
         let userMessageContent: Any =
             analysisRequest.sharedTranscript == nil
             ? userContent
-            : ChatScreenshotPrompt.input(for: analysisRequest)
+            : ChatImportPrompt.input(for: analysisRequest)
         let attempt = 1
 
         eventReporter.record(.providerAttempt(

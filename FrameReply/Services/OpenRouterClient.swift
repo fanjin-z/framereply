@@ -76,7 +76,7 @@ struct OpenRouterClient: AIProviderAdapter {
         model: ProviderModel
     ) async throws -> ChatImportAnalysis {
         try requireSupported(model)
-        let contract = ChatScreenshotPrompt.contract(for: analysisRequest)
+        let contract = ChatImportPrompt.contract(for: analysisRequest)
         let images = try analysisRequest.imageDataList.map(ScreenshotImagePayload.init(data:))
         let maxTokens = 4_000
         let attempt = 1
@@ -85,7 +85,7 @@ struct OpenRouterClient: AIProviderAdapter {
             images.map { image in
                 ["type": "image_url", "image_url": ["url": image.dataURL]]
             } + [
-                ["type": "text", "text": ChatScreenshotPrompt.input(for: analysisRequest)]
+                ["type": "text", "text": ChatImportPrompt.input(for: analysisRequest)]
             ]
         eventReporter.record(
             .providerAttempt(

@@ -10,11 +10,12 @@ final class ProviderAnalysisTests: XCTestCase {
     }
 
     func testFiveContractsHaveExactClosedRootKeys() throws {
-        XCTAssertEqual(ChatScreenshotPrompt.version, 1)
+        XCTAssertEqual(ChatImportPrompt.screenshotImportVersion, 1)
+        XCTAssertEqual(ChatImportPrompt.textImportVersion, 1)
         XCTAssertEqual(SuggestedReplyPrompt.version, 5)
 
-        let screenshot = ChatScreenshotPrompt.contract(for: makeRequest())
-        let shared = ChatScreenshotPrompt.contract(
+        let screenshot = ChatImportPrompt.contract(for: makeRequest())
+        let shared = ChatImportPrompt.contract(
             for: ChatImportAnalysisRequest(transcriptItems: ["Alice: Hi"], candidates: []))
         let standard = SuggestedReplyPrompt.contract(for: .standard, appLanguage: "en")
         let drafting = SuggestedReplyPrompt.contract(for: .drafting, appLanguage: "en")
@@ -26,13 +27,13 @@ final class ProviderAnalysisTests: XCTestCase {
             keys: [
                 "extractionStatus", "conversationTitle", "conversationKind", "titleSource",
                 "ownershipConvention", "messages", "matchedChatID", "matchConfidence"
-            ], version: ChatScreenshotPrompt.version)
+            ], version: ChatImportPrompt.screenshotImportVersion)
         try assertContract(
             shared,
             keys: [
                 "extractionStatus", "conversationTitle", "conversationKind", "titleSource",
                 "messages", "matchedChatID", "matchConfidence"
-            ], version: ChatScreenshotPrompt.version)
+            ], version: ChatImportPrompt.textImportVersion)
         try assertContract(
             standard,
             keys: [

@@ -75,7 +75,7 @@ struct OpenAIClient: AIProviderAdapter {
         guard Self.supportedModels.contains(model) else {
             throw ProviderConnectionError.unsupportedProvider
         }
-        let contract = ChatScreenshotPrompt.contract(for: analysisRequest)
+        let contract = ChatImportPrompt.contract(for: analysisRequest)
         let images = try analysisRequest.imageDataList.map(ScreenshotImagePayload.init(data:))
         let provider = "openai"
         eventReporter.record(
@@ -101,7 +101,7 @@ struct OpenAIClient: AIProviderAdapter {
             } + [
                 [
                     "type": "input_text",
-                    "text": ChatScreenshotPrompt.input(for: analysisRequest)
+                    "text": ChatImportPrompt.input(for: analysisRequest)
                 ]
             ]
         request.httpBody = try JSONSerialization.data(
