@@ -237,20 +237,82 @@ private nonisolated enum EndToEndShortcutSupport {
     }
 }
 
+nonisolated struct ShortcutImportReviewPresentation: Equatable, Sendable {
+    let chatID: String
+    let chatTitle: String
+    let statusMessage: String
+    let importedMessageCount: Int
+    let duplicate: Bool
+
+    init?(response: ShortcutResponsePresentation) {
+        guard response.payload.replyStatus == .failed,
+            response.payload.replyErrorCode == SuggestedRepliesError.senderReviewRequired.code,
+            let chatID = response.payload.chatID?.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            ),
+            !chatID.isEmpty
+        else {
+            return nil
+        }
+
+        self.chatID = chatID
+        chatTitle =
+            response.payload.chatTitle
+            ?? String(localized: AppStrings.Chat.importedFallback)
+        statusMessage = response.payload.message
+        importedMessageCount = response.payload.insertedMessageCount ?? 0
+        duplicate = response.payload.duplicate ?? false
+    }
+}
+
+nonisolated enum ShortcutReplyConfirmationState: Equatable, Sendable {
+    case replyChoices([String])
+    case waitRecommendation(String)
+    case senderReviewRequired(ShortcutImportReviewPresentation)
+    case unavailable
+
+    init(response: ShortcutResponsePresentation) {
+        let replies = ShortcutReplyChoiceBuilder.values(from: response)
+        if !replies.isEmpty {
+            self = .replyChoices(replies)
+        } else if let presentation = ShortcutImportReviewPresentation(response: response) {
+            self = .senderReviewRequired(presentation)
+        } else if response.payload.replyStatus != .failed,
+            response.payload.suggestedReplies?.isEmpty == true
+        {
+            self = .waitRecommendation(response.dialog)
+        } else {
+            self = .unavailable
+        }
+    }
+}
+
+nonisolated enum ShortcutReplyConfirmationOutcome: Equatable, Sendable {
+    case value(String)
+    case senderReviewRequired(
+        value: String,
+        presentation: ShortcutImportReviewPresentation
+    )
+}
+
 private protocol ShortcutReplyConfirmingIntent: AppIntent {}
 
 extension ShortcutReplyConfirmingIntent {
     func confirmReply(
         from response: ShortcutResponsePresentation
-    ) async throws -> String {
-        let replies = ShortcutReplyChoiceBuilder.values(from: response)
-        if replies.isEmpty,
-            response.payload.replyStatus != .failed,
-            response.payload.suggestedReplies?.isEmpty == true
-        {
-            return response.dialog
-        }
-        guard !replies.isEmpty else {
+    ) async throws -> ShortcutReplyConfirmationOutcome {
+        let replies: [String]
+        switch ShortcutReplyConfirmationState(response: response) {
+        case .replyChoices(let values):
+            replies = values
+        case .waitRecommendation(let recommendation):
+            return .value(recommendation)
+        case .senderReviewRequired(let presentation):
+            return .senderReviewRequired(
+                value: response.dialog,
+                presentation: presentation
+            )
+        case .unavailable:
             throw ShortcutExecutionError(
                 message: String(
                     localized: "Replies are unavailable. Open FrameReply to try again."
@@ -288,7 +350,7 @@ extension ShortcutReplyConfirmingIntent {
                 snippetIntent: snippetIntent
             )
             ShortcutReplySelectionStore.shared.end(sessionID: sessionID)
-            return reply
+            return .value(reply)
         } catch {
             ShortcutReplySelectionStore.shared.end(sessionID: sessionID)
             throw error
@@ -332,7 +394,9 @@ struct SuggestRepliesFromChatImagesIntent: ShortcutReplyConfirmingIntent {
         }
     }
 
-    func perform() async throws -> some IntentResult & ReturnsValue<String> {
+    func perform() async throws
+        -> some IntentResult & ReturnsValue<String> & ShowsSnippetIntent
+    {
         let traceID = ImportTraceID()
         let response = try await EndToEndShortcutSupport.runImages(
             chatImages,
@@ -358,7 +422,17 @@ struct SuggestRepliesFromChatImagesIntent: ShortcutReplyConfirmingIntent {
             }
             return nil
         }
-        return .result(value: try await confirmReply(from: response))
+        switch try await confirmReply(from: response) {
+        case .value(let value):
+            return .result(value: value, snippetIntent: EmptySnippetIntent())
+        case .senderReviewRequired(let value, let presentation):
+            return .result(
+                value: value,
+                snippetIntent: ShortcutImportReviewSnippetIntent(
+                    presentation: presentation
+                )
+            )
+        }
     }
 }
 
@@ -399,7 +473,9 @@ struct SuggestRepliesFromChatTextIntent:
         }
     }
 
-    func perform() async throws -> some IntentResult & ReturnsValue<String> {
+    func perform() async throws
+        -> some IntentResult & ReturnsValue<String> & ShowsSnippetIntent
+    {
         let traceID = ImportTraceID()
         let response = try await EndToEndShortcutSupport.runText(
             chatText,
@@ -429,7 +505,17 @@ struct SuggestRepliesFromChatTextIntent:
                 return nil
             }
         )
-        return .result(value: try await confirmReply(from: response))
+        switch try await confirmReply(from: response) {
+        case .value(let value):
+            return .result(value: value, snippetIntent: EmptySnippetIntent())
+        case .senderReviewRequired(let value, let presentation):
+            return .result(
+                value: value,
+                snippetIntent: ShortcutImportReviewSnippetIntent(
+                    presentation: presentation
+                )
+            )
+        }
     }
 }
 
@@ -531,6 +617,156 @@ struct OpenShortcutImportIntent: AppIntent {
             reviewRequired: reviewRequired
         )
         return .result()
+    }
+}
+
+struct ShortcutImportReviewSnippetIntent: SnippetIntent {
+    static let title: LocalizedStringResource = "Sender Check Needed"
+    static let isDiscoverable = false
+
+    @Parameter(title: "Chat ID")
+    var chatID: String
+
+    @Parameter(title: "Chat Title")
+    var chatTitle: String
+
+    @Parameter(title: "Import Status")
+    var statusMessage: String
+
+    @Parameter(title: "Imported Message Count")
+    var importedMessageCount: Int
+
+    @Parameter(title: "Duplicate Import")
+    var duplicate: Bool
+
+    init() {}
+
+    init(presentation: ShortcutImportReviewPresentation) {
+        chatID = presentation.chatID
+        chatTitle = presentation.chatTitle
+        statusMessage = presentation.statusMessage
+        importedMessageCount = presentation.importedMessageCount
+        duplicate = presentation.duplicate
+    }
+
+    @MainActor
+    func perform() async throws
+        -> some IntentResult & ReturnsValue<Bool> & ShowsSnippetView
+    {
+        return .result(
+            value: true,
+            view: ShortcutImportReviewSnippet(
+                chatID: chatID,
+                chatTitle: chatTitle,
+                statusMessage: statusMessage,
+                importedMessageCount: importedMessageCount,
+                duplicate: duplicate
+            )
+        )
+    }
+}
+
+struct ShortcutImportReviewSnippet: View {
+    let chatID: String
+    let chatTitle: String
+    let statusMessage: String
+    let importedMessageCount: Int
+    let duplicate: Bool
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var headerText: String {
+        String(localized: "Sender check needed")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: contentSpacing) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "exclamationmark.bubble")
+                    .font(
+                        .system(
+                            size: dynamicTypeSize.isAccessibilitySize ? 16 : 18,
+                            weight: .semibold
+                        )
+                    )
+                    .frame(
+                        width: dynamicTypeSize.isAccessibilitySize ? 36 : 44,
+                        height: dynamicTypeSize.isAccessibilitySize ? 36 : 44
+                    )
+                    .foregroundStyle(.white)
+                    .background(.white.opacity(0.14), in: Circle())
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(headerText)
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+
+                    Text(verbatim: statusMessage)
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.72))
+                        .lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Button(
+                intent: OpenShortcutImportIntent(
+                    chatID: chatID,
+                    reviewRequired: true
+                )
+            ) {
+                HStack(spacing: 10) {
+                    Label("Review Senders", systemImage: "person.crop.circle.badge.questionmark")
+                        .font(
+                            dynamicTypeSize.isAccessibilitySize
+                                ? .callout.weight(.semibold) : .body.weight(.semibold)
+                        )
+                        .lineLimit(1)
+
+                    Spacer(minLength: 8)
+
+                    Image(systemName: "arrow.up.forward.app")
+                        .accessibilityHidden(true)
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, dynamicTypeSize >= .xxLarge ? 8 : 12)
+                .background(.white.opacity(0.14), in: RoundedRectangle(cornerRadius: 14))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(.white.opacity(0.20), lineWidth: 1)
+                }
+            }
+            .buttonStyle(.plain)
+            .tint(.white)
+            .accessibilityLabel(Text("Review Senders"))
+            .accessibilityHint(Text("Opens FrameReply"))
+        }
+        .padding(dynamicTypeSize.isAccessibilitySize ? 6 : (dynamicTypeSize >= .xxLarge ? 8 : 12))
+        .foregroundStyle(.white)
+        .background {
+            ContainerRelativeShape()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            FrameReplyColor.deepNavy,
+                            FrameReplyColor.primary
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
+        .containerShape(ContainerRelativeShape())
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text("Sender check needed for \(chatTitle)"))
+    }
+
+    private var contentSpacing: CGFloat {
+        dynamicTypeSize.isAccessibilitySize ? 6 : (dynamicTypeSize >= .xxLarge ? 8 : 12)
     }
 }
 

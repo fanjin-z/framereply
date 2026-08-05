@@ -225,7 +225,9 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
         Summary("Generate replies for \(\.$analyzedChat)")
     }
 
-    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
+    func perform() async throws
+        -> some IntentResult & ReturnsValue<String> & ProvidesDialog & ShowsSnippetIntent
+    {
         // Shortcut execution may use a presentation locale different from the open app.
         let localization = LocalizationContext(locale: .current)
         let fallbackTraceID = ImportTraceID()
@@ -235,7 +237,11 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                 errorCode: "no_prepared_chat",
                 traceID: fallbackTraceID
             )
-            return .result(value: response.json, dialog: "\(response.dialog)")
+            return .result(
+                value: response.json,
+                dialog: "\(response.dialog)",
+                snippetIntent: EmptySnippetIntent()
+            )
         }
 
         let eventReporter = OSLogImportEventReporter()
@@ -301,7 +307,11 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                     errorCode: "operation_mismatch",
                     traceID: traceID
                 )
-                return .result(value: response.json, dialog: "\(response.dialog)")
+                return .result(
+                    value: response.json,
+                    dialog: "\(response.dialog)",
+                    snippetIntent: EmptySnippetIntent()
+                )
             case .missing:
                 let response = ShortcutResponseBuilder.failure(
                     message: String(
@@ -309,21 +319,33 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                     errorCode: "import_not_found",
                     traceID: traceID
                 )
-                return .result(value: response.json, dialog: "\(response.dialog)")
+                return .result(
+                    value: response.json,
+                    dialog: "\(response.dialog)",
+                    snippetIntent: EmptySnippetIntent()
+                )
             case .expired, .alreadyConsumed:
                 let response = ShortcutResponseBuilder.failure(
                     message: String(localized: AppStrings.Errors.Shortcut.contextUnavailable),
                     errorCode: "input_handoff_unavailable",
                     traceID: traceID
                 )
-                return .result(value: response.json, dialog: "\(response.dialog)")
+                return .result(
+                    value: response.json,
+                    dialog: "\(response.dialog)",
+                    snippetIntent: EmptySnippetIntent()
+                )
             case .pending:
                 let response = ShortcutResponseBuilder.failure(
                     message: String(localized: AppStrings.Errors.Shortcut.notReady),
                     errorCode: "import_pending",
                     traceID: traceID
                 )
-                return .result(value: response.json, dialog: "\(response.dialog)")
+                return .result(
+                    value: response.json,
+                    dialog: "\(response.dialog)",
+                    snippetIntent: EmptySnippetIntent()
+                )
             }
             let replyCoordinator = await MainActor.run {
                 AppIntentDependencies.suggestedRepliesCoordinator()
@@ -339,7 +361,11 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                 repliesOutcome: replies,
                 localization: localization
             )
-            return .result(value: response.json, dialog: "\(response.dialog)")
+            return .result(
+                value: response.json,
+                dialog: "\(response.dialog)",
+                snippetIntent: EmptySnippetIntent()
+            )
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as SuggestedRepliesError {
@@ -350,7 +376,22 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                 replyErrorCode: error.code,
                 localization: localization
             )
-            return .result(value: response.json, dialog: "\(response.dialog)")
+            if case .senderReviewRequired = error,
+                let presentation = ShortcutImportReviewPresentation(response: response)
+            {
+                return .result(
+                    value: response.json,
+                    dialog: "\(response.dialog)",
+                    snippetIntent: ShortcutImportReviewSnippetIntent(
+                        presentation: presentation
+                    )
+                )
+            }
+            return .result(
+                value: response.json,
+                dialog: "\(response.dialog)",
+                snippetIntent: EmptySnippetIntent()
+            )
         } catch let error as ProviderConnectionError {
             eventReporter.record(
                 .importFailed(
@@ -360,7 +401,11 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                 replyErrorCode: error.shortcutErrorCode,
                 localization: localization
             )
-            return .result(value: response.json, dialog: "\(response.dialog)")
+            return .result(
+                value: response.json,
+                dialog: "\(response.dialog)",
+                snippetIntent: EmptySnippetIntent()
+            )
         } catch {
             eventReporter.record(
                 .importFailed(
@@ -371,7 +416,11 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                 replyErrorCode: "reply_generation_failed",
                 localization: localization
             )
-            return .result(value: response.json, dialog: "\(response.dialog)")
+            return .result(
+                value: response.json,
+                dialog: "\(response.dialog)",
+                snippetIntent: EmptySnippetIntent()
+            )
         }
     }
 }

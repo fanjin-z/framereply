@@ -1265,6 +1265,9 @@
     "Imported Message Count" : {
 
     },
+    "Import Status" : {
+
+    },
     "Importing messages" : {
 
     },
@@ -1446,6 +1449,9 @@
 
     },
     "Opens full chat history" : {
+
+    },
+    "Opens FrameReply" : {
 
     },
     "Opens screenshot and pasted-text import options." : {
@@ -2070,6 +2076,9 @@
     "Review Required" : {
 
     },
+    "Review Senders" : {
+
+    },
     "Save" : {
 
     },
@@ -2107,6 +2116,15 @@
 
     },
     "Sender unknown" : {
+
+    },
+    "Sender Check Needed" : {
+
+    },
+    "Sender check needed" : {
+
+    },
+    "Sender check needed for %@" : {
 
     },
     "Set as Default" : {
