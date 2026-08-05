@@ -402,17 +402,17 @@ struct AnalyzeChatImagesIntent: AppIntent {
     }
 }
 
-struct AnalyzeCopiedMessagesIntent: AppIntent {
+struct AnalyzeCopiedMessagesIntent: TextImportMetadataPromptingIntent {
     // Static App Intents metadata cannot be indirected through AppStrings.
     static let title: LocalizedStringResource = "Analyze Chat Text"
     static let description = IntentDescription(
-        "Imports shared or copied chat text while you optionally add reply guidance. Imported messages are stored locally; the source transcript is not retained separately."
+        "Imports shared or copied chat text with sender labels while you optionally add reply guidance. Imported messages are stored locally; the source transcript is not retained separately."
     )
     static let openAppWhenRun = false
 
     @Parameter(
         title: "Chat Text",
-        description: "Pass shared plain text, Get Clipboard output, or text from another action.",
+        description: "Pass shared or copied chat text with sender labels.",
         inputConnectionBehavior: .connectToPreviousIntentResult
     )
     var copiedMessages: [String]?
@@ -455,15 +455,22 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
             let suppliedInput = try DraftingInputLimits.validated(draftingInput)
             lifecycleReporter.record(
                 .analysisStarted, operationID: traceID.value, startedAt: startedAt)
-            async let pendingImport: PreparedScreenshotImport = {
-                let prepared = try await coordinator.prepare(
-                    transcriptItems: transcriptItems,
-                    traceID: traceID
+            let prepared = try await coordinator.prepare(
+                transcriptItems: transcriptItems,
+                traceID: traceID
+            )
+            lifecycleReporter.record(
+                .analysisCompleted, operationID: traceID.value, startedAt: startedAt)
+            guard TextImportReadiness(analysis: prepared.analysis) == .ready else {
+                eventReporter.record(
+                    .importFailed(
+                        traceID: traceID,
+                        stage: .shortcut,
+                        errorCode: "missing_sender_metadata"
+                    )
                 )
-                lifecycleReporter.record(
-                    .analysisCompleted, operationID: traceID.value, startedAt: startedAt)
-                return prepared
-            }()
+                try await stopForMissingSenderMetadata()
+            }
 
             let input: String?
             if draftingInput != nil {
@@ -498,7 +505,7 @@ struct AnalyzeCopiedMessagesIntent: AppIntent {
                 )
             }
 
-            let outcome = try await coordinator.commit(try await pendingImport)
+            let outcome = try coordinator.commit(prepared)
             let entity = try await ChatImportIntentSupport.finalize(
                 outcome: outcome,
                 input: input,

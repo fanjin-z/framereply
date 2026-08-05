@@ -588,6 +588,9 @@ nonisolated enum AppStrings {
             "What should the next replies take into account?"
         static let textLegacyReplyGuidancePrompt: LocalizedStringResource =
             "What should the next replies take into account?"
+        static let missingSenderMetadataDialog: LocalizedStringResource =
+            "Not imported: sender labels weren’t shared. Use Share → Copy, then run FrameReply Text, or import screenshots with FrameReply Images."
+        static let close: LocalizedStringResource = "Close"
         static let textInputSynchronizationError: LocalizedStringResource =
             "The optional input could not be synchronized with this chat import."
         static let textPersistenceError: LocalizedStringResource =

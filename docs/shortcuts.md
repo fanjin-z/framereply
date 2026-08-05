@@ -7,7 +7,7 @@ FrameReply publishes two personal shortcuts from a team-controlled Apple account
 FrameReply accepts conversation context through its in-app **Add Messages** flow and through the two Shortcuts documented below.
 
 - Image import accepts 1–8 still PNG, JPEG, or HEIC images from one chat. Images are normalized to a maximum 3,072-pixel edge, stripped of metadata, and bounded to 5 MB each and 20 MB for the request.
-- Text import accepts at most 8,000 characters across 40 text items and approximately 25 messages.
+- Text import accepts at most 8,000 characters across 40 text items and approximately 25 messages. Every message must include an author label or a resolved sender role; timestamps are optional.
 - Context or draft accepts at most 500 user-perceived characters. Empty or whitespace-only input is treated as Skip.
 - **FrameReply Images** accepts shared images or captures the current screen when run without input.
 - **FrameReply Text** accepts shared plain text or reads the clipboard when run directly.
@@ -24,9 +24,10 @@ sequenceDiagram
     participant Provider as AI Provider
 
     Shortcut->>Action: Images or copied text
-    par Analyze conversation
-        Action->>Provider: Analyze conversation
-    and Collect optional input
+    Action->>Provider: Analyze conversation
+    alt Text input is missing sender labels
+        Action-->>Shortcut: Not imported · Use Copy or Images
+    else Import is ready
         Action-->>Shortcut: Add context or a draft?
         Shortcut-->>Action: Add or Skip
     end
@@ -38,7 +39,7 @@ sequenceDiagram
     Shortcut-->>Shortcut: Copy reply to Clipboard
 ```
 
-The new actions pass context directly to reply generation. Context never becomes chat history, memory, or persona learning. Analysis begins before the context choice is complete, but persistence waits for that choice. Canceling before persistence saves nothing.
+The new actions pass context directly to reply generation. Context never becomes chat history, memory, or persona learning. Image analysis begins before the context choice is complete. Text analysis first verifies that every message has sender metadata, then offers the context choice. Canceling before persistence saves nothing.
 
 Import and reply generation are separate outcomes. A saved import remains successful when reply generation is unavailable or fails.
 
@@ -94,13 +95,13 @@ Suggest Replies from Chat Text using Shortcut Input
 Copy Suggested Reply to Clipboard
 ```
 
-Test both shared plain text and a normal run that reads previously copied message text. After confirming a reply, paste it into the original messaging app and confirm FrameReply was not opened.
+Test both directly shared text and a normal run that reads previously copied message text. Every message must retain an author label; timestamps are optional. After confirming a reply, paste it into the original messaging app and confirm FrameReply was not opened.
 
-For WhatsApp, use **Select messages → Share → Copy**, close the Share Sheet, and then run **FrameReply Text**. Do not select FrameReply directly from WhatsApp’s Share Sheet unless physical-device testing confirms WhatsApp supplies the selected text instead of leaving the shortcut to read the clipboard.
+Direct sharing remains supported when the messaging app includes sender labels. If FrameReply reports that sender labels were not shared, choose **Share → Copy**, close the Share Sheet, and then run **FrameReply Text**. If copied text also omits labels, use **FrameReply Images**. WhatsApp currently requires the Copy workflow; Telegram direct sharing must be verified after app updates.
 
 ## Optional Context or Draft
 
-Both Suggest Replies actions default **Ask for Context** to on. When no value is supplied, they offer **Add** and **Skip** while analysis runs. Choosing Add opens a multiline prompt reading **What do you want to say?** Submitting blank text is treated as Skip; cancelling before persistence stops the shortcut without saving an import.
+Both Suggest Replies actions default **Ask for Context** to on. When no value is supplied, they offer **Add** and **Skip**. For text input, this happens only after sender metadata validation. Choosing Add opens a multiline prompt reading **What do you want to say?** Submitting blank text is treated as Skip; cancelling before persistence stops the shortcut without saving an import.
 
 Chat import remains successful if suggested replies are temporarily unavailable.
 
@@ -114,8 +115,8 @@ Automation builders can turn **Ask for Context** off or connect a fixed or varia
 4. Confirm normal reply selection never opens FrameReply and never shows a result snippet with a Done button.
 5. Confirm the header action opens the correct imported chat and uses Review Import routing when required.
 6. Confirm an unavailable reply result stops before **Copy to Clipboard** instead of clearing or replacing the clipboard.
-7. Confirm the text shortcut accepts Text only, imports shared plain text, and reads the clipboard on a normal launch.
-8. Verify WhatsApp's Copy then run workflow. Inspect its direct Share Sheet payload before documenting direct support.
+7. Confirm the text shortcut accepts Text only, imports labeled shared or copied text, and reads the clipboard on a normal launch.
+8. Confirm metadata-poor text shows the compact cancellation prompt, saves nothing, and stops before **Copy to Clipboard**. Verify WhatsApp's Copy then run workflow and Telegram direct sharing on a physical device.
 9. For each shortcut, open **Share**, tap **Copy iCloud Link**, then tap **Copy Link**. Confirm the URL has the form `https://www.icloud.com/shortcuts/<identifier>`.
 10. Install each link on a device where that shortcut is not already installed and run it end to end.
 11. Add only the two verified URLs to `ShortcutInstallationCatalog`: `images` for **FrameReply Images** and `text` for **FrameReply Text**.
@@ -152,8 +153,9 @@ If the Back Tap banner covers the conversation title before a screenshot is take
 - **Shared images trigger a screenshot:** confirm the true branch stores `Shortcut Input` in `Chat Images` and that the variable feeds the Suggest Replies action.
 - **Text shortcut does not appear when sharing:** confirm **Show in Share Sheet** is enabled, the accepted input type is **Text**, and the source app actually supplies plain text.
 - **A normal text-shortcut run has no input:** copy usable message text first and confirm the no-input behavior is **Get Clipboard**.
+- **Text was not imported because sender labels were not shared:** use **Share → Copy**, then run **FrameReply Text**. If the copied text still has no sender labels, use **FrameReply Images**.
 - **The shortcut shows a branded result with a Done button or copies JSON:** rebuild FrameReply and remove then re-add the Suggest Replies action so Shortcuts refreshes its App Intent metadata. The current action shows **Use Reply** and returns one reply string.
 - **The selected card changes but nothing is copied:** tap **Use Reply**, then confirm native **Copy to Clipboard** immediately follows the Suggest Replies action and uses its output.
 - **Selecting Review opens FrameReply:** this is intentional. Use the reply cards and **Use Reply** to stay in the current app.
-- **WhatsApp shows FrameReply but imports old clipboard text:** use **Share → Copy**, close the Share Sheet, then run **FrameReply Text**; do not use the visible shortcut unless direct input has been verified on that device.
+- **WhatsApp direct sharing is rejected:** use **Share → Copy**, close the Share Sheet, then run **FrameReply Text**.
 - **Installer unavailable in a development build:** publish the shortcuts and configure their canonical URLs. Missing URLs do not block app startup.

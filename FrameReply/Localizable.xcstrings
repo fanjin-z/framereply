@@ -1280,7 +1280,7 @@
     "Imports chat images, suggests replies, and returns the one you choose." : {
 
     },
-    "Imports chat text, suggests replies, and returns the one you choose." : {
+    "Imports chat text with sender labels, suggests replies, and returns the one you choose." : {
 
     },
     "Imports one to eight images from the same chat while you optionally add reply guidance. The images aren't saved." : {
@@ -1289,7 +1289,7 @@
     "Imports Reviewed" : {
 
     },
-    "Imports shared or copied chat text while you optionally add reply guidance. Imported messages are stored locally; the source transcript is not retained separately." : {
+    "Imports shared or copied chat text with sender labels while you optionally add reply guidance. Imported messages are stored locally; the source transcript is not retained separately." : {
 
     },
     "Install" : {
@@ -1391,6 +1391,9 @@
     "No, This Is Me" : {
 
     },
+    "Not imported: sender labels weren’t shared. Use Share → Copy, then run FrameReply Text, or import screenshots with FrameReply Images." : {
+
+    },
     "Not Now" : {
 
     },
@@ -1460,7 +1463,7 @@
     "Pass one to eight images from the same chat, such as shared photos or the output from Take Screenshot." : {
 
     },
-    "Pass shared plain text, Get Clipboard output, or text from another action." : {
+    "Pass shared or copied chat text with sender labels." : {
 
     },
     "Paste 3–10 messages you wrote, one per line." : {
@@ -2115,7 +2118,7 @@
     "Shape the next suggested replies" : {
 
     },
-    "Shared text, clipboard output, or text from another action." : {
+    "Shared or copied chat text with sender labels." : {
 
     },
     "Short" : {

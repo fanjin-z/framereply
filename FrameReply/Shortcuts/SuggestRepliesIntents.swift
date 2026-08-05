@@ -86,6 +86,7 @@ private nonisolated enum EndToEndShortcutSupport {
         _ chatText: [String],
         draftingInput: String?,
         traceID: ImportTraceID,
+        onMissingSenderMetadata: () async throws -> Never,
         resolveDraftingInput: (String?) async throws -> String?
     ) async throws -> ShortcutResponsePresentation {
         let startedAt = Date()
@@ -103,12 +104,23 @@ private nonisolated enum EndToEndShortcutSupport {
                 AppIntentDependencies.screenshotImportCoordinator()
             }
 
-            async let pendingAnalysis = coordinator.prepare(
+            let prepared = try await coordinator.prepare(
                 transcriptItems: transcriptItems,
                 traceID: traceID
             )
+            try Task.checkCancellation()
+            guard TextImportReadiness(analysis: prepared.analysis) == .ready else {
+                OSLogImportEventReporter().record(
+                    .importFailed(
+                        traceID: traceID,
+                        stage: .shortcut,
+                        errorCode: "missing_sender_metadata"
+                    )
+                )
+                try await onMissingSenderMetadata()
+            }
+
             let input = try await resolveDraftingInput(suppliedInput)
-            let prepared = try await pendingAnalysis
             try Task.checkCancellation()
 
             let response = try await finish(
@@ -351,16 +363,18 @@ struct SuggestRepliesFromChatImagesIntent: ShortcutReplyConfirmingIntent {
     }
 }
 
-struct SuggestRepliesFromChatTextIntent: ShortcutReplyConfirmingIntent {
+struct SuggestRepliesFromChatTextIntent:
+    ShortcutReplyConfirmingIntent, TextImportMetadataPromptingIntent
+{
     static let title: LocalizedStringResource = "Suggest Replies from Chat Text"
     static let description = IntentDescription(
-        "Imports chat text, suggests replies, and returns the one you choose."
+        "Imports chat text with sender labels, suggests replies, and returns the one you choose."
     )
     static let openAppWhenRun = false
 
     @Parameter(
         title: "Chat Text",
-        description: "Shared text, clipboard output, or text from another action.",
+        description: "Shared or copied chat text with sender labels.",
         inputConnectionBehavior: .connectToPreviousIntentResult
     )
     var chatText: [String]
@@ -391,27 +405,31 @@ struct SuggestRepliesFromChatTextIntent: ShortcutReplyConfirmingIntent {
         let response = try await EndToEndShortcutSupport.runText(
             chatText,
             draftingInput: draftingInput,
-            traceID: traceID
-        ) { suppliedInput in
-            if draftingInput != nil {
-                return suppliedInput
-            } else if askForContext {
-                let add = IntentChoiceOption(title: AppStrings.Shortcut.addReplyGuidance)
-                let skip = IntentChoiceOption(title: AppStrings.Shortcut.skip)
-                let choice = try await requestChoice(
-                    between: [add, skip],
-                    dialog: IntentDialog(AppStrings.Shortcut.textReplyGuidanceChoice)
-                )
-                if choice == add {
-                    let requested = try await $draftingInput.requestValue(
-                        IntentDialog(AppStrings.Shortcut.textReplyGuidancePrompt)
+            traceID: traceID,
+            onMissingSenderMetadata: {
+                try await stopForMissingSenderMetadata()
+            },
+            resolveDraftingInput: { suppliedInput in
+                if draftingInput != nil {
+                    return suppliedInput
+                } else if askForContext {
+                    let add = IntentChoiceOption(title: AppStrings.Shortcut.addReplyGuidance)
+                    let skip = IntentChoiceOption(title: AppStrings.Shortcut.skip)
+                    let choice = try await requestChoice(
+                        between: [add, skip],
+                        dialog: IntentDialog(AppStrings.Shortcut.textReplyGuidanceChoice)
                     )
-                    return try DraftingInputLimits.validated(requested)
+                    if choice == add {
+                        let requested = try await $draftingInput.requestValue(
+                            IntentDialog(AppStrings.Shortcut.textReplyGuidancePrompt)
+                        )
+                        return try DraftingInputLimits.validated(requested)
+                    }
+                    return nil
                 }
                 return nil
             }
-            return nil
-        }
+        )
         return .result(value: try await confirmReply(from: response))
     }
 }
