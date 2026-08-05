@@ -7,7 +7,7 @@ FrameReply publishes two personal shortcuts from a team-controlled Apple account
 FrameReply accepts conversation context through its in-app **Add Messages** flow and through the two Shortcuts documented below.
 
 - Image import accepts 1–8 still PNG, JPEG, or HEIC images from one chat. Images are normalized to a maximum 3,072-pixel edge, stripped of metadata, and bounded to 5 MB each and 20 MB for the request.
-- Text import accepts at most 8,000 characters across 40 text items and approximately 25 messages. Every message must include an author label or a resolved sender role; timestamps are optional.
+- Text import accepts at most 8,000 characters and approximately 50 messages. Every message must include an author label or a resolved sender role; timestamps are optional.
 - Context or draft accepts at most 500 user-perceived characters. Empty or whitespace-only input is treated as Skip.
 - **FrameReply Images** accepts shared images or captures the current screen when run without input.
 - **FrameReply Text** accepts shared plain text or reads the clipboard when run directly.

@@ -28,7 +28,6 @@ private nonisolated enum EndToEndShortcutSupport {
         }
         let transcript = SharedTranscriptInput(items: items)
         guard transcript.characterCount <= SharedTranscriptInput.maximumCharacterCount,
-            transcript.items.count <= SharedTranscriptInput.maximumItemCount,
             transcript.estimatedMessageCount <= SharedTranscriptInput.maximumEstimatedMessageCount
         else {
             throw ScreenshotImportError.transcriptTooLarge

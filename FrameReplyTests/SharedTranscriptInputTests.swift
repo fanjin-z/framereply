@@ -25,4 +25,16 @@ final class SharedTranscriptInputTests: XCTestCase {
         XCTAssertEqual(combined.estimatedMessageCount, 9)
         XCTAssertEqual(combined.characterCount, generatedTranscript.count)
     }
+
+    func testEveryStandaloneItemCountsAsAtLeastOneEstimatedMessage() {
+        let maximum = SharedTranscriptInput.maximumEstimatedMessageCount
+        let accepted = SharedTranscriptInput(items: Array(repeating: "message", count: maximum))
+        let rejected = SharedTranscriptInput(
+            items: Array(repeating: "message", count: maximum + 1))
+
+        XCTAssertEqual(accepted.estimatedMessageCount, maximum)
+        XCTAssertEqual(rejected.estimatedMessageCount, maximum + 1)
+        XCTAssertGreaterThanOrEqual(accepted.estimatedMessageCount, accepted.items.count)
+        XCTAssertGreaterThanOrEqual(rejected.estimatedMessageCount, rejected.items.count)
+    }
 }

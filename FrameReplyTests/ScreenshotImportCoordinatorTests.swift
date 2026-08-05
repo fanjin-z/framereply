@@ -276,7 +276,16 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             aiService: StubAnalysisService(
                 analysis: ChatImportAnalysis(
                     conversationTitle: nil,
-                    messages: [],
+                    messages: [
+                        AnalyzedChatMessage(
+                            sender: .unknown,
+                            senderName: "Alice",
+                            text: "Imported message",
+                            timestampLabel: nil,
+                            senderConfidence: 0.5,
+                            senderEvidence: .authorLabel
+                        )
+                    ],
                     matchedChatID: nil,
                     matchConfidence: 0,
                     titleSource: .unavailable,
@@ -302,24 +311,87 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             XCTAssertEqual(error.code, "transcript_too_large")
         }
 
+        _ = try await coordinator.prepare(
+            transcriptItems: Array(
+                repeating: "message",
+                count: SharedTranscriptInput.maximumEstimatedMessageCount
+            )
+        )
+
         do {
-            _ = try await coordinator.process(
-                transcriptItems: Array(repeating: "message", count: 41)
+            _ = try await coordinator.prepare(
+                transcriptItems: Array(
+                    repeating: "message",
+                    count: SharedTranscriptInput.maximumEstimatedMessageCount + 1
+                )
             )
             XCTFail("Expected transcriptTooLarge")
         } catch let error as ScreenshotImportError {
             XCTAssertEqual(error.code, "transcript_too_large")
         }
 
-        let combined = (1...26).map { index in
+        let acceptedCombined = (1...SharedTranscriptInput.maximumEstimatedMessageCount).map {
+            index in
+            "[07/13/26, 9:\(String(format: "%02d", index)) PM] Alice: Message \(index)"
+        }.joined(separator: "\n")
+        _ = try await coordinator.prepare(transcriptItems: [acceptedCombined])
+
+        let rejectedCombined = (1...SharedTranscriptInput.maximumEstimatedMessageCount + 1).map {
+            index in
             "[07/13/26, 9:\(String(format: "%02d", index)) PM] Alice: Message \(index)"
         }.joined(separator: "\n")
         do {
-            _ = try await coordinator.process(transcriptItems: [combined])
+            _ = try await coordinator.prepare(transcriptItems: [rejectedCombined])
             XCTFail("Expected transcriptTooLarge")
         } catch let error as ScreenshotImportError {
             XCTAssertEqual(error.code, "transcript_too_large")
         }
+
+        _ = try await coordinator.prepare(
+            transcriptItems: [String(repeating: "a", count: 8_000)]
+        )
+    }
+
+    @MainActor
+    func testCoordinatorRejectsOversizedSharedTranscriptAnalysisBeforePersistence() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let messages = (1...SharedTranscriptInput.maximumEstimatedMessageCount + 1).map {
+            index in
+            AnalyzedChatMessage(
+                sender: .unknown,
+                senderName: "Alice",
+                text: "Message \(index)",
+                timestampLabel: nil,
+                senderConfidence: 0.5,
+                senderEvidence: .authorLabel
+            )
+        }
+        let coordinator = ScreenshotImportCoordinator(
+            aiService: StubAnalysisService(
+                analysis: ChatImportAnalysis(
+                    conversationTitle: nil,
+                    messages: messages,
+                    matchedChatID: nil,
+                    matchConfidence: 0,
+                    titleSource: .unavailable,
+                    ownershipConvention: .unobservable
+                )
+            ),
+            repository: repository
+        )
+
+        do {
+            _ = try await coordinator.process(transcriptItems: ["Alice: Hello"])
+            XCTFail("Expected structured output failure")
+        } catch let error as ProviderConnectionError {
+            guard case .structuredOutput(let detail) = error else {
+                return XCTFail("Expected structured output failure, got \(error)")
+            }
+            XCTAssertEqual(detail.failure.kind, .schemaMismatch)
+            XCTAssertEqual(detail.failure.codingPath, "messages")
+        }
+        XCTAssertTrue(try repository.chats().isEmpty)
     }
 }
 

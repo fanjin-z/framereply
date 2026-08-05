@@ -196,6 +196,7 @@ enum ChatImportPrompt {
             ],
             "messages": [
                 "type": "array",
+                "maxItems": SharedTranscriptInput.maximumEstimatedMessageCount,
                 "items": [
                     "type": "object",
                     "additionalProperties": false,

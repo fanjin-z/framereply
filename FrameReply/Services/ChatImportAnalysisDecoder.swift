@@ -201,7 +201,9 @@ nonisolated enum ChatImportAnalysisDecoder {
                 ownershipConvention: ownershipConvention
             ),
             candidateIDs: candidateIDs,
-            normalizeVisualOwnership: !isSharedTranscript
+            normalizeVisualOwnership: !isSharedTranscript,
+            maximumMessageCount: isSharedTranscript
+                ? SharedTranscriptInput.maximumEstimatedMessageCount : nil
         )
         return StructuredOutputDecodingResult(value: validated, recovered: recovered)
     }
@@ -209,7 +211,8 @@ nonisolated enum ChatImportAnalysisDecoder {
     static func validate(
         _ input: ChatImportAnalysis,
         candidateIDs: Set<String>,
-        normalizeVisualOwnership: Bool = true
+        normalizeVisualOwnership: Bool = true,
+        maximumMessageCount: Int? = nil
     ) throws -> ChatImportAnalysis {
         let analysis: ChatImportAnalysis
         if normalizeVisualOwnership {
@@ -220,6 +223,9 @@ nonisolated enum ChatImportAnalysisDecoder {
             analysis = input
         }
 
+        if let maximumMessageCount, analysis.messages.count > maximumMessageCount {
+            throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "messages")
+        }
         guard (analysis.extractionStatus == .ok) == !analysis.messages.isEmpty,
             analysis.messages.allSatisfy({
                 !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

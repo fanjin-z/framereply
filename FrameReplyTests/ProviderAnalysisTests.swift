@@ -58,6 +58,19 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertFalse(sharedText.contains("outerAlignment"))
         XCTAssertFalse(sharedText.contains("ownershipConvention"))
 
+        let screenshotProperties = try XCTUnwrap(
+            screenshot.schema["properties"] as? [String: Any])
+        let screenshotMessages = try XCTUnwrap(
+            screenshotProperties["messages"] as? [String: Any])
+        XCTAssertNil(screenshotMessages["maxItems"])
+        let sharedProperties = try XCTUnwrap(
+            shared.schema["properties"] as? [String: Any])
+        let sharedMessages = try XCTUnwrap(sharedProperties["messages"] as? [String: Any])
+        XCTAssertEqual(
+            sharedMessages["maxItems"] as? Int,
+            SharedTranscriptInput.maximumEstimatedMessageCount
+        )
+
         XCTAssertEqual(standard.name, "suggested_reply")
         let summaryProperties = try XCTUnwrap(
             standard.schema["properties"] as? [String: Any])

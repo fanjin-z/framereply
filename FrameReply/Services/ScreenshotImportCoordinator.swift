@@ -152,7 +152,6 @@ final class ScreenshotImportCoordinator {
         }
         let transcript = SharedTranscriptInput(items: items)
         guard transcript.characterCount <= SharedTranscriptInput.maximumCharacterCount,
-            transcript.items.count <= SharedTranscriptInput.maximumItemCount,
             transcript.estimatedMessageCount <= SharedTranscriptInput.maximumEstimatedMessageCount
         else {
             eventReporter.record(
@@ -254,7 +253,9 @@ final class ScreenshotImportCoordinator {
             analysis = try ChatImportAnalysisDecoder.validate(
                 providerAnalysis,
                 candidateIDs: Set(candidates.map(\.id)),
-                normalizeVisualOwnership: request.sharedTranscript == nil
+                normalizeVisualOwnership: request.sharedTranscript == nil,
+                maximumMessageCount: request.sharedTranscript == nil
+                    ? nil : SharedTranscriptInput.maximumEstimatedMessageCount
             )
         } catch let failure as StructuredOutputFailure {
             let error = ProviderConnectionError.structuredOutput(

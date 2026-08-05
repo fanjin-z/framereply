@@ -32,8 +32,7 @@ nonisolated struct ChatCandidateMessage: Codable, Equatable, Sendable {
 
 nonisolated struct SharedTranscriptInput: Codable, Equatable, Sendable {
     static let maximumCharacterCount = 8_000
-    static let maximumItemCount = 40
-    static let maximumEstimatedMessageCount = 25
+    static let maximumEstimatedMessageCount = 50
 
     let items: [String]
 

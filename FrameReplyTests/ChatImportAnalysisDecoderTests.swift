@@ -166,6 +166,33 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(result.value.messages.first?.outerAlignment, .unknown)
     }
 
+    func testSharedTranscriptRejectsMoreThanMaximumMessages() throws {
+        let maximum = SharedTranscriptInput.maximumEstimatedMessageCount
+        let accepted = try sharedTranscriptJSON(messageCount: maximum)
+        let acceptedResult = try ChatImportAnalysisDecoder.decodeResult(
+            content: accepted,
+            finishReason: "stop",
+            isSharedTranscript: true,
+            candidateIDs: []
+        )
+        XCTAssertEqual(acceptedResult.value.messages.count, maximum)
+
+        let rejected = try sharedTranscriptJSON(messageCount: maximum + 1)
+        XCTAssertThrowsError(
+            try ChatImportAnalysisDecoder.decodeResult(
+                content: rejected,
+                finishReason: "stop",
+                isSharedTranscript: true,
+                candidateIDs: []
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? StructuredOutputFailure,
+                StructuredOutputFailure(kind: .schemaMismatch, codingPath: "messages")
+            )
+        }
+    }
+
     private func decodeResult(_ content: String?, finishReason: String? = "stop") throws
         -> StructuredOutputDecodingResult<ChatImportAnalysis>
     {
@@ -205,5 +232,27 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         """
         {"extractionStatus":"ok","conversationTitle":null,"conversationKind":"unknown","titleSource":"unavailable","messages":[{"sender":"unknown","senderName":"Alice","text":"Hello","timestampLabel":"9:42 PM","senderConfidence":0.5,"senderEvidence":"author_label"}],"matchedChatID":null,"matchConfidence":0}
         """
+    }
+
+    private func sharedTranscriptJSON(messageCount: Int) throws -> String {
+        let message: [String: Any] = [
+            "sender": "unknown",
+            "senderName": "Alice",
+            "text": "Hello",
+            "timestampLabel": NSNull(),
+            "senderConfidence": 0.5,
+            "senderEvidence": "author_label"
+        ]
+        let object: [String: Any] = [
+            "extractionStatus": "ok",
+            "conversationTitle": NSNull(),
+            "conversationKind": "unknown",
+            "titleSource": "unavailable",
+            "messages": Array(repeating: message, count: messageCount),
+            "matchedChatID": NSNull(),
+            "matchConfidence": 0
+        ]
+        let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        return try XCTUnwrap(String(data: data, encoding: .utf8))
     }
 }
