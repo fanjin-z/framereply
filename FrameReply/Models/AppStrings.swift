@@ -572,22 +572,14 @@ nonisolated enum AppStrings {
         static let analyzedChatSubtitle: LocalizedStringResource = "Analyzed chat input"
         static let addReplyGuidance: LocalizedStringResource = "Add"
         static let skip: LocalizedStringResource = "Skip"
-        static let imagesReplyGuidanceChoice: LocalizedStringResource =
+        static let replyGuidanceChoice: LocalizedStringResource =
             "Add reply guidance?"
-        static let imagesReplyGuidancePrompt: LocalizedStringResource =
-            "What should the next replies take into account?"
-        static let imagesLegacyReplyGuidancePrompt: LocalizedStringResource =
-            "What should the next replies take into account?"
+        static let replyGuidancePrompt: LocalizedStringResource =
+            "What should replies consider?"
         static let imageInputSynchronizationError: LocalizedStringResource =
             "The optional input could not be synchronized with this image import."
         static let chatHistoryPersistenceError: LocalizedStringResource =
             "The chat history could not be saved."
-        static let textReplyGuidanceChoice: LocalizedStringResource =
-            "Add reply guidance?"
-        static let textReplyGuidancePrompt: LocalizedStringResource =
-            "What should the next replies take into account?"
-        static let textLegacyReplyGuidancePrompt: LocalizedStringResource =
-            "What should the next replies take into account?"
         static let missingSenderMetadataDialog: LocalizedStringResource =
             "Not imported: sender labels weren’t shared. Use Share → Copy, then run FrameReply Text, or import screenshots with FrameReply Images."
         static let close: LocalizedStringResource = "Close"

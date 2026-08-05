@@ -353,7 +353,7 @@ struct AnalyzeChatImagesIntent: AppIntent {
                 let skip = IntentChoiceOption(title: AppStrings.Shortcut.skip)
                 let choice = try await requestChoice(
                     between: [add, skip],
-                    dialog: IntentDialog(AppStrings.Shortcut.imagesReplyGuidanceChoice)
+                    dialog: IntentDialog(AppStrings.Shortcut.replyGuidanceChoice)
                 )
                 if choice == skip {
                     input = nil
@@ -362,7 +362,7 @@ struct AnalyzeChatImagesIntent: AppIntent {
                         .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                     input = try DraftingInputLimits.validated(
                         try await $draftingInput.requestValue(
-                            IntentDialog(AppStrings.Shortcut.imagesReplyGuidancePrompt)
+                            IntentDialog(AppStrings.Shortcut.replyGuidancePrompt)
                         )
                     )
                 }
@@ -371,7 +371,7 @@ struct AnalyzeChatImagesIntent: AppIntent {
                     .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                 input = try DraftingInputLimits.validated(
                     try await $draftingInput.requestValue(
-                        IntentDialog(AppStrings.Shortcut.imagesLegacyReplyGuidancePrompt)
+                        IntentDialog(AppStrings.Shortcut.replyGuidancePrompt)
                     )
                 )
             }
@@ -482,7 +482,7 @@ struct AnalyzeCopiedMessagesIntent: TextImportMetadataPromptingIntent {
                 let skip = IntentChoiceOption(title: AppStrings.Shortcut.skip)
                 let choice = try await requestChoice(
                     between: [add, skip],
-                    dialog: IntentDialog(AppStrings.Shortcut.textReplyGuidanceChoice)
+                    dialog: IntentDialog(AppStrings.Shortcut.replyGuidanceChoice)
                 )
                 if choice == skip {
                     input = nil
@@ -491,7 +491,7 @@ struct AnalyzeCopiedMessagesIntent: TextImportMetadataPromptingIntent {
                         .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                     input = try DraftingInputLimits.validated(
                         try await $draftingInput.requestValue(
-                            IntentDialog(AppStrings.Shortcut.textReplyGuidancePrompt)
+                            IntentDialog(AppStrings.Shortcut.replyGuidancePrompt)
                         )
                     )
                 }
@@ -500,7 +500,7 @@ struct AnalyzeCopiedMessagesIntent: TextImportMetadataPromptingIntent {
                     .inputPromptDisplayed, operationID: traceID.value, startedAt: startedAt)
                 input = try DraftingInputLimits.validated(
                     try await $draftingInput.requestValue(
-                        IntentDialog(AppStrings.Shortcut.textLegacyReplyGuidancePrompt)
+                        IntentDialog(AppStrings.Shortcut.replyGuidancePrompt)
                     )
                 )
             }

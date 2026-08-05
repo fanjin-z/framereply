@@ -410,11 +410,11 @@ struct SuggestRepliesFromChatImagesIntent: ShortcutReplyConfirmingIntent {
                 let skip = IntentChoiceOption(title: AppStrings.Shortcut.skip)
                 let choice = try await requestChoice(
                     between: [add, skip],
-                    dialog: IntentDialog(AppStrings.Shortcut.imagesReplyGuidanceChoice)
+                    dialog: IntentDialog(AppStrings.Shortcut.replyGuidanceChoice)
                 )
                 if choice == add {
                     let requested = try await $draftingInput.requestValue(
-                        IntentDialog(AppStrings.Shortcut.imagesReplyGuidancePrompt)
+                        IntentDialog(AppStrings.Shortcut.replyGuidancePrompt)
                     )
                     return try DraftingInputLimits.validated(requested)
                 }
@@ -492,11 +492,11 @@ struct SuggestRepliesFromChatTextIntent:
                     let skip = IntentChoiceOption(title: AppStrings.Shortcut.skip)
                     let choice = try await requestChoice(
                         between: [add, skip],
-                        dialog: IntentDialog(AppStrings.Shortcut.textReplyGuidanceChoice)
+                        dialog: IntentDialog(AppStrings.Shortcut.replyGuidanceChoice)
                     )
                     if choice == add {
                         let requested = try await $draftingInput.requestValue(
-                            IntentDialog(AppStrings.Shortcut.textReplyGuidancePrompt)
+                            IntentDialog(AppStrings.Shortcut.replyGuidancePrompt)
                         )
                         return try DraftingInputLimits.validated(requested)
                     }
