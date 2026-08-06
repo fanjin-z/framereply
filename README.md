@@ -14,6 +14,30 @@ FrameReply is an open-source iPhone assistant that gives you two thoughtful repl
 
 AI-generated suggestions are drafts. You stay in control of what gets sent.
 
+## How to use
+
+### In-app
+
+- **On the Chats tab:** Tap the photo-and-text icon beside Search → choose **Chat screenshots** or **Copied text** (optionally add **Reply Guidance**). FrameReply automatically adds the messages to a matching chat or starts a new chat
+- **In an open chat:** Tap the photo-and-text icon at the bottom, beside **Reply Guidance** → choose **Chat screenshots** or **Copied text**. FrameReply adds the messages only to this open chat
+
+### With shortcuts
+
+- **Install once:** In FrameReply app, open **Settings → Shortcuts** → install **Image Shortcut** and **Text Shortcut**
+
+#### Images
+
+- **Share a screenshot:** Take a screenshot → **Share** → **FrameReply Images**
+- **Capture the screen:** Keep the conversation visible → run **FrameReply Images**
+- **Set up Back Tap:** iPhone **Settings → Accessibility → Touch → Back Tap** → choose **Double Tap** or **Triple Tap** → **FrameReply Images**. Also, turn off **Show Banner** so it does not obscure part of the screenshot
+
+#### Text
+
+- **Share directly:** Select multiple messages → **Share** → **FrameReply Text** (e.g. Telegram)
+- **Copy, then run:** Select multiple messages → **Copy** (or **Share → Copy**) → run **FrameReply Text** (e.g. WhatsApp or Telegram)
+
+See [Shortcuts](docs/shortcuts.md) for detailed maintenance and troubleshooting information.
+
 ## Why FrameReply
 
 - **Stay in the conversation.** Use Shortcuts to get reply suggestions without switching to the FrameReply app.

@@ -97,7 +97,7 @@ Copy Suggested Reply to Clipboard
 
 Test both directly shared text and a normal run that reads previously copied message text. Every message must retain an author label; timestamps are optional. After confirming a reply, paste it into the original messaging app and confirm FrameReply was not opened.
 
-Direct sharing remains supported when the messaging app includes sender labels. If FrameReply reports that sender labels were not shared, choose **Share → Copy**, close the Share Sheet, and then run **FrameReply Text**. If copied text also omits labels, use **FrameReply Images**. WhatsApp currently requires the Copy workflow; Telegram direct sharing must be verified after app updates.
+Direct sharing remains supported when the messaging app includes sender labels. If direct sharing is unavailable or FrameReply reports that sender labels were not shared, select the messages and choose **Copy** or **Share → Copy**, then run **FrameReply Text**. If the copied text also omits labels, use **FrameReply Images**. Verify WhatsApp and Telegram copied-message imports, and Telegram direct sharing, after app updates.
 
 ## Optional Context or Draft
 
@@ -116,7 +116,7 @@ Automation builders can turn **Ask for Context** off or connect a fixed or varia
 5. Confirm the header action opens the correct imported chat and uses Review Import routing when required.
 6. Confirm an unavailable reply result stops before **Copy to Clipboard** instead of clearing or replacing the clipboard.
 7. Confirm the text shortcut accepts Text only, imports labeled shared or copied text, and reads the clipboard on a normal launch.
-8. Confirm metadata-poor text shows the compact cancellation prompt, saves nothing, and stops before **Copy to Clipboard**. Verify WhatsApp's Copy then run workflow and Telegram direct sharing on a physical device.
+8. Confirm metadata-poor text shows the compact cancellation prompt, saves nothing, and stops before **Copy to Clipboard**. Verify WhatsApp and Telegram copied-message imports, and Telegram direct sharing, on a physical device.
 9. For each shortcut, open **Share**, tap **Copy iCloud Link**, then tap **Copy Link**. Confirm the URL has the form `https://www.icloud.com/shortcuts/<identifier>`.
 10. Install each link on a device where that shortcut is not already installed and run it end to end.
 11. Add only the two verified URLs to `ShortcutInstallationCatalog`: `images` for **FrameReply Images** and `text` for **FrameReply Text**.
@@ -157,5 +157,5 @@ If the Back Tap banner covers the conversation title before a screenshot is take
 - **The shortcut shows a branded result with a Done button or copies JSON:** rebuild FrameReply and remove then re-add the Suggest Replies action so Shortcuts refreshes its App Intent metadata. The current action shows **Use Reply** and returns one reply string.
 - **The selected card changes but nothing is copied:** tap **Use Reply**, then confirm native **Copy to Clipboard** immediately follows the Suggest Replies action and uses its output.
 - **Selecting Review opens FrameReply:** this is intentional. Use the reply cards and **Use Reply** to stay in the current app.
-- **WhatsApp direct sharing is rejected:** use **Share → Copy**, close the Share Sheet, then run **FrameReply Text**.
+- **WhatsApp direct sharing is unavailable:** select multiple messages, choose **Copy** or **Share → Copy**, then run **FrameReply Text**.
 - **Installer unavailable in a development build:** publish the shortcuts and configure their canonical URLs. Missing URLs do not block app startup.
