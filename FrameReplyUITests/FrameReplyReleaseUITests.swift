@@ -107,6 +107,36 @@ final class FrameReplyReleaseUITests: XCTestCase {
         XCTAssertTrue(addProvider.waitForExistence(timeout: 3))
     }
 
+    func testSettingsSectionsFollowPriorityOrder() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let settings = app.buttons["app-tab-settings"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 8))
+        settings.tap()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["settings-screen"]
+                .waitForExistence(timeout: 3)
+        )
+
+        let personalization = app.staticTexts["Personalization"]
+        let modelProviders = app.staticTexts["Model Providers"]
+        let shortcuts = app.staticTexts["Shortcuts"]
+        let privacyAndSupport = app.staticTexts["Privacy & Support"]
+
+        XCTAssertTrue(personalization.exists)
+        XCTAssertTrue(modelProviders.exists)
+        XCTAssertTrue(shortcuts.exists)
+        XCTAssertTrue(privacyAndSupport.exists)
+        XCTAssertLessThan(personalization.frame.minY, modelProviders.frame.minY)
+        XCTAssertLessThan(modelProviders.frame.minY, shortcuts.frame.minY)
+        XCTAssertLessThan(shortcuts.frame.minY, privacyAndSupport.frame.minY)
+
+        XCTAssertTrue(app.buttons["personal-info"].isHittable)
+        XCTAssertTrue(app.buttons["add-provider-header"].isHittable)
+    }
+
     func testPersonalInfoNavigationIsReachable() throws {
         let app = XCUIApplication()
         app.launch()

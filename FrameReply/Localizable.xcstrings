@@ -136,13 +136,7 @@
     "•" : {
 
     },
-    "Facts About You" : {
-
-    },
     "Add" : {
-
-    },
-    "Add one short fact about yourself" : {
 
     },
     "Add an observation" : {
@@ -155,6 +149,9 @@
 
     },
     "Add model provider" : {
+
+    },
+    "Add one short fact about yourself" : {
 
     },
     "Add Provider" : {
@@ -510,9 +507,6 @@
 
     },
     "Delete Persona" : {
-
-    },
-    "One short fact about yourself" : {
 
     },
     "Detailed" : {
@@ -1158,6 +1152,9 @@
     "Expressive" : {
 
     },
+    "Facts About You" : {
+
+    },
     "Few emoji" : {
 
     },
@@ -1398,9 +1395,6 @@
     "Name, nickname, or username" : {
 
     },
-    "Your Names in Chats" : {
-
-    },
     "New Persona" : {
 
     },
@@ -1453,6 +1447,9 @@
 
     },
     "OK" : {
+
+    },
+    "One short fact about yourself" : {
 
     },
     "One to eight images from the same chat." : {
@@ -1875,6 +1872,9 @@
     "Personal Info" : {
 
     },
+    "Personalization" : {
+
+    },
     "Personas" : {
 
     },
@@ -1882,6 +1882,9 @@
 
     },
     "Privacy & Data" : {
+
+    },
+    "Privacy & Support" : {
 
     },
     "Privacy Policy" : {
@@ -2475,6 +2478,9 @@
 
     },
     "Your edit will stay as written." : {
+
+    },
+    "Your Names in Chats" : {
 
     }
   },

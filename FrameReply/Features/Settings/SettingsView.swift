@@ -115,73 +115,61 @@ struct SettingsView: View {
 
     private var providerList: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                VStack(alignment: .leading, spacing: 18) {
-                    providerHeader
-                    providerContent
-                }
-
-                shortcutSection
+            VStack(alignment: .leading, spacing: 24) {
                 personalInfoSection
+                providerSection
+                shortcutSection
                 privacyAndDataSection
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 94)
+            .padding(.top, 20)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 110)
             .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
+        .accessibilityIdentifier("settings-screen")
     }
 
-    private var providerHeader: some View {
-        HStack(spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "network")
-                    .font(.system(size: 20, weight: .medium))
-                Text("Model Providers")
-                    .font(.system(size: 21, weight: .bold, design: .rounded))
+    private var providerSection: some View {
+        settingsSection {
+            sectionHeader("Model Providers") {
+                Button {
+                    presentAddProvider()
+                } label: {
+                    Label("Add", systemImage: "plus")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(FrameReplyColor.primary)
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add model provider")
+                .accessibilityIdentifier("add-provider-header")
             }
-
-            Spacer()
-
-            Button {
-                presentAddProvider()
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 38, height: 38)
-                    .background {
-                        Circle()
-                            .fill(FrameReplyColor.primary)
-                    }
-            }
-            .buttonStyle(SoftPressButtonStyle())
-            .accessibilityLabel("Add model provider")
-            .accessibilityIdentifier("add-provider-header")
+        } content: {
+            providerContent
         }
-        .foregroundStyle(FrameReplyColor.primary)
-        .padding(.top, 16)
     }
 
     private var providerContent: some View {
-        VStack(spacing: 18) {
+        settingsSurface {
             if providerStore.providers.isEmpty {
                 Button {
                     presentAddProvider()
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 22, weight: .semibold))
+                            .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(FrameReplyColor.primary)
+                            .frame(width: 32)
 
                         VStack(alignment: .leading, spacing: 5) {
                             Text("Add model provider")
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
                                 .foregroundStyle(FrameReplyColor.onSurface)
 
                             Text("Connect OpenAI or a supported vision provider.")
-                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                         }
 
@@ -191,55 +179,59 @@ struct SettingsView: View {
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                     }
-                    .padding(20)
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 68)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background {
-                        RoundedRectangle(cornerRadius: 0)
-                            .fill(Color.white.opacity(0.42))
-                    }
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("add-provider")
             } else {
-                ForEach(providerStore.providers) { provider in
+                ForEach(Array(providerStore.providers.enumerated()), id: \.element.id) { entry in
                     ProviderCard(
-                        provider: provider,
-                        isActive: providerStore.activePlatform == provider.platform,
+                        provider: entry.element,
+                        isActive: providerStore.activePlatform == entry.element.platform,
                         onActivate: {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
-                                providerStore.activate(platform: provider.platform)
+                                providerStore.activate(platform: entry.element.platform)
                             }
                         },
                         onTierChange: { tier in
-                            providerStore.setTier(tier, for: provider.platform)
+                            providerStore.setTier(tier, for: entry.element.platform)
                         },
                         onRemove: {
-                            providerToRemove = provider
+                            providerToRemove = entry.element
                         }
                     )
+
+                    if entry.offset < providerStore.providers.count - 1 {
+                        settingsDivider(leadingInset: 60)
+                    }
                 }
             }
         }
     }
 
     private var shortcutSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("Shortcuts", systemImage: "bolt.fill")
-                .font(.system(size: 21, weight: .bold, design: .rounded))
-                .foregroundStyle(FrameReplyColor.primary)
+        settingsSection {
+            sectionHeader("Shortcuts")
+        } content: {
+            settingsSurface {
+                shortcutInstallRow(
+                    title: "Image Shortcut",
+                    subtitle: "Import screenshots",
+                    symbol: "photo.on.rectangle.angled",
+                    installation: ShortcutInstallationCatalog.images
+                )
 
-            shortcutInstallRow(
-                title: "Image Shortcut",
-                subtitle: "Import screenshots",
-                symbol: "photo.on.rectangle.angled",
-                installation: ShortcutInstallationCatalog.images
-            )
-            shortcutInstallRow(
-                title: "Text Shortcut",
-                subtitle: "Import copied messages",
-                symbol: "text.bubble",
-                installation: ShortcutInstallationCatalog.text
-            )
+                settingsDivider(leadingInset: 60)
+
+                shortcutInstallRow(
+                    title: "Text Shortcut",
+                    subtitle: "Import copied messages",
+                    symbol: "text.bubble",
+                    installation: ShortcutInstallationCatalog.text
+                )
+            }
         }
     }
 
@@ -285,7 +277,7 @@ struct SettingsView: View {
             Image(systemName: symbol)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(FrameReplyColor.primary)
-                .frame(width: 30)
+                .frame(width: 32)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -299,9 +291,8 @@ struct SettingsView: View {
             Spacer()
             trailing
         }
-        .padding(.horizontal, 18)
-        .frame(minHeight: 62)
-        .background(Color.white.opacity(0.42))
+        .padding(.horizontal, 16)
+        .frame(minHeight: 60)
     }
 
     private var addProviderPopup: some View {
@@ -474,27 +465,39 @@ struct SettingsView: View {
     }
 
     private var privacyAndDataSection: some View {
-        Button(action: onPrivacyAndDataTap) {
-            settingsNavigationLabel(
-                title: "Privacy & Data",
-                subtitle: "Policies, support, and local data",
-                symbol: "hand.raised.fill"
-            )
+        settingsSection {
+            sectionHeader("Privacy & Support")
+        } content: {
+            settingsSurface {
+                Button(action: onPrivacyAndDataTap) {
+                    settingsNavigationLabel(
+                        title: "Privacy & Data",
+                        subtitle: "Policies, support, and local data",
+                        symbol: "hand.raised.fill"
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("privacy-and-data")
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("privacy-and-data")
     }
 
     private var personalInfoSection: some View {
-        Button(action: onPersonalInfoTap) {
-            settingsNavigationLabel(
-                title: "Personal Info",
-                subtitle: "Names and details that help personalize replies.",
-                symbol: "person.text.rectangle"
-            )
+        settingsSection {
+            sectionHeader("Personalization")
+        } content: {
+            settingsSurface {
+                Button(action: onPersonalInfoTap) {
+                    settingsNavigationLabel(
+                        title: "Personal Info",
+                        subtitle: "Names and details that help personalize replies.",
+                        symbol: "person.text.rectangle"
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("personal-info")
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("personal-info")
     }
 
     private func settingsNavigationLabel(
@@ -506,7 +509,7 @@ struct SettingsView: View {
             Image(systemName: symbol)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(FrameReplyColor.primary)
-                .frame(width: 30)
+                .frame(width: 32)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -522,9 +525,60 @@ struct SettingsView: View {
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(FrameReplyColor.outline)
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 16)
         .frame(minHeight: 64)
-        .background(Color.white.opacity(0.42))
+    }
+
+    private func settingsSection<Header: View, Content: View>(
+        @ViewBuilder header: () -> Header,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            header()
+            content()
+        }
+    }
+
+    private func sectionHeader<Trailing: View>(
+        _ title: LocalizedStringResource,
+        @ViewBuilder trailing: () -> Trailing
+    ) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+
+            Spacer()
+            trailing()
+        }
+        .padding(.horizontal, 4)
+        .frame(minHeight: 24)
+    }
+
+    private func sectionHeader(_ title: LocalizedStringResource) -> some View {
+        sectionHeader(title) {
+            EmptyView()
+        }
+    }
+
+    private func settingsSurface<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(spacing: 0) {
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.white.opacity(0.46))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private func settingsDivider(leadingInset: CGFloat) -> some View {
+        Divider()
+            .overlay(FrameReplyColor.outlineVariant.opacity(0.5))
+            .padding(.leading, leadingInset)
     }
 
     private var consentDisclosure: ProviderDataConsentDisclosure? {
