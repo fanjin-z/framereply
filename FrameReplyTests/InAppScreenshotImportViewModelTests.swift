@@ -68,6 +68,61 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testNoMessagesFailureUsesSourceCopySkipsRepliesAndClearsOnNextAttempt() async {
+        let outcome = makeOutcome(insertedMessageCount: 1, reviewRequired: false)
+        let importer = StubInAppImporter(
+            error: ScreenshotImportError.noMessages(source: .images)
+        )
+        let replies = StubInAppReplies(
+            outcome: SuggestedRepliesOutcome(replies: ["First", "Second"], source: .generated)
+        )
+        let viewModel = InAppScreenshotImportViewModel(
+            importer: importer,
+            repliesGenerator: replies
+        )
+
+        let failedResult = await viewModel.importScreenshots(
+            [Data([1])],
+            draftingInput: "Keep this guidance"
+        )
+
+        XCTAssertNil(failedResult)
+        XCTAssertEqual(
+            viewModel.errorMessage,
+            "No messages. Try a new image."
+        )
+        XCTAssertTrue(replies.requests.isEmpty)
+
+        importer.succeed(with: outcome)
+        let successfulResult = await viewModel.importScreenshots(
+            [Data([2])],
+            draftingInput: "Keep this guidance"
+        )
+
+        XCTAssertEqual(successfulResult?.outcome, outcome)
+        XCTAssertNil(viewModel.errorMessage)
+        XCTAssertEqual(replies.requests.first?.draftingInput, "Keep this guidance")
+
+        let textViewModel = InAppScreenshotImportViewModel(
+            importer: StubInAppImporter(
+                error: ScreenshotImportError.noMessages(source: .copiedText)
+            ),
+            repliesGenerator: StubInAppReplies(
+                outcome: SuggestedRepliesOutcome(
+                    replies: ["First", "Second"], source: .generated
+                )
+            )
+        )
+        _ = await textViewModel.importCopiedMessages(["Not a chat transcript"])
+        XCTAssertEqual(
+            textViewModel.errorMessage,
+            "No messages. Copy with sender names."
+        )
+        textViewModel.dismissError()
+        XCTAssertNil(textViewModel.errorMessage)
+    }
+
+    @MainActor
     func testRejectsOverlongDraftingInputBeforeImport() async {
         let importer = StubInAppImporter(
             outcome: makeOutcome(insertedMessageCount: 1, reviewRequired: false)
@@ -168,13 +223,18 @@ private struct StubError: LocalizedError {
 
 @MainActor
 private final class StubInAppImporter: ScreenshotImportProcessing {
-    private let outcome: ScreenshotImportOutcome?
-    private let error: Error?
+    private var outcome: ScreenshotImportOutcome?
+    private var error: Error?
     private(set) var receivedImageDataList: [Data] = []
 
     init(outcome: ScreenshotImportOutcome? = nil, error: Error? = nil) {
         self.outcome = outcome
         self.error = error
+    }
+
+    func succeed(with outcome: ScreenshotImportOutcome) {
+        self.outcome = outcome
+        error = nil
     }
 
     func process(

@@ -26,6 +26,10 @@ nonisolated enum DraftingInputSynchronizationError: Error, Equatable, Sendable {
     case importUnavailable
 }
 
+nonisolated enum ChatImportPersistenceError: Error, Equatable, Sendable {
+    case noMessages
+}
+
 nonisolated enum ChatParticipantNameError: LocalizedError, Equatable, Sendable {
     case chatUnavailable
     case directChatRequired
@@ -944,6 +948,10 @@ final class ChatRepository {
         confirmedChatID: String?,
         traceID: ImportTraceID = ImportTraceID()
     ) throws -> ScreenshotImportOutcome {
+        guard analysis.extractionStatus == .ok, !analysis.messages.isEmpty else {
+            throw ChatImportPersistenceError.noMessages
+        }
+
         var matchedExisting = false
         let targetChat: ChatRecord
 

@@ -512,6 +512,9 @@
     "Detailed" : {
 
     },
+    "Dismiss" : {
+
+    },
     "Display name" : {
 
     },
@@ -685,6 +688,28 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Select at least one screenshot to import."
+          }
+        }
+      }
+    },
+    "error.import.no-messages.copied-text" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No messages. Copy with sender names."
+          }
+        }
+      }
+    },
+    "error.import.no-messages.images" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No messages. Try a new image."
           }
         }
       }
@@ -1196,6 +1221,9 @@
     "Import recent conversation messages." : {
 
     },
+    "Import Status" : {
+
+    },
     "Import text from your clipboard" : {
 
     },
@@ -1263,9 +1291,6 @@
 
     },
     "Imported Message Count" : {
-
-    },
-    "Import Status" : {
 
     },
     "Importing messages" : {
@@ -1448,10 +1473,10 @@
     "Opening FrameReply…" : {
 
     },
-    "Opens full chat history" : {
+    "Opens FrameReply" : {
 
     },
-    "Opens FrameReply" : {
+    "Opens full chat history" : {
 
     },
     "Opens screenshot and pasted-text import options." : {
@@ -2115,16 +2140,16 @@
     "Selection Session ID" : {
 
     },
-    "Sender unknown" : {
+    "Sender check needed" : {
 
     },
     "Sender Check Needed" : {
 
     },
-    "Sender check needed" : {
+    "Sender check needed for %@" : {
 
     },
-    "Sender check needed for %@" : {
+    "Sender unknown" : {
 
     },
     "Set as Default" : {

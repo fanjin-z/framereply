@@ -333,15 +333,12 @@ struct AnalyzeChatImagesIntent: AppIntent {
             let suppliedInput = try DraftingInputLimits.validated(draftingInput)
             lifecycleReporter.record(
                 .analysisStarted, operationID: traceID.value, startedAt: startedAt)
-            async let pendingImport: PreparedScreenshotImport = {
-                let prepared = try await coordinator.prepare(
-                    imageDataList: imageDataList,
-                    traceID: traceID
-                )
-                lifecycleReporter.record(
-                    .analysisCompleted, operationID: traceID.value, startedAt: startedAt)
-                return prepared
-            }()
+            let prepared = try await coordinator.prepare(
+                imageDataList: imageDataList,
+                traceID: traceID
+            )
+            lifecycleReporter.record(
+                .analysisCompleted, operationID: traceID.value, startedAt: startedAt)
 
             let input: String?
             if draftingInput != nil {
@@ -376,7 +373,7 @@ struct AnalyzeChatImagesIntent: AppIntent {
                 )
             }
 
-            let outcome = try await coordinator.commit(try await pendingImport)
+            let outcome = try await coordinator.commit(prepared)
             let entity = try await ChatImportIntentSupport.finalize(
                 outcome: outcome,
                 input: input,

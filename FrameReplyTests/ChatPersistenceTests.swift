@@ -5,6 +5,52 @@ import XCTest
 
 @MainActor
 final class ChatPersistenceTests: XCTestCase {
+    func testApplyImportRejectsNoMessagesBeforeAnyMutation() throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let originalDate = Date(timeIntervalSince1970: 1_000)
+        let chat = ChatRecord(
+            id: "existing-chat",
+            title: "Alice",
+            previewText: "Original preview",
+            conversationKind: .direct,
+            updatedAt: originalDate
+        )
+        container.mainContext.insert(chat)
+        try container.mainContext.save()
+        let analysis = ChatImportAnalysis(
+            extractionStatus: .noMessages,
+            conversationTitle: nil,
+            messages: [],
+            matchedChatID: nil,
+            matchConfidence: 0,
+            conversationKind: .unknown,
+            titleSource: .unavailable,
+            ownershipConvention: .unobservable
+        )
+
+        XCTAssertThrowsError(
+            try repository.applyImport(
+                analysis: analysis,
+                confirmedChatID: chat.id
+            )
+        ) { error in
+            XCTAssertEqual(error as? ChatImportPersistenceError, .noMessages)
+        }
+
+        XCTAssertEqual(chat.title, "Alice")
+        XCTAssertEqual(chat.previewText, "Original preview")
+        XCTAssertEqual(chat.conversationKind, .direct)
+        XCTAssertEqual(chat.updatedAt, originalDate)
+        XCTAssertTrue(try repository.messages(chatID: chat.id).isEmpty)
+        XCTAssertTrue(
+            try container.mainContext.fetch(FetchDescriptor<ChatContextRecord>()).isEmpty
+        )
+        XCTAssertTrue(
+            try container.mainContext.fetch(FetchDescriptor<ChatImportRecord>()).isEmpty
+        )
+    }
+
     func testDraftingInputLifecycleAcrossContexts() throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)

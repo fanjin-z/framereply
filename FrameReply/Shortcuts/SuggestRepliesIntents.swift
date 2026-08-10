@@ -56,12 +56,11 @@ private nonisolated enum EndToEndShortcutSupport {
                 AppIntentDependencies.screenshotImportCoordinator()
             }
 
-            async let pendingAnalysis = coordinator.prepare(
+            let prepared = try await coordinator.prepare(
                 imageDataList: images,
                 traceID: traceID
             )
             let input = try await resolveDraftingInput(suppliedInput)
-            let prepared = try await pendingAnalysis
             try Task.checkCancellation()
 
             let response = try await finish(

@@ -164,6 +164,10 @@ final class InAppScreenshotImportViewModel: ObservableObject {
         }
     }
 
+    func dismissError() {
+        errorMessage = nil
+    }
+
     private func performImport(
         kind: InAppChatImportKind,
         draftingInput: String?,

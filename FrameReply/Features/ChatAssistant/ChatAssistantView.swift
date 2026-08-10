@@ -267,7 +267,8 @@ struct ChatAssistantView: View {
                             ScreenshotImportStatusCard(
                                 symbolName: importStatusSymbolName,
                                 message: importStatusMessage,
-                                isLoading: false
+                                isLoading: false,
+                                onDismiss: importErrorDismissAction
                             )
                         }
                     }
@@ -450,7 +451,7 @@ struct ChatAssistantView: View {
     }
 
     private var importStatusSymbolName: String {
-        if photoLoadErrorMessage != nil || importModel.errorMessage != nil {
+        if hasImportError {
             return "exclamationmark.triangle.fill"
         }
         if importModel.result?.replyErrorMessage != nil
@@ -459,6 +460,20 @@ struct ChatAssistantView: View {
             return "exclamationmark.bubble.fill"
         }
         return "checkmark.circle.fill"
+    }
+
+    private var hasImportError: Bool {
+        photoLoadErrorMessage != nil || importModel.errorMessage != nil
+    }
+
+    private var importErrorDismissAction: (() -> Void)? {
+        guard hasImportError else { return nil }
+        return { dismissImportError() }
+    }
+
+    private func dismissImportError() {
+        photoLoadErrorMessage = nil
+        importModel.dismissError()
     }
 
     private func importProgressMessage(for source: String) -> String {

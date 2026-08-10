@@ -353,6 +353,118 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testCoordinatorRejectsNoMessageAnalysisBeforePersistenceForEverySource() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let reporter = CoordinatorEventReporter()
+        let analysis = ChatImportAnalysis(
+            extractionStatus: .noMessages,
+            conversationTitle: nil,
+            messages: [],
+            matchedChatID: nil,
+            matchConfidence: 0,
+            conversationKind: .unknown,
+            titleSource: .unavailable,
+            ownershipConvention: .unobservable
+        )
+        let coordinator = ScreenshotImportCoordinator(
+            aiService: StubAnalysisService(analysis: analysis),
+            repository: repository,
+            eventReporter: reporter
+        )
+
+        do {
+            _ = try await coordinator.process(imageDataList: [makeTestImageData()])
+            XCTFail("Expected noMessages for images")
+        } catch let error as ScreenshotImportError {
+            XCTAssertEqual(error, .noMessages(source: .images))
+            XCTAssertEqual(error.code, "no_messages")
+            XCTAssertEqual(
+                error.localizedDescription,
+                "No messages. Try a new image."
+            )
+        }
+
+        do {
+            _ = try await coordinator.process(transcriptItems: ["Not a chat transcript"])
+            XCTFail("Expected noMessages for copied text")
+        } catch let error as ScreenshotImportError {
+            XCTAssertEqual(error, .noMessages(source: .copiedText))
+            XCTAssertEqual(error.code, "no_messages")
+            XCTAssertEqual(
+                error.localizedDescription,
+                "No messages. Copy with sender names."
+            )
+        }
+
+        XCTAssertTrue(try repository.chats().isEmpty)
+        XCTAssertTrue(
+            try container.mainContext.fetch(FetchDescriptor<ChatContextRecord>()).isEmpty
+        )
+        XCTAssertTrue(
+            try container.mainContext.fetch(FetchDescriptor<ChatImportRecord>()).isEmpty
+        )
+        XCTAssertEqual(
+            reporter.events.filter { event in
+                guard case .importFailed(_, .provider, "no_messages") = event else {
+                    return false
+                }
+                return true
+            }.count,
+            2
+        )
+    }
+
+    @MainActor
+    func testNoMessageAnalysisDoesNotModifyDestinationChat() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let originalDate = Date(timeIntervalSince1970: 1_000)
+        let existingChat = ChatRecord(
+            id: "existing-chat",
+            title: "Alice",
+            previewText: "Original preview",
+            conversationKind: .direct,
+            updatedAt: originalDate
+        )
+        container.mainContext.insert(existingChat)
+        try container.mainContext.save()
+        let coordinator = ScreenshotImportCoordinator(
+            aiService: StubAnalysisService(
+                analysis: ChatImportAnalysis(
+                    extractionStatus: .noMessages,
+                    conversationTitle: nil,
+                    messages: [],
+                    matchedChatID: nil,
+                    matchConfidence: 0,
+                    conversationKind: .unknown,
+                    titleSource: .unavailable,
+                    ownershipConvention: .unobservable
+                )
+            ),
+            repository: repository,
+            destinationChatID: existingChat.id
+        )
+
+        do {
+            _ = try await coordinator.process(imageDataList: [makeTestImageData()])
+            XCTFail("Expected noMessages")
+        } catch let error as ScreenshotImportError {
+            XCTAssertEqual(error, .noMessages(source: .images))
+        }
+
+        let storedChat = try XCTUnwrap(repository.chat(id: existingChat.id))
+        XCTAssertEqual(storedChat.title, "Alice")
+        XCTAssertEqual(storedChat.previewText, "Original preview")
+        XCTAssertEqual(storedChat.conversationKind, .direct)
+        XCTAssertEqual(storedChat.updatedAt, originalDate)
+        XCTAssertTrue(try repository.messages(chatID: existingChat.id).isEmpty)
+        XCTAssertTrue(
+            try container.mainContext.fetch(FetchDescriptor<ChatImportRecord>()).isEmpty
+        )
+    }
+
+    @MainActor
     func testCoordinatorRejectsOversizedSharedTranscriptAnalysisBeforePersistence() async throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)

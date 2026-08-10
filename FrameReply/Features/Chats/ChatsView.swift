@@ -128,7 +128,10 @@ struct ChatsView: View {
             }
 
             if let importErrorMessage {
-                ChatsImportErrorMessage(message: importErrorMessage)
+                ChatsImportErrorMessage(
+                    message: importErrorMessage,
+                    onDismiss: dismissImportError
+                )
                     .listRowInsets(
                         EdgeInsets(top: 6, leading: 24, bottom: 6, trailing: 24)
                     )
@@ -316,6 +319,11 @@ struct ChatsView: View {
 
     private var importErrorMessage: String? {
         photoLoadErrorMessage ?? importModel.errorMessage
+    }
+
+    private func dismissImportError() {
+        photoLoadErrorMessage = nil
+        importModel.dismissError()
     }
 
     private func importSelectedScreenshots(_ items: [PhotosPickerItem]) async {
@@ -573,6 +581,7 @@ private struct EmptyImportPrompt: View {
 
 private struct ChatsImportErrorMessage: View {
     let message: String
+    let onDismiss: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -585,8 +594,14 @@ private struct ChatsImportErrorMessage: View {
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
+        .padding(.trailing, 16)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .glassPanel(cornerRadius: 18)
+        .overlay(alignment: .topTrailing) {
+            ScreenshotImportDismissButton(action: onDismiss)
+                .padding(.top, 2)
+                .padding(.trailing, 4)
+        }
     }
 }

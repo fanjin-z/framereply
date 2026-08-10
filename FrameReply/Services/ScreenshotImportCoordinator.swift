@@ -11,9 +11,15 @@ struct PreparedScreenshotImport {
     let traceID: ImportTraceID
 }
 
-enum ScreenshotImportError: LocalizedError {
+nonisolated enum ChatImportInputSource: Equatable, Sendable {
+    case images
+    case copiedText
+}
+
+nonisolated enum ScreenshotImportError: LocalizedError, Equatable, Sendable {
     case noImage
     case noTranscript
+    case noMessages(source: ChatImportInputSource)
     case transcriptTooLarge
     case tooManyImages
     case unsupportedImage
@@ -29,6 +35,13 @@ enum ScreenshotImportError: LocalizedError {
             String(localized: AppStrings.Errors.Import.noImage)
         case .noTranscript:
             String(localized: AppStrings.Errors.Import.noTranscript)
+        case .noMessages(let source):
+            switch source {
+            case .images:
+                String(localized: AppStrings.Errors.Import.noMessagesInImages)
+            case .copiedText:
+                String(localized: AppStrings.Errors.Import.noMessagesInCopiedText)
+            }
         case .transcriptTooLarge:
             String(localized: AppStrings.Errors.Import.transcriptTooLarge)
         case .tooManyImages:
@@ -54,6 +67,8 @@ enum ScreenshotImportError: LocalizedError {
             "no_image"
         case .noTranscript:
             "no_transcript"
+        case .noMessages:
+            "no_messages"
         case .transcriptTooLarge:
             "transcript_too_large"
         case .tooManyImages:
@@ -295,6 +310,23 @@ final class ScreenshotImportCoordinator {
         } catch {
             eventReporter.record(
                 .importFailed(traceID: traceID, stage: .provider, errorCode: "provider_error"))
+            throw error
+        }
+
+        guard analysis.extractionStatus == .ok, !analysis.messages.isEmpty else {
+            let source: ChatImportInputSource =
+                switch payload {
+                case .screenshots: .images
+                case .sharedTranscript: .copiedText
+                }
+            let error = ScreenshotImportError.noMessages(source: source)
+            eventReporter.record(
+                .importFailed(
+                    traceID: traceID,
+                    stage: .provider,
+                    errorCode: error.code
+                )
+            )
             throw error
         }
 

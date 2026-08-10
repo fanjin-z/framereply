@@ -125,6 +125,14 @@ nonisolated enum AppStrings {
                 "error.import.no-transcript",
                 defaultValue: "Share or copy at least one text message before importing."
             )
+            static let noMessagesInImages = LocalizedStringResource(
+                "error.import.no-messages.images",
+                defaultValue: "No messages. Try a new image."
+            )
+            static let noMessagesInCopiedText = LocalizedStringResource(
+                "error.import.no-messages.copied-text",
+                defaultValue: "No messages. Copy with sender names."
+            )
             static let transcriptTooLarge = LocalizedStringResource(
                 "error.import.transcript-too-large",
                 defaultValue: "The chat text is too large. Select fewer messages and try again."
