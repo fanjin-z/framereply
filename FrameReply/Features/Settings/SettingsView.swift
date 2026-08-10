@@ -243,16 +243,20 @@ struct SettingsView: View {
         installation: ShortcutInstallationDefinition
     ) -> some View {
         if let installationURL = installation.installationURL {
-            compactShortcutRow(
-                title: title,
-                subtitle: subtitle,
-                symbol: symbol,
-                trailing: AnyView(
-                    Link("Install", destination: installationURL)
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .accessibilityLabel("Install \(installation.title)")
+            Link(destination: installationURL) {
+                compactShortcutRow(
+                    title: title,
+                    subtitle: subtitle,
+                    symbol: symbol,
+                    trailing: AnyView(
+                        Text("Install")
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .foregroundStyle(FrameReplyColor.primary)
+                    )
                 )
-            )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Install \(installation.title)")
         } else {
             compactShortcutRow(
                 title: title,
@@ -293,6 +297,7 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 16)
         .frame(minHeight: 60)
+        .contentShape(Rectangle())
     }
 
     private var addProviderPopup: some View {
