@@ -65,8 +65,8 @@ struct FrameReplyShellView: View {
                         SettingsView(
                             providerStore: providerStore,
                             isActive: isActive,
-                            onNamesAndUsernamesTap: {
-                                navigationPath.append(.namesAndUsernames)
+                            onPersonalInfoTap: {
+                                navigationPath.append(.personalInfo)
                             },
                             onPrivacyAndDataTap: {
                                 navigationPath.append(.privacyAndData)
@@ -141,8 +141,8 @@ struct FrameReplyShellView: View {
                         chatRepository: chatRepository,
                         personaRepository: personaRepository
                     )
-                case .namesAndUsernames:
-                    NamesAndUsernamesView(repository: chatRepository)
+                case .personalInfo:
+                    PersonalInfoView(repository: chatRepository)
                 case .privacyAndData:
                     PrivacyAndDataView(providerStore: providerStore)
                 }

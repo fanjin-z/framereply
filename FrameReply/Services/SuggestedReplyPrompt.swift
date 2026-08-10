@@ -14,17 +14,21 @@ nonisolated enum SuggestedReplyPrompt {
         - Latest "user": return two follow-ups only for a clearly incomplete trailing turn or when draftingInput explicitly requests more content. Otherwise return replies [], including uncertain completion or a style-only draftingInput.
         - For replies []: conversationStrategy starts with what to do after another participant responds, omits the wait instruction, and does not predict the response. strategyRationale grounds that direction in the conversation, currentInteractionGoal, and uncertainty without misattributing "user" messages.
         """
+    private static let personalInfoUseRules = """
+        Personal Info use
+        Treat Personal Info as optional constraints after current conversation grounding; current draftingInput and recent user statements override it. Use a fact only to directly answer a question, materially constrain or correct the response, or satisfy an explicit drafting input or goal. If the response works equally well without it, omit it. Never change the topic or a current commitment, repeat a recently stated fact, or cause unnecessary self-disclosure; a fact may silently constrain a choice. Default to none and normally at most one; use more only for an explicit broad personal question. Both reply alternatives must use the same factual assumptions. Remove use that is irrelevant, repetitive, awkward, boastful, or meaning-changing.
+        """
 
     private static func standardInstructions(appLanguageDescription: String) -> String {
         """
         Task
-        Generate ready-to-send messages, a brief conversation strategy, a user-facing strategy rationale, durable chat-memory changes, and reusable writing-style observations.
+        Generate ready-to-send messages, a brief conversation strategy, a user-facing strategy rationale, durable chat-memory and Personal Info changes, and reusable writing-style observations.
         \(untrustedDataRule)
 
         \(languageRules(
             appLanguageDescription: appLanguageDescription,
             appLanguageFields:
-                "conversationStrategy, strategyRationale, and every non-null personaObservationChanges.text",
+                "conversationStrategy, strategyRationale, and every non-null personaObservationChanges.text or personalInfoChanges.text",
             conversationRules: [
                 "Match each reply to the language and script of the latest relevant conversation messages.",
                 "Match historySummary to the messages it summarizes and every non-null memoryChanges.text to its cited evidence. When supporting messages differ in language or script, use the dominant relevant one.",
@@ -35,7 +39,9 @@ nonisolated enum SuggestedReplyPrompt {
         \(senderAndTurnRules)
 
         Reply rules
-        Ground reply substance and direction using this priority: recentMessages and existingHistorySummary/olderMessagesToSummarize, with exact recent messages winning conflicts; draftingInput; currentInteractionGoal; active chatMemories; previousConversationStrategy. For reply bodies only, ground wording and style using this priority: draftingInput style requests; persona instructions; protected active persona observations; mutable active persona observations. Never invent facts, promises, dates, availability, feelings, or commitments. When replies are required, return two distinct alternatives with the same factual meaning, ready to send without labels or commentary.
+        Ground reply substance and direction using this priority: recentMessages and existingHistorySummary/olderMessagesToSummarize, with exact recent messages winning conflicts; draftingInput; currentInteractionGoal; active chatMemories; relevant Personal Info that passes the gate below; previousConversationStrategy. For reply bodies only, ground wording and style using this priority: draftingInput style requests; persona instructions; protected active persona observations; mutable active persona observations. Never invent facts, promises, dates, availability, feelings, or commitments. When replies are required, return two distinct alternatives with the same factual meaning, ready to send without labels or commentary.
+
+        \(personalInfoUseRules)
 
         Strategy rules
         conversationStrategy is a concise direction for the next 1–3 conversational turns, not a distant plan. Keep it anchored to the latest messages and currentInteractionGoal. If the goal or context is missing, choose a low-risk direction and name the uncertainty in strategyRationale. previousConversationStrategy is AI-generated and unconfirmed. Use it only for continuity. Revise or ignore it when newer inputs point elsewhere. strategyRationale is a concise user-facing explanation of evidence, assumptions, and uncertainty; do not reveal chain-of-thought or hidden reasoning.
@@ -48,8 +54,11 @@ nonisolated enum SuggestedReplyPrompt {
         Persona-learning rules
         Learn only from personaLearningMessages, all of which are user-authored. Store concise, self-contained, reusable writing patterns—not facts, names, relationships, topics, promises, dates, or message meaning. Every change needs 2–10 distinct supporting IDs. Add only a genuinely new pattern. Update a mutable active observation when evidence refines or contradicts it. Archive a mutable active observation when it is obsolete without replacement. Never target protected observations or recreate anything in protectedTombstones. Prefer no change when evidence is mixed or weak. Keep the resulting active set within maxActiveObservations.
 
+        Personal Info learning
+        When personalInfoLearningEnabled is true, learn only from "user" messages in recentMessages; otherwise return no personalInfoChanges. Store one atomic, broadly reusable, directly stated durable personal detail per item, citing 1–3 distinct supplied IDs. Exclude aliases, writing style, transient states, goals or plans, chat-specific commitments, inference, and information primarily about someone else. Never store credentials, verification codes, financial or government identifiers, exact home/work/current locations, or detailed medical or mental-health information. Do not add information already represented in Personal Info, even if phrased differently. Update or archive a mutable AI item only on later direct evidence. Never target protected items or recreate protected tombstones. Return at most eight changes and keep at most maxActiveFacts active; prefer no change when uncertain.
+
         History-summary rules
-        historySummary is null when olderMessagesToSummarize is empty. When olderMessagesToSummarize is nonempty and existingHistorySummary is empty, summarize only olderMessagesToSummarize. When both are nonempty, merge existingHistorySummary with only olderMessagesToSummarize. Never infer summary content from recentMessages, chatMemories, persona data, or other fields. Preserve durable topics, decisions, commitments, unresolved questions, relationship dynamics, and preferences; exclude transient greetings and unsupported details. If a safe summary cannot be produced, return null.
+        historySummary is null when olderMessagesToSummarize is empty. When olderMessagesToSummarize is nonempty and existingHistorySummary is empty, summarize only olderMessagesToSummarize. When both are nonempty, merge existingHistorySummary with only olderMessagesToSummarize. Never infer summary content from recentMessages, chatMemories, Personal Info, persona data, or other fields. Preserve durable topics, decisions, commitments, unresolved questions, relationship dynamics, and preferences; exclude transient greetings and unsupported details. If a safe summary cannot be produced, return null.
 
         Output
         \(jsonOutputRule) Return every schema field, using explicit null where allowed. Use empty change arrays when there is no supported change. Add uses a null target and nonempty text; update uses an existing mutable target and replacement text; archive uses an existing mutable target and null text.
@@ -75,6 +84,8 @@ nonisolated enum SuggestedReplyPrompt {
 
         Grounding rules
         Ground facts in recentMessages, existingHistorySummary, and olderMessagesToSummarize; use draftingInput only as one-use guidance. Never invent facts, promises, dates, availability, feelings, or commitments.
+
+        \(personalInfoUseRules)
 
         Output
         \(jsonOutputRule)
@@ -144,11 +155,16 @@ nonisolated enum SuggestedReplyPrompt {
                 targetKey: "targetObservationID", minEvidence: 2, maxEvidence: 10,
                 maxItems: PersonaLimits.maximumActiveObservations,
                 maximumTextCodePoints: PersonaLimits.maximumObservationTextCodePoints
+            ),
+            "personalInfoChanges": changeArraySchema(
+                targetKey: "targetFactID", minEvidence: 1, maxEvidence: 3,
+                maxItems: PersonalInfoLimits.maximumChangesPerGeneration,
+                maximumTextCodePoints: PersonalInfoLimits.maximumTextCodePoints
             )
         ],
         "required": [
             "historySummary", "replies", "conversationStrategy", "strategyRationale",
-            "memoryChanges", "personaObservationChanges"
+            "memoryChanges", "personaObservationChanges", "personalInfoChanges"
         ]
     ]
 
@@ -184,7 +200,9 @@ nonisolated enum SuggestedReplyPrompt {
         case .standard:
             payload = commonConversationPayload(request).merging([
                 "personaLearningMessages": request.personaLearningMessages.map(messageObject),
-                "maxActiveObservations": PersonaLimits.maximumActiveObservations
+                "maxActiveObservations": PersonaLimits.maximumActiveObservations,
+                "personalInfoLearningEnabled": request.personalInfoLearningEnabled,
+                "maxActiveFacts": PersonalInfoLimits.maximumActiveFacts
             ]) { _, new in new }
         case .drafting:
             payload = commonConversationPayload(request)
@@ -206,6 +224,7 @@ nonisolated enum SuggestedReplyPrompt {
     ) -> [String: Any] {
         [
             "chatMemories": request.chatMemories.filter { $0.status == .active }.map(memoryObject),
+            "personalInfo": personalInfoObject(request.personalInfo),
             "currentInteractionGoal": request.currentInteractionGoal,
             "persona": personaObject(request.persona),
             "existingHistorySummary": request.existingHistorySummary,
@@ -279,6 +298,7 @@ nonisolated enum SuggestedReplyPrompt {
                 strategyRationale: maximum \(rationaleMaximum) Unicode code points.
                 Each non-null memoryChanges.text: maximum \(ChatMemoryLimits.maximumAITextCodePoints) Unicode code points.
                 Each non-null personaObservationChanges.text: maximum \(PersonaLimits.maximumObservationTextCodePoints) Unicode code points.
+                Each non-null personalInfoChanges.text: maximum \(PersonalInfoLimits.maximumTextCodePoints) Unicode code points.
                 \(end)
                 """
         case .drafting:
@@ -332,6 +352,23 @@ nonisolated enum SuggestedReplyPrompt {
             "instructions": persona.instructions,
             "activeObservations": persona.observations.map(observationObject),
             "protectedTombstones": persona.protectedTombstones.map(observationObject)
+        ]
+    }
+
+    private static func personalInfoObject(
+        _ personalInfo: PersonalInfoPromptContext
+    ) -> [String: Any] {
+        [
+            "activeFacts": personalInfo.facts.map(personalInfoFactObject),
+            "protectedTombstones": personalInfo.protectedTombstones.map(personalInfoFactObject)
+        ]
+    }
+
+    private static func personalInfoFactObject(_ fact: PersonalInfoFact) -> [String: Any] {
+        [
+            "id": fact.id.uuidString.lowercased(),
+            "text": fact.text,
+            "isUserProtected": fact.isUserProtected
         ]
     }
 

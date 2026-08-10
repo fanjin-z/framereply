@@ -47,6 +47,26 @@ nonisolated enum ChatParticipantNameError: LocalizedError, Equatable, Sendable {
     }
 }
 
+nonisolated enum PersonalInfoError: LocalizedError, Equatable, Sendable {
+    case emptyFact
+    case factTooLong
+    case activeFactLimitReached
+    case duplicateFact
+
+    var errorDescription: String? {
+        switch self {
+        case .emptyFact:
+            "Enter one short fact about yourself."
+        case .factTooLong:
+            "Personal Info can be up to \(PersonalInfoLimits.maximumTextCodePoints) characters."
+        case .activeFactLimitReached:
+            "You can keep up to \(PersonalInfoLimits.maximumActiveFacts) active items."
+        case .duplicateFact:
+            "This item is already in Personal Info."
+        }
+    }
+}
+
 nonisolated enum DraftingInputBarrier {
     static func waitUntilReady(
         pollInterval: Duration = .milliseconds(150),
@@ -66,6 +86,7 @@ final class ChatRepository {
     private let context: ModelContext
     private let seedVersion = "1"
     private let seedVersionKey = "sampleSeedVersion"
+    private let personalInfoLearningEnabledKey = "personalInfoLearningEnabled"
 
     init(container: ModelContainer) {
         context = container.mainContext
@@ -539,10 +560,111 @@ final class ChatRepository {
             .map { $0 }
     }
 
+    func personalInfoLearningEnabled() throws -> Bool {
+        let key = personalInfoLearningEnabledKey
+        return try context.fetch(
+            FetchDescriptor<StoreMetadataRecord>(
+                predicate: #Predicate { $0.key == key }
+            )
+        ).first?.value != "false"
+    }
+
+    func personalInfoFacts() throws -> [PersonalInfoFactRecord] {
+        var descriptor = FetchDescriptor<PersonalInfoFactRecord>()
+        descriptor.sortBy = [SortDescriptor(\.text), SortDescriptor(\.id)]
+        return try context.fetch(descriptor)
+    }
+
+    func personalInfoPromptContext() throws -> PersonalInfoPromptContext {
+        Self.personalInfoPromptContext(from: try personalInfoFacts().map(\.value))
+    }
+
+    func projectedPersonalInfoPromptContext(
+        changes: [PersonalInfoChange],
+        allowedMessageIDs: Set<UUID>
+    ) throws -> PersonalInfoPromptContext {
+        let projected = PersonalInfoReconciler.reconcile(
+            facts: try personalInfoFacts().map(\.value),
+            changes: changes,
+            allowedUserSourceMessageIDs: allowedMessageIDs
+        )
+        return Self.personalInfoPromptContext(from: projected)
+    }
+
+    @discardableResult
+    func addPersonalInfoFact(text: String) throws -> PersonalInfoFactRecord {
+        let cleaned = try cleanedPersonalInfoText(text)
+        let records = try personalInfoFacts()
+        guard
+            records.filter({ $0.status == PersonalInfoFactStatus.active.rawValue }).count
+                < PersonalInfoLimits.maximumActiveFacts
+        else { throw PersonalInfoError.activeFactLimitReached }
+        guard
+            !records.contains(where: {
+                $0.status == PersonalInfoFactStatus.active.rawValue
+                    && PersonalInfoReconciler.comparisonKey($0.text)
+                        == PersonalInfoReconciler.comparisonKey(cleaned)
+            })
+        else { throw PersonalInfoError.duplicateFact }
+
+        for tombstone in records
+        where tombstone.status == PersonalInfoFactStatus.tombstone.rawValue
+            && PersonalInfoReconciler.comparisonKey(tombstone.text)
+                == PersonalInfoReconciler.comparisonKey(cleaned)
+        {
+            tombstone.status = PersonalInfoFactStatus.superseded.rawValue
+        }
+        let value = PersonalInfoFact(
+            text: cleaned,
+            origin: .user,
+            status: .active
+        )
+        let record = PersonalInfoFactRecord(value: value)
+        context.insert(record)
+        try context.save()
+        return record
+    }
+
+    func updatePersonalInfoFact(_ record: PersonalInfoFactRecord, text: String) throws {
+        let cleaned = try cleanedPersonalInfoText(text)
+        guard
+            !(try personalInfoFacts()).contains(where: {
+                $0.id != record.id
+                    && $0.status == PersonalInfoFactStatus.active.rawValue
+                    && PersonalInfoReconciler.comparisonKey($0.text)
+                        == PersonalInfoReconciler.comparisonKey(cleaned)
+            })
+        else { throw PersonalInfoError.duplicateFact }
+        record.text = cleaned
+        record.origin = PersonalInfoFactOrigin.user.rawValue
+        record.status = PersonalInfoFactStatus.active.rawValue
+        try context.save()
+    }
+
+    func deletePersonalInfoFact(_ record: PersonalInfoFactRecord) throws {
+        record.status = PersonalInfoFactStatus.tombstone.rawValue
+        try context.save()
+    }
+
+    func setPersonalInfoLearningEnabled(_ enabled: Bool) throws {
+        let key = personalInfoLearningEnabledKey
+        if let record = try context.fetch(
+            FetchDescriptor<StoreMetadataRecord>(
+                predicate: #Predicate { $0.key == key }
+            )
+        ).first {
+            record.value = enabled ? "true" : "false"
+        } else {
+            context.insert(StoreMetadataRecord(key: key, value: enabled ? "true" : "false"))
+        }
+        try context.save()
+    }
+
     func saveSuggestedReplyGeneration(
         chatID: String,
         appLanguage: String,
         chatMemories: [ChatMemory],
+        personalInfoFacts: [PersonalInfoFact] = [],
         personaID: UUID,
         personaObservationChanges: [PersonaObservationChange],
         learningMessageIDs: Set<UUID>,
@@ -563,6 +685,18 @@ final class ChatRepository {
                     record.update(from: memory)
                 } else {
                     context.insert(ChatMemoryRecord(chatID: chatID, value: memory))
+                }
+            }
+
+            let storedPersonalInfo = try self.personalInfoFacts()
+            let personalInfoByID = Dictionary(
+                uniqueKeysWithValues: storedPersonalInfo.map { ($0.id, $0) }
+            )
+            for fact in personalInfoFacts {
+                if let record = personalInfoByID[fact.id] {
+                    record.update(from: fact)
+                } else {
+                    context.insert(PersonalInfoFactRecord(value: fact))
                 }
             }
 
@@ -913,6 +1047,28 @@ final class ChatRepository {
             context.rollback()
             throw error
         }
+    }
+
+    private static func personalInfoPromptContext(
+        from facts: [PersonalInfoFact]
+    ) -> PersonalInfoPromptContext {
+        PersonalInfoPromptContext(
+            facts: facts.filter { $0.status == .active }.sorted {
+                $0.id.uuidString < $1.id.uuidString
+            },
+            protectedTombstones: facts.filter {
+                $0.status == .tombstone
+            }.sorted { $0.id.uuidString < $1.id.uuidString }
+        )
+    }
+
+    private func cleanedPersonalInfoText(_ text: String) throws -> String {
+        let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { throw PersonalInfoError.emptyFact }
+        guard cleaned.unicodeScalars.count <= PersonalInfoLimits.maximumTextCodePoints else {
+            throw PersonalInfoError.factTooLong
+        }
+        return cleaned
     }
 
     func matchCandidates(recentMessageLimit: Int = 12) throws -> [ChatMatchCandidate] {

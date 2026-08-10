@@ -6,19 +6,19 @@ permalink: /privacy
 
 # FrameReply Privacy Policy
 
-Effective August 2, 2026
+Effective August 10, 2026
 
 FrameReply is an open-source iPhone app. The project maintainer is the data controller for the limited processing described here. FrameReply does not operate an application server and does not use advertising, analytics, or tracking SDKs.
 
 ## Data FrameReply handles
 
-FrameReply may handle participant and chat names, screenshots, message text, personas, communication goals, drafts, generated replies, provider account identifiers, and basic request-status information. This content can include personal data about the user and other conversation participants.
+FrameReply may handle participant and chat names, screenshots, message text, personas, communication goals, saved Personal Info about the user, drafts, generated replies, provider account identifiers, and basic request-status information. This content can include personal data about the user and other conversation participants.
 
-API keys are stored in Apple's Keychain using device-only protection. Extracted chats, personas, context, and replies are stored in the app's protected local database and excluded from device backups. Source images are normalized for transmission and are not stored by FrameReply as source files. The extracted message content remains in the local database until the user deletes it.
+API keys are stored in Apple's Keychain using device-only protection. Extracted chats, personas, Personal Info, context, and replies are stored in the app's protected local database and excluded from device backups. Source images are normalized for transmission and are not stored by FrameReply as source files. The extracted message content remains in the local database until the user deletes it.
 
 ## AI provider processing
 
-After explicit provider-specific consent, FrameReply sends selected content directly from the device to the active provider solely to analyze a conversation or generate replies. FrameReply does not receive a copy through a developer-operated server.
+After explicit provider-specific consent, FrameReply sends selected content and relevant saved Personal Info directly from the device to the active provider solely to analyze a conversation or generate replies. FrameReply does not receive a copy through a developer-operated server.
 
 - OpenAI requests use the Responses API with `store: false`. OpenAI may still retain request data for abuse monitoring or other purposes described in its [API data controls](https://developers.openai.com/api/docs/guides/your-data) and [privacy policy](https://openai.com/policies/privacy-policy/).
 - OpenRouter requests use the fixed `qwen/qwen3.7-plus` model. They pass through OpenRouter and are forwarded to Alibaba Cloud International. FrameReply denies provider data collection in each request and disables fallback routing, but this endpoint may still retain request data under its policies. Review the [OpenRouter privacy policy](https://openrouter.ai/privacy), [provider logging information](https://openrouter.ai/docs/guides/privacy/provider-logging/), and [Alibaba Cloud privacy policy](https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-privacy-policy).
@@ -35,7 +35,7 @@ The user must affirm that they consent to provider processing and have permissio
 
 ## Retention and deletion
 
-Local data remains until the user deletes an individual chat/provider or chooses **Delete All Local Data**. Full deletion removes chats, messages, personas, context, drafts, consent records, provider settings, and API keys for currently supported providers from the device. Reinstall detection purges orphaned keys for currently supported providers from the Keychain.
+Local data remains until the user deletes an individual chat/provider or chooses **Delete All Local Data**. Personal Info remains account-wide if a source chat is deleted. Removing an item keeps a local record to prevent relearning; **Delete All Local Data** removes all Personal Info records along with chats, messages, personas, context, drafts, consent records, provider settings, and API keys for currently supported providers from the device. Reinstall detection purges orphaned keys for currently supported providers from the Keychain.
 
 Deleting a provider does not revoke the key or delete provider-held data. Use the provider's account and privacy controls for those actions.
 
@@ -51,4 +51,4 @@ FrameReply is not designed specifically for children. Users must meet the age an
 
 For privacy or deletion questions, use the maintainer's [contact page](https://fanjin.org/contact) and mention FrameReply. Do not put personal data in a public issue. Security-sensitive reports should use this repository's GitHub private vulnerability-reporting channel. General support instructions are available on the [support page](support.md).
 
-Material policy changes will update the effective date and require renewed in-app consent when provider data sharing changes.
+Material policy changes will update the effective date.

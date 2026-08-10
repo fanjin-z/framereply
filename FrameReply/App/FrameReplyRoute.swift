@@ -11,6 +11,6 @@ enum FrameReplyRoute: Hashable {
     case chatImportReview(String)
     case newPersona
     case persona(UUID)
-    case namesAndUsernames
+    case personalInfo
     case privacyAndData
 }

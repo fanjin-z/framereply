@@ -6,7 +6,7 @@ permalink: /terms
 
 # FrameReply Terms of Use
 
-Effective July 15, 2026
+Effective August 10, 2026
 
 FrameReply is provided under the Apache License 2.0 and is offered without warranties. These terms govern use of the distributed app; the open-source license governs copying and modification of the source code.
 
@@ -14,7 +14,7 @@ You must satisfy the account, age, and authorization requirements of your select
 
 Only upload content you are authorized to process. You are responsible for obtaining permission or another lawful basis for conversation text, screenshots, names, and other personal information belonging to third parties.
 
-Suggested replies and analysis are AI-generated and may be wrong, inappropriate, or misleading. Review all output before using or sending it. Do not use FrameReply for unlawful activity, harassment, impersonation, surveillance, deception, high-stakes automated decisions, or attempts to compromise another person's privacy.
+Suggested replies, analysis, and learned Personal Info are AI-generated and may be wrong, inappropriate, or misleading. Review saved Personal Info and all output before using or sending it. Do not use FrameReply for unlawful activity, harassment, impersonation, surveillance, deception, high-stakes automated decisions, or attempts to compromise another person's privacy.
 
 The app may stop supporting a provider or model when its API, availability, terms, or safety requirements change. Provider services are outside the maintainer's control.
 

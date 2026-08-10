@@ -17,7 +17,7 @@ final class PrivacySecurityTests: XCTestCase {
         XCTAssertTrue(
             disclosure.permissionMessage.contains(ProviderPlatform.miniMaxChina.displayName)
         )
-        XCTAssertTrue(disclosure.permissionMessage.contains("messages, images, names, and drafts"))
+        XCTAssertTrue(disclosure.permissionMessage.contains("saved personal context"))
         XCTAssertTrue(disclosure.permissionMessage.contains("third-party AI provider"))
         XCTAssertTrue(disclosure.permissionMessage.contains("analyze chats and create replies"))
     }

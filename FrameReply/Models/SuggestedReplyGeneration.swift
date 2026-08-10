@@ -35,6 +35,13 @@ nonisolated struct PersonaObservationChange: Codable, Equatable, Sendable {
     let sourceMessageIDs: [UUID]
 }
 
+nonisolated struct PersonalInfoChange: Codable, Equatable, Sendable {
+    let action: ChatMemoryChangeAction
+    let targetFactID: UUID?
+    let text: String?
+    let sourceMessageIDs: [UUID]
+}
+
 nonisolated enum SuggestedReplyTask: String, Equatable, Sendable {
     case standard
     case drafting
@@ -52,6 +59,8 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
     let currentInteractionGoal: String
     let persona: PersonaPromptContext
     let personaLearningMessages: [SuggestedReplyPromptMessage]
+    let personalInfo: PersonalInfoPromptContext
+    let personalInfoLearningEnabled: Bool
     let existingHistorySummary: String
     let olderMessagesToSummarize: [SuggestedReplyPromptMessage]
     let recentMessages: [SuggestedReplyPromptMessage]
@@ -67,6 +76,8 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
         currentInteractionGoal: String,
         persona: PersonaPromptContext,
         personaLearningMessages: [SuggestedReplyPromptMessage],
+        personalInfo: PersonalInfoPromptContext = .empty,
+        personalInfoLearningEnabled: Bool = false,
         existingHistorySummary: String,
         olderMessagesToSummarize: [SuggestedReplyPromptMessage],
         recentMessages: [SuggestedReplyPromptMessage],
@@ -80,6 +91,8 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
         self.currentInteractionGoal = currentInteractionGoal
         self.persona = persona
         self.personaLearningMessages = personaLearningMessages
+        self.personalInfo = personalInfo
+        self.personalInfoLearningEnabled = personalInfoLearningEnabled
         self.existingHistorySummary = existingHistorySummary
         self.olderMessagesToSummarize = olderMessagesToSummarize
         self.recentMessages = recentMessages
@@ -98,6 +111,7 @@ nonisolated struct SuggestedReplyGenerationResult: Codable, Equatable, Sendable 
     let memoryChanges: [ChatMemoryChange]
     let personaObservationChanges: [PersonaObservationChange]
     let personaObservationChangesAvailable: Bool
+    let personalInfoChanges: [PersonalInfoChange]
 
     init(
         historySummary: String?,
@@ -106,7 +120,8 @@ nonisolated struct SuggestedReplyGenerationResult: Codable, Equatable, Sendable 
         strategyRationale: String,
         memoryChanges: [ChatMemoryChange] = [],
         personaObservationChanges: [PersonaObservationChange] = [],
-        personaObservationChangesAvailable: Bool = true
+        personaObservationChangesAvailable: Bool = true,
+        personalInfoChanges: [PersonalInfoChange] = []
     ) {
         self.historySummary = historySummary
         self.replies = replies
@@ -115,6 +130,7 @@ nonisolated struct SuggestedReplyGenerationResult: Codable, Equatable, Sendable 
         self.memoryChanges = memoryChanges
         self.personaObservationChanges = personaObservationChanges
         self.personaObservationChangesAvailable = personaObservationChangesAvailable
+        self.personalInfoChanges = personalInfoChanges
     }
 }
 
@@ -162,7 +178,7 @@ nonisolated enum SuggestedReplyResultDecoder {
             knownKeys = [
                 "historySummary",
                 "replies", "conversationStrategy", "strategyRationale", "memoryChanges",
-                "personaObservationChanges"
+                "personaObservationChanges", "personalInfoChanges"
             ]
         case .drafting:
             knownKeys = ["replies", "conversationStrategy", "strategyRationale"]
@@ -330,13 +346,50 @@ nonisolated enum SuggestedReplyResultDecoder {
             observationsAvailable = false
         }
 
+        let personalInfoChanges: [PersonalInfoChange]
+        if task == .standard {
+            if let values = object["personalInfoChanges"] as? [Any] {
+                var decoded: [PersonalInfoChange] = []
+                for (index, value) in values.enumerated() {
+                    guard decoded.count < PersonalInfoLimits.maximumChangesPerGeneration,
+                        let item = value as? [String: Any]
+                    else {
+                        recovered = true
+                        continue
+                    }
+                    do {
+                        decoded.append(try decodePersonalInfoChange(item, index: index))
+                    } catch let dropped as DroppedOverlongField {
+                        fieldRecoveries.append(dropped.recovery)
+                        recovered = true
+                        continue
+                    } catch {
+                        recovered = true
+                        continue
+                    }
+                    if !Set(item.keys).subtracting([
+                        "action", "targetFactID", "text", "evidenceMessageIDs"
+                    ]).isEmpty {
+                        recovered = true
+                    }
+                }
+                personalInfoChanges = decoded
+            } else {
+                personalInfoChanges = []
+                recovered = true
+            }
+        } else {
+            personalInfoChanges = []
+        }
+
         return StructuredOutputDecodingResult(
             value: SuggestedReplyGenerationResult(
                 historySummary: summary, replies: replies,
                 conversationStrategy: conversationStrategy,
                 strategyRationale: strategyRationale,
                 memoryChanges: memories, personaObservationChanges: observations,
-                personaObservationChangesAvailable: observationsAvailable
+                personaObservationChangesAvailable: observationsAvailable,
+                personalInfoChanges: personalInfoChanges
             ),
             recovered: recovered,
             fieldRecoveries: fieldRecoveries
@@ -387,6 +440,30 @@ nonisolated enum SuggestedReplyResultDecoder {
         )
         return PersonaObservationChange(
             action: action, targetObservationID: target, text: text, sourceMessageIDs: ids)
+    }
+
+    private static func decodePersonalInfoChange(_ object: [String: Any], index: Int) throws
+        -> PersonalInfoChange
+    {
+        let path = "personalInfoChanges[\(index)]"
+        guard let rawAction = object["action"] as? String,
+            let action = ChatMemoryChangeAction(rawValue: rawAction),
+            let sourceValues = object["evidenceMessageIDs"] as? [String],
+            (1...3).contains(sourceValues.count)
+        else { throw schema(path) }
+        let ids = try decodeIDs(sourceValues, path: "\(path).evidenceMessageIDs")
+        let target = try nullableUUID(from: object["targetFactID"], path: path)
+        let text = try nullableString(from: object["text"], path: path)
+        try validate(
+            action: action.rawValue,
+            target: target,
+            text: text,
+            maximumTextCodePoints: PersonalInfoLimits.maximumTextCodePoints,
+            path: path
+        )
+        return PersonalInfoChange(
+            action: action, targetFactID: target, text: text, sourceMessageIDs: ids
+        )
     }
 
     private static func validate(

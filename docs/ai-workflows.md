@@ -91,7 +91,7 @@ If the chat or sender identity remains uncertain, the import is still retained b
 
 ```mermaid
 flowchart LR
-    Grounding[Messages, goal, memory,<br/>persona, and optional draft]
+    Grounding[Messages, goal, memory,<br/>Personal Info, persona, and optional draft]
     Fingerprint[Input fingerprint]
     Cache{Valid cached result?}
     Summary[Plan older-history<br/>summary]
@@ -110,9 +110,9 @@ flowchart LR
 
 ### Grounding and cache validity
 
-Reply content is grounded in conversation history, the current interaction goal, active chat memory, the selected persona, and optional one-use drafting input. The newest messages remain verbatim; older history uses a validated summary checkpoint. A valid summary advances the checkpoint, an unavailable summary preserves it, and a historical mismatch triggers a rebuild.
+Reply content is grounded in conversation history, the current interaction goal, active chat memory, account-wide Personal Info, the selected persona, and optional one-use drafting input. Current conversation evidence and drafting input override saved Personal Info, which is used only when directly relevant and natural. The newest messages remain verbatim; older history uses a validated summary checkpoint. A valid summary advances the checkpoint, an unavailable summary preserves it, and a historical mismatch triggers a rebuild.
 
-The cache fingerprint covers the conversation and every durable input that can change the result, including active memory, persona state, pending style-learning samples, provider, model, and prompt version. Any relevant change invalidates the cache.
+The cache fingerprint covers the conversation and every durable input that can change the result, including active memory, Personal Info, pending personal-info messages, persona state, pending style-learning samples, provider, model, and prompt version. Any relevant change invalidates the cache.
 
 After generation, the same inputs are checked again. A result produced from stale conversation state or a changed provider is discarded rather than persisted.
 
@@ -123,13 +123,14 @@ Provider-proposed learning is filtered locally:
 | Proposed change | Required evidence | Purpose |
 | --- | --- | --- |
 | Chat memory | Eligible messages from the other participant | Retain one readable, atomic fact or confirmed shared plan per item in the app language. |
+| Personal Info | Confirmed user-authored messages in the latest 20 | Retain one directly stated, durable detail about the user. Goals, one-off plans, sensitive identifiers, exact locations, and detailed health information are excluded. |
 | Persona observation | Repeated, previously unprocessed user-authored messages | Learn reusable writing style rather than conversation facts. |
 
-Unsupported, duplicate, protected, or stale changes are ignored. Valid summaries, memory, persona observations, learning receipts, and cache state are persisted together.
+Unsupported, duplicate, protected, or stale changes are ignored. Personal Info and persona learning share the reply-generation request; neither adds a provider call. Valid summaries, memory, Personal Info, persona observations, and cache state are persisted together.
 
 ### One-use drafting isolation
 
-Optional drafting input can guide the immediate replies and strategy. Because it may be hypothetical or temporary, results produced with it cannot update the history summary, chat memory, or persona observations; only the immediate reply result is cached.
+Optional drafting input can guide the immediate replies and strategy. Because it may be hypothetical or temporary, results produced with it cannot update the history summary, chat memory, Personal Info, or persona observations; only the immediate reply result is cached.
 
 ## Why the workflows stay distinct
 

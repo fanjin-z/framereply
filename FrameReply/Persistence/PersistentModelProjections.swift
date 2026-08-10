@@ -210,6 +210,32 @@ extension ChatMemoryRecord {
     }
 }
 
+extension PersonalInfoFactRecord {
+    var value: PersonalInfoFact {
+        PersonalInfoFact(
+            id: id,
+            text: text,
+            origin: PersonalInfoFactOrigin(rawValue: origin) ?? .ai,
+            status: PersonalInfoFactStatus(rawValue: status) ?? .active
+        )
+    }
+
+    convenience init(value: PersonalInfoFact) {
+        self.init(
+            id: value.id,
+            text: value.text,
+            origin: value.origin.rawValue,
+            status: value.status.rawValue
+        )
+    }
+
+    func update(from value: PersonalInfoFact) {
+        text = value.text
+        origin = value.origin.rawValue
+        status = value.status.rawValue
+    }
+}
+
 extension SuggestedReplyCacheRecord {
     var replies: [String] {
         guard let data = repliesJSON.data(using: .utf8) else {

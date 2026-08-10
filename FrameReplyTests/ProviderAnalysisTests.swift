@@ -38,7 +38,7 @@ final class ProviderAnalysisTests: XCTestCase {
             standard,
             keys: [
                 "historySummary", "replies", "conversationStrategy", "strategyRationale",
-                "memoryChanges", "personaObservationChanges"
+                "memoryChanges", "personaObservationChanges", "personalInfoChanges"
             ], version: SuggestedReplyPrompt.version)
         try assertContract(
             drafting,
@@ -81,7 +81,18 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(standard.instructions.contains("merge existingHistorySummary"))
         XCTAssertTrue(
             standard.instructions.contains(
-                "Write conversationStrategy, strategyRationale, and every non-null personaObservationChanges.text in English (en), regardless of the language in conversation_data."
+                "learn only from \"user\" messages in recentMessages"
+            )
+        )
+        XCTAssertTrue(
+            standard.instructions.contains(
+                "already represented in Personal Info, even if phrased differently"
+            )
+        )
+        XCTAssertFalse(standard.instructions.contains("learning cutoff"))
+        XCTAssertTrue(
+            standard.instructions.contains(
+                "Write conversationStrategy, strategyRationale, and every non-null personaObservationChanges.text or personalInfoChanges.text in English (en), regardless of the language in conversation_data."
             )
         )
         XCTAssertTrue(
@@ -163,6 +174,25 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertFalse(standard.instructions.contains("only decisive conversation evidence"))
         XCTAssertFalse(standard.instructions.contains("material uncertainty"))
         XCTAssertFalse(drafting.instructions.contains("Strategy rules"))
+        for instructions in [standard.instructions, drafting.instructions] {
+            XCTAssertEqual(
+                instructions.components(separatedBy: "Personal Info use").count - 1,
+                1
+            )
+            for rule in [
+                "recent user statements override it",
+                "If the response works equally well without it, omit it",
+                "Default to none and normally at most one",
+                "repeat a recently stated fact",
+                "Both reply alternatives must use the same factual assumptions",
+                "awkward, boastful, or meaning-changing"
+            ] {
+                XCTAssertTrue(instructions.contains(rule), rule)
+            }
+        }
+        XCTAssertTrue(standard.instructions.contains("Never infer summary content"))
+        XCTAssertTrue(standard.instructions.contains("Personal Info, persona data"))
+        XCTAssertFalse(standard.instructions.contains("20 pending"))
         XCTAssertTrue(
             persona.instructions.contains(
                 "Write every non-null personaObservationChanges.text in English (en), regardless of the language in conversation_data."
@@ -210,6 +240,21 @@ final class ProviderAnalysisTests: XCTestCase {
         )
         XCTAssertNil(observationText["description"])
 
+        let personalInfoChanges = try XCTUnwrap(
+            summaryProperties["personalInfoChanges"] as? [String: Any]
+        )
+        XCTAssertEqual(
+            personalInfoChanges["maxItems"] as? Int,
+            PersonalInfoLimits.maximumChangesPerGeneration
+        )
+        let personalInfoItems = try XCTUnwrap(
+            personalInfoChanges["items"] as? [String: Any]
+        )
+        let personalInfoProperties = try XCTUnwrap(
+            personalInfoItems["properties"] as? [String: Any]
+        )
+        XCTAssertNotNil(personalInfoProperties["targetFactID"])
+
         let strategy = try XCTUnwrap(
             summaryProperties["conversationStrategy"] as? [String: Any]
         )
@@ -238,6 +283,9 @@ final class ProviderAnalysisTests: XCTestCase {
         let standard = SuggestedReplyPrompt.input(for: makeReplyRequest(task: .standard))
         XCTAssertTrue(standard.contains("chatMemories"))
         XCTAssertTrue(standard.contains("personaLearningMessages"))
+        XCTAssertTrue(standard.contains("personalInfoLearningEnabled\":true"))
+        XCTAssertFalse(standard.contains("personalInfoLearningMessages"))
+        XCTAssertTrue(standard.contains("maxActiveFacts\":50"))
         XCTAssertTrue(standard.contains("recentMessages"))
         XCTAssertTrue(standard.contains("<text_length_limits>"))
         XCTAssertTrue(
@@ -249,6 +297,9 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(
             standard.contains(
                 "Each non-null personaObservationChanges.text: maximum 240 Unicode code points"))
+        XCTAssertTrue(
+            standard.contains(
+                "Each non-null personalInfoChanges.text: maximum 120 Unicode code points"))
         XCTAssertFalse(standard.contains("exactly one short sentence"))
         XCTAssertFalse(standard.contains("do not instruct the user to wait"))
         XCTAssertFalse(standard.contains("appLanguage"))
@@ -263,6 +314,9 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(drafting.contains("<text_length_limits>"))
         XCTAssertFalse(drafting.contains("appLanguage"))
         XCTAssertFalse(drafting.contains("personaLearningMessages"))
+        XCTAssertTrue(drafting.contains("personalInfo"))
+        XCTAssertFalse(drafting.contains("personalInfoLearningEnabled"))
+        XCTAssertFalse(drafting.contains("personalInfoLearningMessages"))
         XCTAssertFalse(drafting.contains("summaryMode"))
 
         let persona = SuggestedReplyPrompt.input(
@@ -272,6 +326,7 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertFalse(persona.contains("appLanguage"))
         XCTAssertFalse(persona.contains("recentMessages"))
         XCTAssertFalse(persona.contains("chatMemories"))
+        XCTAssertFalse(persona.contains("personalInfo"))
         XCTAssertFalse(persona.contains("draftingInput"))
         XCTAssertTrue(persona.contains("<text_length_limits>"))
         XCTAssertTrue(
@@ -574,6 +629,53 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(decoded.value.memoryChanges.isEmpty)
         XCTAssertTrue(decoded.value.personaObservationChanges.isEmpty)
         XCTAssertFalse(decoded.value.personaObservationChangesAvailable)
+        XCTAssertTrue(decoded.value.personalInfoChanges.isEmpty)
+    }
+
+    func testSuggestedReplyDecoderValidatesPersonalInfoChanges() throws {
+        let evidenceID = UUID()
+        let accepted = String(repeating: "a", count: 120)
+        let rejected = String(repeating: "b", count: 121)
+        let decoded = try SuggestedReplyResultDecoder.decodeResult(
+            content: jsonString([
+                "historySummary": NSNull(),
+                "replies": ["First", "Second"],
+                "conversationStrategy": "Answer directly.",
+                "strategyRationale": "The current question calls for a direct answer.",
+                "memoryChanges": [],
+                "personaObservationChanges": [],
+                "personalInfoChanges": [
+                    [
+                        "action": "add", "targetFactID": NSNull(), "text": accepted,
+                        "evidenceMessageIDs": [evidenceID.uuidString]
+                    ],
+                    [
+                        "action": "add", "targetFactID": NSNull(), "text": rejected,
+                        "evidenceMessageIDs": [evidenceID.uuidString]
+                    ],
+                    [
+                        "action": "archive", "targetFactID": UUID().uuidString,
+                        "text": NSNull(),
+                        "evidenceMessageIDs": [evidenceID.uuidString, evidenceID.uuidString]
+                    ]
+                ]
+            ]),
+            finishReason: "stop",
+            task: .standard
+        )
+
+        XCTAssertTrue(decoded.recovered)
+        XCTAssertEqual(decoded.value.personalInfoChanges.map(\.text), [accepted])
+        XCTAssertEqual(
+            decoded.fieldRecoveries,
+            [
+                StructuredOutputFieldRecovery(
+                    path: "personalInfoChanges[1].text",
+                    originalCodePointCount: 121,
+                    finalCodePointCount: 0
+                )
+            ]
+        )
     }
 
     func testSuggestedReplyDecoderHandlesSummaryAndJSONWrappersConservatively() throws {
@@ -608,7 +710,8 @@ final class ProviderAnalysisTests: XCTestCase {
                 "conversationStrategy": "After a response, continue with the current topic.",
                 "strategyRationale": "The future response determines the useful next step.",
                 "memoryChanges": [],
-                "personaObservationChanges": []
+                "personaObservationChanges": [],
+                "personalInfoChanges": []
             ]),
             finishReason: "stop",
             task: .standard
@@ -627,7 +730,8 @@ final class ProviderAnalysisTests: XCTestCase {
                         "conversationStrategy": "Continue.",
                         "strategyRationale": "The context supports continuing.",
                         "memoryChanges": [],
-                        "personaObservationChanges": []
+                        "personaObservationChanges": [],
+                        "personalInfoChanges": []
                     ]),
                     finishReason: "stop",
                     task: .standard
@@ -642,7 +746,8 @@ final class ProviderAnalysisTests: XCTestCase {
                     "conversationStrategy": "",
                     "strategyRationale": "The response determines the next step.",
                     "memoryChanges": [],
-                    "personaObservationChanges": []
+                    "personaObservationChanges": [],
+                    "personalInfoChanges": []
                 ]),
                 finishReason: "stop",
                 task: .standard
@@ -666,7 +771,8 @@ final class ProviderAnalysisTests: XCTestCase {
                 "conversationStrategy": exactStrategy,
                 "strategyRationale": exactRationale,
                 "memoryChanges": [],
-                "personaObservationChanges": []
+                "personaObservationChanges": [],
+                "personalInfoChanges": []
             ]),
             finishReason: "stop",
             task: .standard
@@ -816,6 +922,7 @@ final class ProviderAnalysisTests: XCTestCase {
     func testSuggestedReplyDecoderRetainsOnlyValidLearningChanges() throws {
         let memoryEvidence = UUID()
         let personaEvidence = [UUID(), UUID()]
+        let personalInfoEvidence = UUID()
         let content = jsonString([
             "historySummary": NSNull(),
             "replies": ["First", "Second"],
@@ -835,6 +942,13 @@ final class ProviderAnalysisTests: XCTestCase {
                     "evidenceMessageIDs": personaEvidence.map(\.uuidString)
                 ],
                 ["action": "invented"]
+            ],
+            "personalInfoChanges": [
+                [
+                    "action": "add", "targetFactID": NSNull(),
+                    "text": "Prefers window seats",
+                    "evidenceMessageIDs": [personalInfoEvidence.uuidString]
+                ]
             ]
         ])
 
@@ -844,6 +958,7 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(decoded.value.memoryChanges.count, 1)
         XCTAssertEqual(decoded.value.personaObservationChanges.count, 1)
         XCTAssertTrue(decoded.value.personaObservationChangesAvailable)
+        XCTAssertEqual(decoded.value.personalInfoChanges.count, 1)
 
         XCTAssertThrowsError(
             try SuggestedReplyResultDecoder.decode(
@@ -1315,6 +1430,15 @@ final class ProviderAnalysisTests: XCTestCase {
                     id: UUID(), sender: "user", senderName: nil,
                     text: personaLearningText, timeLabel: "")
             ],
+            personalInfo: PersonalInfoPromptContext(
+                facts: [
+                    PersonalInfoFact(
+                        text: "Prefers window seats", origin: .user
+                    )
+                ],
+                protectedTombstones: []
+            ),
+            personalInfoLearningEnabled: task == .standard,
             existingHistorySummary: existingHistorySummary,
             olderMessagesToSummarize: olderMessages,
             recentMessages: [
@@ -1355,7 +1479,8 @@ final class ProviderAnalysisTests: XCTestCase {
             "replies": ["First", "Second"],
             "conversationStrategy": "Answer directly and keep momentum.",
             "strategyRationale": "The latest message asks for a concrete confirmation.",
-            "memoryChanges": [], "personaObservationChanges": []
+            "memoryChanges": [], "personaObservationChanges": [],
+            "personalInfoChanges": []
         ]
         if let historySummary {
             object["historySummary"] = historySummary

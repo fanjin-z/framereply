@@ -45,7 +45,7 @@ flowchart LR
     Defaults[(UserDefaults)]
     Provider[Selected AI provider]
 
-    App <-->|Chats, messages, personas,<br/>memory, summaries, and reply cache| SwiftData
+    App <-->|Chats, messages, Personal Info,<br/>personas, memory, summaries, and reply cache| SwiftData
     App <-->|API keys| Keychain
     App <-->|Provider selection and consent| Defaults
     App -->|Selected screenshots or text,<br/>relevant local context, and task instructions| Provider
@@ -72,7 +72,7 @@ flowchart LR
     Validate --> Persist[Persist safe results]
 ```
 
-Import turns external conversation data into trusted local history. Reply generation reads that history and can propose replies, compact summaries, chat memory, and persona-style learning under separate evidence rules.
+Import turns external conversation data into trusted local history. Reply generation reads that history and can propose replies, compact summaries, chat memory, Personal Info, and persona-style learning under separate evidence rules.
 
 See [AI Workflows](ai-workflows.md) for the matching algorithm and the state rules shared by these workflows.
 
@@ -90,6 +90,7 @@ Persistent identity is language-independent: chat titles are optional verbatim c
 | **Unknown sender** | A message whose owner cannot be established safely from visible or remembered evidence. |
 | **Participant alias** | A previously observed name for the same participant, scoped to one chat. |
 | **Chat memory** | A short, atomic, chat-specific fact or confirmed shared plan supported by the other participant. AI-authored memory uses the app language; manual memory remains verbatim. |
+| **Personal Info** | Account-wide durable details about the user, learned only from confirmed user-authored messages or entered directly. It supplies optional factual context, not writing style. |
 | **Persona observation** | A reusable writing-style pattern learned from the user's own messages or supplied explicitly. |
 | **One-use drafting input** | Optional context or a rough draft used for one generation without becoming history, memory, or persona learning. |
 

@@ -560,7 +560,7 @@ nonisolated enum AppStrings {
             LocalizedStringResource(
                 "provider.consent.message",
                 defaultValue:
-                    "FrameReply will send the messages, images, names, and drafts you select directly to \(providerName), a third-party AI provider, to analyze chats and create replies.",
+                    "FrameReply will send the messages, images, names, saved personal context, and drafts you select directly to \(providerName), a third-party AI provider, to analyze chats and create replies.",
                 comment: "Privacy disclosure. The placeholder is the third-party provider brand."
             )
         }
@@ -569,7 +569,7 @@ nonisolated enum AppStrings {
             LocalizedStringResource(
                 "provider.consent.summary",
                 defaultValue:
-                    "FrameReply sends selected screenshots or message text, participant names, chat context, and drafts to \(destination) to analyze conversations and generate replies. Your provider may retain request data under its policy and may charge your provider account. FrameReply does not operate a proxy server.",
+                    "FrameReply sends selected screenshots or message text, participant names, chat context, saved personal context, and drafts to \(destination) to analyze conversations and generate replies. Your provider may retain request data under its policy and may charge your provider account. FrameReply does not operate a proxy server.",
                 comment:
                     "Detailed provider privacy disclosure. The placeholder describes the processing destination."
             )

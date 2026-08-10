@@ -34,7 +34,7 @@ struct PrivacyAndDataView: View {
             Button("Delete All Local Data", role: .destructive, action: deleteAllLocalData)
         } message: {
             Text(
-                "This permanently deletes chats, messages, personas, drafts, provider settings, consent records, and API keys from this device."
+                "This permanently deletes chats, messages, names, Personal Info, personas, drafts, provider settings, consent records, and API keys from this device."
             )
         }
         .alert(

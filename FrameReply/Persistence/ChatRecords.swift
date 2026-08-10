@@ -356,6 +356,26 @@ final class PersonaLearningReceiptRecord {
 }
 
 @Model
+final class PersonalInfoFactRecord {
+    @Attribute(.unique) var id: UUID
+    var text: String
+    var origin: String
+    var status: String
+
+    init(
+        id: UUID = UUID(),
+        text: String,
+        origin: String,
+        status: String
+    ) {
+        self.id = id
+        self.text = text
+        self.origin = origin
+        self.status = status
+    }
+}
+
+@Model
 final class ChatMemoryRecord {
     var id: UUID
     var chatID: String

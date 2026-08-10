@@ -58,6 +58,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                 request.recentMessages.map(\.sender),
                 ["user", "other_participant"]
             )
+            XCTAssertFalse(request.personalInfoLearningEnabled)
             XCTAssertNil(request.recentMessages[0].senderName)
             XCTAssertEqual(request.recentMessages[1].senderName, "Contact Beta")
             return SuggestedReplyGenerationResult(
@@ -71,6 +72,14 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                         targetMemoryID: nil,
                         text: "Synthetic memory A",
                         sourceMessageIDs: [counterpartMessage.id]
+                    )
+                ],
+                personalInfoChanges: [
+                    PersonalInfoChange(
+                        action: .add,
+                        targetFactID: nil,
+                        text: "Must not learn provisional evidence",
+                        sourceMessageIDs: [selfMessage.id]
                     )
                 ]
             )
@@ -87,6 +96,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
             ["unknown", "unknown"]
         )
         XCTAssertTrue(try repository.chatMemories(chatID: provisionalChatID).isEmpty)
+        XCTAssertTrue(try repository.personalInfoFacts().isEmpty)
         let cache = try XCTUnwrap(
             repository.suggestedReplyCache(chatID: provisionalChatID)
         )
@@ -781,6 +791,225 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
             ["Asked about partner hotels in Beijing", "Dinner together Tuesday at 7 PM"]
         )
         XCTAssertTrue(activeMemories.allSatisfy { $0.origin == .ai })
+    }
+
+    @MainActor
+    func testStandardGenerationUsesAndLearnsPersonalInfoInOneProviderRequest() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "personal-info-standard-chat"
+        let userMessage = makeMessage(chatID: chatID, index: 0)
+        userMessage.text = "I prefer window seats."
+        let incoming = makeMessage(chatID: chatID, index: 1)
+        incoming.text = "Which flight should I reserve?"
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(userMessage)
+        container.mainContext.insert(incoming)
+        let manual = try repository.addPersonalInfoFact(text: "Avoids red-eye flights")
+        try container.mainContext.save()
+
+        var requestCount = 0
+        let service = StubReplyService { request in
+            requestCount += 1
+            XCTAssertEqual(request.task, .standard)
+            if requestCount == 1 {
+                XCTAssertEqual(request.personalInfo.facts.map(\.id), [manual.id])
+            } else {
+                XCTAssertTrue(
+                    request.personalInfo.facts.contains { $0.text == "Prefers window seats" }
+                )
+            }
+            XCTAssertTrue(request.personalInfoLearningEnabled)
+            XCTAssertEqual(request.recentMessages.map(\.id), [userMessage.id, incoming.id])
+            return SuggestedReplyGenerationResult(
+                historySummary: nil,
+                replies: [
+                    "A window seat on the daytime flight works for me.",
+                    "Please reserve a window seat on the daytime option."
+                ],
+                conversationStrategy: "Answer the flight question with the relevant constraints.",
+                strategyRationale: "The current question asks for a selection.",
+                personalInfoChanges: [
+                    PersonalInfoChange(
+                        action: .add,
+                        targetFactID: nil,
+                        text: "Prefers window seats",
+                        sourceMessageIDs: [userMessage.id]
+                    )
+                ]
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+
+        _ = try await coordinator.generate(chatID: chatID)
+
+        XCTAssertEqual(service.requests.count, 1)
+        let facts = try repository.personalInfoFacts().map(\.value)
+        XCTAssertNotNil(facts.first { $0.text == "Prefers window seats" && $0.origin == .ai })
+
+        _ = try await coordinator.generate(chatID: chatID, force: true)
+        XCTAssertEqual(service.requests.count, 2)
+        XCTAssertEqual(
+            try repository.personalInfoFacts().filter { $0.text == "Prefers window seats" }.count,
+            1
+        )
+    }
+
+    @MainActor
+    func testPersonalInfoLearningAcceptsOnlyRecentConfirmedUserEvidence() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "personal-info-recent-evidence-chat"
+        let messages = (0..<22).map { makeMessage(chatID: chatID, index: $0) }
+        container.mainContext.insert(makeChat(id: chatID))
+        for message in messages {
+            container.mainContext.insert(message)
+        }
+        try container.mainContext.save()
+
+        let oldUserMessage = messages[0]
+        let recentUserMessage = messages[2]
+        let recentOtherMessage = messages[3]
+        let service = StubReplyService { request in
+            XCTAssertTrue(request.personalInfoLearningEnabled)
+            XCTAssertEqual(request.recentMessages.count, 20)
+            XCTAssertEqual(request.recentMessages.first?.id, recentUserMessage.id)
+            return SuggestedReplyGenerationResult(
+                historySummary: "Summary through Message 1",
+                replies: ["First", "Second"],
+                conversationStrategy: "Reply using the latest context.",
+                strategyRationale: "The latest incoming message needs a response.",
+                personalInfoChanges: [
+                    PersonalInfoChange(
+                        action: .add, targetFactID: nil, text: "Old user fact",
+                        sourceMessageIDs: [oldUserMessage.id]
+                    ),
+                    PersonalInfoChange(
+                        action: .add, targetFactID: nil, text: "Recent user fact",
+                        sourceMessageIDs: [recentUserMessage.id]
+                    ),
+                    PersonalInfoChange(
+                        action: .add, targetFactID: nil, text: "Other participant fact",
+                        sourceMessageIDs: [recentOtherMessage.id]
+                    )
+                ]
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+
+        _ = try await coordinator.generate(chatID: chatID)
+
+        XCTAssertEqual(try repository.personalInfoFacts().map(\.text), ["Recent user fact"])
+    }
+
+    @MainActor
+    func testPersonalInfoLearningToggleInvalidatesCacheAndGatesChanges() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "personal-info-learning-toggle-chat"
+        let userMessage = makeMessage(chatID: chatID, index: 0)
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(userMessage)
+        container.mainContext.insert(makeMessage(chatID: chatID, index: 1))
+        try repository.setPersonalInfoLearningEnabled(false)
+        try container.mainContext.save()
+
+        var requestCount = 0
+        let service = StubReplyService { request in
+            requestCount += 1
+            XCTAssertEqual(request.personalInfoLearningEnabled, requestCount == 2)
+            return SuggestedReplyGenerationResult(
+                historySummary: nil,
+                replies: ["First", "Second"],
+                conversationStrategy: "Answer directly.",
+                strategyRationale: "The latest message calls for a reply.",
+                personalInfoChanges: [
+                    PersonalInfoChange(
+                        action: .add, targetFactID: nil, text: "Prefers window seats",
+                        sourceMessageIDs: [userMessage.id]
+                    )
+                ]
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+
+        _ = try await coordinator.generate(chatID: chatID)
+        XCTAssertTrue(try repository.personalInfoFacts().isEmpty)
+        XCTAssertNotNil(try coordinator.cachedReplies(chatID: chatID))
+
+        try repository.setPersonalInfoLearningEnabled(true)
+        XCTAssertNil(try coordinator.cachedReplies(chatID: chatID))
+        _ = try await coordinator.generate(chatID: chatID)
+
+        XCTAssertEqual(service.requests.count, 2)
+        XCTAssertEqual(try repository.personalInfoFacts().map(\.text), ["Prefers window seats"])
+    }
+
+    @MainActor
+    func testOneUseDraftReceivesFactsButCannotLearnOrMutateThem() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "personal-info-drafting-chat"
+        let userMessage = makeMessage(chatID: chatID, index: 0)
+        let incoming = makeMessage(chatID: chatID, index: 1)
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(userMessage)
+        container.mainContext.insert(incoming)
+        let existing = try repository.addPersonalInfoFact(text: "Vegetarian")
+        try container.mainContext.save()
+
+        let service = StubReplyService { request in
+            XCTAssertEqual(request.task, .drafting)
+            XCTAssertEqual(request.personalInfo.facts.map(\.id), [existing.id])
+            XCTAssertFalse(request.personalInfoLearningEnabled)
+            return SuggestedReplyGenerationResult(
+                historySummary: "Must not persist",
+                replies: ["Draft A", "Draft B"],
+                conversationStrategy: "Use the one-use direction.",
+                strategyRationale: "The drafting input controls this result.",
+                personalInfoChanges: [
+                    PersonalInfoChange(
+                        action: .add,
+                        targetFactID: nil,
+                        text: "Must not persist",
+                        sourceMessageIDs: [userMessage.id]
+                    )
+                ]
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+
+        _ = try await coordinator.generate(chatID: chatID, draftingInput: "Use this once")
+
+        XCTAssertEqual(service.requests.count, 1)
+        XCTAssertEqual(try repository.personalInfoFacts().map(\.text), ["Vegetarian"])
+    }
+
+    @MainActor
+    func testPersonalInfoEditInvalidatesSuggestedReplyCacheWithoutVersionBump() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "personal-info-cache-chat"
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(makeMessage(chatID: chatID, index: 1))
+        let fact = try repository.addPersonalInfoFact(text: "Prefers tea")
+        try container.mainContext.save()
+        let service = StubReplyService()
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+
+        _ = try await coordinator.generate(chatID: chatID)
+        XCTAssertEqual(service.requests.count, 1)
+        XCTAssertEqual(
+            try repository.suggestedReplyCache(chatID: chatID)?.promptVersion,
+            5
+        )
+
+        try repository.updatePersonalInfoFact(fact, text: "Prefers coffee")
+        XCTAssertNil(try coordinator.cachedReplies(chatID: chatID))
+        _ = try await coordinator.generate(chatID: chatID)
+        XCTAssertEqual(service.requests.count, 2)
+        XCTAssertEqual(service.requests.last?.personalInfo.facts.map(\.text), ["Prefers coffee"])
+        XCTAssertEqual(SuggestedReplyPrompt.version, 5)
     }
 
     @MainActor

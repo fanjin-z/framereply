@@ -19,7 +19,7 @@ struct ProviderDataSharingDetailsView: View {
                         detailSection(
                             title: "Data shared",
                             text:
-                                "Only the content you select: messages or screenshots, participant names, chat context, and drafts."
+                                "Only the content you select: messages or screenshots, participant names, chat context, saved personal context, and drafts."
                         )
                         detailSection(
                             title: "Purpose",

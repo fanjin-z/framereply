@@ -107,7 +107,7 @@ final class FrameReplyReleaseUITests: XCTestCase {
         XCTAssertTrue(addProvider.waitForExistence(timeout: 3))
     }
 
-    func testNamesAndUsernamesNavigationIsReachable() throws {
+    func testPersonalInfoNavigationIsReachable() throws {
         let app = XCUIApplication()
         app.launch()
 
@@ -115,17 +115,48 @@ final class FrameReplyReleaseUITests: XCTestCase {
         XCTAssertTrue(settings.waitForExistence(timeout: 8))
         settings.tap()
 
-        let namesAndUsernames = app.buttons["names-and-usernames"]
+        let personalInfo = app.buttons["personal-info"]
         XCTAssertTrue(
-            scrollUntilHittable(namesAndUsernames, swiping: app.swipeUp)
+            scrollUntilHittable(personalInfo, swiping: app.swipeUp)
         )
-        namesAndUsernames.tap()
+        personalInfo.tap()
 
         XCTAssertTrue(
-            app.descendants(matching: .any)["names-and-usernames-screen"]
+            app.descendants(matching: .any)["personal-info-screen"]
                 .waitForExistence(timeout: 3)
         )
-        XCTAssertTrue(app.navigationBars["Names & Usernames"].exists)
+        XCTAssertTrue(app.navigationBars["Personal Info"].exists)
+        XCTAssertTrue(app.staticTexts["Your Names in Chats"].exists)
+        XCTAssertTrue(app.staticTexts["Facts About You"].exists)
+    }
+
+    func testPersonalInfoComposerAndLearningToggleAreReachable() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let settings = app.buttons["app-tab-settings"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 8))
+        settings.tap()
+        let personalInfo = app.buttons["personal-info"]
+        XCTAssertTrue(scrollUntilHittable(personalInfo, swiping: app.swipeUp))
+        personalInfo.tap()
+
+        let learningToggle = app.switches["personal-info-learning-toggle"]
+        XCTAssertTrue(learningToggle.waitForExistence(timeout: 3))
+        let initialToggleValue = (learningToggle.value as? String) ?? "1"
+        let toggledValue = initialToggleValue == "1" ? "0" : "1"
+        learningToggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertTrue(waitForValue(toggledValue, of: learningToggle))
+        learningToggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertTrue(waitForValue(initialToggleValue, of: learningToggle))
+
+        let composer = app.textFields["Add one short fact about yourself"]
+        XCTAssertTrue(composer.exists)
+        composer.tap()
+        composer.typeText("UI test personal info")
+        let addFact = app.buttons["add-personal-info-fact"]
+        XCTAssertTrue(addFact.exists)
+        XCTAssertTrue(addFact.isEnabled)
     }
 
     func testCriticalControlsRemainReachableAtLargestDynamicType() throws {
@@ -163,9 +194,9 @@ final class FrameReplyReleaseUITests: XCTestCase {
         XCTAssertTrue(settings.waitForExistence(timeout: 3))
         settings.tap()
 
-        let namesAndUsernames = app.buttons["names-and-usernames"]
+        let personalInfo = app.buttons["personal-info"]
         XCTAssertTrue(
-            scrollUntilHittable(namesAndUsernames, swiping: app.swipeUp)
+            scrollUntilHittable(personalInfo, swiping: app.swipeUp)
         )
 
         let privacyAndData = app.buttons["privacy-and-data"]
@@ -190,16 +221,23 @@ final class FrameReplyReleaseUITests: XCTestCase {
         maximumSwipes: Int = 4,
         swiping: () -> Void
     ) -> Bool {
-        guard element.waitForExistence(timeout: timeout) else {
-            return false
-        }
-
+        _ = element.waitForExistence(timeout: timeout)
         var swipeCount = 0
-        while !element.isHittable, swipeCount < maximumSwipes {
+        while !element.exists || !element.isHittable, swipeCount < maximumSwipes {
             swiping()
             swipeCount += 1
         }
 
-        return element.isHittable
+        return element.exists && element.isHittable
+    }
+
+    private func waitForValue(
+        _ value: String,
+        of element: XCUIElement,
+        timeout: TimeInterval = 2
+    ) -> Bool {
+        let predicate = NSPredicate(format: "value == %@", value)
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 }

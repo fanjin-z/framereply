@@ -9,7 +9,7 @@ import UIKit
 struct SettingsView: View {
     @ObservedObject var providerStore: ProviderStore
     let isActive: Bool
-    let onNamesAndUsernamesTap: () -> Void
+    let onPersonalInfoTap: () -> Void
     let onPrivacyAndDataTap: () -> Void
 
     @State private var selectedPlatform: ProviderPlatform?
@@ -122,7 +122,7 @@ struct SettingsView: View {
                 }
 
                 shortcutSection
-                namesAndUsernamesSection
+                personalInfoSection
                 privacyAndDataSection
             }
             .padding(.horizontal, 24)
@@ -485,16 +485,16 @@ struct SettingsView: View {
         .accessibilityIdentifier("privacy-and-data")
     }
 
-    private var namesAndUsernamesSection: some View {
-        Button(action: onNamesAndUsernamesTap) {
+    private var personalInfoSection: some View {
+        Button(action: onPersonalInfoTap) {
             settingsNavigationLabel(
-                title: "Names & Usernames",
-                subtitle: "How FrameReply recognizes you in chats",
+                title: "Personal Info",
+                subtitle: "Names and details that help personalize replies.",
                 symbol: "person.text.rectangle"
             )
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("names-and-usernames")
+        .accessibilityIdentifier("personal-info")
     }
 
     private func settingsNavigationLabel(

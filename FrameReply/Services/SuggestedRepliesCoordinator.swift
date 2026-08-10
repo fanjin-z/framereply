@@ -149,6 +149,8 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             personaID: persona.id,
             assignedAt: chatContext.personaAssignedAt
         )
+        let personalInfo = try repository.personalInfoPromptContext()
+        let personalInfoLearningEnabled = try repository.personalInfoLearningEnabled()
         guard
             let cache = try repository.suggestedReplyCache(
                 chatID: chatID,
@@ -162,6 +164,8 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             chatContext: chatContext,
             persona: persona,
             learningMessageIDs: learningMessages.map(\.id),
+            personalInfo: personalInfo,
+            personalInfoLearningEnabled: personalInfoLearningEnabled,
             provider: providerContext.platform,
             model: providerContext.effectiveModel,
             appLanguage: localization.languageIdentifier,
@@ -220,6 +224,9 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             personaID: persona.id,
             assignedAt: chatContext.personaAssignedAt
         )
+        let personalInfoFacts = try repository.personalInfoFacts().map(\.value)
+        let personalInfo = try repository.personalInfoPromptContext()
+        let personalInfoLearningEnabled = try repository.personalInfoLearningEnabled()
         let cache = try repository.suggestedReplyCache(
             chatID: chatID,
             appLanguage: localization.languageIdentifier
@@ -230,6 +237,8 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             chatContext: chatContext,
             persona: persona,
             learningMessageIDs: learningMessages.map(\.id),
+            personalInfo: personalInfo,
+            personalInfoLearningEnabled: personalInfoLearningEnabled,
             provider: providerContext.platform,
             model: replyModel,
             appLanguage: localization.languageIdentifier,
@@ -253,6 +262,13 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
         let olderCount = max(0, messages.count - Self.recentMessageLimit)
         let olderMessages = Array(messages.prefix(olderCount))
         let recentMessages = Array(messages.suffix(Self.recentMessageLimit))
+        let shouldLearnPersonalInfo =
+            personalInfoLearningEnabled && oneUseInput == nil && provisionalIdentity == nil
+        let personalInfoEvidenceMessageIDs = Set(
+            shouldLearnPersonalInfo
+                ? recentMessages.filter { $0.senderKind == "user" }.map(\.id)
+                : []
+        )
         let summaryPlan = makeSummaryPlan(
             olderMessages: olderMessages,
             cache: provisionalIdentity == nil ? cache : nil
@@ -274,6 +290,8 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             personaLearningMessages: learningMessages.map {
                 promptMessage($0, provisionalIdentity: provisionalIdentity)
             },
+            personalInfo: personalInfo,
+            personalInfoLearningEnabled: shouldLearnPersonalInfo,
             existingHistorySummary: summaryPlan.existingSummary,
             olderMessagesToSummarize: summaryPlan.messages.map {
                 promptMessage($0, provisionalIdentity: provisionalIdentity)
@@ -366,9 +384,19 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             generated.personaObservationChangesAvailable ? learningMessageIDs : []
         let remainingLearningMessageIDs =
             generated.personaObservationChangesAvailable ? [] : learningMessageIDList
+        let validPersonalInfoChanges = generated.personalInfoChanges.filter {
+            (1...3).contains($0.sourceMessageIDs.count)
+                && Set($0.sourceMessageIDs).count == $0.sourceMessageIDs.count
+                && $0.sourceMessageIDs.allSatisfy(personalInfoEvidenceMessageIDs.contains)
+        }
+        let reconciledPersonalInfoFacts = PersonalInfoReconciler.reconcile(
+            facts: personalInfoFacts,
+            changes: validPersonalInfoChanges,
+            allowedUserSourceMessageIDs: personalInfoEvidenceMessageIDs
+        )
 
         // Input-specific and provisionally grounded output cannot affect
-        // summaries, memory, or persona learning. Cache only its replies so the
+        // summaries, memory, Persona learning, or Personal Info. Cache only its replies so the
         // app can show the same result.
         if oneUseInput != nil || provisionalIdentity != nil {
             try repository.saveSuggestedRepliesOnly(
@@ -395,6 +423,11 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
                 personaID: persona.id, changes: validObservationChanges
             ),
             learningMessageIDs: remainingLearningMessageIDs,
+            personalInfo: try repository.projectedPersonalInfoPromptContext(
+                changes: validPersonalInfoChanges,
+                allowedMessageIDs: personalInfoEvidenceMessageIDs
+            ),
+            personalInfoLearningEnabled: personalInfoLearningEnabled,
             provider: providerContext.platform,
             model: replyModel,
             appLanguage: localization.languageIdentifier,
@@ -405,6 +438,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             chatID: chatID,
             appLanguage: localization.languageIdentifier,
             chatMemories: reconciledContext.chatMemories,
+            personalInfoFacts: reconciledPersonalInfoFacts,
             personaID: persona.id,
             personaObservationChanges: validObservationChanges,
             learningMessageIDs: processedLearningMessageIDs,
@@ -524,6 +558,8 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
         chatContext: ChatContext,
         persona: PersonaPromptContext,
         learningMessageIDs: [UUID],
+        personalInfo: PersonalInfoPromptContext,
+        personalInfoLearningEnabled: Bool,
         provider: ProviderPlatform,
         model: ProviderModel,
         appLanguage: String,
@@ -540,6 +576,8 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             "currentInteractionGoal": chatContext.currentInteractionGoal,
             "persona": personaObject(persona),
             "personaLearningMessageIDs": learningMessageIDs.map(\.uuidString),
+            "personalInfo": personalInfoObject(personalInfo),
+            "personalInfoLearningEnabled": personalInfoLearningEnabled,
             "provider": provider.rawValue,
             "model": model.rawValue,
             "appLanguage": appLanguage,
@@ -568,11 +606,15 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
         let learningMessages = try repository.personaLearningMessages(
             chatID: chatID, personaID: persona.id, assignedAt: context.personaAssignedAt
         )
+        let personalInfo = try repository.personalInfoPromptContext()
+        let personalInfoLearningEnabled = try repository.personalInfoLearningEnabled()
         return fingerprint(
             messages: messages,
             chatContext: context,
             persona: persona,
             learningMessageIDs: learningMessages.map(\.id),
+            personalInfo: personalInfo,
+            personalInfoLearningEnabled: personalInfoLearningEnabled,
             provider: providerContext.platform,
             model: providerContext.effectiveModel,
             appLanguage: appLanguage,
@@ -630,6 +672,23 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
                     "id": $0.id.uuidString, "text": $0.text,
                     "protected": $0.isUserProtected
                 ] as [String: Any]
+            }
+        ]
+    }
+
+    private func personalInfoObject(_ personalInfo: PersonalInfoPromptContext) -> [String: Any] {
+        [
+            "facts": personalInfo.facts.sorted { $0.id.uuidString < $1.id.uuidString }.map {
+                [
+                    "id": $0.id.uuidString,
+                    "text": $0.text,
+                    "protected": $0.isUserProtected
+                ] as [String: Any]
+            },
+            "protectedTombstones": personalInfo.protectedTombstones.sorted {
+                $0.id.uuidString < $1.id.uuidString
+            }.map {
+                ["id": $0.id.uuidString, "text": $0.text] as [String: Any]
             }
         ]
     }

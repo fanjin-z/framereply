@@ -136,10 +136,13 @@
     "•" : {
 
     },
+    "Facts About You" : {
+
+    },
     "Add" : {
 
     },
-    "Add a name you use in chats" : {
+    "Add one short fact about yourself" : {
 
     },
     "Add an observation" : {
@@ -161,6 +164,9 @@
 
     },
     "Add reply guidance…" : {
+
+    },
+    "Added by you" : {
 
     },
     "Advanced" : {
@@ -431,7 +437,7 @@
     "Could Not Update Names" : {
 
     },
-    "Could Not Update Names & Usernames" : {
+    "Could Not Update Personal Info" : {
 
     },
     "Couldn’t Delete All Data" : {
@@ -506,7 +512,7 @@
     "Delete Persona" : {
 
     },
-    "Deleting a saved name doesn’t change existing messages." : {
+    "One short fact about yourself" : {
 
     },
     "Detailed" : {
@@ -549,6 +555,9 @@
 
     },
     "Edit Names" : {
+
+    },
+    "Edit Personal Info" : {
 
     },
     "Edit reply brief" : {
@@ -1182,7 +1191,7 @@
     "FrameReply uses these names to recognize this person in screenshots and pasted transcripts. Removing one may make a future import require review; existing messages won’t change." : {
 
     },
-    "FrameReply uses this to recognize your messages in imported chats." : {
+    "FrameReply won’t add it again." : {
 
     },
     "Frequent" : {
@@ -1210,6 +1219,9 @@
 
     },
     "Generates two replies for a chat analyzed by FrameReply." : {
+
+    },
+    "Helps FrameReply recognize you in chats." : {
 
     },
     "Hide API key" : {
@@ -1335,7 +1347,13 @@
     "Keep reply guidance under 500 characters." : {
 
     },
+    "Learn from my messages" : {
+
+    },
     "Learned from %lld messages." : {
+
+    },
+    "Learned from your messages" : {
 
     },
     "Learning on %lld chats" : {
@@ -1353,7 +1371,7 @@
     "Makes this provider active" : {
 
     },
-    "Manage Names & Usernames" : {
+    "Manage Personal Info" : {
 
     },
     "Memory: %@" : {
@@ -1383,10 +1401,7 @@
     "Name, nickname, or username" : {
 
     },
-    "Names & Usernames" : {
-
-    },
-    "Names and usernames you confirm during import will appear here." : {
+    "Your Names in Chats" : {
 
     },
     "New Persona" : {
@@ -1408,9 +1423,6 @@
 
     },
     "No new messages added to %@" : {
-
-    },
-    "No Saved Names" : {
 
     },
     "No shared or copied message text was provided." : {
@@ -1489,6 +1501,9 @@
 
     },
     "Options for %@" : {
+
+    },
+    "Options for personal info: %@" : {
 
     },
     "Pass one to eight images from the same chat, such as shared photos or the output from Take Screenshot." : {
@@ -1860,6 +1875,9 @@
         }
       }
     },
+    "Personal Info" : {
+
+    },
     "Personas" : {
 
     },
@@ -1888,7 +1906,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "FrameReply will send the messages, images, names, and drafts you select directly to %@, a third-party AI provider, to analyze chats and create replies."
+            "value" : "FrameReply will send the messages, images, names, saved personal context, and drafts you select directly to %@, a third-party AI provider, to analyze chats and create replies."
           }
         }
       }
@@ -1900,7 +1918,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "FrameReply sends selected screenshots or message text, participant names, chat context, and drafts to %@ to analyze conversations and generate replies. Your provider may retain request data under its policy and may charge your provider account. FrameReply does not operate a proxy server."
+            "value" : "FrameReply sends selected screenshots or message text, participant names, chat context, saved personal context, and drafts to %@ to analyze conversations and generate replies. Your provider may retain request data under its policy and may charge your provider account. FrameReply does not operate a proxy server."
           }
         }
       }
@@ -1999,6 +2017,9 @@
 
     },
     "Remove Name" : {
+
+    },
+    "Remove this item?" : {
 
     },
     "Rename" : {
@@ -2105,9 +2126,6 @@
 
     },
     "Save" : {
-
-    },
-    "Saved names" : {
 
     },
     "Saves this as a separate memory" : {
@@ -2366,7 +2384,7 @@
     "This is the name shown throughout FrameReply." : {
 
     },
-    "This permanently deletes chats, messages, personas, drafts, provider settings, consent records, and API keys from this device." : {
+    "This permanently deletes chats, messages, names, Personal Info, personas, drafts, provider settings, consent records, and API keys from this device." : {
 
     },
     "This permanently deletes this chat and its data. This can’t be undone." : {
@@ -2454,6 +2472,12 @@
 
     },
     "You appear as" : {
+
+    },
+    "You have 50 saved details. Remove one to add another." : {
+
+    },
+    "Your edit will stay as written." : {
 
     }
   },

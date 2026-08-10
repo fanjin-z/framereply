@@ -59,6 +59,140 @@ nonisolated enum ChatMemoryLimits {
     static let maximumAITextCodePoints = 120
 }
 
+nonisolated enum PersonalInfoFactOrigin: String, Codable, Equatable, Sendable {
+    case user
+    case ai
+}
+
+nonisolated enum PersonalInfoFactStatus: String, Codable, Equatable, Sendable {
+    case active
+    case archived
+    case tombstone
+    case superseded
+}
+
+nonisolated enum PersonalInfoLimits {
+    static let maximumActiveFacts = 50
+    static let maximumTextCodePoints = 120
+    static let maximumChangesPerGeneration = 8
+}
+
+nonisolated struct PersonalInfoFact: Identifiable, Codable, Equatable, Sendable {
+    let id: UUID
+    var text: String
+    var origin: PersonalInfoFactOrigin
+    var status: PersonalInfoFactStatus
+
+    var isUserProtected: Bool {
+        origin == .user || status == .tombstone
+    }
+
+    init(
+        id: UUID = UUID(),
+        text: String,
+        origin: PersonalInfoFactOrigin = .user,
+        status: PersonalInfoFactStatus = .active
+    ) {
+        self.id = id
+        self.text = text
+        self.origin = origin
+        self.status = status
+    }
+}
+
+nonisolated struct PersonalInfoPromptContext: Codable, Equatable, Sendable {
+    var facts: [PersonalInfoFact]
+    var protectedTombstones: [PersonalInfoFact]
+
+    static let empty = PersonalInfoPromptContext(facts: [], protectedTombstones: [])
+}
+
+nonisolated enum PersonalInfoReconciler {
+    static func reconcile(
+        facts: [PersonalInfoFact],
+        changes: [PersonalInfoChange],
+        allowedUserSourceMessageIDs: Set<UUID>
+    ) -> [PersonalInfoFact] {
+        var result = facts
+
+        for change in changes.prefix(PersonalInfoLimits.maximumChangesPerGeneration) {
+            let evidence = change.sourceMessageIDs
+            guard (1...3).contains(evidence.count),
+                Set(evidence).count == evidence.count,
+                evidence.allSatisfy(allowedUserSourceMessageIDs.contains)
+            else { continue }
+
+            switch change.action {
+            case .add:
+                guard change.targetFactID == nil,
+                    activeCount(result) < PersonalInfoLimits.maximumActiveFacts,
+                    let text = cleaned(change.text),
+                    !containsEquivalent(text, in: result)
+                else { continue }
+                result.append(
+                    PersonalInfoFact(
+                        text: text,
+                        origin: .ai,
+                        status: .active
+                    )
+                )
+
+            case .update:
+                guard let targetID = change.targetFactID,
+                    let index = result.firstIndex(where: {
+                        $0.id == targetID && $0.status == .active && !$0.isUserProtected
+                    }),
+                    let text = cleaned(change.text),
+                    !containsEquivalent(text, in: result, excluding: targetID)
+                else { continue }
+                result[index].text = text
+                result[index].origin = .ai
+
+            case .archive:
+                guard let targetID = change.targetFactID,
+                    let index = result.firstIndex(where: {
+                        $0.id == targetID && $0.status == .active && !$0.isUserProtected
+                    })
+                else { continue }
+                result[index].status = .archived
+            }
+        }
+
+        return result
+    }
+
+    static func cleaned(_ text: String?) -> String? {
+        guard let text else { return nil }
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty
+            || value.unicodeScalars.count > PersonalInfoLimits.maximumTextCodePoints
+            ? nil : value
+    }
+
+    static func comparisonKey(_ text: String) -> String {
+        text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .split(whereSeparator: { $0.isWhitespace || $0.isPunctuation })
+            .joined(separator: " ")
+    }
+
+    private static func activeCount(_ facts: [PersonalInfoFact]) -> Int {
+        facts.filter { $0.status == .active }.count
+    }
+
+    private static func containsEquivalent(
+        _ text: String,
+        in facts: [PersonalInfoFact],
+        excluding excludedID: UUID? = nil
+    ) -> Bool {
+        let key = comparisonKey(text)
+        return facts.contains {
+            $0.id != excludedID
+                && ($0.status == .active || $0.status == .tombstone)
+                && comparisonKey($0.text) == key
+        }
+    }
+}
+
 nonisolated struct ChatMemory: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     var text: String
