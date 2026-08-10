@@ -856,6 +856,43 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testArchivingLearnedPersonalInfoDeletesItsRecord() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "personal-info-archive-chat"
+        let userMessage = makeMessage(chatID: chatID, index: 0)
+        let incoming = makeMessage(chatID: chatID, index: 1)
+        let learnedFact = PersonalInfoFact(text: "Prefers tea", origin: .ai)
+        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(userMessage)
+        container.mainContext.insert(incoming)
+        container.mainContext.insert(PersonalInfoFactRecord(value: learnedFact))
+        try container.mainContext.save()
+
+        let service = StubReplyService { _ in
+            SuggestedReplyGenerationResult(
+                historySummary: nil,
+                replies: ["Reply A", "Reply B"],
+                conversationStrategy: "Answer the latest message.",
+                strategyRationale: "The latest message needs a response.",
+                personalInfoChanges: [
+                    PersonalInfoChange(
+                        action: .archive,
+                        targetFactID: learnedFact.id,
+                        text: nil,
+                        sourceMessageIDs: [userMessage.id]
+                    )
+                ]
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
+
+        _ = try await coordinator.generate(chatID: chatID)
+
+        XCTAssertFalse(try repository.personalInfoFacts().contains { $0.id == learnedFact.id })
+    }
+
+    @MainActor
     func testPersonalInfoLearningAcceptsOnlyRecentConfirmedUserEvidence() async throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)

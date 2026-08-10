@@ -1435,8 +1435,7 @@ final class ProviderAnalysisTests: XCTestCase {
                     PersonalInfoFact(
                         text: "Prefers window seats", origin: .user
                     )
-                ],
-                protectedTombstones: []
+                ]
             ),
             personalInfoLearningEnabled: task == .standard,
             existingHistorySummary: existingHistorySummary,

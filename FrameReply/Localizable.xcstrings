@@ -1191,9 +1191,6 @@
     "FrameReply uses these names to recognize this person in screenshots and pasted transcripts. Removing one may make a future import require review; existing messages won’t change." : {
 
     },
-    "FrameReply won’t add it again." : {
-
-    },
     "Frequent" : {
 
     },
@@ -2019,7 +2016,7 @@
     "Remove Name" : {
 
     },
-    "Remove this item?" : {
+    "Remove this fact?" : {
 
     },
     "Rename" : {

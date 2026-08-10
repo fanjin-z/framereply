@@ -360,18 +360,15 @@ final class PersonalInfoFactRecord {
     @Attribute(.unique) var id: UUID
     var text: String
     var origin: String
-    var status: String
 
     init(
         id: UUID = UUID(),
         text: String,
-        origin: String,
-        status: String
+        origin: String
     ) {
         self.id = id
         self.text = text
         self.origin = origin
-        self.status = status
     }
 }
 

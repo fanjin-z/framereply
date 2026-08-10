@@ -55,7 +55,7 @@ nonisolated enum SuggestedReplyPrompt {
         Learn only from personaLearningMessages, all of which are user-authored. Store concise, self-contained, reusable writing patterns—not facts, names, relationships, topics, promises, dates, or message meaning. Every change needs 2–10 distinct supporting IDs. Add only a genuinely new pattern. Update a mutable active observation when evidence refines or contradicts it. Archive a mutable active observation when it is obsolete without replacement. Never target protected observations or recreate anything in protectedTombstones. Prefer no change when evidence is mixed or weak. Keep the resulting active set within maxActiveObservations.
 
         Personal Info learning
-        When personalInfoLearningEnabled is true, learn only from "user" messages in recentMessages; otherwise return no personalInfoChanges. Store one atomic, broadly reusable, directly stated durable personal detail per item, citing 1–3 distinct supplied IDs. Exclude aliases, writing style, transient states, goals or plans, chat-specific commitments, inference, and information primarily about someone else. Never store credentials, verification codes, financial or government identifiers, exact home/work/current locations, or detailed medical or mental-health information. Do not add information already represented in Personal Info, even if phrased differently. Update or archive a mutable AI item only on later direct evidence. Never target protected items or recreate protected tombstones. Return at most eight changes and keep at most maxActiveFacts active; prefer no change when uncertain.
+        When personalInfoLearningEnabled is true, learn only from "user" messages in recentMessages; otherwise return no personalInfoChanges. Store one atomic, broadly reusable, directly stated durable personal detail per item, citing 1–3 distinct supplied IDs. Exclude aliases, writing style, transient states, goals or plans, chat-specific commitments, inference, and information primarily about someone else. Never store credentials, verification codes, financial or government identifiers, exact home/work/current locations, or detailed medical or mental-health information. Do not add information already represented in Personal Info, even if phrased differently. Update or archive a mutable AI item only on later direct evidence. Never target protected items. Return at most eight changes and keep at most maxActiveFacts active; prefer no change when uncertain.
 
         History-summary rules
         historySummary is null when olderMessagesToSummarize is empty. When olderMessagesToSummarize is nonempty and existingHistorySummary is empty, summarize only olderMessagesToSummarize. When both are nonempty, merge existingHistorySummary with only olderMessagesToSummarize. Never infer summary content from recentMessages, chatMemories, Personal Info, persona data, or other fields. Preserve durable topics, decisions, commitments, unresolved questions, relationship dynamics, and preferences; exclude transient greetings and unsupported details. If a safe summary cannot be produced, return null.
@@ -359,8 +359,7 @@ nonisolated enum SuggestedReplyPrompt {
         _ personalInfo: PersonalInfoPromptContext
     ) -> [String: Any] {
         [
-            "activeFacts": personalInfo.facts.map(personalInfoFactObject),
-            "protectedTombstones": personalInfo.protectedTombstones.map(personalInfoFactObject)
+            "activeFacts": personalInfo.facts.map(personalInfoFactObject)
         ]
     }
 

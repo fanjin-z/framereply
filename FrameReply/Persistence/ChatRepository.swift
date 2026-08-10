@@ -595,29 +595,19 @@ final class ChatRepository {
     func addPersonalInfoFact(text: String) throws -> PersonalInfoFactRecord {
         let cleaned = try cleanedPersonalInfoText(text)
         let records = try personalInfoFacts()
-        guard
-            records.filter({ $0.status == PersonalInfoFactStatus.active.rawValue }).count
-                < PersonalInfoLimits.maximumActiveFacts
-        else { throw PersonalInfoError.activeFactLimitReached }
+        guard records.count < PersonalInfoLimits.maximumActiveFacts else {
+            throw PersonalInfoError.activeFactLimitReached
+        }
         guard
             !records.contains(where: {
-                $0.status == PersonalInfoFactStatus.active.rawValue
-                    && PersonalInfoReconciler.comparisonKey($0.text)
-                        == PersonalInfoReconciler.comparisonKey(cleaned)
+                PersonalInfoReconciler.comparisonKey($0.text)
+                    == PersonalInfoReconciler.comparisonKey(cleaned)
             })
         else { throw PersonalInfoError.duplicateFact }
 
-        for tombstone in records
-        where tombstone.status == PersonalInfoFactStatus.tombstone.rawValue
-            && PersonalInfoReconciler.comparisonKey(tombstone.text)
-                == PersonalInfoReconciler.comparisonKey(cleaned)
-        {
-            tombstone.status = PersonalInfoFactStatus.superseded.rawValue
-        }
         let value = PersonalInfoFact(
             text: cleaned,
-            origin: .user,
-            status: .active
+            origin: .user
         )
         let record = PersonalInfoFactRecord(value: value)
         context.insert(record)
@@ -630,19 +620,17 @@ final class ChatRepository {
         guard
             !(try personalInfoFacts()).contains(where: {
                 $0.id != record.id
-                    && $0.status == PersonalInfoFactStatus.active.rawValue
                     && PersonalInfoReconciler.comparisonKey($0.text)
                         == PersonalInfoReconciler.comparisonKey(cleaned)
             })
         else { throw PersonalInfoError.duplicateFact }
         record.text = cleaned
         record.origin = PersonalInfoFactOrigin.user.rawValue
-        record.status = PersonalInfoFactStatus.active.rawValue
         try context.save()
     }
 
     func deletePersonalInfoFact(_ record: PersonalInfoFactRecord) throws {
-        record.status = PersonalInfoFactStatus.tombstone.rawValue
+        context.delete(record)
         try context.save()
     }
 
@@ -664,7 +652,7 @@ final class ChatRepository {
         chatID: String,
         appLanguage: String,
         chatMemories: [ChatMemory],
-        personalInfoFacts: [PersonalInfoFact] = [],
+        personalInfoFacts: [PersonalInfoFact],
         personaID: UUID,
         personaObservationChanges: [PersonaObservationChange],
         learningMessageIDs: Set<UUID>,
@@ -692,6 +680,10 @@ final class ChatRepository {
             let personalInfoByID = Dictionary(
                 uniqueKeysWithValues: storedPersonalInfo.map { ($0.id, $0) }
             )
+            let retainedPersonalInfoIDs = Set(personalInfoFacts.map(\.id))
+            for record in storedPersonalInfo where !retainedPersonalInfoIDs.contains(record.id) {
+                context.delete(record)
+            }
             for fact in personalInfoFacts {
                 if let record = personalInfoByID[fact.id] {
                     record.update(from: fact)
@@ -1053,12 +1045,9 @@ final class ChatRepository {
         from facts: [PersonalInfoFact]
     ) -> PersonalInfoPromptContext {
         PersonalInfoPromptContext(
-            facts: facts.filter { $0.status == .active }.sorted {
+            facts: facts.sorted {
                 $0.id.uuidString < $1.id.uuidString
-            },
-            protectedTombstones: facts.filter {
-                $0.status == .tombstone
-            }.sorted { $0.id.uuidString < $1.id.uuidString }
+            }
         )
     }
 

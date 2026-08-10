@@ -64,13 +64,6 @@ nonisolated enum PersonalInfoFactOrigin: String, Codable, Equatable, Sendable {
     case ai
 }
 
-nonisolated enum PersonalInfoFactStatus: String, Codable, Equatable, Sendable {
-    case active
-    case archived
-    case tombstone
-    case superseded
-}
-
 nonisolated enum PersonalInfoLimits {
     static let maximumActiveFacts = 50
     static let maximumTextCodePoints = 120
@@ -81,30 +74,26 @@ nonisolated struct PersonalInfoFact: Identifiable, Codable, Equatable, Sendable 
     let id: UUID
     var text: String
     var origin: PersonalInfoFactOrigin
-    var status: PersonalInfoFactStatus
 
     var isUserProtected: Bool {
-        origin == .user || status == .tombstone
+        origin == .user
     }
 
     init(
         id: UUID = UUID(),
         text: String,
-        origin: PersonalInfoFactOrigin = .user,
-        status: PersonalInfoFactStatus = .active
+        origin: PersonalInfoFactOrigin = .user
     ) {
         self.id = id
         self.text = text
         self.origin = origin
-        self.status = status
     }
 }
 
 nonisolated struct PersonalInfoPromptContext: Codable, Equatable, Sendable {
     var facts: [PersonalInfoFact]
-    var protectedTombstones: [PersonalInfoFact]
 
-    static let empty = PersonalInfoPromptContext(facts: [], protectedTombstones: [])
+    static let empty = PersonalInfoPromptContext(facts: [])
 }
 
 nonisolated enum PersonalInfoReconciler {
@@ -125,22 +114,21 @@ nonisolated enum PersonalInfoReconciler {
             switch change.action {
             case .add:
                 guard change.targetFactID == nil,
-                    activeCount(result) < PersonalInfoLimits.maximumActiveFacts,
+                    result.count < PersonalInfoLimits.maximumActiveFacts,
                     let text = cleaned(change.text),
                     !containsEquivalent(text, in: result)
                 else { continue }
                 result.append(
                     PersonalInfoFact(
                         text: text,
-                        origin: .ai,
-                        status: .active
+                        origin: .ai
                     )
                 )
 
             case .update:
                 guard let targetID = change.targetFactID,
                     let index = result.firstIndex(where: {
-                        $0.id == targetID && $0.status == .active && !$0.isUserProtected
+                        $0.id == targetID && !$0.isUserProtected
                     }),
                     let text = cleaned(change.text),
                     !containsEquivalent(text, in: result, excluding: targetID)
@@ -151,10 +139,10 @@ nonisolated enum PersonalInfoReconciler {
             case .archive:
                 guard let targetID = change.targetFactID,
                     let index = result.firstIndex(where: {
-                        $0.id == targetID && $0.status == .active && !$0.isUserProtected
+                        $0.id == targetID && !$0.isUserProtected
                     })
                 else { continue }
-                result[index].status = .archived
+                result.remove(at: index)
             }
         }
 
@@ -175,10 +163,6 @@ nonisolated enum PersonalInfoReconciler {
             .joined(separator: " ")
     }
 
-    private static func activeCount(_ facts: [PersonalInfoFact]) -> Int {
-        facts.filter { $0.status == .active }.count
-    }
-
     private static func containsEquivalent(
         _ text: String,
         in facts: [PersonalInfoFact],
@@ -187,7 +171,6 @@ nonisolated enum PersonalInfoReconciler {
         let key = comparisonKey(text)
         return facts.contains {
             $0.id != excludedID
-                && ($0.status == .active || $0.status == .tombstone)
                 && comparisonKey($0.text) == key
         }
     }

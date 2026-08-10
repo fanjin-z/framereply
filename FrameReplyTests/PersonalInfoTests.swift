@@ -11,12 +11,12 @@ final class PersonalInfoReconcilerTests: XCTestCase {
             text: "Prefers tea", origin: .ai
         )
         let protectedFact = PersonalInfoFact(text: "Lives in Toronto")
-        let tombstone = PersonalInfoFact(
-            text: "Runs marathons", origin: .ai, status: .tombstone
+        let staleAIFact = PersonalInfoFact(
+            text: "Runs marathons", origin: .ai
         )
 
         let result = PersonalInfoReconciler.reconcile(
-            facts: [aiFact, protectedFact, tombstone],
+            facts: [aiFact, protectedFact, staleAIFact],
             changes: [
                 PersonalInfoChange(
                     action: .update, targetFactID: aiFact.id, text: "Prefers coffee",
@@ -24,6 +24,10 @@ final class PersonalInfoReconcilerTests: XCTestCase {
                 ),
                 PersonalInfoChange(
                     action: .archive, targetFactID: protectedFact.id, text: nil,
+                    sourceMessageIDs: [evidenceID]
+                ),
+                PersonalInfoChange(
+                    action: .archive, targetFactID: staleAIFact.id, text: nil,
                     sourceMessageIDs: [evidenceID]
                 ),
                 PersonalInfoChange(
@@ -43,9 +47,10 @@ final class PersonalInfoReconcilerTests: XCTestCase {
         )
 
         XCTAssertEqual(result.first { $0.id == aiFact.id }?.text, "Prefers coffee")
-        XCTAssertEqual(result.first { $0.id == protectedFact.id }?.status, .active)
+        XCTAssertNotNil(result.first { $0.id == protectedFact.id })
+        XCTAssertNil(result.first { $0.id == staleAIFact.id })
         XCTAssertNil(result.first { $0.text == "Vegetarian" })
-        XCTAssertEqual(result.filter { $0.text == "Runs marathons" }.count, 1)
+        XCTAssertNotNil(result.first { $0.text == "Runs marathons" })
         XCTAssertNotNil(result.first { $0.text == "Speaks French" && $0.origin == .ai })
     }
 
@@ -162,7 +167,7 @@ final class PersonalInfoPersistenceTests: XCTestCase {
         XCTAssertTrue(try repository.personalInfoLearningEnabled())
     }
 
-    func testManualFactsEnforceCapacityAndDeletionCreatesProtectedTombstone() throws {
+    func testManualFactsEnforceCapacityAndDeletionAllowsFutureRelearning() throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
 
@@ -177,16 +182,15 @@ final class PersonalInfoPersistenceTests: XCTestCase {
         try repository.updatePersonalInfoFact(first, text: "Corrected personal item")
         XCTAssertEqual(first.origin, PersonalInfoFactOrigin.user.rawValue)
 
-        try repository.deletePersonalInfoFact(first)
-        XCTAssertEqual(first.status, PersonalInfoFactStatus.tombstone.rawValue)
-        XCTAssertEqual(try repository.personalInfoPromptContext().protectedTombstones.count, 1)
-
+        let deletedID = first.id
         let deletedText = first.text
+        try repository.deletePersonalInfoFact(first)
+        XCTAssertFalse(try repository.personalInfoFacts().contains { $0.id == deletedID })
+
         XCTAssertNoThrow(try repository.addPersonalInfoFact(text: deletedText))
-        XCTAssertFalse(
-            try repository.personalInfoPromptContext().protectedTombstones.contains {
-                $0.text == deletedText
-            }
+        XCTAssertEqual(
+            try repository.personalInfoFacts().filter { $0.text == deletedText }.count,
+            1
         )
     }
 

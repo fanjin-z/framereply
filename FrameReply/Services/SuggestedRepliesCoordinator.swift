@@ -684,11 +684,6 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
                     "text": $0.text,
                     "protected": $0.isUserProtected
                 ] as [String: Any]
-            },
-            "protectedTombstones": personalInfo.protectedTombstones.sorted {
-                $0.id.uuidString < $1.id.uuidString
-            }.map {
-                ["id": $0.id.uuidString, "text": $0.text] as [String: Any]
             }
         ]
     }

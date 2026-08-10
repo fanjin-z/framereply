@@ -11,10 +11,7 @@ struct PersonalInfoView: View {
     @Query(sort: \SelfAliasRecord.displayLabel)
     private var aliases: [SelfAliasRecord]
     @Query private var chatContexts: [ChatContextRecord]
-    @Query(
-        filter: #Predicate<PersonalInfoFactRecord> { $0.status == "active" },
-        sort: \PersonalInfoFactRecord.text
-    )
+    @Query(sort: \PersonalInfoFactRecord.text)
     private var facts: [PersonalInfoFactRecord]
     @State private var newName = ""
     @State private var aliasBeingRenamed: SelfAliasRecord?
@@ -116,18 +113,15 @@ struct PersonalInfoView: View {
                 "Future imports may ask which sender is you again. Existing messages won’t change."
             )
         }
-        .confirmationDialog(
-            "Remove this item?",
+        .alert(
+            "Remove this fact?",
             isPresented: Binding(
                 get: { factPendingDeletion != nil },
                 set: { if !$0 { factPendingDeletion = nil } }
-            ),
-            titleVisibility: .visible
+            )
         ) {
             Button("Remove", role: .destructive, action: deleteFact)
             Button("Cancel", role: .cancel) { factPendingDeletion = nil }
-        } message: {
-            Text("FrameReply won’t add it again.")
         }
         .alert("Could Not Update Personal Info", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}

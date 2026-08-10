@@ -215,8 +215,7 @@ extension PersonalInfoFactRecord {
         PersonalInfoFact(
             id: id,
             text: text,
-            origin: PersonalInfoFactOrigin(rawValue: origin) ?? .ai,
-            status: PersonalInfoFactStatus(rawValue: status) ?? .active
+            origin: PersonalInfoFactOrigin(rawValue: origin) ?? .ai
         )
     }
 
@@ -224,15 +223,13 @@ extension PersonalInfoFactRecord {
         self.init(
             id: value.id,
             text: value.text,
-            origin: value.origin.rawValue,
-            status: value.status.rawValue
+            origin: value.origin.rawValue
         )
     }
 
     func update(from value: PersonalInfoFact) {
         text = value.text
         origin = value.origin.rawValue
-        status = value.status.rawValue
     }
 }
 
