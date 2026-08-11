@@ -21,6 +21,10 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         let wrapped = try decodeResult("Here is the result:\n\(exact)\nDone.")
         XCTAssertTrue(wrapped.recovered)
         XCTAssertEqual(wrapped.value.messages.first?.text, "Hello")
+
+        let singletonArray = try decodeResult("[\(exact)]")
+        XCTAssertTrue(singletonArray.recovered)
+        XCTAssertEqual(singletonArray.value.messages.first?.text, "Hello")
     }
 
     func testDefaultsSecondaryMetadataToExplicitUncertainty() throws {
@@ -59,11 +63,8 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
     }
 
     func testIgnoresUnknownFieldsAndDerivesStatusFromMessages() throws {
-        let content = validScreenshotJSON()
-            .replacingOccurrences(
-                of: "\"extractionStatus\":\"ok\"",
-                with: "\"extractionStatus\":\"no_messages\""
-            )
+        let content = (#"{"extractionStatus":"no_messages","#
+            + String(validScreenshotJSON().dropFirst()))
             .replacingOccurrences(
                 of: "\"matchConfidence\":0",
                 with: "\"extra\":true,\"matchConfidence\":0"
@@ -77,7 +78,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(result.value.extractionStatus, .ok)
         XCTAssertEqual(result.value.messages.count, 1)
 
-        let empty = try decodeResult(#"{"extractionStatus":"ok","messages":[]}"#)
+        let empty = try decodeResult(#"{"messages":[]}"#)
         XCTAssertTrue(empty.recovered)
         XCTAssertEqual(empty.value.extractionStatus, .noMessages)
     }
@@ -111,6 +112,8 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         assertFailure(nil, kind: .emptyResponse)
         assertFailure("{not json", kind: .invalidJSON)
         assertFailure("[]", kind: .schemaMismatch, path: "root")
+        assertFailure("[{},{}]", kind: .schemaMismatch, path: "root")
+        assertFailure("[1]", kind: .schemaMismatch, path: "root")
         assertFailure(#"{"conversationTitle":"Alex"}"#, kind: .schemaMismatch, path: "messages")
         assertFailure(
             #"{"messages":[{"text":42}]}"#,
@@ -224,13 +227,13 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
 
     private func validScreenshotJSON() -> String {
         """
-        {"extractionStatus":"ok","conversationTitle":"Alex","conversationKind":"direct","titleSource":"header","ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"other_participant","senderName":"Alex","text":"Hello","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention"}],"matchedChatID":null,"matchConfidence":0}
+        {"conversationTitle":"Alex","conversationKind":"direct","titleSource":"header","ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"other_participant","senderName":"Alex","text":"Hello","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention"}],"matchedChatID":null,"matchConfidence":0}
         """
     }
 
     private func validSharedJSON() -> String {
         """
-        {"extractionStatus":"ok","conversationTitle":null,"conversationKind":"unknown","titleSource":"unavailable","messages":[{"sender":"unknown","senderName":"Alice","text":"Hello","timestampLabel":"9:42 PM","senderConfidence":0.5,"senderEvidence":"author_label"}],"matchedChatID":null,"matchConfidence":0}
+        {"conversationTitle":null,"conversationKind":"unknown","titleSource":"unavailable","messages":[{"sender":"unknown","senderName":"Alice","text":"Hello","timestampLabel":"9:42 PM","senderConfidence":0.5,"senderEvidence":"author_label"}],"matchedChatID":null,"matchConfidence":0}
         """
     }
 
@@ -244,7 +247,6 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
             "senderEvidence": "author_label"
         ]
         let object: [String: Any] = [
-            "extractionStatus": "ok",
             "conversationTitle": NSNull(),
             "conversationKind": "unknown",
             "titleSource": "unavailable",

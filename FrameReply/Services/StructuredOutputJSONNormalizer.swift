@@ -38,11 +38,17 @@ nonisolated enum StructuredOutputJSONNormalizer {
         if let object = parseObject(text) {
             return Result(object: object, recovered: false)
         }
+        if let object = parseSingletonObjectArray(text) {
+            return Result(object: object, recovered: true)
+        }
         if isValidNonObjectJSON(text) {
             throw StructuredOutputFailure(kind: .schemaMismatch, codingPath: "root")
         }
         if let fenced = fencedBody(in: text) {
             if let object = parseObject(fenced) {
+                return Result(object: object, recovered: true)
+            }
+            if let object = parseSingletonObjectArray(fenced) {
                 return Result(object: object, recovered: true)
             }
             if isValidNonObjectJSON(fenced) {
@@ -68,6 +74,18 @@ nonisolated enum StructuredOutputJSONNormalizer {
         guard let data = text.data(using: .utf8),
             let value = try? JSONSerialization.jsonObject(with: data),
             let object = value as? [String: Any]
+        else {
+            return nil
+        }
+        return object
+    }
+
+    private static func parseSingletonObjectArray(_ text: String) -> [String: Any]? {
+        guard let data = text.data(using: .utf8),
+            let value = try? JSONSerialization.jsonObject(with: data),
+            let array = value as? [Any],
+            array.count == 1,
+            let object = array[0] as? [String: Any]
         else {
             return nil
         }
@@ -151,22 +169,27 @@ nonisolated enum StrictStructuredOutputValidator {
             throw StructuredOutputFailure(kind: .emptyResponse, codingPath: nil)
         }
 
-        let value: Any
+        let decoded: Any
         do {
-            value = try JSONSerialization.jsonObject(with: data)
+            decoded = try JSONSerialization.jsonObject(with: data)
         } catch {
             throw StructuredOutputFailure(kind: .invalidJSON, codingPath: nil)
+        }
+        let value: Any
+        if allowedTypes(in: schema).contains("object"),
+            let array = decoded as? [Any],
+            array.count == 1,
+            let object = array[0] as? [String: Any]
+        {
+            value = object
+        } else {
+            value = decoded
         }
         try validate(value, against: schema, path: "root")
     }
 
     private static func validate(_ value: Any, against schema: [String: Any], path: String) throws {
-        let allowedTypes: [String]
-        if let type = schema["type"] as? String {
-            allowedTypes = [type]
-        } else {
-            allowedTypes = schema["type"] as? [String] ?? []
-        }
+        let allowedTypes = allowedTypes(in: schema)
         let actualType = jsonType(of: value)
         let typeMatches =
             allowedTypes.contains(actualType)
@@ -256,6 +279,13 @@ nonisolated enum StrictStructuredOutputValidator {
             return number.doubleValue.rounded() == number.doubleValue ? "integer" : "number"
         }
         return "unknown"
+    }
+
+    private static func allowedTypes(in schema: [String: Any]) -> [String] {
+        if let type = schema["type"] as? String {
+            return [type]
+        }
+        return schema["type"] as? [String] ?? []
     }
 
     private static func numericValue(_ value: Any?) -> Double? {

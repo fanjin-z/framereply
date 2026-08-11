@@ -200,7 +200,8 @@ struct MiniMaxClient: AIProviderAdapter {
                 model: model.rawValue,
                 attempt: attempt,
                 finishReason: choice?.finishReason,
-                content: choice?.message.content ?? String(data: data, encoding: .utf8)
+                content: choice?.message.content ?? String(data: data, encoding: .utf8),
+                includeRawContent: failure.kind == .schemaMismatch
             )
             eventReporter.record(.structuredOutputFailure(
                 traceID: analysisRequest.traceID,
@@ -313,6 +314,7 @@ struct MiniMaxClient: AIProviderAdapter {
                 attempt: attempt,
                 finishReason: choice?.finishReason,
                 content: choice?.message.content ?? String(data: data, encoding: .utf8),
+                includeRawContent: failure.kind == .schemaMismatch
             )
             eventReporter.record(.structuredOutputFailure(
                 traceID: generationRequest.traceID,

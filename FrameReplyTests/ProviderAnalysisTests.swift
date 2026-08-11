@@ -21,14 +21,14 @@ final class ProviderAnalysisTests: XCTestCase {
         try assertContract(
             screenshot,
             keys: [
-                "extractionStatus", "conversationTitle", "conversationKind", "titleSource",
-                "ownershipConvention", "messages", "matchedChatID", "matchConfidence"
+                "conversationTitle", "conversationKind", "titleSource", "ownershipConvention",
+                "messages", "matchedChatID", "matchConfidence"
             ], version: ChatImportPrompt.screenshotImportVersion)
         try assertContract(
             shared,
             keys: [
-                "extractionStatus", "conversationTitle", "conversationKind", "titleSource",
-                "messages", "matchedChatID", "matchConfidence"
+                "conversationTitle", "conversationKind", "titleSource", "messages",
+                "matchedChatID", "matchConfidence"
             ], version: ChatImportPrompt.textImportVersion)
         try assertContract(
             standard,
@@ -666,6 +666,23 @@ final class ProviderAnalysisTests: XCTestCase {
         let image = try XCTUnwrap(content.first { $0["type"] as? String == "image_url" })
         let imageURL = try XCTUnwrap(image["image_url"] as? [String: Any])
         XCTAssertTrue(try XCTUnwrap(imageURL["url"] as? String).hasPrefix("data:image/png;base64,"))
+    }
+
+    @MainActor
+    func testOpenRouterRecoversSingletonObjectArrayForScreenshots() async throws {
+        let reporter = SpyImportEventReporter()
+        AnalysisURLProtocolStub.responses = [
+            (200, openRouterResponse(content: "[\(validScreenshotAnalysisJSON())]"))
+        ]
+
+        let result = try await OpenRouterClient(
+            session: makeSession(), eventReporter: reporter
+        ).analyzeChatScreenshot(
+            makeRequest(), apiKey: "key", model: .qwen37Plus)
+
+        XCTAssertEqual(result.messages.map(\.text), ["Hello"])
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+        XCTAssertTrue(hasValidationCategory("recovered", in: reporter.events))
     }
 
     @MainActor
@@ -1576,7 +1593,6 @@ final class ProviderAnalysisTests: XCTestCase {
 
     private func validScreenshotAnalysisJSON() -> String {
         jsonString([
-            "extractionStatus": "ok",
             "conversationTitle": "Sarah",
             "conversationKind": "direct",
             "titleSource": "header",

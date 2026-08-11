@@ -38,8 +38,8 @@ nonisolated enum ChatImportAnalysisDecoder {
         let root = normalized.object
         var recovered = normalized.recovered
         let knownRootKeys: Set<String> = [
-            "extractionStatus", "conversationTitle", "conversationKind", "titleSource",
-            "messages", "matchedChatID", "matchConfidence", "ownershipConvention"
+            "conversationTitle", "conversationKind", "titleSource", "messages",
+            "matchedChatID", "matchConfidence", "ownershipConvention"
         ]
         if !Set(root.keys).subtracting(knownRootKeys).isEmpty
             || (isSharedTranscript && root["ownershipConvention"] != nil)
@@ -185,9 +185,6 @@ nonisolated enum ChatImportAnalysisDecoder {
             }
         }
         let extractionStatus: ChatExtractionStatus = messages.isEmpty ? .noMessages : .ok
-        if (root["extractionStatus"] as? String) != extractionStatus.rawValue {
-            recovered = true
-        }
 
         let validated = try validate(
             ChatImportAnalysis(

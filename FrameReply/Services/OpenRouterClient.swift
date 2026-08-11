@@ -158,6 +158,16 @@ struct OpenRouterClient: AIProviderAdapter {
             )
             return decoded.value
         } catch let failure as StructuredOutputFailure {
+            ChatImportDebugLogger.structuredOutputFailure(
+                failure,
+                traceID: analysisRequest.traceID,
+                provider: provider,
+                model: model.rawValue,
+                attempt: attempt,
+                finishReason: choice?.finishReason,
+                content: choice?.message.content ?? String(data: data, encoding: .utf8),
+                includeRawContent: failure.kind == .schemaMismatch
+            )
             recordStructuredFailure(
                 failure, contract: contract, traceID: analysisRequest.traceID)
             throw ProviderConnectionError.structuredOutput(
@@ -259,6 +269,16 @@ struct OpenRouterClient: AIProviderAdapter {
             )
             return decoded.value
         } catch let failure as StructuredOutputFailure {
+            ChatImportDebugLogger.structuredOutputFailure(
+                failure,
+                traceID: generationRequest.traceID,
+                provider: platform.rawValue,
+                model: model.rawValue,
+                attempt: attempt,
+                finishReason: choice?.finishReason,
+                content: choice?.message.content ?? String(data: data, encoding: .utf8),
+                includeRawContent: failure.kind == .schemaMismatch
+            )
             recordStructuredFailure(
                 failure, contract: contract, traceID: generationRequest.traceID)
             throw ProviderConnectionError.structuredOutput(
