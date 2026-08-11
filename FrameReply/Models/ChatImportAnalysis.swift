@@ -68,6 +68,7 @@ nonisolated enum ChatImportPayload: Equatable, Sendable {
 nonisolated struct ChatImportAnalysisRequest: Equatable, Sendable {
     let payload: ChatImportPayload
     let candidates: [ChatMatchCandidate]
+    let selfAliases: [String]
     let traceID: ImportTraceID
 
     var imageDataList: [Data] {
@@ -83,28 +84,38 @@ nonisolated struct ChatImportAnalysisRequest: Equatable, Sendable {
     init(
         imageData: Data,
         candidates: [ChatMatchCandidate],
+        selfAliases: [String] = [],
         traceID: ImportTraceID = ImportTraceID()
     ) {
-        self.init(imageDataList: [imageData], candidates: candidates, traceID: traceID)
+        self.init(
+            imageDataList: [imageData],
+            candidates: candidates,
+            selfAliases: selfAliases,
+            traceID: traceID
+        )
     }
 
     init(
         imageDataList: [Data],
         candidates: [ChatMatchCandidate],
+        selfAliases: [String] = [],
         traceID: ImportTraceID = ImportTraceID()
     ) {
         payload = .screenshots(imageDataList)
         self.candidates = candidates
+        self.selfAliases = selfAliases
         self.traceID = traceID
     }
 
     init(
         transcriptItems: [String],
         candidates: [ChatMatchCandidate],
+        selfAliases: [String] = [],
         traceID: ImportTraceID = ImportTraceID()
     ) {
         payload = .sharedTranscript(SharedTranscriptInput(items: transcriptItems))
         self.candidates = candidates
+        self.selfAliases = selfAliases
         self.traceID = traceID
     }
 }

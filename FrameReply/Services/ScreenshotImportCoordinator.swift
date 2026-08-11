@@ -255,6 +255,7 @@ final class ScreenshotImportCoordinator {
             request = ChatImportAnalysisRequest(
                 transcriptItems: transcript.items,
                 candidates: candidates,
+                selfAliases: try repository.selfAliases().map(\.displayLabel),
                 traceID: traceID
             )
         }

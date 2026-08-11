@@ -185,6 +185,41 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testCopiedTextRequestIncludesSavedSelfAliases() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        try repository.addSelfAlias(displayLabel: "Alias Alpha")
+        let analysis = ChatImportAnalysis(
+            conversationTitle: nil,
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .unknown,
+                    senderName: "Contact Beta",
+                    text: "Could we move the meeting?",
+                    timestampLabel: nil,
+                    senderConfidence: 0.5,
+                    senderEvidence: .authorLabel
+                )
+            ],
+            matchedChatID: nil,
+            matchConfidence: 0,
+            conversationKind: .direct,
+            titleSource: .unavailable
+        )
+        let aiService = StubAnalysisService(analysis: analysis)
+        let coordinator = ScreenshotImportCoordinator(
+            aiService: aiService,
+            repository: repository
+        )
+
+        _ = try await coordinator.prepare(
+            transcriptItems: ["Contact Beta: Could we move the meeting?"]
+        )
+
+        XCTAssertEqual(aiService.receivedSelfAliases, ["Alias Alpha"])
+    }
+
+    @MainActor
     func testConfiguredDestinationBypassesMatchingAndRetainsDeduplication() async throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
@@ -538,6 +573,7 @@ private final class StubAnalysisService: AIServiceProviding {
     var analysis: ChatImportAnalysis
     private(set) var receivedImageDataList: [Data] = []
     private(set) var receivedTranscriptItems: [String] = []
+    private(set) var receivedSelfAliases: [String] = []
     private(set) var receivedContext: AIProviderExecutionContext?
 
     private let context = AIProviderExecutionContext(
@@ -571,6 +607,7 @@ private final class StubAnalysisService: AIServiceProviding {
     ) async throws -> ChatImportAnalysis {
         receivedImageDataList = request.imageDataList
         receivedTranscriptItems = request.sharedTranscript?.items ?? []
+        receivedSelfAliases = request.selfAliases
         receivedContext = context
         return analysis
     }

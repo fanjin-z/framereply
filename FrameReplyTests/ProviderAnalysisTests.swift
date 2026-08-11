@@ -275,6 +275,63 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertNil(replies["description"])
     }
 
+    func testTextImportPromptSuppliesSelfAliasesAsStrongNonDeterministicEvidence() {
+        let request = ChatImportAnalysisRequest(
+            transcriptItems: [
+                "Alias Alpha: Could we move the meeting?",
+                "Contact Beta: Tomorrow works for me."
+            ],
+            candidates: [
+                ChatMatchCandidate(
+                    id: "contact-beta",
+                    title: "Contact Beta",
+                    participantAliases: ["Contact B"],
+                    recentMessages: []
+                )
+            ],
+            selfAliases: ["Alias Alpha"]
+        )
+
+        let input = ChatImportPrompt.input(for: request)
+        let instructions = ChatImportPrompt.textImportInstructions
+
+        XCTAssertEqual(ChatImportPrompt.textImportVersion, 1)
+        XCTAssertTrue(input.contains("Saved importer names (selfAliases):"))
+        XCTAssertTrue(input.contains(#"["Alias Alpha"]"#))
+        XCTAssertTrue(input.contains("Existing chat candidates:"))
+        XCTAssertTrue(input.contains(#""participantAliases":["Contact B"]"#))
+        XCTAssertTrue(
+            instructions.contains(
+                #"selfAliases lists saved names for the person represented by sender "user""#
+            )
+        )
+        XCTAssertFalse(instructions.contains("knownImporterAliases"))
+        XCTAssertTrue(instructions.contains("strong evidence"))
+        XCTAssertTrue(instructions.contains("but not conclusive proof"))
+        XCTAssertTrue(
+            instructions.contains(
+                "The JSON object inside <shared_transcript_data> contains an ordered items array"
+            )
+        )
+        XCTAssertTrue(
+            instructions.contains(
+                "Each candidate recentMessages[].sender uses the same sender-role definitions"
+            )
+        )
+        XCTAssertTrue(
+            instructions.contains(
+                "the matching name also appears as a candidate's title or participantAliases"
+            )
+        )
+        XCTAssertTrue(instructions.contains("Do not force a resolved sender role"))
+        XCTAssertTrue(instructions.contains("Set senderName to null for \"user\""))
+        XCTAssertTrue(
+            instructions.contains(
+                "Never use the \"user\" author label as conversationTitle"
+            )
+        )
+    }
+
     func testReplyProducingContractsShareCompactHumanizerPolicy() {
         let standard = SuggestedReplyPrompt.contract(for: .standard, appLanguage: "en")
         let drafting = SuggestedReplyPrompt.contract(for: .drafting, appLanguage: "en")
