@@ -3,21 +3,15 @@ import XCTest
 @testable import FrameReply
 
 final class ShortcutInstallationCatalogTests: XCTestCase {
-    func testCatalogDefinesStableShortcutIDs() {
+    func testCatalogDefinesStablePublishedCanonicalShortcuts() {
         XCTAssertEqual(
             ShortcutInstallationCatalog.all.map(\.id),
             [.images, .text]
         )
-    }
-
-    func testRevisedShortcutInstallersRemainUnavailableUntilRepublished() {
         let urls = ShortcutInstallationCatalog.all.compactMap(\.installationURL)
-
         XCTAssertEqual(urls.count, ShortcutInstallationCatalog.all.count)
         XCTAssertEqual(Set(urls).count, urls.count)
-    }
 
-    func testAcceptsOnlyCanonicalICloudShortcutURLs() {
         let value = "https://www.icloud.com/shortcuts/abc123"
 
         XCTAssertEqual(

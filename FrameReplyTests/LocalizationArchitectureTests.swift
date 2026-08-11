@@ -5,25 +5,19 @@ import XCTest
 
 @MainActor
 final class LocalizationArchitectureTests: XCTestCase {
-    func testUntitledChatFallbackIsPresentationOnly() {
+    func testChatPresentationKeepsStoredContentAndResolvesMissingFallbacks() {
         let record = ChatRecord(id: "untitled", title: nil, previewText: nil)
 
         XCTAssertNil(record.title)
         XCTAssertNil(record.previewText)
         XCTAssertEqual(record.displayTitle(locale: Locale(identifier: "en")), "Imported Chat")
         XCTAssertEqual(record.displayPreview(locale: Locale(identifier: "en")), "No messages yet")
-    }
 
-    func testStoredChatPresentationRemainsVerbatim() {
-        let record = ChatRecord(
+        let titled = ChatRecord(
             id: "titled", title: "Equipo Ñ", previewText: "明天见"
         )
-
-        XCTAssertEqual(record.displayTitle(locale: Locale(identifier: "es")), "Equipo Ñ")
-        XCTAssertEqual(record.displayPreview(locale: Locale(identifier: "zh-Hans")), "明天见")
-    }
-
-    func testMissingChatLookupUsesNonOptionalPresentationFallback() {
+        XCTAssertEqual(titled.displayTitle(locale: Locale(identifier: "es")), "Equipo Ñ")
+        XCTAssertEqual(titled.displayPreview(locale: Locale(identifier: "zh-Hans")), "明天见")
         XCTAssertEqual(
             ChatPresentation.title(for: nil, locale: Locale(identifier: "en")),
             "Imported Chat"

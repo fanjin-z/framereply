@@ -63,7 +63,8 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
     }
 
     func testIgnoresUnknownFieldsAndDerivesStatusFromMessages() throws {
-        let content = (#"{"extractionStatus":"no_messages","#
+        let content =
+            (#"{"extractionStatus":"no_messages","#
             + String(validScreenshotJSON().dropFirst()))
             .replacingOccurrences(
                 of: "\"matchConfidence\":0",

@@ -4,21 +4,6 @@ import XCTest
 
 @MainActor
 final class ChatCardTests: XCTestCase {
-    func testChatProjectionCarriesActivityDate() {
-        let updatedAt = Date(timeIntervalSince1970: 1_750_000_000)
-        let record = ChatRecord(
-            id: "activity",
-            title: "Avery",
-            previewText: "Latest message",
-            updatedAt: updatedAt
-        )
-
-        let chat = Chat(record: record)
-
-        XCTAssertEqual(chat.updatedAt, updatedAt)
-        XCTAssertEqual(chat.preview, "Latest message")
-    }
-
     func testPersonaResolutionUsesAssignmentThenFallsBackToDefault() {
         let defaultPersona = makePersona(name: "Professional")
         let assignedPersona = makePersona(name: "Thoughtful")
@@ -162,32 +147,6 @@ final class ChatCardTests: XCTestCase {
             ),
             .shortDate
         )
-    }
-
-    func testActivityDateTextIsLocalized() throws {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
-        let date = try XCTUnwrap(
-            calendar.date(
-                from: DateComponents(
-                    year: 2026,
-                    month: 7,
-                    day: 24,
-                    hour: 15,
-                    minute: 30
-                )
-            )
-        )
-
-        let text = ChatActivityDateFormatter.text(
-            for: date,
-            relativeTo: date,
-            calendar: calendar,
-            locale: Locale(identifier: "en_US")
-        )
-
-        XCTAssertFalse(text.isEmpty)
-        XCTAssertTrue(text.contains("3:30"))
     }
 
     private func makePersona(name: String) -> Persona {

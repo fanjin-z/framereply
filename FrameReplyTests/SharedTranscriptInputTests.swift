@@ -3,7 +3,7 @@ import XCTest
 @testable import FrameReply
 
 final class SharedTranscriptInputTests: XCTestCase {
-    func testMessageEstimatesCoverStandaloneAndGeneratedCombinedTranscripts() {
+    func testMessageEstimatesCoverStandaloneCombinedAndMaximumInputs() {
         let standalone = SharedTranscriptInput(items: [
             "[07/13/26, 9:42 PM] Alice: Hello\ncontinued",
             "13.07.2026, 21:43 - Bob: Hi",
@@ -24,9 +24,7 @@ final class SharedTranscriptInputTests: XCTestCase {
         XCTAssertEqual(combined.items, [generatedTranscript])
         XCTAssertEqual(combined.estimatedMessageCount, 9)
         XCTAssertEqual(combined.characterCount, generatedTranscript.count)
-    }
 
-    func testEveryStandaloneItemCountsAsAtLeastOneEstimatedMessage() {
         let maximum = SharedTranscriptInput.maximumEstimatedMessageCount
         let accepted = SharedTranscriptInput(items: Array(repeating: "message", count: maximum))
         let rejected = SharedTranscriptInput(

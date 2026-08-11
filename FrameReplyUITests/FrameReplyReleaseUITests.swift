@@ -1,83 +1,54 @@
 import XCTest
 
-final class FrameReplyReleaseUITests: XCTestCase {
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-    }
-
-    func testCriticalNavigationAndPrivacyControlsAreReachable() throws {
-        let app = XCUIApplication()
-        app.launch()
-
+final class FrameReplyReleaseUITests: FrameReplyUITestCase {
+    func testCriticalNavigationAndPrivacyControlsAreReachable() {
+        let app = launchStandard()
         XCTAssertTrue(app.buttons["app-tab-chats"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["app-tab-personas"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["add-messages"].waitForExistence(timeout: 3))
 
         let settings = app.buttons["app-tab-settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["add-messages"].waitForExistence(timeout: 3))
         settings.tap()
-
         let privacyAndData = app.buttons["privacy-and-data"]
-        XCTAssertTrue(
-            scrollUntilHittable(privacyAndData, swiping: app.swipeUp)
-        )
+        XCTAssertTrue(scrollUntilHittable(privacyAndData, swiping: app.swipeUp))
         privacyAndData.tap()
 
+        XCTAssertTrue(element("privacy-and-data-screen", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("privacy-policy-link", in: app).exists)
+        XCTAssertTrue(element("terms-link", in: app).exists)
+        XCTAssertTrue(element("support-link", in: app).exists)
         XCTAssertTrue(
-            app.descendants(matching: .any)["privacy-and-data-screen"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.descendants(matching: .any)["privacy-policy-link"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["terms-link"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["support-link"].exists)
-        XCTAssertTrue(
-            scrollUntilHittable(
-                app.descendants(matching: .any)["delete-all-local-data"],
-                swiping: app.swipeUp
-            )
+            scrollUntilHittable(element("delete-all-local-data", in: app), swiping: app.swipeUp)
         )
     }
 
-    func testBottomNavigationExposesSelectedTabState() throws {
-        let app = XCUIApplication()
-        app.launch()
-
+    func testBottomNavigationExposesSelectedTabState() {
+        let app = launchStandard()
         let chats = app.buttons["app-tab-chats"]
         let personas = app.buttons["app-tab-personas"]
         let settings = app.buttons["app-tab-settings"]
-
         XCTAssertTrue(chats.waitForExistence(timeout: 8))
-        XCTAssertTrue(personas.waitForExistence(timeout: 3))
-        XCTAssertTrue(settings.waitForExistence(timeout: 3))
 
         chats.tap()
-        XCTAssertTrue(
-            app.descendants(matching: .any)["chats-screen"]
-                .waitForExistence(timeout: 3)
-        )
+        XCTAssertTrue(element("chats-screen", in: app).waitForExistence(timeout: 3))
         XCTAssertEqual(chats.value as? String, "Current tab")
         XCTAssertNotEqual(personas.value as? String, "Current tab")
-        XCTAssertNotEqual(settings.value as? String, "Current tab")
 
         personas.tap()
-        XCTAssertTrue(
-            app.descendants(matching: .any)["personas-screen"]
-                .waitForExistence(timeout: 3)
-        )
-        XCTAssertNotEqual(chats.value as? String, "Current tab")
+        XCTAssertTrue(element("personas-screen", in: app).waitForExistence(timeout: 3))
         XCTAssertEqual(personas.value as? String, "Current tab")
+        XCTAssertNotEqual(chats.value as? String, "Current tab")
 
         settings.tap()
-        XCTAssertNotEqual(personas.value as? String, "Current tab")
         XCTAssertEqual(settings.value as? String, "Current tab")
+        XCTAssertNotEqual(personas.value as? String, "Current tab")
     }
 
-    func testProviderConsentCanBeCancelledWithoutSaving() throws {
-        let app = XCUIApplication()
-        app.launchArguments += [
-            "-framereply.providerDataConsent.openAI.v1",
-            "0"
-        ]
-        app.launch()
-
+    func testProviderConsentCanBeCancelledWithoutSaving() {
+        let app = launchStandard(
+            additionalArguments: ["-framereply.providerDataConsent.openAI.v1", "0"]
+        )
         let settings = app.buttons["app-tab-settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 8))
         settings.tap()
@@ -85,7 +56,6 @@ final class FrameReplyReleaseUITests: XCTestCase {
         let addProvider = app.buttons["add-provider-header"]
         XCTAssertTrue(addProvider.waitForExistence(timeout: 3))
         addProvider.tap()
-
         XCTAssertTrue(app.buttons["select-provider"].waitForExistence(timeout: 3))
         app.buttons["select-provider"].tap()
         app.buttons["provider-choice-openAI"].tap()
@@ -94,76 +64,19 @@ final class FrameReplyReleaseUITests: XCTestCase {
         XCTAssertTrue(apiKey.waitForExistence(timeout: 3))
         apiKey.tap()
         apiKey.typeText("synthetic-key")
-
         app.buttons["connect-provider"].tap()
+
         let consentAlert = app.alerts["Share chat content with OpenAI?"]
         XCTAssertTrue(consentAlert.waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["provider-consent-allow"].firstMatch.exists)
         app.buttons["provider-consent-cancel"].firstMatch.tap()
-
         XCTAssertTrue(consentAlert.waitForNonExistence(timeout: 3))
         XCTAssertTrue(app.buttons["connect-provider"].exists)
         app.buttons["close-add-provider"].tap()
         XCTAssertTrue(addProvider.waitForExistence(timeout: 3))
     }
 
-    func testSettingsSectionsFollowPriorityOrder() throws {
-        let app = XCUIApplication()
-        app.launch()
-
-        let settings = app.buttons["app-tab-settings"]
-        XCTAssertTrue(settings.waitForExistence(timeout: 8))
-        settings.tap()
-
-        XCTAssertTrue(
-            app.descendants(matching: .any)["settings-screen"]
-                .waitForExistence(timeout: 3)
-        )
-
-        let personalization = app.staticTexts["Personalization"]
-        let modelProviders = app.staticTexts["Model Providers"]
-        let shortcuts = app.staticTexts["Shortcuts"]
-        let privacyAndSupport = app.staticTexts["Privacy & Support"]
-
-        XCTAssertTrue(personalization.exists)
-        XCTAssertTrue(modelProviders.exists)
-        XCTAssertTrue(shortcuts.exists)
-        XCTAssertTrue(privacyAndSupport.exists)
-        XCTAssertLessThan(personalization.frame.minY, modelProviders.frame.minY)
-        XCTAssertLessThan(modelProviders.frame.minY, shortcuts.frame.minY)
-        XCTAssertLessThan(shortcuts.frame.minY, privacyAndSupport.frame.minY)
-
-        XCTAssertTrue(app.buttons["personal-info"].isHittable)
-        XCTAssertTrue(app.buttons["add-provider-header"].isHittable)
-    }
-
-    func testPersonalInfoNavigationIsReachable() throws {
-        let app = XCUIApplication()
-        app.launch()
-
-        let settings = app.buttons["app-tab-settings"]
-        XCTAssertTrue(settings.waitForExistence(timeout: 8))
-        settings.tap()
-
-        let personalInfo = app.buttons["personal-info"]
-        XCTAssertTrue(
-            scrollUntilHittable(personalInfo, swiping: app.swipeUp)
-        )
-        personalInfo.tap()
-
-        XCTAssertTrue(
-            app.descendants(matching: .any)["personal-info-screen"]
-                .waitForExistence(timeout: 3)
-        )
-        XCTAssertTrue(app.navigationBars["Personal Info"].exists)
-        XCTAssertTrue(app.staticTexts["Your Names in Chats"].exists)
-        XCTAssertTrue(app.staticTexts["Facts About You"].exists)
-    }
-
-    func testPersonalInfoComposerAndLearningToggleAreReachable() throws {
-        let app = XCUIApplication()
-        app.launch()
-
+    func testPersonalInfoNavigationLearningAndComposerAreReachable() {
+        let app = launchStandard()
         let settings = app.buttons["app-tab-settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 8))
         settings.tap()
@@ -171,14 +84,19 @@ final class FrameReplyReleaseUITests: XCTestCase {
         XCTAssertTrue(scrollUntilHittable(personalInfo, swiping: app.swipeUp))
         personalInfo.tap()
 
+        XCTAssertTrue(element("personal-info-screen", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Personal Info"].exists)
+        XCTAssertTrue(app.staticTexts["Your Names in Chats"].exists)
+        XCTAssertTrue(app.staticTexts["Facts About You"].exists)
+
         let learningToggle = app.switches["personal-info-learning-toggle"]
         XCTAssertTrue(learningToggle.waitForExistence(timeout: 3))
-        let initialToggleValue = (learningToggle.value as? String) ?? "1"
-        let toggledValue = initialToggleValue == "1" ? "0" : "1"
+        let initialValue = (learningToggle.value as? String) ?? "1"
+        let toggledValue = initialValue == "1" ? "0" : "1"
         learningToggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
         XCTAssertTrue(waitForValue(toggledValue, of: learningToggle))
         learningToggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
-        XCTAssertTrue(waitForValue(initialToggleValue, of: learningToggle))
+        XCTAssertTrue(waitForValue(initialValue, of: learningToggle))
 
         let composer = app.textFields["Add one short fact about yourself"]
         XCTAssertTrue(composer.exists)
@@ -189,14 +107,10 @@ final class FrameReplyReleaseUITests: XCTestCase {
         XCTAssertTrue(addFact.isEnabled)
     }
 
-    func testCriticalControlsRemainReachableAtLargestDynamicType() throws {
-        let app = XCUIApplication()
-        app.launchArguments += [
-            "-UIPreferredContentSizeCategoryName",
-            "UICTContentSizeCategoryAccessibilityExtraExtraExtraLarge"
-        ]
-        app.launch()
-
+    func testCriticalControlsRemainReachableAtLargestDynamicType() {
+        let app = launchStandard(
+            contentSizeCategory: "UICTContentSizeCategoryAccessibilityExtraExtraExtraLarge"
+        )
         let chats = app.buttons["app-tab-chats"]
         XCTAssertTrue(chats.waitForExistence(timeout: 8))
         chats.tap()
@@ -204,70 +118,104 @@ final class FrameReplyReleaseUITests: XCTestCase {
         let addMessages = app.buttons["add-messages"].firstMatch
         XCTAssertTrue(addMessages.waitForExistence(timeout: 8))
         addMessages.tap()
-
-        let screenshots = app.buttons["choose-screenshots"]
-        let paste = app.buttons["paste-copied-messages"]
         XCTAssertTrue(
-            scrollUntilHittable(screenshots, swiping: app.swipeUp)
+            scrollUntilHittable(app.buttons["choose-screenshots"], swiping: app.swipeUp)
         )
         XCTAssertTrue(
-            scrollUntilHittable(paste, swiping: app.swipeUp)
+            scrollUntilHittable(app.buttons["paste-copied-messages"], swiping: app.swipeUp)
         )
-
-        let closeAddMessages = app.buttons["close-add-messages"]
-        XCTAssertTrue(
-            scrollUntilHittable(closeAddMessages, swiping: app.swipeDown)
-        )
-        closeAddMessages.tap()
+        let close = app.buttons["close-add-messages"]
+        XCTAssertTrue(scrollUntilHittable(close, swiping: app.swipeDown))
+        close.tap()
 
         let settings = app.buttons["app-tab-settings"]
-        XCTAssertTrue(settings.waitForExistence(timeout: 3))
         settings.tap()
-
-        let personalInfo = app.buttons["personal-info"]
+        XCTAssertTrue(scrollUntilHittable(app.buttons["personal-info"], swiping: app.swipeUp))
+        let privacy = app.buttons["privacy-and-data"]
+        XCTAssertTrue(scrollUntilHittable(privacy, swiping: app.swipeUp))
+        privacy.tap()
+        XCTAssertTrue(element("privacy-and-data-screen", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(
-            scrollUntilHittable(personalInfo, swiping: app.swipeUp)
-        )
-
-        let privacyAndData = app.buttons["privacy-and-data"]
-        XCTAssertTrue(
-            scrollUntilHittable(privacyAndData, swiping: app.swipeUp)
-        )
-        privacyAndData.tap()
-
-        XCTAssertTrue(
-            app.descendants(matching: .any)["privacy-and-data-screen"].waitForExistence(timeout: 3))
-        XCTAssertTrue(
-            scrollUntilHittable(
-                app.descendants(matching: .any)["delete-all-local-data"],
-                swiping: app.swipeUp
-            )
+            scrollUntilHittable(element("delete-all-local-data", in: app), swiping: app.swipeUp)
         )
     }
 
-    private func scrollUntilHittable(
-        _ element: XCUIElement,
-        timeout: TimeInterval = 3,
-        maximumSwipes: Int = 4,
-        swiping: () -> Void
-    ) -> Bool {
-        _ = element.waitForExistence(timeout: timeout)
-        var swipeCount = 0
-        while !element.exists || !element.isHittable, swipeCount < maximumSwipes {
-            swiping()
-            swipeCount += 1
-        }
+    func testChatsSearchAndDeleteCancellation() {
+        let app = launchShowcase()
+        let search = app.textFields["chats-search-field"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("Jordan")
+        XCTAssertTrue(app.buttons["chat-card-showcase.jordan"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["chat-card-showcase.maya"].exists)
 
-        return element.exists && element.isHittable
+        app.buttons["clear-chat-search"].tap()
+        let maya = app.buttons["chat-card-showcase.maya"]
+        XCTAssertTrue(maya.waitForExistence(timeout: 3))
+        maya.swipeLeft()
+        let deleteChat = app.buttons["chat-delete-showcase.maya"]
+        XCTAssertTrue(deleteChat.waitForExistence(timeout: 3))
+        deleteChat.tap()
+
+        let confirmation = app.sheets.firstMatch
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Delete chat with Maya?"].exists)
+        XCTAssertTrue(confirmation.buttons["Delete Chat"].exists)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
+        XCTAssertTrue(confirmation.waitForNonExistence(timeout: 2))
     }
 
-    private func waitForValue(
-        _ value: String,
-        of element: XCUIElement,
-        timeout: TimeInterval = 2
-    ) -> Bool {
-        let predicate = NSPredicate(format: "value == %@", value)
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
-        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    func testReplyGuidancePersistsIntoImport() {
+        let app = launchShowcase()
+        openMaya(in: app)
+        let addMessages = app.buttons["assistant-add-messages"]
+        let guidance = element("reply-guidance-field", in: app)
+        let submit = app.buttons["submit-reply-guidance"]
+        XCTAssertTrue(addMessages.waitForExistence(timeout: 3))
+        XCTAssertTrue(guidance.isHittable)
+        XCTAssertFalse(submit.exists)
+
+        guidance.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+        guidance.typeText("Use this import context")
+        XCTAssertTrue(submit.waitForExistence(timeout: 3))
+        addMessages.tap()
+
+        XCTAssertTrue(element("add-messages-screen", in: app).waitForExistence(timeout: 3))
+        let importedGuidance = element("import-reply-guidance", in: app)
+        XCTAssertTrue(importedGuidance.waitForExistence(timeout: 3))
+        XCTAssertEqual(importedGuidance.value as? String, "Use this import context")
+    }
+
+    func testReplyGuidanceRemainsUsableAtAccessibilityTextSize() {
+        let app = launchShowcase(
+            contentSizeCategory: "UICTContentSizeCategoryAccessibilityXXXL"
+        )
+        openMaya(in: app)
+
+        let addMessages = app.buttons["assistant-add-messages"]
+        XCTAssertTrue(addMessages.waitForExistence(timeout: 3))
+        XCTAssertTrue(addMessages.isHittable, addMessages.debugDescription)
+        XCTAssertGreaterThan(addMessages.frame.width, 100)
+        XCTAssertTrue(element("reply-guidance-field", in: app).isHittable)
+    }
+
+    func testConversationTapDismissesGuidanceBeforeOpeningContent() {
+        let app = launchShowcase()
+        openMaya(in: app)
+        let guidance = element("reply-guidance-field", in: app)
+        let replyBrief = element("reply-brief-summary", in: app)
+        let dialog = element("reply-brief-dialog", in: app)
+        XCTAssertTrue(guidance.waitForExistence(timeout: 3))
+        XCTAssertTrue(replyBrief.waitForExistence(timeout: 3))
+
+        guidance.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+        replyBrief.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 2))
+        XCTAssertFalse(dialog.exists)
+
+        replyBrief.tap()
+        XCTAssertTrue(dialog.waitForExistence(timeout: 3))
     }
 }

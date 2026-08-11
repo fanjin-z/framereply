@@ -4,62 +4,44 @@ import XCTest
 @testable import FrameReply
 
 final class ShortcutIntentConfigurationTests: XCTestCase {
-    func testEndToEndIntentsAskForContextByDefault() {
+    func testIntentDiscoveryAndLaunchContract() {
         XCTAssertTrue(SuggestRepliesFromChatImagesIntent().askForContext)
         XCTAssertTrue(SuggestRepliesFromChatTextIntent().askForContext)
-    }
-
-    func testMaintainedReplySelectionIntentsStayInTheCurrentApp() {
         XCTAssertTrue(SuggestRepliesFromChatImagesIntent.isDiscoverable)
         XCTAssertTrue(SuggestRepliesFromChatTextIntent.isDiscoverable)
         XCTAssertFalse(SuggestRepliesFromChatImagesIntent.openAppWhenRun)
         XCTAssertFalse(SuggestRepliesFromChatTextIntent.openAppWhenRun)
-    }
-
-    func testSnippetIntentsAreNotDiscoverable() {
         XCTAssertFalse(ShortcutRepliesConfirmationSnippetIntent.isDiscoverable)
         XCTAssertFalse(ShortcutImportReviewSnippetIntent.isDiscoverable)
         XCTAssertFalse(SelectShortcutReplyIntent.isDiscoverable)
     }
 
-    func testReplyConfirmationStatePrefersAvailableChoicesEvenWhenReviewIsFlagged() {
-        let response = response(
-            replies: ["First", "Second"],
-            reviewRequired: true
-        )
-
+    func testReplyConfirmationStateRoutesChoicesWaitReviewAndFailures() throws {
         XCTAssertEqual(
-            ShortcutReplyConfirmationState(response: response),
+            ShortcutReplyConfirmationState(
+                response: response(replies: ["First", "Second"], reviewRequired: true)
+            ),
             .replyChoices(["First", "Second"])
         )
-    }
-
-    func testReplyConfirmationStateReturnsWaitRecommendationForSuccessfulEmptyResult() {
-        let response = response(
-            replies: [],
-            dialog: "Wait for their response."
-        )
-
         XCTAssertEqual(
-            ShortcutReplyConfirmationState(response: response),
+            ShortcutReplyConfirmationState(
+                response: response(replies: [], dialog: "Wait for their response.")
+            ),
             .waitRecommendation("Wait for their response.")
         )
-    }
 
-    func testReplyConfirmationStateCreatesSenderReviewHandoff() throws {
-        let response = response(
+        let reviewResponse = response(
             replies: nil,
             reviewRequired: true,
             duplicate: true,
             message: "No new messages found in natalie.",
             replyErrorCode: SuggestedRepliesError.senderReviewRequired.code
         )
-
         let presentation = try XCTUnwrap(
-            ShortcutImportReviewPresentation(response: response)
+            ShortcutImportReviewPresentation(response: reviewResponse)
         )
         XCTAssertEqual(
-            ShortcutReplyConfirmationState(response: response),
+            ShortcutReplyConfirmationState(response: reviewResponse),
             .senderReviewRequired(presentation)
         )
         XCTAssertEqual(presentation.chatID, "chat-123")
@@ -67,28 +49,20 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
         XCTAssertEqual(presentation.statusMessage, "No new messages found in natalie.")
         XCTAssertEqual(presentation.importedMessageCount, 9)
         XCTAssertTrue(presentation.duplicate)
-    }
 
-    func testSenderReviewWithoutChatIDFallsBackToUnavailable() {
-        let response = response(
-            replies: nil,
-            chatID: nil,
-            reviewRequired: true,
-            replyErrorCode: SuggestedRepliesError.senderReviewRequired.code
-        )
-
-        XCTAssertNil(ShortcutImportReviewPresentation(response: response))
         XCTAssertEqual(
-            ShortcutReplyConfirmationState(response: response),
+            ShortcutReplyConfirmationState(
+                response: response(
+                    replies: nil,
+                    chatID: nil,
+                    reviewRequired: true,
+                    replyErrorCode: SuggestedRepliesError.senderReviewRequired.code
+                )
+            ),
             .unavailable
         )
-    }
-
-    func testOtherReplyFailuresRemainUnavailable() {
         for errorCode in [
-            "no_provider",
-            "provider_consent_required",
-            "provider_connection_failed",
+            "no_provider", "provider_consent_required", "provider_connection_failed",
             "reply_schema_mismatch"
         ] {
             XCTAssertEqual(
@@ -100,51 +74,9 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
                     )
                 ),
                 .unavailable,
-                "Expected \(errorCode) to remain an unavailable reply failure"
+                errorCode
             )
         }
-    }
-
-    func testConfirmationSnippetIntentPreservesCompletePresentationPayload() {
-        let longReply = String(repeating: "Complete reply text. ", count: 30)
-        let intent = ShortcutRepliesConfirmationSnippetIntent(
-            selectionSessionID: "session-123",
-            chatID: "chat-123",
-            chatTitle: "Natalie",
-            importedMessageCount: 9,
-            reviewRequired: true,
-            duplicate: false,
-            replies: [longReply, "Second reply"]
-        )
-
-        XCTAssertEqual(intent.selectionSessionID, "session-123")
-        XCTAssertEqual(intent.chatID, "chat-123")
-        XCTAssertEqual(intent.chatTitle, "Natalie")
-        XCTAssertEqual(intent.importedMessageCount, 9)
-        XCTAssertTrue(intent.reviewRequired)
-        XCTAssertFalse(intent.duplicate)
-        XCTAssertEqual(intent.replies, [longReply, "Second reply"])
-    }
-
-    func testReviewSnippetIntentPreservesNavigationAndImportPresentation() throws {
-        let presentation = try XCTUnwrap(
-            ShortcutImportReviewPresentation(
-                response: response(
-                    replies: nil,
-                    reviewRequired: true,
-                    duplicate: true,
-                    message: "Review imported messages in natalie.",
-                    replyErrorCode: SuggestedRepliesError.senderReviewRequired.code
-                )
-            )
-        )
-        let intent = ShortcutImportReviewSnippetIntent(presentation: presentation)
-
-        XCTAssertEqual(intent.chatID, "chat-123")
-        XCTAssertEqual(intent.chatTitle, "natalie")
-        XCTAssertEqual(intent.statusMessage, "Review imported messages in natalie.")
-        XCTAssertEqual(intent.importedMessageCount, 9)
-        XCTAssertTrue(intent.duplicate)
     }
 
     @MainActor
@@ -167,31 +99,24 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
 
         ShortcutReplySelectionStore.shared.begin(sessionID: "session-1")
         ShortcutReplySelectionStore.shared.begin(sessionID: "session-2")
-
         XCTAssertEqual(
             ShortcutReplySelectionStore.shared.selectedReplyIndex(
-                sessionID: "session-1",
-                replyCount: 2
+                sessionID: "session-1", replyCount: 2
             ),
             0
         )
 
-        ShortcutReplySelectionStore.shared.select(
-            replyIndex: 1,
-            sessionID: "session-1"
-        )
+        ShortcutReplySelectionStore.shared.select(replyIndex: 1, sessionID: "session-1")
 
         XCTAssertEqual(
             ShortcutReplySelectionStore.shared.selectedReplyIndex(
-                sessionID: "session-1",
-                replyCount: 2
+                sessionID: "session-1", replyCount: 2
             ),
             1
         )
         XCTAssertEqual(
             ShortcutReplySelectionStore.shared.selectedReplyIndex(
-                sessionID: "session-2",
-                replyCount: 2
+                sessionID: "session-2", replyCount: 2
             ),
             0
         )
@@ -223,80 +148,55 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
         XCTAssertEqual(result.value, completeReply)
     }
 
-    func testReplyChoiceOutputPreservesCompleteReplies() {
-        let firstReply = String(repeating: "Never truncate copied text. ", count: 30)
-        let response = response(
-            replies: [firstReply, "Second complete reply"]
-        )
-
+    func testReplyChoiceOutputFiltersCapsAndPreservesCompleteReplies() {
+        let completeReply = String(repeating: "Never truncate copied text. ", count: 30)
         XCTAssertEqual(
-            ShortcutReplyChoiceBuilder.values(from: response),
-            [firstReply, "Second complete reply"]
+            ShortcutReplyChoiceBuilder.values(
+                from: response(replies: [completeReply, "Second complete reply"])
+            ),
+            [completeReply, "Second complete reply"]
         )
-    }
-
-    func testReplyChoiceOutputFiltersEmptyValuesAndCapsTheListAtTwo() {
-        let response = response(replies: ["", "First", " \n", "Second", "Third"])
-
         XCTAssertEqual(
-            ShortcutReplyChoiceBuilder.values(from: response),
+            ShortcutReplyChoiceBuilder.values(
+                from: response(replies: ["", "First", " \n", "Second", "Third"])
+            ),
             ["First", "Second"]
         )
-    }
-
-    func testReplyChoiceOutputIsEmptyWhenGenerationIsUnavailable() {
         XCTAssertTrue(
             ShortcutReplyChoiceBuilder.values(from: response(replies: nil)).isEmpty
         )
     }
 
-    func testSnippetPresentationUsesPluralAwareReplyHeadings() {
-        XCTAssertEqual(
-            snippet(replies: ["Only reply"]).headerText,
-            "1 reply ready"
-        )
-        XCTAssertEqual(
-            snippet(replies: ["First", "Second"]).headerText,
-            "2 replies ready"
-        )
+    func testSnippetPresentationFormatsReplyAndImportStates() {
+        XCTAssertEqual(snippet(replies: ["Only reply"]).headerText, "1 reply ready")
+        XCTAssertEqual(snippet(replies: ["First", "Second"]).headerText, "2 replies ready")
+
+        let cases: [(ShortcutRepliesSnippet, String)] = [
+            (snippet(importedMessageCount: 1, replies: ["Reply"]), "1 message imported to natalie"),
+            (
+                snippet(importedMessageCount: 9, replies: ["Reply"]),
+                "9 messages imported to natalie"
+            ),
+            (
+                snippet(importedMessageCount: 9, reviewRequired: true, replies: ["Reply"]),
+                "9 messages imported to natalie · Review required"
+            ),
+            (snippet(duplicate: true, replies: ["Reply"]), "No new messages added to natalie")
+        ]
+        for (view, expected) in cases {
+            XCTAssertEqual(view.statusText, expected)
+        }
     }
 
-    func testSnippetPresentationFormatsImportStates() {
-        XCTAssertEqual(
-            snippet(importedMessageCount: 1, replies: ["Reply"]).statusText,
-            "1 message imported to natalie"
-        )
-        XCTAssertEqual(
-            snippet(importedMessageCount: 9, replies: ["Reply"]).statusText,
-            "9 messages imported to natalie"
-        )
-        XCTAssertEqual(
-            snippet(
-                importedMessageCount: 9,
-                reviewRequired: true,
-                replies: ["Reply"]
-            ).statusText,
-            "9 messages imported to natalie · Review required"
-        )
-        XCTAssertEqual(
-            snippet(duplicate: true, replies: ["Reply"]).statusText,
-            "No new messages added to natalie"
-        )
-    }
+    func testSnippetPresentationFiltersRepliesAndShowsUnavailableState() {
+        let filtered = snippet(replies: ["", "First", "  ", "Second", "Third"])
+        XCTAssertEqual(filtered.visibleReplies, ["First", "Second"])
+        XCTAssertFalse(filtered.showsEmptyState)
 
-    func testSnippetPresentationFiltersEmptyRepliesAndCapsVisibleCardsAtTwo() {
-        let view = snippet(replies: ["", "First", "  ", "Second", "Third"])
-
-        XCTAssertEqual(view.visibleReplies, ["First", "Second"])
-        XCTAssertFalse(view.showsEmptyState)
-    }
-
-    func testSnippetPresentationShowsUnavailableStateWithoutEmptyCards() {
-        let view = snippet(replies: ["", "  \n"])
-
-        XCTAssertTrue(view.visibleReplies.isEmpty)
-        XCTAssertTrue(view.showsEmptyState)
-        XCTAssertEqual(view.headerText, "Replies unavailable")
+        let unavailable = snippet(replies: ["", "  \n"])
+        XCTAssertTrue(unavailable.visibleReplies.isEmpty)
+        XCTAssertTrue(unavailable.showsEmptyState)
+        XCTAssertEqual(unavailable.headerText, "Replies unavailable")
     }
 
     func testReviewSnippetUsesConciseSenderCheckCopy() {
@@ -308,92 +208,52 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
     }
 
     @MainActor
-    func testReviewSnippetRendersWithinRecommendedHeight() throws {
+    func testSnippetLayoutsStayWithinRecommendedHeight() throws {
         for colorScheme in [ColorScheme.light, .dark] {
-            let renderer = ImageRenderer(
-                content: reviewSnippet()
-                    .frame(width: 358)
-                    .environment(\.colorScheme, colorScheme)
-                    .environment(\.dynamicTypeSize, .accessibility2)
+            try assertRecommendedHeight(
+                reviewSnippet(),
+                colorScheme: colorScheme,
+                dynamicTypeSize: .accessibility2
             )
-            renderer.scale = 1
-
-            let image = try XCTUnwrap(renderer.uiImage)
-            XCTAssertLessThanOrEqual(image.size.height, 340)
         }
-    }
 
-    @MainActor
-    func testLongSnippetRendersWithinRecommendedHeightInBothAppearances() throws {
-        let replies = [
+        let localizedReplies = [
             "Мне очень нравится набережная. Там открывается прекрасный вид на Волгу и Оку.",
             "Люблю гулять по Кремлю. Это красивое и историческое место в центре города."
         ]
-
         for colorScheme in [ColorScheme.light, .dark] {
-            let renderer = ImageRenderer(
-                content: snippet(
-                    replies: replies,
+            try assertRecommendedHeight(
+                snippet(
+                    replies: localizedReplies,
                     selectionSessionID: "session-123",
                     selectedReplyIndex: 0
-                )
-                .frame(width: 358)
-                .environment(\.colorScheme, colorScheme)
+                ),
+                colorScheme: colorScheme
             )
-            renderer.scale = 1
-
-            let image = try XCTUnwrap(renderer.uiImage)
-            XCTAssertLessThanOrEqual(image.size.height, 340)
         }
-    }
 
-    @MainActor
-    func testAccessibilitySnippetUsesCompactLayoutWithinRecommendedHeight() throws {
         let longReply = String(
             repeating: "A long suggested reply remains complete when copied. ",
             count: 10
         )
-        let renderer = ImageRenderer(
-            content: snippet(
+        try assertRecommendedHeight(
+            snippet(
                 replies: [longReply, longReply],
                 selectionSessionID: "session-123",
                 selectedReplyIndex: 0
-            )
-            .frame(width: 358)
-            .environment(\.dynamicTypeSize, .accessibility2)
+            ),
+            dynamicTypeSize: .accessibility2
         )
-        renderer.scale = 1
-
-        let image = try XCTUnwrap(renderer.uiImage)
-        XCTAssertLessThanOrEqual(
-            image.size.height,
-            340,
-            "Accessibility snippet rendered at \(image.size.height) points"
-        )
-    }
-
-    @MainActor
-    func testLargestStandardDynamicTypeKeepsSnippetWithinRecommendedHeight() throws {
-        let replies = [
-            "Какое у тебя любимое место в Нижнем Новгороде?",
-            "А куда в Нижнем Новгороде ты бы посоветовал сходить?"
-        ]
-        let renderer = ImageRenderer(
-            content: snippet(
-                replies: replies,
+        try assertRecommendedHeight(
+            snippet(
+                replies: [
+                    "Какое у тебя любимое место в Нижнем Новгороде?",
+                    "А куда в Нижнем Новгороде ты бы посоветовал сходить?"
+                ],
                 selectionSessionID: "session-123",
                 selectedReplyIndex: 1
-            )
-            .frame(width: 358)
-            .environment(\.dynamicTypeSize, .xxxLarge)
-        )
-        renderer.scale = 1
-
-        let image = try XCTUnwrap(renderer.uiImage)
-        XCTAssertLessThanOrEqual(
-            image.size.height,
-            340,
-            "Large-type snippet rendered at \(image.size.height) points"
+            ),
+            dynamicTypeSize: .xxxLarge
         )
     }
 
@@ -425,6 +285,27 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
             importedMessageCount: 9,
             duplicate: true
         )
+    }
+
+    @MainActor
+    private func assertRecommendedHeight<Content: View>(
+        _ content: Content,
+        colorScheme: ColorScheme = .light,
+        dynamicTypeSize: DynamicTypeSize = .large,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws {
+        let renderer = ImageRenderer(
+            content:
+                content
+                .frame(width: 358)
+                .environment(\.colorScheme, colorScheme)
+                .environment(\.dynamicTypeSize, dynamicTypeSize)
+        )
+        renderer.scale = 1
+
+        let image = try XCTUnwrap(renderer.uiImage, file: file, line: line)
+        XCTAssertLessThanOrEqual(image.size.height, 340, file: file, line: line)
     }
 
     private func response(

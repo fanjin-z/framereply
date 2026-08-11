@@ -118,6 +118,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let message = makeMessage(chatID: chatID, index: 0)
         container.mainContext.insert(makeChat(id: chatID))
         container.mainContext.insert(message)
+        let personalFact = try repository.addPersonalInfoFact(text: "Vegetarian")
         container.mainContext.insert(
             SuggestedReplyCacheRecord(
                 chatID: chatID,
@@ -136,6 +137,8 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
 
         let service = StubReplyService { request in
             XCTAssertFalse(request.personaLearningEnabled)
+            XCTAssertFalse(request.personalInfoLearningEnabled)
+            XCTAssertEqual(request.personalInfo.facts.map(\.id), [personalFact.id])
             return SuggestedReplyGenerationResult(
                 historySummary: "Draft-generated summary must be ignored",
                 replies: ["Draft A", "Draft B"],
@@ -149,7 +152,15 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                         sourceMessageIDs: [message.id]
                     )
                 ],
-                personaObservationChanges: []
+                personaObservationChanges: [],
+                personalInfoChanges: [
+                    PersonalInfoChange(
+                        action: .add,
+                        targetFactID: nil,
+                        text: "Must not be saved",
+                        sourceMessageIDs: [message.id]
+                    )
+                ]
             )
         }
         let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
@@ -169,6 +180,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertEqual(cache.summarizedMessageCount, 7)
         XCTAssertEqual(cache.summarizedPrefixFingerprint, "existing-prefix")
         XCTAssertTrue(try repository.chatMemories(chatID: chatID).isEmpty)
+        XCTAssertEqual(try repository.personalInfoFacts().map(\.text), ["Vegetarian"])
         let personaID = try PersonaRepository(container: container).defaultPersonaID()
         XCTAssertFalse(
             try repository.personaObservations(personaID: personaID).contains {
@@ -1006,46 +1018,6 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
 
         XCTAssertEqual(service.requests.count, 2)
         XCTAssertEqual(try repository.personalInfoFacts().map(\.text), ["Prefers window seats"])
-    }
-
-    @MainActor
-    func testOneUseDraftReceivesFactsButCannotLearnOrMutateThem() async throws {
-        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let chatID = "personal-info-drafting-chat"
-        let userMessage = makeMessage(chatID: chatID, index: 0)
-        let incoming = makeMessage(chatID: chatID, index: 1)
-        container.mainContext.insert(makeChat(id: chatID))
-        container.mainContext.insert(userMessage)
-        container.mainContext.insert(incoming)
-        let existing = try repository.addPersonalInfoFact(text: "Vegetarian")
-        try container.mainContext.save()
-
-        let service = StubReplyService { request in
-            XCTAssertEqual(request.task, .drafting)
-            XCTAssertEqual(request.personalInfo.facts.map(\.id), [existing.id])
-            XCTAssertFalse(request.personalInfoLearningEnabled)
-            return SuggestedReplyGenerationResult(
-                historySummary: "Must not persist",
-                replies: ["Draft A", "Draft B"],
-                conversationStrategy: "Use the one-use direction.",
-                strategyRationale: "The drafting input controls this result.",
-                personalInfoChanges: [
-                    PersonalInfoChange(
-                        action: .add,
-                        targetFactID: nil,
-                        text: "Must not persist",
-                        sourceMessageIDs: [userMessage.id]
-                    )
-                ]
-            )
-        }
-        let coordinator = SuggestedRepliesCoordinator(aiService: service, repository: repository)
-
-        _ = try await coordinator.generate(chatID: chatID, draftingInput: "Use this once")
-
-        XCTAssertEqual(service.requests.count, 1)
-        XCTAssertEqual(try repository.personalInfoFacts().map(\.text), ["Vegetarian"])
     }
 
     @MainActor

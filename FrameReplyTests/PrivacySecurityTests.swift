@@ -7,35 +7,29 @@ import XCTest
 @testable import FrameReply
 
 final class PrivacySecurityTests: XCTestCase {
-    func testProviderPermissionCopyNamesRecipientDataAndPurpose() {
-        let disclosure = ProviderDataConsentDisclosure(provider: .miniMaxChina)
-
+    func testProviderDisclosuresIdentifyRecipientsDestinationsAndPolicies() {
+        let china = ProviderDataConsentDisclosure(provider: .miniMaxChina)
         XCTAssertEqual(
-            disclosure.permissionTitle,
+            china.permissionTitle,
             "Share chat content with \(ProviderPlatform.miniMaxChina.displayName)?"
         )
-        XCTAssertTrue(
-            disclosure.permissionMessage.contains(ProviderPlatform.miniMaxChina.displayName)
-        )
-        XCTAssertTrue(disclosure.permissionMessage.contains("saved personal context"))
-        XCTAssertTrue(disclosure.permissionMessage.contains("third-party AI provider"))
-        XCTAssertTrue(disclosure.permissionMessage.contains("analyze chats and create replies"))
-    }
+        for phrase in [
+            ProviderPlatform.miniMaxChina.displayName,
+            "saved personal context",
+            "third-party AI provider",
+            "analyze chats and create replies"
+        ] {
+            XCTAssertTrue(china.permissionMessage.contains(phrase), phrase)
+        }
 
-    func testOpenRouterDisclosureNamesBothProcessorsAndDoesNotClaimZeroRetention() {
-        let disclosure = ProviderDataConsentDisclosure(provider: .openRouter)
+        let openRouter = ProviderDataConsentDisclosure(provider: .openRouter)
+        for phrase in ["OpenRouter", "Alibaba Cloud International", "Qwen3.7 Plus"] {
+            XCTAssertTrue(openRouter.destinationDescription.contains(phrase), phrase)
+        }
+        XCTAssertFalse(openRouter.summary.localizedCaseInsensitiveContains("zero retention"))
+        XCTAssertEqual(openRouter.privacyPolicyURL.host, "openrouter.ai")
 
-        XCTAssertTrue(disclosure.destinationDescription.contains("OpenRouter"))
-        XCTAssertTrue(disclosure.destinationDescription.contains("Alibaba Cloud International"))
-        XCTAssertTrue(disclosure.destinationDescription.contains("Qwen3.7 Plus"))
-        XCTAssertFalse(disclosure.summary.localizedCaseInsensitiveContains("zero retention"))
-        XCTAssertEqual(disclosure.privacyPolicyURL.host, "openrouter.ai")
-    }
-
-    func testMiniMaxRegionsHaveDistinctDestinationsAndPolicies() throws {
         let international = ProviderDataConsentDisclosure(provider: .miniMaxInternational)
-        let china = ProviderDataConsentDisclosure(provider: .miniMaxChina)
-
         XCTAssertTrue(international.destinationDescription.contains("MiniMax International"))
         XCTAssertTrue(china.destinationDescription.contains("mainland China"))
         XCTAssertEqual(international.privacyPolicyURL.host, "platform.minimax.io")
@@ -43,19 +37,7 @@ final class PrivacySecurityTests: XCTestCase {
     }
 
     @MainActor
-    func testMiniMaxRegionalConsentRecordsAreIndependent() throws {
-        let suiteName = "PrivacySecurityTests.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let store = ProviderDataConsentStore(userDefaults: defaults)
-
-        store.grantConsent(for: .miniMaxInternational)
-        XCTAssertTrue(store.hasValidConsent(for: .miniMaxInternational))
-        XCTAssertFalse(store.hasValidConsent(for: .miniMaxChina))
-    }
-
-    @MainActor
-    func testProviderConsentIsVersionedAndCanBeWithdrawn() throws {
+    func testProviderConsentIsVersionedWithdrawableAndRegionScoped() throws {
         let suiteName = "PrivacySecurityTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -66,6 +48,10 @@ final class PrivacySecurityTests: XCTestCase {
         XCTAssertTrue(store.hasValidConsent(for: .openAI))
         store.revokeConsent(for: .openAI)
         XCTAssertFalse(store.hasValidConsent(for: .openAI))
+
+        store.grantConsent(for: .miniMaxInternational)
+        XCTAssertTrue(store.hasValidConsent(for: .miniMaxInternational))
+        XCTAssertFalse(store.hasValidConsent(for: .miniMaxChina))
     }
 
     func testEndpointAllowlistRequiresHTTPSAndExactHost() throws {
@@ -143,6 +129,7 @@ final class PrivacySecurityTests: XCTestCase {
     func testDeleteAllUserDataClearsPersistedContent() throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let context = container.mainContext
+        let repository = ChatRepository(container: container)
         context.insert(
             ChatRecord(
                 id: "private-chat", title: "Synthetic User", previewText: "Synthetic preview")
@@ -156,6 +143,8 @@ final class PrivacySecurityTests: XCTestCase {
                 sortIndex: 0
             )
         )
+        try repository.addPersonalInfoFact(text: "Synthetic personal fact")
+        try repository.setPersonalInfoLearningEnabled(false)
         try PersonaRepository(container: container).seedPersonasIfNeeded()
         try context.save()
 
@@ -164,5 +153,7 @@ final class PrivacySecurityTests: XCTestCase {
         XCTAssertTrue(try context.fetch(FetchDescriptor<ChatRecord>()).isEmpty)
         XCTAssertTrue(try context.fetch(FetchDescriptor<ChatMessageRecord>()).isEmpty)
         XCTAssertTrue(try context.fetch(FetchDescriptor<PersonaRecord>()).isEmpty)
+        XCTAssertTrue(try repository.personalInfoFacts().isEmpty)
+        XCTAssertTrue(try repository.personalInfoLearningEnabled())
     }
 }

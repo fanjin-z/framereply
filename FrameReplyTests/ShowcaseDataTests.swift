@@ -58,12 +58,6 @@
                 contexts.filter { personaByID[$0.personaID] == .spark }.count,
                 1
             )
-        }
-
-        func testMayaFixtureGroundsTheShowcaseRationaleAndMemory() throws {
-            let container = try FrameReplyDataStore.makeContainer(inMemory: true)
-            try PersonaRepository(container: container).seedPersonasIfNeeded()
-            try ShowcaseDataSeeder.seed(in: container)
 
             let repository = ChatRepository(container: container)
             let maya = try XCTUnwrap(

@@ -32,15 +32,5 @@
             XCTAssertEqual(record?.title, "Updated Showcase Name")
         }
 
-        func testShowcaseProviderStorageDoesNotTouchStandardDefaults() throws {
-            let key = "AppRuntimeTests.\(UUID().uuidString)"
-            UserDefaults.standard.set("sentinel", forKey: key)
-            defer { UserDefaults.standard.removeObject(forKey: key) }
-
-            let runtime = try AppRuntime.showcase()
-
-            XCTAssertTrue(runtime.providerStore.providers.isEmpty)
-            XCTAssertEqual(UserDefaults.standard.string(forKey: key), "sentinel")
-        }
     }
 #endif

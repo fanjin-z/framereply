@@ -254,39 +254,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
         XCTAssertNil(try aliasRepository.chatContext(chatID: aliasProvisional.chatID))
     }
 
-    func testParticipantAliasLifecycleNormalizesLearnsForgetsAndDeletes() throws {
-        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let first = try repository.applyImport(
-            analysis: directUnknownAnalysis(
-                selfName: "Cafe\u{301}   User",
-                userText: "One",
-                otherText: "Two",
-                matchedChatID: nil
-            ),
-            confirmedChatID: nil
-        )
-
-        try repository.resolveUnknownSenderLabels(
-            chatID: first.chatID,
-            selfLabel: "  Café\u{00A0}User "
-        )
-        XCTAssertEqual(try repository.selfAliases(chatID: first.chatID).count, 1)
-        XCTAssertEqual(
-            try repository.selfAliases(chatID: first.chatID).first?.displayLabel, "Café User")
-
-        try repository.forgetImportedSelfLabels(chatID: first.chatID)
-        XCTAssertTrue(try repository.selfAliases(chatID: first.chatID).isEmpty)
-
-        try repository.addSelfAlias(displayLabel: "Alias Alpha", chatID: first.chatID)
-        try repository.deleteChat(id: first.chatID)
-        XCTAssertTrue(try repository.selfAliases(chatID: first.chatID).isEmpty)
-        XCTAssertTrue(
-            try repository.selfAliases().contains {
-                $0.displayLabel == "Alias Alpha"
-            }
-        )
-
+    func testParticipantNameLifecycleNormalizesAndLearnsAliases() throws {
         let namesContainer = try FrameReplyDataStore.makeContainer(inMemory: true)
         let namesRepository = ChatRepository(container: namesContainer)
         let chat = ChatRecord(

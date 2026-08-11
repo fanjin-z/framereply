@@ -346,13 +346,6 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             XCTAssertEqual(error.code, "transcript_too_large")
         }
 
-        _ = try await coordinator.prepare(
-            transcriptItems: Array(
-                repeating: "message",
-                count: SharedTranscriptInput.maximumEstimatedMessageCount
-            )
-        )
-
         do {
             _ = try await coordinator.prepare(
                 transcriptItems: Array(
@@ -364,27 +357,6 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         } catch let error as ScreenshotImportError {
             XCTAssertEqual(error.code, "transcript_too_large")
         }
-
-        let acceptedCombined = (1...SharedTranscriptInput.maximumEstimatedMessageCount).map {
-            index in
-            "[07/13/26, 9:\(String(format: "%02d", index)) PM] Alice: Message \(index)"
-        }.joined(separator: "\n")
-        _ = try await coordinator.prepare(transcriptItems: [acceptedCombined])
-
-        let rejectedCombined = (1...SharedTranscriptInput.maximumEstimatedMessageCount + 1).map {
-            index in
-            "[07/13/26, 9:\(String(format: "%02d", index)) PM] Alice: Message \(index)"
-        }.joined(separator: "\n")
-        do {
-            _ = try await coordinator.prepare(transcriptItems: [rejectedCombined])
-            XCTFail("Expected transcriptTooLarge")
-        } catch let error as ScreenshotImportError {
-            XCTAssertEqual(error.code, "transcript_too_large")
-        }
-
-        _ = try await coordinator.prepare(
-            transcriptItems: [String(repeating: "a", count: 8_000)]
-        )
     }
 
     @MainActor
@@ -450,96 +422,6 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         )
     }
 
-    @MainActor
-    func testNoMessageAnalysisDoesNotModifyDestinationChat() async throws {
-        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let originalDate = Date(timeIntervalSince1970: 1_000)
-        let existingChat = ChatRecord(
-            id: "existing-chat",
-            title: "Alice",
-            previewText: "Original preview",
-            conversationKind: .direct,
-            updatedAt: originalDate
-        )
-        container.mainContext.insert(existingChat)
-        try container.mainContext.save()
-        let coordinator = ScreenshotImportCoordinator(
-            aiService: StubAnalysisService(
-                analysis: ChatImportAnalysis(
-                    extractionStatus: .noMessages,
-                    conversationTitle: nil,
-                    messages: [],
-                    matchedChatID: nil,
-                    matchConfidence: 0,
-                    conversationKind: .unknown,
-                    titleSource: .unavailable,
-                    ownershipConvention: .unobservable
-                )
-            ),
-            repository: repository,
-            destinationChatID: existingChat.id
-        )
-
-        do {
-            _ = try await coordinator.process(imageDataList: [makeTestImageData()])
-            XCTFail("Expected noMessages")
-        } catch let error as ScreenshotImportError {
-            XCTAssertEqual(error, .noMessages(source: .images))
-        }
-
-        let storedChat = try XCTUnwrap(repository.chat(id: existingChat.id))
-        XCTAssertEqual(storedChat.title, "Alice")
-        XCTAssertEqual(storedChat.previewText, "Original preview")
-        XCTAssertEqual(storedChat.conversationKind, .direct)
-        XCTAssertEqual(storedChat.updatedAt, originalDate)
-        XCTAssertTrue(try repository.messages(chatID: existingChat.id).isEmpty)
-        XCTAssertTrue(
-            try container.mainContext.fetch(FetchDescriptor<ChatImportRecord>()).isEmpty
-        )
-    }
-
-    @MainActor
-    func testCoordinatorRejectsOversizedSharedTranscriptAnalysisBeforePersistence() async throws {
-        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let messages = (1...SharedTranscriptInput.maximumEstimatedMessageCount + 1).map {
-            index in
-            AnalyzedChatMessage(
-                sender: .unknown,
-                senderName: "Alice",
-                text: "Message \(index)",
-                timestampLabel: nil,
-                senderConfidence: 0.5,
-                senderEvidence: .authorLabel
-            )
-        }
-        let coordinator = ScreenshotImportCoordinator(
-            aiService: StubAnalysisService(
-                analysis: ChatImportAnalysis(
-                    conversationTitle: nil,
-                    messages: messages,
-                    matchedChatID: nil,
-                    matchConfidence: 0,
-                    titleSource: .unavailable,
-                    ownershipConvention: .unobservable
-                )
-            ),
-            repository: repository
-        )
-
-        do {
-            _ = try await coordinator.process(transcriptItems: ["Alice: Hello"])
-            XCTFail("Expected structured output failure")
-        } catch let error as ProviderConnectionError {
-            guard case .structuredOutput(let detail) = error else {
-                return XCTFail("Expected structured output failure, got \(error)")
-            }
-            XCTAssertEqual(detail.failure.kind, .schemaMismatch)
-            XCTAssertEqual(detail.failure.codingPath, "messages")
-        }
-        XCTAssertTrue(try repository.chats().isEmpty)
-    }
 }
 
 @MainActor

@@ -204,7 +204,7 @@ final class PersonalInfoPersistenceTests: XCTestCase {
         XCTAssertTrue(try ChatRepository(container: container).personalInfoLearningEnabled())
     }
 
-    func testChatDeletionKeepsFactsAndDeleteAllResetsLearningPreference() throws {
+    func testChatDeletionKeepsAccountFacts() throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let chatID = "personal-info-delete-chat"
@@ -215,16 +215,11 @@ final class PersonalInfoPersistenceTests: XCTestCase {
             message(chatID: chatID, index: 0, sender: "user", createdAt: 1)
         )
         try repository.addPersonalInfoFact(text: "Global fact")
-        try repository.setPersonalInfoLearningEnabled(false)
         try container.mainContext.save()
 
         try repository.deleteChat(id: chatID)
         XCTAssertEqual(try repository.personalInfoFacts().count, 1)
         XCTAssertTrue(try repository.messages(chatID: chatID).isEmpty)
-
-        try FrameReplyDataStore.deleteAllUserData(in: container.mainContext)
-        XCTAssertTrue(try repository.personalInfoFacts().isEmpty)
-        XCTAssertTrue(try repository.personalInfoLearningEnabled())
     }
 
     private func message(

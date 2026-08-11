@@ -3,58 +3,45 @@ import XCTest
 @testable import FrameReply
 
 final class TextImportReadinessTests: XCTestCase {
-    func testUnknownMessagesWithoutNamesAreRejected() {
-        let messages = [
-            message(senderName: nil, text: "Could we move the meeting?"),
-            message(senderName: nil, text: "Tomorrow works for me.")
+    func testReadinessRequiresNamesOnlyForUnknownSenders() {
+        let cases: [(String, [AnalyzedChatMessage], TextImportReadiness)] = [
+            (
+                "unknown senders without names",
+                [
+                    message(senderName: nil, text: "Could we move the meeting?"),
+                    message(senderName: nil, text: "Tomorrow works for me.", timestamp: "10:16")
+                ],
+                .missingSenderMetadata
+            ),
+            (
+                "resolved roles without names",
+                [
+                    message(sender: .otherParticipant, senderName: nil, text: "Did it arrive?"),
+                    message(sender: .user, senderName: nil, text: "Yes, it arrived.")
+                ],
+                .ready
+            ),
+            (
+                "explicit author labels",
+                [
+                    message(senderName: "Morgan", text: "Earlier train?"),
+                    message(senderName: "Riley", text: "That works.")
+                ],
+                .ready
+            ),
+            (
+                "partially labeled transcript",
+                [
+                    message(senderName: "Casey", text: "Confirmed."),
+                    message(senderName: "   ", text: "Thank you.")
+                ],
+                .missingSenderMetadata
+            )
         ]
 
-        XCTAssertEqual(readiness(messages), .missingSenderMetadata)
-    }
-
-    func testTimestampsWithoutAuthorsAreRejected() {
-        let messages = [
-            message(senderName: nil, text: "Are you nearby?", timestamp: "10:14"),
-            message(senderName: nil, text: "I will arrive soon.", timestamp: "10:16")
-        ]
-
-        XCTAssertEqual(readiness(messages), .missingSenderMetadata)
-    }
-
-    func testResolvedSenderRolesWithoutNamesAreAccepted() {
-        let messages = [
-            message(sender: .otherParticipant, senderName: nil, text: "Did the parcel arrive?"),
-            message(sender: .user, senderName: nil, text: "Yes, it arrived safely.")
-        ]
-
-        XCTAssertEqual(readiness(messages), .ready)
-    }
-
-    func testExplicitNamesWithUnresolvedRolesAreAccepted() {
-        let messages = [
-            message(senderName: "Morgan", text: "Should we book the earlier train?"),
-            message(senderName: "Riley", text: "That gives us more time.")
-        ]
-
-        XCTAssertEqual(readiness(messages), .ready)
-    }
-
-    func testNamesWithoutTimestampsAreAccepted() {
-        let messages = [
-            message(senderName: "Avery", text: "I sent the revised outline."),
-            message(senderName: "Jordan", text: "I will review it tonight.")
-        ]
-
-        XCTAssertEqual(readiness(messages), .ready)
-    }
-
-    func testPartiallyLabeledTranscriptIsRejectedEntirely() {
-        let messages = [
-            message(senderName: "Casey", text: "The reservation is confirmed."),
-            message(senderName: "   ", text: "Great, thank you.")
-        ]
-
-        XCTAssertEqual(readiness(messages), .missingSenderMetadata)
+        for (name, messages, expected) in cases {
+            XCTAssertEqual(readiness(messages), expected, name)
+        }
     }
 
     private func readiness(_ messages: [AnalyzedChatMessage]) -> TextImportReadiness {

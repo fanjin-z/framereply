@@ -3,18 +3,17 @@ import XCTest
 @testable import FrameReply
 
 final class DraftingInputTests: XCTestCase {
-    func testAccepts499And500Characters() throws {
-        let value499 = String(repeating: "a", count: 499)
-        let value500 = String(repeating: "b", count: 500)
+    func testValidationTrimsBlankAndEnforcesFiveHundredGraphemeLimit() throws {
+        let family = "👨‍👩‍👧‍👦"
+        let composedAccent = "e\u{301}"
+        let value =
+            String(repeating: family, count: 250)
+            + String(repeating: composedAccent, count: 250)
 
-        XCTAssertEqual(try DraftingInputLimits.validated(value499), value499)
-        XCTAssertEqual(try DraftingInputLimits.validated(value500), value500)
-    }
-
-    func testRejects501CharactersWithoutTruncating() {
-        let value = String(repeating: "a", count: 501)
-
-        XCTAssertThrowsError(try DraftingInputLimits.validated(value)) { error in
+        XCTAssertEqual(value.count, 500)
+        XCTAssertEqual(try DraftingInputLimits.validated(value), value)
+        XCTAssertNil(try DraftingInputLimits.validated(" \n\t "))
+        XCTAssertThrowsError(try DraftingInputLimits.validated(value + family)) { error in
             XCTAssertEqual(
                 error as? DraftingInputError,
                 .tooLong(maximum: DraftingInputLimits.maximumCharacterCount)
@@ -22,46 +21,14 @@ final class DraftingInputTests: XCTestCase {
         }
     }
 
-    func testCountsEmojiAndComposedUnicodeAsCharacters() throws {
-        let family = "👨‍👩‍👧‍👦"
-        let composedAccent = "e\u{301}"
-        XCTAssertEqual(family.count, 1)
-        XCTAssertEqual(composedAccent.count, 1)
-
-        let value =
-            String(repeating: family, count: 250)
-            + String(repeating: composedAccent, count: 250)
-        XCTAssertEqual(value.count, 500)
-        XCTAssertEqual(try DraftingInputLimits.validated(value), value)
-
-        XCTAssertThrowsError(
-            try DraftingInputLimits.validated(value + family)
-        )
-    }
-
-    func testWhitespaceOnlyBecomesNil() throws {
-        XCTAssertNil(try DraftingInputLimits.validated(" \n\t "))
-    }
-
-    func testCounterStartsAt400Characters() {
+    func testEditorCounterAndAcceptanceBoundaries() {
         XCTAssertFalse(
-            DraftingInputLimits.shouldShowCounter(
-                for: String(repeating: "a", count: 399)
-            )
+            DraftingInputLimits.shouldShowCounter(for: String(repeating: "a", count: 399))
         )
         XCTAssertTrue(
-            DraftingInputLimits.shouldShowCounter(
-                for: String(repeating: "a", count: 400)
-            )
+            DraftingInputLimits.shouldShowCounter(for: String(repeating: "a", count: 400))
         )
-    }
-
-    func testEditorAcceptanceStopsAt500Graphemes() {
-        XCTAssertTrue(
-            DraftingInputLimits.canAccept(String(repeating: "👍🏽", count: 500))
-        )
-        XCTAssertFalse(
-            DraftingInputLimits.canAccept(String(repeating: "👍🏽", count: 501))
-        )
+        XCTAssertTrue(DraftingInputLimits.canAccept(String(repeating: "👍🏽", count: 500)))
+        XCTAssertFalse(DraftingInputLimits.canAccept(String(repeating: "👍🏽", count: 501)))
     }
 }

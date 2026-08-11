@@ -6,12 +6,12 @@ import XCTest
 final class ProviderValidatorTests: XCTestCase {
     override func setUp() {
         super.setUp()
-        URLProtocolStub.reset()
+        AnalysisURLProtocolStub.reset()
     }
 
     @MainActor
     func testProvidersUseOneSelectedModelProbe() async throws {
-        URLProtocolStub.stub(
+        AnalysisURLProtocolStub.stub(
             statusCode: 200,
             body:
                 #"{"id":"resp_1","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
@@ -22,8 +22,8 @@ final class ProviderValidatorTests: XCTestCase {
             model: .gpt56Luna
         )
 
-        XCTAssertEqual(URLProtocolStub.requests.count, 1)
-        let openAIRequest = try XCTUnwrap(URLProtocolStub.requests.first)
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+        let openAIRequest = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
         XCTAssertEqual(openAIRequest.url?.path, "/v1/responses")
         XCTAssertEqual(
             openAIRequest.value(forHTTPHeaderField: "Authorization"),
@@ -39,8 +39,8 @@ final class ProviderValidatorTests: XCTestCase {
             "none"
         )
 
-        URLProtocolStub.reset()
-        URLProtocolStub.stub(
+        AnalysisURLProtocolStub.reset()
+        AnalysisURLProtocolStub.stub(
             statusCode: 200,
             body:
                 #"{"id":"gen_1","model":"qwen/qwen3.7-plus","choices":[{"message":{"content":"{\"status\":\"ok\"}"},"finish_reason":"stop"}]}"#
@@ -51,8 +51,8 @@ final class ProviderValidatorTests: XCTestCase {
             model: .qwen37Plus
         )
 
-        XCTAssertEqual(URLProtocolStub.requests.count, 1)
-        let openRouterRequest = try XCTUnwrap(URLProtocolStub.requests.first)
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+        let openRouterRequest = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
         let openRouterBody = try jsonBody(openRouterRequest)
         XCTAssertEqual(openRouterBody["model"] as? String, "qwen/qwen3.7-plus")
         let routing = try XCTUnwrap(openRouterBody["provider"] as? [String: Any])
@@ -68,8 +68,8 @@ final class ProviderValidatorTests: XCTestCase {
             (MiniMaxClient.Region.international, "api.minimax.io"),
             (.china, "api.minimaxi.com")
         ] {
-            URLProtocolStub.reset()
-            URLProtocolStub.stub(
+            AnalysisURLProtocolStub.reset()
+            AnalysisURLProtocolStub.stub(
                 statusCode: 200,
                 body:
                     #"{"id":"m3_1","model":"MiniMax-M3","choices":[{"message":{"content":"OK"},"finish_reason":"stop"}],"base_resp":{"status_code":0,"status_msg":"success"}}"#
@@ -78,8 +78,8 @@ final class ProviderValidatorTests: XCTestCase {
             try await MiniMaxClient(region: region, session: makeSession()).validate(
                 apiKey: "minimax-key", model: .miniMaxM3)
 
-            XCTAssertEqual(URLProtocolStub.requests.count, 1)
-            let request = try XCTUnwrap(URLProtocolStub.requests.first)
+            XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+            let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
             XCTAssertEqual(request.url?.scheme, "https")
             XCTAssertEqual(request.url?.host, host)
             XCTAssertEqual(request.url?.path, "/v1/chat/completions")
@@ -174,7 +174,7 @@ final class ProviderValidatorTests: XCTestCase {
                 #"{"id":"m3_1","model":"MiniMax-M3","choices":[{"message":{"content":""},"finish_reason":"content_filter"}],"base_resp":{"status_code":0}}"#,
             validator: miniMax, model: .miniMaxM3)
 
-        URLProtocolStub.stub(
+        AnalysisURLProtocolStub.stub(
             statusCode: 403,
             body: #"{"error":{"code":403,"message":"No endpoints match policy"}}"#
         )
@@ -201,7 +201,7 @@ final class ProviderValidatorTests: XCTestCase {
         model: ProviderModel,
         body: String
     ) async {
-        URLProtocolStub.stub(statusCode: 200, body: body)
+        AnalysisURLProtocolStub.stub(statusCode: 200, body: body)
         await assertThrows(.invalidResponse) {
             try await validator.validate(apiKey: "key", model: model)
         }
@@ -215,7 +215,7 @@ final class ProviderValidatorTests: XCTestCase {
         validator: any ProviderValidator,
         model: ProviderModel
     ) async {
-        URLProtocolStub.stub(statusCode: statusCode, body: body)
+        AnalysisURLProtocolStub.stub(statusCode: statusCode, body: body)
         await assertThrows(expected) {
             try await validator.validate(apiKey: "key", model: model)
         }
@@ -236,7 +236,7 @@ final class ProviderValidatorTests: XCTestCase {
 
     private func makeSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [URLProtocolStub.self]
+        configuration.protocolClasses = [AnalysisURLProtocolStub.self]
         return URLSession(configuration: configuration)
     }
 
@@ -277,65 +277,5 @@ private enum ProviderErrorKind: Equatable {
         default:
             self = .other
         }
-    }
-}
-
-private final class URLProtocolStub: URLProtocol {
-    static var requests: [URLRequest] = []
-    private static var statusCode = 200
-    private static var responseBody = Data()
-
-    static func reset() {
-        requests = []
-        statusCode = 200
-        responseBody = Data()
-    }
-
-    static func stub(statusCode: Int, body: String) {
-        self.statusCode = statusCode
-        responseBody = Data(body.utf8)
-    }
-
-    override class func canInit(with request: URLRequest) -> Bool {
-        true
-    }
-
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
-        request
-    }
-
-    override func startLoading() {
-        var recordedRequest = request
-        if recordedRequest.httpBody == nil, let stream = request.httpBodyStream {
-            recordedRequest.httpBody = Self.readData(from: stream)
-        }
-        Self.requests.append(recordedRequest)
-        let response = HTTPURLResponse(
-            url: request.url!,
-            statusCode: Self.statusCode,
-            httpVersion: "HTTP/1.1",
-            headerFields: ["Content-Type": "application/json"]
-        )!
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: Self.responseBody)
-        client?.urlProtocolDidFinishLoading(self)
-    }
-
-    override func stopLoading() {}
-
-    private static func readData(from stream: InputStream) -> Data {
-        stream.open()
-        defer { stream.close() }
-
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 1_024)
-        while true {
-            let count = stream.read(&buffer, maxLength: buffer.count)
-            guard count > 0 else {
-                break
-            }
-            data.append(buffer, count: count)
-        }
-        return data
     }
 }

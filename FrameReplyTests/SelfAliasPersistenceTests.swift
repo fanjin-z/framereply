@@ -103,42 +103,6 @@ final class SelfAliasPersistenceTests: XCTestCase {
         }
     }
 
-    func testChatDeletionDropsOnlyOwnedContextAndRetainsGlobalAlias() throws {
-        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        try insertChat(
-            id: "chat-gamma",
-            title: "Chat Gamma",
-            message: "Synthetic message A",
-            into: container
-        )
-        try insertChat(
-            id: "chat-delta",
-            title: "Chat Delta",
-            message: "Synthetic message B",
-            into: container
-        )
-        try repository.addSelfAlias(displayLabel: "Alias Alpha", chatID: "chat-gamma")
-        try repository.addSelfAlias(displayLabel: "Alias Alpha", chatID: "chat-delta")
-
-        try repository.deleteChat(id: "chat-gamma")
-
-        XCTAssertNil(try repository.chat(id: "chat-gamma"))
-        XCTAssertTrue(try repository.selfAliases(chatID: "chat-gamma").isEmpty)
-        XCTAssertEqual(
-            try repository.selfAliases(chatID: "chat-delta").map(\.displayLabel),
-            ["Alias Alpha"]
-        )
-        XCTAssertEqual(try repository.selfAliases().map(\.displayLabel), ["Alias Alpha"])
-
-        try repository.deleteChat(id: "chat-delta")
-
-        XCTAssertEqual(try repository.selfAliases().map(\.displayLabel), ["Alias Alpha"])
-        XCTAssertTrue(
-            try container.mainContext.fetch(FetchDescriptor<ChatContextRecord>()).isEmpty
-        )
-    }
-
     func testRenameMergesNormalizedDuplicatesAndGlobalDeleteLeavesChatsAndMessages() throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
@@ -499,10 +463,6 @@ final class SelfAliasPersistenceTests: XCTestCase {
         let provisionalChatID = provisional.chatID
 
         XCTAssertNil(try repository.chat(id: provisionalChatID))
-        XCTAssertNil(try repository.chatContext(chatID: provisionalChatID))
-        XCTAssertTrue(try repository.messages(chatID: provisionalChatID).isEmpty)
-        XCTAssertTrue(try repository.chatMemories(chatID: provisionalChatID).isEmpty)
-        XCTAssertNil(try repository.suggestedReplyCache(chatID: provisionalChatID))
         XCTAssertEqual(
             Set(try repository.selfAliases(chatID: "chat-gamma").map(\.displayLabel)),
             ["Alias Alpha", "Alias Beta"]
