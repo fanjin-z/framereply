@@ -125,7 +125,6 @@ final class PersonalInfoPersistenceTests: XCTestCase {
             ChatMemoryRecord.self,
             PersonaRecord.self,
             PersonaObservationRecord.self,
-            PersonaLearningReceiptRecord.self,
             SuggestedReplyCacheRecord.self,
             ChatImportRecord.self,
             StoreMetadataRecord.self

@@ -475,16 +475,6 @@ final class SelfAliasPersistenceTests: XCTestCase {
             displayLabel: "Alias Beta",
             chatID: provisional.chatID
         )
-        let provisionalMessage = try XCTUnwrap(
-            repository.messages(chatID: provisional.chatID).first
-        )
-        container.mainContext.insert(
-            PersonaLearningReceiptRecord(
-                personaID: UUID(),
-                chatID: provisional.chatID,
-                messageID: provisionalMessage.id
-            )
-        )
         container.mainContext.insert(
             ChatMemoryRecord(
                 chatID: provisional.chatID,
@@ -516,13 +506,6 @@ final class SelfAliasPersistenceTests: XCTestCase {
         XCTAssertEqual(
             Set(try repository.selfAliases(chatID: "chat-gamma").map(\.displayLabel)),
             ["Alias Alpha", "Alias Beta"]
-        )
-        XCTAssertTrue(
-            try container.mainContext.fetch(
-                FetchDescriptor<PersonaLearningReceiptRecord>(
-                    predicate: #Predicate { $0.chatID == provisionalChatID }
-                )
-            ).isEmpty
         )
         XCTAssertTrue(
             try container.mainContext.fetch(

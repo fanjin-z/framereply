@@ -58,7 +58,7 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
     let chatMemories: [ChatMemory]
     let currentInteractionGoal: String
     let persona: PersonaPromptContext
-    let personaLearningMessages: [SuggestedReplyPromptMessage]
+    let personaLearningEnabled: Bool
     let personalInfo: PersonalInfoPromptContext
     let personalInfoLearningEnabled: Bool
     let existingHistorySummary: String
@@ -75,7 +75,7 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
         chatMemories: [ChatMemory],
         currentInteractionGoal: String,
         persona: PersonaPromptContext,
-        personaLearningMessages: [SuggestedReplyPromptMessage],
+        personaLearningEnabled: Bool = false,
         personalInfo: PersonalInfoPromptContext = .empty,
         personalInfoLearningEnabled: Bool = false,
         existingHistorySummary: String,
@@ -90,7 +90,7 @@ nonisolated struct SuggestedReplyGenerationRequest: Equatable, Sendable {
         self.chatMemories = chatMemories
         self.currentInteractionGoal = currentInteractionGoal
         self.persona = persona
-        self.personaLearningMessages = personaLearningMessages
+        self.personaLearningEnabled = personaLearningEnabled
         self.personalInfo = personalInfo
         self.personalInfoLearningEnabled = personalInfoLearningEnabled
         self.existingHistorySummary = existingHistorySummary

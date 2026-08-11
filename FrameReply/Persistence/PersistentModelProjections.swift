@@ -143,8 +143,7 @@ extension PersonaRecord {
         Persona(
             id: id, name: resolvedName(), summary: resolvedSummary(), symbolName: symbolName,
             accentKey: accentKey, instructions: resolvedInstructions(),
-            learningEnabled: learningEnabled,
-            sampleCount: sampleCount
+            learningEnabled: learningEnabled
         )
     }
 }

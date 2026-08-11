@@ -198,8 +198,7 @@ final class ChatCardTests: XCTestCase {
             symbolName: "sparkles",
             accentKey: "primary",
             instructions: "",
-            learningEnabled: true,
-            sampleCount: 0
+            learningEnabled: true
         )
     }
 

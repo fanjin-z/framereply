@@ -540,26 +540,6 @@ final class ChatRepository {
         )
     }
 
-    func personaLearningMessages(
-        chatID: String, personaID: UUID, assignedAt: Date, limit: Int = 30
-    ) throws -> [ChatMessageRecord] {
-        guard let persona = try persona(id: personaID), persona.learningEnabled else { return [] }
-        let cutoff = max(assignedAt, persona.learningEnabledAt)
-        let receiptIDs = Set(
-            try context.fetch(
-                FetchDescriptor<PersonaLearningReceiptRecord>(
-                    predicate: #Predicate {
-                        $0.personaID == personaID && $0.chatID == chatID
-                    })
-            ).map(\.messageID))
-        return try messages(chatID: chatID)
-            .filter {
-                $0.senderKind == "user" && $0.createdAt >= cutoff && !receiptIDs.contains($0.id)
-            }
-            .prefix(limit)
-            .map { $0 }
-    }
-
     func personalInfoLearningEnabled() throws -> Bool {
         let key = personalInfoLearningEnabledKey
         return try context.fetch(
@@ -655,7 +635,7 @@ final class ChatRepository {
         personalInfoFacts: [PersonalInfoFact],
         personaID: UUID,
         personaObservationChanges: [PersonaObservationChange],
-        learningMessageIDs: Set<UUID>,
+        allowedPersonaSourceMessageIDs: Set<UUID>,
         historySummary: String,
         summarizedMessageCount: Int,
         summarizedPrefixFingerprint: String,
@@ -695,27 +675,8 @@ final class ChatRepository {
             try reconcilePersonaObservations(
                 personaID: personaID,
                 changes: personaObservationChanges,
-                allowedMessageIDs: learningMessageIDs
+                allowedMessageIDs: allowedPersonaSourceMessageIDs
             )
-            let now = Date()
-            for messageID in learningMessageIDs {
-                let key =
-                    "\(personaID.uuidString.lowercased())|\(messageID.uuidString.lowercased())"
-                let exists =
-                    try context.fetch(
-                        FetchDescriptor<PersonaLearningReceiptRecord>(
-                            predicate: #Predicate { $0.key == key })
-                    ).first != nil
-                if !exists {
-                    context.insert(
-                        PersonaLearningReceiptRecord(
-                            personaID: personaID, chatID: chatID, messageID: messageID))
-                }
-            }
-            if !learningMessageIDs.isEmpty, let persona = try persona(id: personaID) {
-                persona.sampleCount += learningMessageIDs.count
-                persona.updatedAt = now
-            }
 
             let repliesData = try JSONEncoder().encode(replies)
             let repliesJSON = String(data: repliesData, encoding: .utf8) ?? "[]"
@@ -861,8 +822,7 @@ final class ChatRepository {
     func savePersonaExampleAnalysis(
         personaID: UUID,
         changes: [PersonaObservationChange],
-        sampleMessageIDs: Set<UUID>,
-        sampleCount: Int
+        sampleMessageIDs: Set<UUID>
     ) throws {
         do {
             try reconcilePersonaObservations(
@@ -870,10 +830,6 @@ final class ChatRepository {
                 changes: changes,
                 allowedMessageIDs: sampleMessageIDs
             )
-            if let persona = try persona(id: personaID) {
-                persona.sampleCount += sampleCount
-                persona.updatedAt = Date()
-            }
             try context.save()
         } catch {
             context.rollback()
@@ -961,7 +917,7 @@ final class ChatRepository {
     }
 
     private func normalized(_ text: String) -> String {
-        text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        PersonalInfoReconciler.comparisonKey(text)
     }
 
     func renameChat(id: String, name: String) throws {
@@ -1008,10 +964,6 @@ final class ChatRepository {
         let memoryRecords = try chatMemories(chatID: chatID)
         let importRecords = try imports(chatID: chatID)
         let replyCaches = try suggestedReplyCaches(chatID: chatID)
-        let learningReceipts = try context.fetch(
-            FetchDescriptor<PersonaLearningReceiptRecord>(
-                predicate: #Predicate { $0.chatID == chatID })
-        )
 
         for message in messageRecords {
             context.delete(message)
@@ -1024,9 +976,6 @@ final class ChatRepository {
         }
         for importRecord in importRecords {
             context.delete(importRecord)
-        }
-        for receipt in learningReceipts {
-            context.delete(receipt)
         }
         for replyCache in replyCaches {
             context.delete(replyCache)
@@ -1543,14 +1492,6 @@ final class ChatRepository {
             }
             for replyCache in try suggestedReplyCaches(chatID: provisionalChatID) {
                 context.delete(replyCache)
-            }
-            let provisionalLearningReceipts = try context.fetch(
-                FetchDescriptor<PersonaLearningReceiptRecord>(
-                    predicate: #Predicate { $0.chatID == provisionalChatID }
-                )
-            )
-            for receipt in provisionalLearningReceipts {
-                context.delete(receipt)
             }
             let provisionalImports = try imports(chatID: provisionalChatID)
             for importRecord in provisionalImports {

@@ -492,7 +492,7 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertTrue(try repository.messages(chatID: "delete-me").isEmpty)
         XCTAssertEqual(
             try relatedRecordCounts(chatID: "delete-me", in: container),
-            [0, 0, 0, 0]
+            [0, 0, 0]
         )
         XCTAssertNil(try repository.suggestedReplyCache(chatID: "delete-me"))
 
@@ -500,7 +500,7 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(try repository.messages(chatID: "keep-me").count, 1)
         XCTAssertEqual(
             try relatedRecordCounts(chatID: "keep-me", in: container),
-            [1, 1, 1, 1]
+            [1, 1, 1]
         )
         XCTAssertNotNil(try repository.suggestedReplyCache(chatID: "keep-me"))
     }
@@ -554,13 +554,6 @@ final class ChatPersistenceTests: XCTestCase {
                 requiresReview: false
             )
         )
-        container.mainContext.insert(
-            PersonaLearningReceiptRecord(
-                personaID: UUID(),
-                chatID: chatID,
-                messageID: UUID()
-            )
-        )
     }
 
     private func makePendingImport(operationID: UUID) -> ChatImportRecord {
@@ -602,16 +595,10 @@ final class ChatPersistenceTests: XCTestCase {
                 predicate: #Predicate { $0.chatID == chatID }
             )
         )
-        let learningReceipts = try container.mainContext.fetch(
-            FetchDescriptor<PersonaLearningReceiptRecord>(
-                predicate: #Predicate { $0.chatID == chatID }
-            )
-        )
         return [
             chatContextRecords.count,
             memoryRecords.count,
-            importRecords.count,
-            learningReceipts.count
+            importRecords.count
         ]
     }
 

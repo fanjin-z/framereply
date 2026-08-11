@@ -105,33 +105,6 @@ final class PersonaPersistenceTests: XCTestCase {
         XCTAssertNil(try repository.persona(id: duplicate.id))
     }
 
-    func testLearningUsesOnlyFutureUnprocessedUserMessages() throws {
-        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
-        let personas = PersonaRepository(container: container)
-        let chats = ChatRepository(container: container)
-        try personas.seedPersonasIfNeeded()
-        let personaID = try personas.defaultPersonaID()
-        let assignedAt = Date()
-        let old = message(
-            chatID: "chat", sender: "user", createdAt: assignedAt.addingTimeInterval(-1))
-        let otherParticipant = message(
-            chatID: "chat",
-            sender: "other_participant",
-            createdAt: assignedAt.addingTimeInterval(1)
-        )
-        let future = message(
-            chatID: "chat", sender: "user", createdAt: assignedAt.addingTimeInterval(2))
-        container.mainContext.insert(old)
-        container.mainContext.insert(otherParticipant)
-        container.mainContext.insert(future)
-        try container.mainContext.save()
-
-        XCTAssertEqual(
-            try chats.personaLearningMessages(
-                chatID: "chat", personaID: personaID, assignedAt: assignedAt
-            ).map(\.id), [future.id])
-    }
-
     func testObservationReconciliationHonorsEvidenceAndProtectedTombstones() throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let personas = PersonaRepository(container: container)
@@ -147,7 +120,7 @@ final class PersonaPersistenceTests: XCTestCase {
                     action: .add, targetObservationID: nil,
                     text: "Often uses sentence fragments.", sourceMessageIDs: ids
                 )
-            ], sampleMessageIDs: Set(ids), sampleCount: 2
+            ], sampleMessageIDs: Set(ids)
         )
         let added = try XCTUnwrap(
             personas.observations(personaID: personaID)
@@ -157,10 +130,27 @@ final class PersonaPersistenceTests: XCTestCase {
             personaID: personaID,
             changes: [
                 PersonaObservationChange(
+                    action: .add, targetObservationID: nil,
+                    text: "often, uses sentence fragments!", sourceMessageIDs: ids
+                )
+            ], sampleMessageIDs: Set(ids)
+        )
+        XCTAssertEqual(
+            try personas.observations(personaID: personaID).filter {
+                PersonalInfoReconciler.comparisonKey($0.text)
+                    == PersonalInfoReconciler.comparisonKey("Often uses sentence fragments.")
+            }.count,
+            1
+        )
+
+        try chats.savePersonaExampleAnalysis(
+            personaID: personaID,
+            changes: [
+                PersonaObservationChange(
                     action: .update, targetObservationID: added.id,
                     text: "Usually writes in sentence fragments.", sourceMessageIDs: ids
                 )
-            ], sampleMessageIDs: Set(ids), sampleCount: 2
+            ], sampleMessageIDs: Set(ids)
         )
         XCTAssertEqual(added.status, PersonaObservationStatus.superseded.rawValue)
         let replacement = try XCTUnwrap(
@@ -174,7 +164,7 @@ final class PersonaPersistenceTests: XCTestCase {
                     action: .archive, targetObservationID: replacement.id,
                     text: nil, sourceMessageIDs: ids
                 )
-            ], sampleMessageIDs: Set(ids), sampleCount: 2
+            ], sampleMessageIDs: Set(ids)
         )
         XCTAssertEqual(replacement.status, PersonaObservationStatus.archived.rawValue)
 
@@ -198,7 +188,7 @@ final class PersonaPersistenceTests: XCTestCase {
                     text: "Never uses exclamation marks.",
                     sourceMessageIDs: protectedEvidenceIDs
                 )
-            ], sampleMessageIDs: Set(protectedEvidenceIDs), sampleCount: 2
+            ], sampleMessageIDs: Set(protectedEvidenceIDs)
         )
 
         let all = try personas.observations(personaID: personaID, includeInactive: true)
@@ -235,20 +225,12 @@ final class PersonaPersistenceTests: XCTestCase {
                     sourceMessageIDs: evidenceIDs
                 )
             ],
-            sampleMessageIDs: Set(evidenceIDs),
-            sampleCount: evidenceIDs.count
+            sampleMessageIDs: Set(evidenceIDs)
         )
 
         let observations = try personas.observations(personaID: personaID)
         XCTAssertTrue(observations.contains { $0.text == accepted })
         XCTAssertFalse(observations.contains { $0.text == rejected })
-    }
-
-    private func message(chatID: String, sender: String, createdAt: Date) -> ChatMessageRecord {
-        ChatMessageRecord(
-            chatID: chatID, senderKind: sender, text: "Example",
-            timeLabel: "", sortIndex: 0, createdAt: createdAt
-        )
     }
 
     private func defaultMetadata(in container: ModelContainer) throws -> StoreMetadataRecord? {

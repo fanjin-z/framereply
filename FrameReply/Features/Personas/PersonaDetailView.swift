@@ -142,12 +142,6 @@ struct PersonaDetailView: View {
                     )
                 ).labelsHidden()
             }
-            Text(
-                persona.sampleCount == 0
-                    ? "Automatic learning has not analyzed messages yet."
-                    : "Learned from \(persona.sampleCount) messages."
-            )
-            .font(.caption).foregroundStyle(FrameReplyColor.outline)
 
             ForEach(activeObservations) { observationRow($0) }
 
@@ -165,13 +159,6 @@ struct PersonaDetailView: View {
                 FrameReplyColor.secondaryContainer.opacity(0.2),
                 in: RoundedRectangle(cornerRadius: 18))
 
-            if activeObservations.contains(where: {
-                $0.origin == PersonaObservationOrigin.ai.rawValue
-            }) {
-                Button("Clear Learned Observations", role: .destructive) {
-                    try? personaRepository.clearLearnedObservations(personaID: personaID)
-                }.font(.caption.bold())
-            }
         }.padding(22).glassPanel(cornerRadius: 28)
     }
 

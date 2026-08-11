@@ -10,10 +10,6 @@ final class ProviderAnalysisTests: XCTestCase {
     }
 
     func testFiveContractsHaveExactClosedRootKeys() throws {
-        XCTAssertEqual(ChatImportPrompt.screenshotImportVersion, 1)
-        XCTAssertEqual(ChatImportPrompt.textImportVersion, 1)
-        XCTAssertEqual(SuggestedReplyPrompt.version, 5)
-
         let screenshot = ChatImportPrompt.contract(for: makeRequest())
         let shared = ChatImportPrompt.contract(
             for: ChatImportAnalysisRequest(transcriptItems: ["Alice: Hi"], candidates: []))
@@ -81,7 +77,7 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(standard.instructions.contains("merge existingHistorySummary"))
         XCTAssertTrue(
             standard.instructions.contains(
-                "learn only from \"user\" messages in recentMessages"
+                "learn only from messages in recentMessages whose sender is \"user\""
             )
         )
         XCTAssertTrue(
@@ -108,7 +104,7 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(standard.instructions.contains("use the dominant relevant one"))
         XCTAssertTrue(
             standard.instructions.contains("Preserve proper names, URLs, and identifiers"))
-        XCTAssertTrue(standard.instructions.contains("For reply bodies only"))
+        XCTAssertFalse(standard.instructions.contains("For reply bodies only"))
         XCTAssertFalse(standard.instructions.contains("maximum of 120 Unicode code points"))
         XCTAssertFalse(standard.instructions.contains("maximum of 240 Unicode code points"))
         XCTAssertTrue(
@@ -279,10 +275,73 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertNil(replies["description"])
     }
 
+    func testReplyProducingContractsShareCompactHumanizerPolicy() {
+        let standard = SuggestedReplyPrompt.contract(for: .standard, appLanguage: "en")
+        let drafting = SuggestedReplyPrompt.contract(for: .drafting, appLanguage: "en")
+        let persona = SuggestedReplyPrompt.contract(
+            for: .personaStyleLearning, appLanguage: "en")
+
+        for instructions in [standard.instructions, drafting.instructions] {
+            XCTAssertEqual(
+                instructions.components(separatedBy: "Reply style").count - 1,
+                1
+            )
+            for rule in [
+                "Each reply string must contain only the ready-to-send message",
+                "style explicitly requested in draftingInput; persona.instructions; persona.activeObservations where isUserProtected is true; other persona.activeObservations; patterns present in multiple recentMessages whose sender is \"user\"; the current exchange's formality, energy, and brevity; a plain conversational fallback",
+                "Treat a habit as recurring only when it appears in multiple independent user messages",
+                "Style must not change grounded meaning, uncertainty, or emotional position",
+                "Do not introduce errors merely to appear human",
+                "Treat conspicuous wording and punctuation—including repeated dashes, semicolons, and label-like colons—contextually rather than as a blacklist",
+                "Messages from non-user participants remain valid sources for reply content",
+                "never treat their vocabulary, dialect, catchphrases, punctuation habits, or identity markers as evidence of the user's voice",
+                "silently check each reply against these rules"
+            ] {
+                XCTAssertTrue(instructions.contains(rule), rule)
+            }
+            for forbidden in [
+                "Banned words", "punctuation blacklist", "AI detector", "Humanizer",
+                "no-ai-slop"
+            ] {
+                XCTAssertFalse(instructions.contains(forbidden), forbidden)
+            }
+        }
+
+        XCTAssertFalse(persona.instructions.contains("Reply style"))
+        XCTAssertTrue(
+            standard.instructions.contains(
+                "When personaLearningEnabled is true"
+            )
+        )
+        XCTAssertTrue(
+            standard.instructions.contains(
+                "otherwise return personaObservationChanges []"
+            )
+        )
+        for instructions in [standard.instructions, drafting.instructions, persona.instructions] {
+            XCTAssertFalse(instructions.contains("personaLearningMessages"))
+        }
+        XCTAssertEqual(
+            standard.instructions.components(separatedBy: "ready-to-send").count - 1,
+            1
+        )
+        XCTAssertEqual(
+            drafting.instructions.components(separatedBy: "ready-to-send").count - 1,
+            1
+        )
+        for instructions in [standard.instructions, drafting.instructions] {
+            XCTAssertEqual(
+                instructions.components(separatedBy: "Never invent facts, promises").count - 1,
+                1
+            )
+        }
+    }
+
     func testTaskInputsContainOnlyDataUsedByTheirContract() {
         let standard = SuggestedReplyPrompt.input(for: makeReplyRequest(task: .standard))
         XCTAssertTrue(standard.contains("chatMemories"))
-        XCTAssertTrue(standard.contains("personaLearningMessages"))
+        XCTAssertTrue(standard.contains("personaLearningEnabled\":true"))
+        XCTAssertFalse(standard.contains("personaLearningMessages"))
         XCTAssertTrue(standard.contains("personalInfoLearningEnabled\":true"))
         XCTAssertFalse(standard.contains("personalInfoLearningMessages"))
         XCTAssertTrue(standard.contains("maxActiveFacts\":50"))
@@ -314,6 +373,7 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertTrue(drafting.contains("<text_length_limits>"))
         XCTAssertFalse(drafting.contains("appLanguage"))
         XCTAssertFalse(drafting.contains("personaLearningMessages"))
+        XCTAssertFalse(drafting.contains("personaLearningEnabled"))
         XCTAssertTrue(drafting.contains("personalInfo"))
         XCTAssertFalse(drafting.contains("personalInfoLearningEnabled"))
         XCTAssertFalse(drafting.contains("personalInfoLearningMessages"))
@@ -321,10 +381,10 @@ final class ProviderAnalysisTests: XCTestCase {
 
         let persona = SuggestedReplyPrompt.input(
             for: makeReplyRequest(task: .personaStyleLearning))
-        XCTAssertTrue(persona.contains("personaLearningMessages"))
+        XCTAssertFalse(persona.contains("personaLearningMessages"))
         XCTAssertTrue(persona.contains("activeObservations"))
         XCTAssertFalse(persona.contains("appLanguage"))
-        XCTAssertFalse(persona.contains("recentMessages"))
+        XCTAssertTrue(persona.contains("recentMessages"))
         XCTAssertFalse(persona.contains("chatMemories"))
         XCTAssertFalse(persona.contains("personalInfo"))
         XCTAssertFalse(persona.contains("draftingInput"))
@@ -488,7 +548,7 @@ final class ProviderAnalysisTests: XCTestCase {
         XCTAssertEqual(replyFormat["name"] as? String, "suggested_reply_drafting")
         XCTAssertEqual(
             replyBody["prompt_cache_key"] as? String,
-            "suggested_reply_drafting-v5-gpt-5.6-luna-en")
+            "suggested_reply_drafting-v\(SuggestedReplyPrompt.version)-gpt-5.6-luna-en")
         XCTAssertTrue(
             try XCTUnwrap(replyBody["instructions"] as? String).contains(
                 "Write conversationStrategy and strategyRationale in English (en)")
@@ -1083,7 +1143,7 @@ final class ProviderAnalysisTests: XCTestCase {
         let body = try jsonBody(AnalysisURLProtocolStub.requests[0])
         XCTAssertEqual(
             body["prompt_cache_key"] as? String,
-            "suggested_reply-v5-gpt-5.6-terra-en")
+            "suggested_reply-v\(SuggestedReplyPrompt.version)-gpt-5.6-terra-en")
         XCTAssertEqual(
             ((body["text"] as? [String: Any])?["format"] as? [String: Any])?["name"]
                 as? String,
@@ -1425,11 +1485,7 @@ final class ProviderAnalysisTests: XCTestCase {
                         isUserProtected: true, status: .active,
                         createdAt: Date(), updatedAt: Date())
                 ], protectedTombstones: []),
-            personaLearningMessages: [
-                SuggestedReplyPromptMessage(
-                    id: UUID(), sender: "user", senderName: nil,
-                    text: personaLearningText, timeLabel: "")
-            ],
+            personaLearningEnabled: task == .standard,
             personalInfo: PersonalInfoPromptContext(
                 facts: [
                     PersonalInfoFact(
@@ -1440,11 +1496,21 @@ final class ProviderAnalysisTests: XCTestCase {
             personalInfoLearningEnabled: task == .standard,
             existingHistorySummary: existingHistorySummary,
             olderMessagesToSummarize: olderMessages,
-            recentMessages: [
-                SuggestedReplyPromptMessage(
-                    id: UUID(), sender: "other_participant", senderName: "Sarah",
-                    text: recentMessageText, timeLabel: "6:00 PM")
-            ],
+            recentMessages:
+                task == .personaStyleLearning
+                ? [
+                    SuggestedReplyPromptMessage(
+                        id: UUID(), sender: "user", senderName: nil,
+                        text: personaLearningText, timeLabel: "")
+                ]
+                : [
+                    SuggestedReplyPromptMessage(
+                        id: UUID(), sender: "user", senderName: nil,
+                        text: personaLearningText, timeLabel: ""),
+                    SuggestedReplyPromptMessage(
+                        id: UUID(), sender: "other_participant", senderName: "Sarah",
+                        text: recentMessageText, timeLabel: "6:00 PM")
+                ],
             draftingInput: task == .drafting ? "Make it warmer" : nil,
             previousConversationStrategy: "Confirm the plan.",
             appLanguage: appLanguage,

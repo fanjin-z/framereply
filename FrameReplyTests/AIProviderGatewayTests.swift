@@ -73,7 +73,6 @@ final class AIProviderGatewayTests: XCTestCase {
                 id: UUID(), name: "Warm",
                 instructions: "Write warmly.", observations: [], protectedTombstones: []
             ),
-            personaLearningMessages: [],
             existingHistorySummary: "",
             olderMessagesToSummarize: [],
             recentMessages: [],

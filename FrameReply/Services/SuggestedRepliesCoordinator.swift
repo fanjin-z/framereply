@@ -144,11 +144,10 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
 
         let chatContext = try repository.chatContextValue(chatID: chatID)
         let persona = try repository.personaPromptContext(personaID: chatContext.personaID)
-        let learningMessages = try repository.personaLearningMessages(
-            chatID: chatID,
-            personaID: persona.id,
-            assignedAt: chatContext.personaAssignedAt
-        )
+        let automaticPersonaLearningEnabled =
+            try repository.persona(id: persona.id)?.learningEnabled ?? false
+        let personaLearningEnabled =
+            provisionalIdentity == nil && automaticPersonaLearningEnabled
         let personalInfo = try repository.personalInfoPromptContext()
         let personalInfoLearningEnabled = try repository.personalInfoLearningEnabled()
         guard
@@ -163,7 +162,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             messages: messages,
             chatContext: chatContext,
             persona: persona,
-            learningMessageIDs: learningMessages.map(\.id),
+            personaLearningEnabled: personaLearningEnabled,
             personalInfo: personalInfo,
             personalInfoLearningEnabled: personalInfoLearningEnabled,
             provider: providerContext.platform,
@@ -219,11 +218,12 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
 
         let chatContext = try repository.chatContextValue(chatID: chatID)
         let persona = try repository.personaPromptContext(personaID: chatContext.personaID)
-        let learningMessages = try repository.personaLearningMessages(
-            chatID: chatID,
-            personaID: persona.id,
-            assignedAt: chatContext.personaAssignedAt
-        )
+        let automaticPersonaLearningEnabled =
+            try repository.persona(id: persona.id)?.learningEnabled ?? false
+        let shouldLearnPersona =
+            automaticPersonaLearningEnabled && oneUseInput == nil && provisionalIdentity == nil
+        let fingerprintedPersonaLearningEnabled =
+            automaticPersonaLearningEnabled && provisionalIdentity == nil
         let personalInfoFacts = try repository.personalInfoFacts().map(\.value)
         let personalInfo = try repository.personalInfoPromptContext()
         let personalInfoLearningEnabled = try repository.personalInfoLearningEnabled()
@@ -236,7 +236,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             messages: messages,
             chatContext: chatContext,
             persona: persona,
-            learningMessageIDs: learningMessages.map(\.id),
+            personaLearningEnabled: fingerprintedPersonaLearningEnabled,
             personalInfo: personalInfo,
             personalInfoLearningEnabled: personalInfoLearningEnabled,
             provider: providerContext.platform,
@@ -269,6 +269,11 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
                 ? recentMessages.filter { $0.senderKind == "user" }.map(\.id)
                 : []
         )
+        let personaEvidenceMessageIDs = Set(
+            shouldLearnPersona
+                ? recentMessages.filter { $0.senderKind == "user" }.map(\.id)
+                : []
+        )
         let summaryPlan = makeSummaryPlan(
             olderMessages: olderMessages,
             cache: provisionalIdentity == nil ? cache : nil
@@ -287,9 +292,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             chatMemories: chatContext.chatMemories.filter { $0.status == .active },
             currentInteractionGoal: chatContext.currentInteractionGoal,
             persona: persona,
-            personaLearningMessages: learningMessages.map {
-                promptMessage($0, provisionalIdentity: provisionalIdentity)
-            },
+            personaLearningEnabled: shouldLearnPersona,
             personalInfo: personalInfo,
             personalInfoLearningEnabled: shouldLearnPersonalInfo,
             existingHistorySummary: summaryPlan.existingSummary,
@@ -374,16 +377,11 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             changes: generated.memoryChanges,
             allowedOtherParticipantSourceMessageIDs: otherParticipantEvidenceMessageIDs
         )
-        let learningMessageIDList = learningMessages.map(\.id)
-        let learningMessageIDs = Set(learningMessageIDList)
         let validObservationChanges = generated.personaObservationChanges.filter {
-            $0.sourceMessageIDs.count >= 2
-                && $0.sourceMessageIDs.allSatisfy(learningMessageIDs.contains)
+            (2...10).contains($0.sourceMessageIDs.count)
+                && Set($0.sourceMessageIDs).count == $0.sourceMessageIDs.count
+                && $0.sourceMessageIDs.allSatisfy(personaEvidenceMessageIDs.contains)
         }
-        let processedLearningMessageIDs =
-            generated.personaObservationChangesAvailable ? learningMessageIDs : []
-        let remainingLearningMessageIDs =
-            generated.personaObservationChangesAvailable ? [] : learningMessageIDList
         let validPersonalInfoChanges = generated.personalInfoChanges.filter {
             (1...3).contains($0.sourceMessageIDs.count)
                 && Set($0.sourceMessageIDs).count == $0.sourceMessageIDs.count
@@ -422,7 +420,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             persona: try repository.projectedPersonaPromptContext(
                 personaID: persona.id, changes: validObservationChanges
             ),
-            learningMessageIDs: remainingLearningMessageIDs,
+            personaLearningEnabled: fingerprintedPersonaLearningEnabled,
             personalInfo: try repository.projectedPersonalInfoPromptContext(
                 changes: validPersonalInfoChanges,
                 allowedMessageIDs: personalInfoEvidenceMessageIDs
@@ -441,7 +439,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             personalInfoFacts: reconciledPersonalInfoFacts,
             personaID: persona.id,
             personaObservationChanges: validObservationChanges,
-            learningMessageIDs: processedLearningMessageIDs,
+            allowedPersonaSourceMessageIDs: personaEvidenceMessageIDs,
             historySummary: historySummary,
             summarizedMessageCount: summarizedMessageCount,
             summarizedPrefixFingerprint: summarizedPrefixFingerprint,
@@ -557,7 +555,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
         messages: [ChatMessageRecord],
         chatContext: ChatContext,
         persona: PersonaPromptContext,
-        learningMessageIDs: [UUID],
+        personaLearningEnabled: Bool,
         personalInfo: PersonalInfoPromptContext,
         personalInfoLearningEnabled: Bool,
         provider: ProviderPlatform,
@@ -575,7 +573,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
                 .map(memoryObject),
             "currentInteractionGoal": chatContext.currentInteractionGoal,
             "persona": personaObject(persona),
-            "personaLearningMessageIDs": learningMessageIDs.map(\.uuidString),
+            "personaLearningEnabled": personaLearningEnabled,
             "personalInfo": personalInfoObject(personalInfo),
             "personalInfoLearningEnabled": personalInfoLearningEnabled,
             "provider": provider.rawValue,
@@ -603,16 +601,17 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
         let provisionalIdentity = try repository.provisionalIdentityInterpretation(chatID: chatID)
         let context = try repository.chatContextValue(chatID: chatID)
         let persona = try repository.personaPromptContext(personaID: context.personaID)
-        let learningMessages = try repository.personaLearningMessages(
-            chatID: chatID, personaID: persona.id, assignedAt: context.personaAssignedAt
-        )
+        let automaticPersonaLearningEnabled =
+            try repository.persona(id: persona.id)?.learningEnabled ?? false
+        let personaLearningEnabled =
+            provisionalIdentity == nil && automaticPersonaLearningEnabled
         let personalInfo = try repository.personalInfoPromptContext()
         let personalInfoLearningEnabled = try repository.personalInfoLearningEnabled()
         return fingerprint(
             messages: messages,
             chatContext: context,
             persona: persona,
-            learningMessageIDs: learningMessages.map(\.id),
+            personaLearningEnabled: personaLearningEnabled,
             personalInfo: personalInfo,
             personalInfoLearningEnabled: personalInfoLearningEnabled,
             provider: providerContext.platform,

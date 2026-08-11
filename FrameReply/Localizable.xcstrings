@@ -220,9 +220,6 @@
     "Auto-saved" : {
 
     },
-    "Automatic learning has not analyzed messages yet." : {
-
-    },
     "Back" : {
 
     },
@@ -384,9 +381,6 @@
 
     },
     "Choose your name to label these messages." : {
-
-    },
-    "Clear Learned Observations" : {
 
     },
     "Clear search" : {
@@ -1342,9 +1336,6 @@
 
     },
     "Learn from my messages" : {
-
-    },
-    "Learned from %lld messages." : {
 
     },
     "Learned from your messages" : {

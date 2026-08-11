@@ -58,6 +58,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                 request.recentMessages.map(\.sender),
                 ["user", "other_participant"]
             )
+            XCTAssertFalse(request.personaLearningEnabled)
             XCTAssertFalse(request.personalInfoLearningEnabled)
             XCTAssertNil(request.recentMessages[0].senderName)
             XCTAssertEqual(request.recentMessages[1].senderName, "Contact Beta")
@@ -107,20 +108,12 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
             try coordinator.cachedReplies(chatID: provisionalChatID)?.source,
             .cached
         )
-        XCTAssertTrue(
-            try container.mainContext.fetch(
-                FetchDescriptor<PersonaLearningReceiptRecord>(
-                    predicate: #Predicate { $0.chatID == provisionalChatID }
-                )
-            ).isEmpty
-        )
     }
 
     @MainActor
     func testOneUseDraftCachesRepliesWithoutApplyingAnalysisOutput() async throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
-        let defaultPersonaID = try PersonaRepository(container: container).defaultPersonaID()
         let chatID = "drafting-input-existing-cache-chat"
         let message = makeMessage(chatID: chatID, index: 0)
         container.mainContext.insert(makeChat(id: chatID))
@@ -141,8 +134,9 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         )
         try container.mainContext.save()
 
-        let service = StubReplyService { _ in
-            SuggestedReplyGenerationResult(
+        let service = StubReplyService { request in
+            XCTAssertFalse(request.personaLearningEnabled)
+            return SuggestedReplyGenerationResult(
                 historySummary: "Draft-generated summary must be ignored",
                 replies: ["Draft A", "Draft B"],
                 conversationStrategy: "Draft strategy",
@@ -175,15 +169,9 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertEqual(cache.summarizedMessageCount, 7)
         XCTAssertEqual(cache.summarizedPrefixFingerprint, "existing-prefix")
         XCTAssertTrue(try repository.chatMemories(chatID: chatID).isEmpty)
+        let personaID = try PersonaRepository(container: container).defaultPersonaID()
         XCTAssertFalse(
-            try repository.personaLearningMessages(
-                chatID: chatID,
-                personaID: defaultPersonaID,
-                assignedAt: .distantPast
-            ).isEmpty
-        )
-        XCTAssertFalse(
-            try repository.personaObservations(personaID: defaultPersonaID).contains {
+            try repository.personaObservations(personaID: personaID).contains {
                 $0.origin == PersonaObservationOrigin.ai.rawValue
             })
         let cached = try XCTUnwrap(coordinator.cachedReplies(chatID: chatID))
@@ -642,34 +630,71 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func testUnavailablePersonaChangesDoNotConsumeLearningMessages() async throws {
+    func testPersonaLearningUsesOnlyRecentUserMessagesAndToggleGatesChanges() async throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
-        let personaID = try PersonaRepository(container: container).defaultPersonaID()
-        let chatID = "unavailable-persona-changes-chat"
+        let personas = PersonaRepository(container: container)
+        let personaID = try personas.defaultPersonaID()
+        let chatID = "persona-recent-evidence-chat"
+        let messages = (0..<22).map { makeMessage(chatID: chatID, index: $0) }
         container.mainContext.insert(makeChat(id: chatID))
-        container.mainContext.insert(makeMessage(chatID: chatID, index: 0))
+        for message in messages {
+            container.mainContext.insert(message)
+        }
         try container.mainContext.save()
 
-        let client = StubReplyService { _ in
-            SuggestedReplyGenerationResult(
+        var requestCount = 0
+        let client = StubReplyService { request in
+            requestCount += 1
+            XCTAssertEqual(request.personaLearningEnabled, requestCount < 3)
+            XCTAssertEqual(request.recentMessages.count, 20)
+            XCTAssertEqual(request.recentMessages.first?.id, messages[2].id)
+            return SuggestedReplyGenerationResult(
                 historySummary: nil,
                 replies: ["First", "Second"],
                 conversationStrategy: "",
                 strategyRationale: "",
-                personaObservationChangesAvailable: false
+                personaObservationChanges: [
+                    PersonaObservationChange(
+                        action: .add,
+                        targetObservationID: nil,
+                        text: "Uses compact replies.",
+                        sourceMessageIDs: [messages[2].id, messages[4].id]
+                    ),
+                    PersonaObservationChange(
+                        action: .add,
+                        targetObservationID: nil,
+                        text: "Must reject old evidence.",
+                        sourceMessageIDs: [messages[0].id, messages[2].id]
+                    ),
+                    PersonaObservationChange(
+                        action: .add,
+                        targetObservationID: nil,
+                        text: "Must reject counterpart evidence.",
+                        sourceMessageIDs: [messages[2].id, messages[3].id]
+                    )
+                ]
             )
         }
         let coordinator = SuggestedRepliesCoordinator(aiService: client, repository: repository)
         _ = try await coordinator.generate(chatID: chatID)
+        _ = try await coordinator.generate(chatID: chatID, force: true)
 
+        XCTAssertEqual(
+            try repository.personaObservations(personaID: personaID).filter {
+                $0.text == "Uses compact replies."
+            }.count,
+            1
+        )
         XCTAssertFalse(
-            try repository.personaLearningMessages(
-                chatID: chatID,
-                personaID: personaID,
-                assignedAt: .distantPast
-            ).isEmpty)
-        XCTAssertEqual(try coordinator.cachedReplies(chatID: chatID)?.replies, ["First", "Second"])
+            try repository.personaObservations(personaID: personaID).contains {
+                $0.text.hasPrefix("Must reject")
+            })
+
+        let persona = try XCTUnwrap(try personas.persona(id: personaID))
+        try personas.setLearningEnabled(false, for: persona)
+        _ = try await coordinator.generate(chatID: chatID)
+        XCTAssertEqual(client.requests.count, 3)
     }
 
     @MainActor
@@ -819,6 +844,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                     request.personalInfo.facts.contains { $0.text == "Prefers window seats" }
                 )
             }
+            XCTAssertTrue(request.personaLearningEnabled)
             XCTAssertTrue(request.personalInfoLearningEnabled)
             XCTAssertEqual(request.recentMessages.map(\.id), [userMessage.id, incoming.id])
             return SuggestedReplyGenerationResult(
@@ -1038,7 +1064,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         XCTAssertEqual(service.requests.count, 1)
         XCTAssertEqual(
             try repository.suggestedReplyCache(chatID: chatID)?.promptVersion,
-            5
+            SuggestedReplyPrompt.version
         )
 
         try repository.updatePersonalInfoFact(fact, text: "Prefers coffee")
@@ -1046,7 +1072,6 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         _ = try await coordinator.generate(chatID: chatID)
         XCTAssertEqual(service.requests.count, 2)
         XCTAssertEqual(service.requests.last?.personalInfo.facts.map(\.text), ["Prefers coffee"])
-        XCTAssertEqual(SuggestedReplyPrompt.version, 5)
     }
 
     @MainActor

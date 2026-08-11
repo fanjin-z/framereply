@@ -112,9 +112,15 @@ flowchart LR
 
 Reply content is grounded in conversation history, the current interaction goal, active chat memory, account-wide Personal Info, the selected persona, and optional one-use drafting input. Current conversation evidence and drafting input override saved Personal Info, which is used only when directly relevant and natural. The newest messages remain verbatim; older history uses a validated summary checkpoint. A valid summary advances the checkpoint, an unavailable summary preserves it, and a historical mismatch triggers a rebuild.
 
-The cache fingerprint covers the conversation and every durable input that can change the result, including active memory, Personal Info, pending personal-info messages, persona state, pending style-learning samples, provider, model, and prompt version. Any relevant change invalidates the cache.
+The cache fingerprint covers the conversation and every durable input that can change the result, including active memory, Personal Info, persona state, both learning toggles, provider, model, and prompt version. Any relevant change invalidates the cache.
 
 After generation, the same inputs are checked again. A result produced from stale conversation state or a changed provider is discarded rather than persisted.
+
+### Reply style
+
+Standard and drafting requests share one reply-style policy. Style priority is: explicit drafting guidance, persona instructions, protected then mutable observations, repeated patterns in recent user messages, the current exchange, and finally a plain fallback. It preserves meaning and supported user habits, avoids formulaic wording contextually rather than through a blacklist, never borrows another participant's identity or mannerisms, and performs a silent check within the same provider request.
+
+Automatic persona and Personal Info learning both use the rolling `recentMessages` window. Persona changes require repeated evidence from two to ten distinct messages whose sender is `"user"`; the `personaLearningEnabled` input gates the output without changing the standard prompt or schema. Explicit persona examples use the same message field in the persona-only task. FrameReply stores learned observations, not message-analysis receipts or sample counters.
 
 ### Evidence-gated learning
 
@@ -124,7 +130,7 @@ Provider-proposed learning is filtered locally:
 | --- | --- | --- |
 | Chat memory | Eligible messages from the other participant | Retain one readable, atomic fact or confirmed shared plan per item in the app language. |
 | Personal Info | Confirmed user-authored messages in the latest 20 | Retain one directly stated, durable detail about the user. Goals, one-off plans, sensitive identifiers, exact locations, and detailed health information are excluded. |
-| Persona observation | Repeated, previously unprocessed user-authored messages | Learn reusable writing style rather than conversation facts. |
+| Persona observation | Two to ten recent user-authored messages | Learn reusable writing style rather than conversation facts. |
 
 Unsupported, duplicate, protected, or stale changes are ignored. Personal Info and persona learning share the reply-generation request; neither adds a provider call. Valid summaries, memory, Personal Info, persona observations, and cache state are persisted together.
 

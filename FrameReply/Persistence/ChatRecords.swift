@@ -212,8 +212,6 @@ final class PersonaRecord {
     var accentKey: String
     var instructionsOverride: String?
     var learningEnabled: Bool
-    var learningEnabledAt: Date
-    var sampleCount: Int
     var createdAt: Date
     var updatedAt: Date
 
@@ -239,8 +237,7 @@ final class PersonaRecord {
     init(
         id: UUID = UUID(), name: String, summary: String, symbolName: String,
         accentKey: String, instructions: String,
-        learningEnabled: Bool = true, learningEnabledAt: Date = Date(),
-        sampleCount: Int = 0,
+        learningEnabled: Bool = true,
         createdAt: Date = Date(), updatedAt: Date = Date()
     ) {
         self.id = id
@@ -251,16 +248,14 @@ final class PersonaRecord {
         self.accentKey = accentKey
         self.instructionsOverride = instructions
         self.learningEnabled = learningEnabled
-        self.learningEnabledAt = learningEnabledAt
-        self.sampleCount = sampleCount
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
 
     init(
         id: UUID = UUID(), builtInID: BuiltInPersonaID,
-        learningEnabled: Bool = true, learningEnabledAt: Date = Date(),
-        sampleCount: Int = 0, createdAt: Date = Date(), updatedAt: Date = Date()
+        learningEnabled: Bool = true,
+        createdAt: Date = Date(), updatedAt: Date = Date()
     ) {
         let definition = BuiltInPersonaDefinition.definition(for: builtInID)
         self.id = id
@@ -271,8 +266,6 @@ final class PersonaRecord {
         self.accentKey = definition.accentKey
         self.instructionsOverride = nil
         self.learningEnabled = learningEnabled
-        self.learningEnabledAt = learningEnabledAt
-        self.sampleCount = sampleCount
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -338,21 +331,6 @@ final class PersonaObservationRecord {
 
     var localizedText: String { templateID?.localizedText() ?? text }
     var promptText: String { templateID?.canonicalPromptText ?? text }
-}
-
-@Model
-final class PersonaLearningReceiptRecord {
-    @Attribute(.unique) var key: String
-    var personaID: UUID
-    var chatID: String
-    var messageID: UUID
-
-    init(personaID: UUID, chatID: String, messageID: UUID) {
-        self.key = "\(personaID.uuidString.lowercased())|\(messageID.uuidString.lowercased())"
-        self.personaID = personaID
-        self.chatID = chatID
-        self.messageID = messageID
-    }
 }
 
 @Model

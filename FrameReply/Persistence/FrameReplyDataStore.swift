@@ -17,7 +17,6 @@ enum FrameReplyDataStore {
         ChatMemoryRecord.self,
         PersonaRecord.self,
         PersonaObservationRecord.self,
-        PersonaLearningReceiptRecord.self,
         PersonalInfoFactRecord.self,
         SuggestedReplyCacheRecord.self,
         ChatImportRecord.self,
@@ -111,9 +110,6 @@ enum FrameReplyDataStore {
             context.delete(record)
         }
         for record in try context.fetch(FetchDescriptor<ChatRecord>()) {
-            context.delete(record)
-        }
-        for record in try context.fetch(FetchDescriptor<PersonaLearningReceiptRecord>()) {
             context.delete(record)
         }
         for record in try context.fetch(FetchDescriptor<PersonalInfoFactRecord>()) {

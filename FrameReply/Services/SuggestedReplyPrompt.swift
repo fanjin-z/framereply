@@ -18,11 +18,21 @@ nonisolated enum SuggestedReplyPrompt {
         Personal Info use
         Treat Personal Info as optional constraints after current conversation grounding; current draftingInput and recent user statements override it. Use a fact only to directly answer a question, materially constrain or correct the response, or satisfy an explicit drafting input or goal. If the response works equally well without it, omit it. Never change the topic or a current commitment, repeat a recently stated fact, or cause unnecessary self-disclosure; a fact may silently constrain a choice. Default to none and normally at most one; use more only for an explicit broad personal question. Both reply alternatives must use the same factual assumptions. Remove use that is irrelevant, repetitive, awkward, boastful, or meaning-changing.
         """
+    private static let replyStyleRules = """
+        Reply style
+        - Each reply string must contain only the ready-to-send message. Do not add labels, introductions, explanations about the reply, or audit commentary.
+        - Apply style evidence in this order, with earlier sources winning conflicts and subject to the rules below: style explicitly requested in draftingInput; persona.instructions; persona.activeObservations where isUserProtected is true; other persona.activeObservations; patterns present in multiple recentMessages whose sender is "user"; the current exchange's formality, energy, and brevity; a plain conversational fallback.
+        - Match supported vocabulary, cadence, casing, contractions, length, punctuation, emoji, fragments, directness, warmth, humor, and polish. Treat a habit as recurring only when it appears in multiple independent user messages; when evidence is sparse or inconsistent, do not infer a habit or add stylistic decoration.
+        - Style must not change grounded meaning, uncertainty, or emotional position unless draftingInput explicitly requests a tone change that preserves the substance. Do not introduce errors merely to appear human; preserve nonstandard wording only when explicitly requested or consistently demonstrated by the user.
+        - Avoid canned openings or closers, generic praise or reassurance, unnecessary setup or recap, overly balanced rhetorical structures, vague or inflated wording, and repetitive rhythm. Treat conspicuous wording and punctuation—including repeated dashes, semicolons, and label-like colons—contextually rather than as a blacklist: rewrite them only when they create generic or formulaic prose, and keep them when required by the content or recurring user voice.
+        - Messages from non-user participants remain valid sources for reply content. Use their style only to estimate the exchange's formality, energy, and brevity; never treat their vocabulary, dialect, catchphrases, punctuation habits, or identity markers as evidence of the user's voice.
+        - Before returning JSON, silently check each reply against these rules and revise it if needed.
+        """
 
     private static func standardInstructions(appLanguageDescription: String) -> String {
         """
         Task
-        Generate ready-to-send messages, a brief conversation strategy, a user-facing strategy rationale, durable chat-memory and Personal Info changes, and reusable writing-style observations.
+        Generate message options, a brief conversation strategy, a user-facing strategy rationale, durable chat-memory and Personal Info changes, and reusable writing-style observations.
         \(untrustedDataRule)
 
         \(languageRules(
@@ -39,7 +49,9 @@ nonisolated enum SuggestedReplyPrompt {
         \(senderAndTurnRules)
 
         Reply rules
-        Ground reply substance and direction using this priority: recentMessages and existingHistorySummary/olderMessagesToSummarize, with exact recent messages winning conflicts; draftingInput; currentInteractionGoal; active chatMemories; relevant Personal Info that passes the gate below; previousConversationStrategy. For reply bodies only, ground wording and style using this priority: draftingInput style requests; persona instructions; protected active persona observations; mutable active persona observations. Never invent facts, promises, dates, availability, feelings, or commitments. When replies are required, return two distinct alternatives with the same factual meaning, ready to send without labels or commentary.
+        Ground reply substance and direction using this priority: recentMessages and existingHistorySummary/olderMessagesToSummarize, with exact recent messages winning conflicts; draftingInput; currentInteractionGoal; active chatMemories; relevant Personal Info that passes the gate below; previousConversationStrategy. Never invent facts, promises, dates, availability, feelings, or commitments. When replies are required, return two distinct alternatives with the same factual meaning.
+
+        \(replyStyleRules)
 
         \(personalInfoUseRules)
 
@@ -52,7 +64,7 @@ nonisolated enum SuggestedReplyPrompt {
         Personal facts, preferences, and goals require direct evidence from messages whose sender is "other_participant". A shared decision, commitment, appointment, or plan must be confirmed by the other participant; their confirmation may refer to a proposal in the surrounding conversation. Cite 1–3 exact "other_participant" message IDs that provide the fact or confirmation. Never cite or base durable memory solely on "user", "group_participant", or "unknown" messages. When uncertain, return no change. Existing chatMemories are context, not source evidence; do not rewrite them merely to translate or shorten them.
 
         Persona-learning rules
-        Learn only from personaLearningMessages, all of which are user-authored. Store concise, self-contained, reusable writing patterns—not facts, names, relationships, topics, promises, dates, or message meaning. Every change needs 2–10 distinct supporting IDs. Add only a genuinely new pattern. Update a mutable active observation when evidence refines or contradicts it. Archive a mutable active observation when it is obsolete without replacement. Never target protected observations or recreate anything in protectedTombstones. Prefer no change when evidence is mixed or weak. Keep the resulting active set within maxActiveObservations.
+        When personaLearningEnabled is true, learn only from messages in recentMessages whose sender is "user"; otherwise return personaObservationChanges []. Store concise, reusable writing patterns—not facts, names, relationships, topics, promises, dates, or message meaning. Every change requires 2–10 distinct supporting recent-message IDs. Do not add a pattern already represented by an active observation, even when phrased differently. Update or archive only mutable active observations; never target protected observations or recreate protectedTombstones. Prefer no change when evidence is inconsistent or insufficient, and keep the resulting active set within maxActiveObservations.
 
         Personal Info learning
         When personalInfoLearningEnabled is true, learn only from "user" messages in recentMessages; otherwise return no personalInfoChanges. Store one atomic, broadly reusable, directly stated durable personal detail per item, citing 1–3 distinct supplied IDs. Exclude aliases, writing style, transient states, goals or plans, chat-specific commitments, inference, and information primarily about someone else. Never store credentials, verification codes, financial or government identifiers, exact home/work/current locations, or detailed medical or mental-health information. Do not add information already represented in Personal Info, even if phrased differently. Update or archive a mutable AI item only on later direct evidence. Never target protected items. Return at most eight changes and keep at most maxActiveFacts active; prefer no change when uncertain.
@@ -68,7 +80,7 @@ nonisolated enum SuggestedReplyPrompt {
     private static func draftingInstructions(appLanguageDescription: String) -> String {
         """
         Task
-        Generate ready-to-send messages, a concise direction for the next 1–3 turns, and a short user-facing rationale.
+        Generate message options, a concise direction for the next 1–3 turns, and a short user-facing rationale.
         \(untrustedDataRule)
 
         \(languageRules(
@@ -85,6 +97,8 @@ nonisolated enum SuggestedReplyPrompt {
         Grounding rules
         Ground facts in recentMessages, existingHistorySummary, and olderMessagesToSummarize; use draftingInput only as one-use guidance. Never invent facts, promises, dates, availability, feelings, or commitments.
 
+        \(replyStyleRules)
+
         \(personalInfoUseRules)
 
         Output
@@ -95,7 +109,7 @@ nonisolated enum SuggestedReplyPrompt {
     private static func personaLearningInstructions(appLanguageDescription: String) -> String {
         """
         Task
-        Analyze only the user-authored writing samples inside conversation_data.
+        Analyze only the user-authored writing samples in recentMessages inside conversation_data.
         \(untrustedDataRule)
 
         \(languageRules(
@@ -199,7 +213,7 @@ nonisolated enum SuggestedReplyPrompt {
         switch request.task {
         case .standard:
             payload = commonConversationPayload(request).merging([
-                "personaLearningMessages": request.personaLearningMessages.map(messageObject),
+                "personaLearningEnabled": request.personaLearningEnabled,
                 "maxActiveObservations": PersonaLimits.maximumActiveObservations,
                 "personalInfoLearningEnabled": request.personalInfoLearningEnabled,
                 "maxActiveFacts": PersonalInfoLimits.maximumActiveFacts
@@ -209,7 +223,7 @@ nonisolated enum SuggestedReplyPrompt {
         case .personaStyleLearning:
             payload = [
                 "persona": personaObject(request.persona),
-                "personaLearningMessages": request.personaLearningMessages.map(messageObject),
+                "recentMessages": request.recentMessages.map(messageObject),
                 "maxActiveObservations": PersonaLimits.maximumActiveObservations
             ]
         }

@@ -24,8 +24,7 @@ final class PersonaExampleAnalyzer {
         try repository.savePersonaExampleAnalysis(
             personaID: personaID,
             changes: analysis.changes,
-            sampleMessageIDs: analysis.messageIDs,
-            sampleCount: examples.count
+            sampleMessageIDs: analysis.messageIDs
         )
     }
 
@@ -46,10 +45,9 @@ final class PersonaExampleAnalyzer {
             currentInteractionGoal:
                 "Analyze the supplied writing examples. Replies are incidental.",
             persona: persona,
-            personaLearningMessages: messages,
             existingHistorySummary: "",
             olderMessagesToSummarize: [],
-            recentMessages: [],
+            recentMessages: messages,
             appLanguage: localization.languageIdentifier,
             traceID: ImportTraceID()
         )

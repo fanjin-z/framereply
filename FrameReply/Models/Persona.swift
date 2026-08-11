@@ -148,7 +148,6 @@ struct Persona: Identifiable, Equatable {
     var accentKey: String
     var instructions: String
     var learningEnabled: Bool
-    var sampleCount: Int
 
     var accent: Color {
         switch accentKey {

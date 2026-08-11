@@ -182,31 +182,15 @@ final class PersonaRepository {
         try context.save()
     }
 
-    func clearLearnedObservations(personaID: UUID) throws {
-        for record in try observations(personaID: personaID)
-        where record.origin == PersonaObservationOrigin.ai.rawValue && !record.isUserProtected {
-            record.status = PersonaObservationStatus.archived.rawValue
-            record.updatedAt = Date()
-        }
-        if let persona = try persona(id: personaID) {
-            persona.sampleCount = 0
-            persona.updatedAt = Date()
-        }
-        try context.save()
-    }
-
     func usageCount(personaID: UUID) throws -> Int {
         try context.fetchCount(
             FetchDescriptor<ChatContextRecord>(
                 predicate: #Predicate { $0.personaID == personaID }))
     }
 
-    func setLearningEnabled(_ enabled: Bool, for record: PersonaRecord, at date: Date = Date())
-        throws
-    {
+    func setLearningEnabled(_ enabled: Bool, for record: PersonaRecord) throws {
         record.learningEnabled = enabled
-        if enabled { record.learningEnabledAt = date }
-        record.updatedAt = date
+        record.updatedAt = Date()
         try context.save()
     }
 
@@ -239,12 +223,6 @@ final class PersonaRepository {
             }
             for observation in try observations(personaID: deletedID, includeInactive: true) {
                 context.delete(observation)
-            }
-            for receipt in try context.fetch(
-                FetchDescriptor<PersonaLearningReceiptRecord>(
-                    predicate: #Predicate { $0.personaID == deletedID }))
-            {
-                context.delete(receipt)
             }
             context.delete(record)
             try context.save()
