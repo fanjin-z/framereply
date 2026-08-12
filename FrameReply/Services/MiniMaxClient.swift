@@ -355,7 +355,13 @@ struct MiniMaxClient: AIProviderAdapter {
     private func providerInstructions(for contract: AIOutputContract) -> String {
         """
         \(contract.instructions(for: .promptedJSONObject))
-        Return the JSON object as raw text only. Do not use Markdown, code fences, or explanatory prose. The first non-whitespace character must be { and the last non-whitespace character must be }.
+
+        Additional output requirements:
+        - Return only the requested JSON object as raw text. Do not use Markdown, code fences, or explanatory prose.
+        - The first non-whitespace character must be { and the last non-whitespace character must be }.
+        - Do not add keys named "additionalProperties", "properties", "required", "type", or "description".
+        - The "strategyRationale" value must contain at most two sentences and at most 430 Unicode code points.
+        - When present, each non-null "memoryChanges[].text" value must contain at most 110 Unicode code points.
         """
     }
 

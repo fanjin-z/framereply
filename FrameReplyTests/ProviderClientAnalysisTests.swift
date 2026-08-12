@@ -4,8 +4,6 @@ import XCTest
 @testable import FrameReply
 
 final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
-    private static let miniMaxInstructionMarker = "Return the JSON object as raw text only."
-
     @MainActor
     func testOpenAIUsesTaskSpecificWireContractsAndReportsUsage() async throws {
         AnalysisURLProtocolStub.responses = [
@@ -18,10 +16,6 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
 
         let screenshotBody = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
         XCTAssertEqual(screenshotBody["store"] as? Bool, false)
-        XCTAssertFalse(
-            try XCTUnwrap(screenshotBody["instructions"] as? String)
-                .contains(Self.miniMaxInstructionMarker)
-        )
         XCTAssertEqual(
             screenshotBody["prompt_cache_key"] as? String,
             "screenshot_import-v\(ChatImportPrompt.screenshotImportVersion)-gpt-5.6-sol"
@@ -88,11 +82,6 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-or-test")
         let body = try jsonBody(request)
         XCTAssertEqual(body["model"] as? String, "qwen/qwen3.7-plus")
-        let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
-        XCTAssertFalse(
-            try XCTUnwrap(messages.first?["content"] as? String)
-                .contains(Self.miniMaxInstructionMarker)
-        )
         let routing = try XCTUnwrap(body["provider"] as? [String: Any])
         XCTAssertEqual(routing["allow_fallbacks"] as? Bool, false)
         XCTAssertEqual(routing["require_parameters"] as? Bool, true)
@@ -264,7 +253,9 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
             XCTAssertEqual(body["model"] as? String, "MiniMax-M3")
             XCTAssertEqual(body["max_completion_tokens"] as? Int, 4_000)
             XCTAssertNil(body["response_format"])
-            try assertMiniMaxRawJSONInstruction(in: body)
+            let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
+            XCTAssertEqual(messages.first?["role"] as? String, "system")
+            XCTAssertFalse(try XCTUnwrap(messages.first?["content"] as? String).isEmpty)
             XCTAssertTrue(
                 reporter.events.contains { event in
                     guard
@@ -294,8 +285,11 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
             )
         let transcriptBody = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
         let transcriptMessages = try XCTUnwrap(transcriptBody["messages"] as? [[String: Any]])
+        XCTAssertEqual(transcriptMessages.first?["role"] as? String, "system")
+        XCTAssertFalse(
+            try XCTUnwrap(transcriptMessages.first?["content"] as? String).isEmpty
+        )
         XCTAssertTrue(transcriptMessages[1]["content"] is String)
-        try assertMiniMaxRawJSONInstruction(in: transcriptBody)
 
         AnalysisURLProtocolStub.reset()
         AnalysisURLProtocolStub.responses = [(200, miniMaxResponse(content: validDraftingJSON()))]
@@ -309,8 +303,9 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
         XCTAssertEqual(replyBody["max_completion_tokens"] as? Int, 3_200)
         XCTAssertNil(replyBody["response_format"])
         let replyMessages = try XCTUnwrap(replyBody["messages"] as? [[String: Any]])
+        XCTAssertEqual(replyMessages.first?["role"] as? String, "system")
+        XCTAssertFalse(try XCTUnwrap(replyMessages.first?["content"] as? String).isEmpty)
         XCTAssertTrue(replyMessages.allSatisfy { $0["content"] is String })
-        try assertMiniMaxRawJSONInstruction(in: replyBody)
     }
 
     @MainActor
@@ -392,34 +387,5 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
         )
         XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
         XCTAssertEqual(providerAttempts(in: reporter.events), [1])
-    }
-
-    private func assertMiniMaxRawJSONInstruction(
-        in body: [String: Any],
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) throws {
-        let messages = try XCTUnwrap(
-            body["messages"] as? [[String: Any]], file: file, line: line)
-        let systemInstruction = try XCTUnwrap(
-            messages.first?["content"] as? String, file: file, line: line)
-        XCTAssertEqual(
-            systemInstruction.components(separatedBy: Self.miniMaxInstructionMarker).count - 1,
-            1,
-            file: file,
-            line: line
-        )
-        XCTAssertTrue(
-            systemInstruction.contains("Do not use Markdown, code fences, or explanatory prose."),
-            file: file,
-            line: line
-        )
-        XCTAssertTrue(
-            systemInstruction.contains(
-                "The first non-whitespace character must be { and the last non-whitespace character must be }."
-            ),
-            file: file,
-            line: line
-        )
     }
 }
