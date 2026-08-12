@@ -25,7 +25,7 @@ final class ProviderStore: ObservableObject {
     private let consentStore: ProviderDataConsentStore
     private static let providersKey = "framereply.providerConnections.v1"
     private static let activePlatformKey = "framereply.activeProviderPlatform.v1"
-    private static let installationMarkerKey = "framereply.installationMarker.v1"
+    nonisolated static let installationMarkerKey = "framereply.installationMarker.v1"
     private var isResetting = false
 
     var activeProvider: ProviderConnection? {
@@ -186,7 +186,8 @@ final class ProviderStore: ObservableObject {
         defer { isResetting = false }
         providers = []
         activePlatform = nil
-        for key in userDefaults.dictionaryRepresentation().keys {
+        let storedKeys = userDefaults.dictionaryRepresentation().keys
+        for key in storedKeys where key != OnboardingStore.storageKey {
             userDefaults.removeObject(forKey: key)
         }
         consentStore.revokeAllConsent()

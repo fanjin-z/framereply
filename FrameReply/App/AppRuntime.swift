@@ -8,6 +8,7 @@ enum EmptyProviderStartupBehavior: Equatable {
 @MainActor
 struct AppRuntime {
     let modelContainer: ModelContainer
+    let onboardingStore: OnboardingStore
     let providerStore: ProviderStore
     let chatRepository: ChatRepository
     let personaRepository: PersonaRepository
@@ -22,9 +23,11 @@ struct AppRuntime {
         try personaRepository.seedPersonasIfNeeded()
         try FrameReplyDataStore.protectPersistentStoreFiles()
 
+        let onboardingStore = OnboardingStore()
         let providerStore = ProviderStore()
         return AppRuntime(
             modelContainer: container,
+            onboardingStore: onboardingStore,
             providerStore: providerStore,
             chatRepository: chatRepository,
             personaRepository: personaRepository,

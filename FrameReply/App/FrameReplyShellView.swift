@@ -7,7 +7,7 @@ import SwiftData
 import SwiftUI
 
 struct FrameReplyShellView: View {
-    @State private var selectedTab: AppTab = .chats
+    @State private var selectedTab: AppTab
     @ObservedObject private var providerStore: ProviderStore
     @ObservedObject private var shortcutNavigation = ShortcutNavigationCenter.shared
     private let chatRepository: ChatRepository
@@ -20,7 +20,8 @@ struct FrameReplyShellView: View {
     @Query(filter: #Predicate<ChatMessageRecord> { $0.senderKind == "unknown" })
     private var unknownSenderMessages: [ChatMessageRecord]
 
-    init(runtime: AppRuntime) {
+    init(runtime: AppRuntime, initialTab: AppTab? = nil) {
+        _selectedTab = State(initialValue: initialTab ?? .chats)
         providerStore = runtime.providerStore
         chatRepository = runtime.chatRepository
         personaRepository = runtime.personaRepository

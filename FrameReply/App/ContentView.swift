@@ -6,9 +6,33 @@ import SwiftUI
 
 struct ContentView: View {
     let runtime: AppRuntime
+    @ObservedObject private var onboardingStore: OnboardingStore
+    @State private var onboardingCompletionDestination: AppTab?
+
+    init(runtime: AppRuntime) {
+        self.runtime = runtime
+        onboardingStore = runtime.onboardingStore
+    }
 
     var body: some View {
-        FrameReplyShellView(runtime: runtime)
+        switch onboardingStore.presentation {
+        case .none:
+            FrameReplyShellView(
+                runtime: runtime,
+                initialTab: onboardingCompletionDestination
+            )
+        case .initial, .update:
+            OnboardingFlowView(
+                providerStore: runtime.providerStore,
+                presentation: onboardingStore.presentation,
+                onComplete: completeOnboarding
+            )
+        }
+    }
+
+    private func completeOnboarding(destination: AppTab) {
+        onboardingCompletionDestination = destination
+        onboardingStore.completeCurrentOnboarding()
     }
 }
 

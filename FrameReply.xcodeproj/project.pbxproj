@@ -31,9 +31,22 @@
 		C10000000000000000000001 /* FrameReplyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FrameReplyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		D10000000000000000000001 /* Exceptions for "FrameReply" folder in "FrameReply" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2F03FF602F66E23300D9B3F1 /* FrameReply */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		2F03FF632F66E23300D9B3F1 /* FrameReply */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D10000000000000000000001 /* Exceptions for "FrameReply" folder in "FrameReply" target */,
+			);
 			path = FrameReply;
 			sourceTree = "<group>";
 		};
@@ -187,6 +200,11 @@
 				TargetAttributes = {
 					2F03FF602F66E23300D9B3F1 = {
 						CreatedOnToolsVersion = 26.3;
+						SystemCapabilities = {
+							com.apple.BackgroundModes = {
+								enabled = 1;
+							};
+						};
 					};
 					A10000000000000000000006 = {
 						CreatedOnToolsVersion = 26.3;
@@ -418,6 +436,7 @@
 				DEVELOPMENT_TEAM = 9FDQ573SQ7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FrameReply/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FrameReply;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -457,6 +476,7 @@
 				ENABLE_CODE_COVERAGE = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FrameReply/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FrameReply;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";

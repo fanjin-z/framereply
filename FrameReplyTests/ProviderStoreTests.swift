@@ -274,6 +274,7 @@ final class ProviderStoreTests: XCTestCase {
         try saveProviders(makeProviders(), to: defaults)
         defaults.set("openAI", forKey: ProviderStoreTestKey.activePlatform)
         defaults.set("remove-me", forKey: "framereply.testPreference")
+        defaults.set(OnboardingVersion.initial, forKey: OnboardingStore.storageKey)
         ProviderDataConsentStore(userDefaults: defaults).grantConsent(for: .openAI)
         let keychain = TestKeychainStore()
         for platform in ProviderPlatform.availableCases {
@@ -290,6 +291,10 @@ final class ProviderStoreTests: XCTestCase {
         XCTAssertTrue(store.providers.isEmpty)
         XCTAssertNil(store.activePlatform)
         XCTAssertNil(defaults.object(forKey: "framereply.testPreference"))
+        XCTAssertEqual(
+            defaults.integer(forKey: OnboardingStore.storageKey),
+            OnboardingVersion.initial
+        )
         XCTAssertFalse(store.hasValidDataConsent(for: .openAI))
         for platform in ProviderPlatform.availableCases {
             XCTAssertNil(try keychain.get(account: platform.keychainAccount))

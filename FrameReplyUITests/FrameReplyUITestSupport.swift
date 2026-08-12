@@ -7,9 +7,14 @@ class FrameReplyUITestCase: XCTestCase {
 
     func launchStandard(
         contentSizeCategory: String? = nil,
+        onboardingVersion: Int = OnboardingVersionForUITests.current,
         additionalArguments: [String] = []
     ) -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchArguments += [
+            "-framereply.lastCompletedOnboardingVersion", "\(onboardingVersion)",
+            "-framereply.installationMarker.v1", "YES"
+        ]
         if let contentSizeCategory {
             app.launchArguments += [
                 "-UIPreferredContentSizeCategoryName",
@@ -78,4 +83,8 @@ class FrameReplyUITestCase: XCTestCase {
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
+}
+
+private enum OnboardingVersionForUITests {
+    static let current = 1
 }

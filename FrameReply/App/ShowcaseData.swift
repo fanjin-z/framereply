@@ -392,8 +392,14 @@
             try ShowcaseDataSeeder.seed(in: container)
 
             let providerStore = try ShowcaseEnvironment.makeProviderStore()
+            let onboardingStore = OnboardingStore(
+                userDefaults: ShowcaseEnvironment.userDefaults,
+                installationMarkerKey: ProviderStore.installationMarkerKey
+            )
+            onboardingStore.completeCurrentOnboarding()
             return AppRuntime(
                 modelContainer: container,
+                onboardingStore: onboardingStore,
                 providerStore: providerStore,
                 chatRepository: chatRepository,
                 personaRepository: personaRepository,
@@ -407,10 +413,12 @@
     private enum ShowcaseEnvironment {
         private static let defaultsSuiteName = "com.gigabeyond.framereply.showcase"
 
+        static var userDefaults: UserDefaults {
+            UserDefaults(suiteName: defaultsSuiteName)!
+        }
+
         static func makeProviderStore() throws -> ProviderStore {
-            guard let defaults = UserDefaults(suiteName: defaultsSuiteName) else {
-                throw ShowcaseDataError.unavailableProviderStorage
-            }
+            let defaults = userDefaults
             defaults.removePersistentDomain(forName: defaultsSuiteName)
             return ProviderStore(
                 userDefaults: defaults,
@@ -440,6 +448,5 @@
     private enum ShowcaseDataError: Error {
         case missingBuiltInPersona(BuiltInPersonaID)
         case invalidReplies
-        case unavailableProviderStorage
     }
 #endif

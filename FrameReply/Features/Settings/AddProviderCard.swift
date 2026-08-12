@@ -36,9 +36,10 @@ struct AddProviderCard: View {
     @Binding var apiKey: String
     @Binding var status: AddProviderStatus
 
+    let title: LocalizedStringResource?
     let onConnect: () -> Void
     let onShowDataSharingDetails: () -> Void
-    let onCancel: () -> Void
+    let onCancel: (() -> Void)?
 
     @State private var isAPIKeyVisible = false
 
@@ -51,29 +52,33 @@ struct AddProviderCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 16) {
-                Text("Add Provider")
-                    .font(.system(size: 21, weight: .bold, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurface)
+            if title != nil || onCancel != nil {
+                HStack(alignment: .top, spacing: 16) {
+                    if let title {
+                        Text(title)
+                            .font(.system(size: 21, weight: .bold, design: .rounded))
+                            .foregroundStyle(FrameReplyColor.onSurface)
+                    }
 
-                Spacer()
+                    Spacer()
 
-                Button {
-                    onCancel()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                        .frame(width: 34, height: 34)
-                        .background {
-                            Circle()
-                                .fill(Color.white.opacity(0.58))
+                    if let onCancel {
+                        Button(action: onCancel) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                                .frame(width: 34, height: 34)
+                                .background {
+                                    Circle()
+                                        .fill(Color.white.opacity(0.58))
+                                }
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Close")
+                        .accessibilityIdentifier("close-add-provider")
+                        .disabled(status.isTesting)
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Close")
-                .accessibilityIdentifier("close-add-provider")
-                .disabled(status.isTesting)
             }
 
             VStack(alignment: .leading, spacing: 12) {

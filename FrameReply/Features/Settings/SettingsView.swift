@@ -12,16 +12,11 @@ struct SettingsView: View {
     let onPersonalInfoTap: () -> Void
     let onPrivacyAndDataTap: () -> Void
 
-    @State private var selectedPlatform: ProviderPlatform?
-    @State private var selectedTier: ProviderTier?
-    @State private var apiKey = ""
-    @State private var addProviderStatus: AddProviderStatus = .idle
     @State private var isAddProviderPresented = false
+    @State private var isProviderConnectionInProgress = false
     @State private var isKeyboardPresented = false
     @State private var providerToRemove: ProviderConnection?
     @State private var providerRemovalError: String?
-    @State private var providerAwaitingConsent: ProviderPlatform?
-    @State private var providerDataDetails: ProviderPlatform?
 
     var body: some View {
         ZStack {
@@ -29,21 +24,6 @@ struct SettingsView: View {
 
             if isAddProviderPresented {
                 addProviderPopup
-            }
-        }
-        .onChange(of: apiKey) { _, _ in
-            if case .failed = addProviderStatus {
-                addProviderStatus = .idle
-            }
-        }
-        .onChange(of: selectedPlatform) { _, _ in
-            if case .failed = addProviderStatus {
-                addProviderStatus = .idle
-            }
-        }
-        .onChange(of: selectedTier) { _, _ in
-            if case .connected = addProviderStatus {
-                addProviderStatus = .idle
             }
         }
         .onChange(of: isActive) { _, isActive in
@@ -90,27 +70,6 @@ struct SettingsView: View {
         } message: {
             Text(providerRemovalError ?? "")
         }
-        .alert(
-            consentDisclosure?.permissionTitle ?? "Share chat content?",
-            isPresented: Binding(
-                get: { providerAwaitingConsent != nil },
-                set: { if $0 == false { providerAwaitingConsent = nil } }
-            )
-        ) {
-            Button("Not Now", role: .cancel) {
-                providerAwaitingConsent = nil
-            }
-            .accessibilityIdentifier("provider-consent-cancel")
-            Button("Allow & Connect") {
-                authorizeAndConnectProvider()
-            }
-            .accessibilityIdentifier("provider-consent-allow")
-        } message: {
-            Text(consentDisclosure?.permissionMessage ?? "")
-        }
-        .sheet(item: $providerDataDetails) { platform in
-            ProviderDataSharingDetailsView(platform: platform)
-        }
     }
 
     private var providerList: some View {
@@ -118,7 +77,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 24) {
                 personalInfoSection
                 providerSection
-                shortcutSection
+                ShortcutSetupSection()
                 privacyAndDataSection
             }
             .padding(.top, 20)
@@ -211,95 +170,6 @@ struct SettingsView: View {
         }
     }
 
-    private var shortcutSection: some View {
-        settingsSection {
-            sectionHeader("Shortcuts")
-        } content: {
-            settingsSurface {
-                shortcutInstallRow(
-                    title: "Image Shortcut",
-                    subtitle: "Import screenshots",
-                    symbol: "photo.on.rectangle.angled",
-                    installation: ShortcutInstallationCatalog.images
-                )
-
-                settingsDivider(leadingInset: 60)
-
-                shortcutInstallRow(
-                    title: "Text Shortcut",
-                    subtitle: "Import copied messages",
-                    symbol: "text.bubble",
-                    installation: ShortcutInstallationCatalog.text
-                )
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func shortcutInstallRow(
-        title: String,
-        subtitle: String,
-        symbol: String,
-        installation: ShortcutInstallationDefinition
-    ) -> some View {
-        if let installationURL = installation.installationURL {
-            Link(destination: installationURL) {
-                compactShortcutRow(
-                    title: title,
-                    subtitle: subtitle,
-                    symbol: symbol,
-                    trailing: AnyView(
-                        Text("Install")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(FrameReplyColor.primary)
-                    )
-                )
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Install \(installation.title)")
-        } else {
-            compactShortcutRow(
-                title: title,
-                subtitle: subtitle,
-                symbol: symbol,
-                trailing: AnyView(
-                    Text("Unavailable")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(FrameReplyColor.outline)
-                )
-            )
-        }
-    }
-
-    private func compactShortcutRow(
-        title: String,
-        subtitle: String,
-        symbol: String,
-        trailing: AnyView
-    ) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(FrameReplyColor.primary)
-                .frame(width: 32)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurface)
-                Text(subtitle)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-            }
-
-            Spacer()
-            trailing
-        }
-        .padding(.horizontal, 16)
-        .frame(minHeight: 60)
-        .contentShape(Rectangle())
-    }
-
     private var addProviderPopup: some View {
         ZStack(alignment: isKeyboardPresented ? .top : .center) {
             Color.black.opacity(0.24)
@@ -308,13 +178,11 @@ struct SettingsView: View {
                     dismissAddProvider()
                 }
 
-            AddProviderCard(
-                selectedPlatform: $selectedPlatform,
-                selectedTier: $selectedTier,
-                apiKey: $apiKey,
-                status: $addProviderStatus,
-                onConnect: requestProviderConnection,
-                onShowDataSharingDetails: showProviderDataSharingDetails,
+            ProviderConnectionView(
+                providerStore: providerStore,
+                isConnectionInProgress: $isProviderConnectionInProgress,
+                title: "Add Provider",
+                onConnected: dismissAddProviderAfterConnection,
                 onCancel: dismissAddProvider
             )
             .frame(maxWidth: 560)
@@ -325,97 +193,18 @@ struct SettingsView: View {
         .zIndex(10)
     }
 
-    private func requestProviderConnection() {
-        KeyboardDismissal.dismiss()
-        guard let selectedPlatform else {
-            addProviderStatus = .failed("Select a provider before connecting.")
-            return
-        }
-
-        guard selectedTier != nil else {
-            addProviderStatus = .failed("Select a performance tier before connecting.")
-            return
-        }
-
-        guard apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
-            addProviderStatus = .failed("Enter an API key before connecting.")
-            return
-        }
-
-        if providerStore.hasValidDataConsent(for: selectedPlatform) {
-            connectProvider()
-        } else {
-            providerAwaitingConsent = selectedPlatform
-        }
-    }
-
-    private func authorizeAndConnectProvider() {
-        guard let platform = providerAwaitingConsent, platform == selectedPlatform else {
-            providerAwaitingConsent = nil
-            addProviderStatus = .failed("Select the provider again and retry.")
-            return
-        }
-
-        providerStore.grantDataConsent(for: platform)
-        providerAwaitingConsent = nil
-        connectProvider()
-    }
-
-    private func connectProvider() {
-        guard let selectedPlatform, let selectedTier else {
-            addProviderStatus = .failed("Complete the provider settings and retry.")
-            return
-        }
-
-        Task {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
-                addProviderStatus = .testing
-            }
-
-            do {
-                try await providerStore.connect(
-                    platform: selectedPlatform,
-                    tier: selectedTier,
-                    apiKey: apiKey
-                )
-
-                await MainActor.run {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
-                        resetAddProviderForm()
-                        isAddProviderPresented = false
-                    }
-                }
-            } catch let error as ProviderConnectionError {
-                await MainActor.run {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
-                        addProviderStatus = .failed(error.localizedDescription)
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
-                        addProviderStatus = .failed(
-                            "Could not test the provider. Check your network and try again.")
-                    }
-                }
-            }
-        }
-    }
-
     private func presentAddProvider() {
-        resetAddProviderForm()
         withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
             isAddProviderPresented = true
         }
     }
 
     private func dismissAddProvider() {
-        guard addProviderStatus.isTesting == false else {
+        guard isProviderConnectionInProgress == false else {
             return
         }
 
         KeyboardDismissal.dismiss()
-        providerAwaitingConsent = nil
         withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
             isAddProviderPresented = false
         }
@@ -427,18 +216,12 @@ struct SettingsView: View {
         }
 
         isAddProviderPresented = false
-        providerAwaitingConsent = nil
-        if addProviderStatus.isTesting == false {
-            resetAddProviderForm()
-        }
     }
 
-    private func resetAddProviderForm() {
-        selectedPlatform = nil
-        selectedTier = nil
-        apiKey = ""
-        providerAwaitingConsent = nil
-        addProviderStatus = .idle
+    private func dismissAddProviderAfterConnection() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
+            isAddProviderPresented = false
+        }
     }
 
     private var removeProviderTitle: String {
@@ -586,13 +369,4 @@ struct SettingsView: View {
             .padding(.leading, leadingInset)
     }
 
-    private var consentDisclosure: ProviderDataConsentDisclosure? {
-        providerAwaitingConsent.map(ProviderDataConsentDisclosure.init(provider:))
-    }
-
-    private func showProviderDataSharingDetails() {
-        if let selectedPlatform {
-            providerDataDetails = selectedPlatform
-        }
-    }
 }

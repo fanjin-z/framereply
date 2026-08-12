@@ -23,7 +23,7 @@ AI-generated suggestions are drafts. You stay in control of what gets sent.
 
 ### With shortcuts
 
-- **Install once:** In FrameReply app, open **Settings → Shortcuts** → install **Image Shortcut** and **Text Shortcut**
+- **Add once:** In FrameReply, open **Settings → Shortcuts** and add **Image Shortcut** and **Text Shortcut**
 
 #### Images
 

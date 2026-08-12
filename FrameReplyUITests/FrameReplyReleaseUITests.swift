@@ -1,6 +1,26 @@
 import XCTest
 
 final class FrameReplyReleaseUITests: FrameReplyUITestCase {
+    func testFreshInstallShowsProviderOnboardingAndExplicitEscapeOpensSettings() {
+        let app = launchStandard(onboardingVersion: 0)
+
+        XCTAssertTrue(element("onboarding-provider-step", in: app).waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["Connect a Model Provider"].exists)
+        XCTAssertFalse(app.staticTexts["Add one provider to generate replies."].exists)
+
+        app.buttons["Skip Setup"].tap()
+        XCTAssertTrue(app.buttons["Skip Anyway"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Cancel"].exists)
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(element("onboarding-provider-step", in: app).waitForExistence(timeout: 3))
+
+        app.buttons["Skip Setup"].tap()
+        app.buttons["Skip Anyway"].tap()
+
+        XCTAssertTrue(element("settings-screen", in: app).waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["app-tab-settings"].value as? String, "Current tab")
+    }
+
     func testCriticalNavigationAndPrivacyControlsAreReachable() {
         let app = launchStandard()
         XCTAssertTrue(app.buttons["app-tab-chats"].waitForExistence(timeout: 8))

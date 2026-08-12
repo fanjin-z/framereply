@@ -139,6 +139,57 @@
     "Add" : {
 
     },
+    "Add %@" : {
+
+    },
+    "Back Tap" : {
+
+    },
+    "Connect a Model Provider" : {
+
+    },
+    "Skip Anyway" : {
+
+    },
+    "Skip setup?" : {
+
+    },
+    "Finish Setup" : {
+
+    },
+    "Image Shortcut" : {
+
+    },
+    "Import copied messages" : {
+
+    },
+    "Import screenshots" : {
+
+    },
+    "Import messages faster" : {
+
+    },
+    "Skip Setup" : {
+
+    },
+    "Double- or triple-tap the back of your iPhone to import screenshots" : {
+
+    },
+    "Set Up" : {
+
+    },
+    "Step 1 of 2" : {
+
+    },
+    "Step 2 of 2" : {
+
+    },
+    "Text Shortcut" : {
+
+    },
+    "You need a provider before you can generate replies." : {
+
+    },
     "Add an observation" : {
 
     },
@@ -1318,12 +1369,6 @@
 
     },
     "Imports shared or copied chat text with sender labels while you optionally add reply guidance. Imported messages are stored locally; the source transcript is not retained separately." : {
-
-    },
-    "Install" : {
-
-    },
-    "Install %@" : {
 
     },
     "Instructions" : {
