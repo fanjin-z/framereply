@@ -115,7 +115,7 @@ struct MiniMaxClient: AIProviderAdapter {
         let body = requestBody(
             model: model,
             messages: [
-                ["role": "system", "content": contract.instructions(for: .promptedJSONObject)],
+                ["role": "system", "content": providerInstructions(for: contract)],
                 ["role": "user", "content": userMessageContent]
             ],
             maxCompletionTokens: maxTokens
@@ -242,7 +242,7 @@ struct MiniMaxClient: AIProviderAdapter {
         let body = requestBody(
             model: model,
             messages: [
-                ["role": "system", "content": contract.instructions(for: .promptedJSONObject)],
+                ["role": "system", "content": providerInstructions(for: contract)],
                 ["role": "user", "content": SuggestedReplyPrompt.input(for: generationRequest)]
             ],
             maxCompletionTokens: maxTokens
@@ -335,6 +335,13 @@ struct MiniMaxClient: AIProviderAdapter {
         guard model == .miniMaxM3 else {
             throw ProviderConnectionError.unsupportedProvider
         }
+    }
+
+    private func providerInstructions(for contract: AIOutputContract) -> String {
+        """
+        \(contract.instructions(for: .promptedJSONObject))
+        Return the JSON object as raw text only. Do not use Markdown, code fences, or explanatory prose. The first non-whitespace character must be { and the last non-whitespace character must be }.
+        """
     }
 
     private func requestBody(

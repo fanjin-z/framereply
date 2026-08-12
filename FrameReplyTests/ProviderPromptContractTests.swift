@@ -48,6 +48,7 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
 
         for (contract, keys, version) in contracts {
             XCTAssertEqual(contract.version, version)
+            XCTAssertFalse(contract.instructions.contains("Return the JSON object as raw text only."))
             XCTAssertEqual(contract.schema["additionalProperties"] as? Bool, false)
             let properties = try XCTUnwrap(contract.schema["properties"] as? [String: Any])
             XCTAssertEqual(Set(properties.keys), keys)
