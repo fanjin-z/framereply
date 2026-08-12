@@ -186,6 +186,17 @@ struct MiniMaxClient: AIProviderAdapter {
                     attempt: attempt
                 )
             }
+            if decoded.recovered {
+                ChatImportDebugLogger.structuredOutputRecovery(
+                    [],
+                    traceID: analysisRequest.traceID,
+                    provider: region.providerID,
+                    model: model.rawValue,
+                    attempt: attempt,
+                    content: choice.message.content,
+                    includeRawContent: true
+                )
+            }
             recordContractValidation(
                 contract, traceID: analysisRequest.traceID, attempt: attempt,
                 category: decoded.recovered ? "recovered" : "valid")
@@ -201,7 +212,7 @@ struct MiniMaxClient: AIProviderAdapter {
                 attempt: attempt,
                 finishReason: choice?.finishReason,
                 content: choice?.message.content ?? String(data: data, encoding: .utf8),
-                includeRawContent: failure.kind == .schemaMismatch
+                includeRawContent: failure.kind == .schemaMismatch || failure.kind == .invalidJSON
             )
             eventReporter.record(.structuredOutputFailure(
                 traceID: analysisRequest.traceID,
@@ -292,13 +303,17 @@ struct MiniMaxClient: AIProviderAdapter {
                 finishReason: choice.finishReason,
                 task: generationRequest.task
             )
-            ChatImportDebugLogger.fieldRecoveries(
-                decoded.fieldRecoveries,
-                traceID: generationRequest.traceID,
-                provider: region.providerID,
-                model: model.rawValue,
-                attempt: attempt
-            )
+            if decoded.recovered {
+                ChatImportDebugLogger.structuredOutputRecovery(
+                    decoded.fieldRecoveries,
+                    traceID: generationRequest.traceID,
+                    provider: region.providerID,
+                    model: model.rawValue,
+                    attempt: attempt,
+                    content: choice.message.content,
+                    includeRawContent: true
+                )
+            }
             recordContractValidation(
                 contract, traceID: generationRequest.traceID, attempt: attempt,
                 category: decoded.recovered ? "recovered" : "valid")
@@ -314,7 +329,7 @@ struct MiniMaxClient: AIProviderAdapter {
                 attempt: attempt,
                 finishReason: choice?.finishReason,
                 content: choice?.message.content ?? String(data: data, encoding: .utf8),
-                includeRawContent: failure.kind == .schemaMismatch
+                includeRawContent: failure.kind == .schemaMismatch || failure.kind == .invalidJSON
             )
             eventReporter.record(.structuredOutputFailure(
                 traceID: generationRequest.traceID,

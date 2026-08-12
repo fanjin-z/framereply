@@ -422,13 +422,16 @@ struct OpenAIClient: AIProviderAdapter {
                 finishReason: nil,
                 task: generationRequest.task
             )
-            ChatImportDebugLogger.fieldRecoveries(
-                decoded.fieldRecoveries,
-                traceID: generationRequest.traceID,
-                provider: "openai",
-                model: model.rawValue,
-                attempt: 1
-            )
+            if decoded.recovered {
+                ChatImportDebugLogger.structuredOutputRecovery(
+                    decoded.fieldRecoveries,
+                    traceID: generationRequest.traceID,
+                    provider: "openai",
+                    model: model.rawValue,
+                    attempt: 1,
+                    content: completion.outputText
+                )
+            }
             recordContractValidation(
                 contract, traceID: generationRequest.traceID, provider: "openai",
                 attempt: 1, category: decoded.recovered ? "recovered" : "valid")

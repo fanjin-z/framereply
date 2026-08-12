@@ -255,13 +255,16 @@ struct OpenRouterClient: AIProviderAdapter {
                 finishReason: choice.finishReason,
                 task: generationRequest.task
             )
-            ChatImportDebugLogger.fieldRecoveries(
-                decoded.fieldRecoveries,
-                traceID: generationRequest.traceID,
-                provider: platform.rawValue,
-                model: model.rawValue,
-                attempt: attempt
-            )
+            if decoded.recovered {
+                ChatImportDebugLogger.structuredOutputRecovery(
+                    decoded.fieldRecoveries,
+                    traceID: generationRequest.traceID,
+                    provider: platform.rawValue,
+                    model: model.rawValue,
+                    attempt: attempt,
+                    content: choice.message.content
+                )
+            }
             recordContractValidation(
                 contract,
                 traceID: generationRequest.traceID,

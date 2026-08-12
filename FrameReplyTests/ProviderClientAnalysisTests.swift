@@ -359,6 +359,41 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
         XCTAssertEqual(providerAttempts(in: fatalReporter.events), [1])
     }
 
+    @MainActor
+    func testMiniMaxRejectsInvalidReplyJSONWithoutRetry() async throws {
+        let reporter = SpyImportEventReporter()
+        AnalysisURLProtocolStub.responses = [
+            (200, miniMaxResponse(content: "This is not JSON."))
+        ]
+
+        await assertThrowsErrorAsync(
+            {
+                _ = try await MiniMaxClient(
+                    region: .china,
+                    session: self.makeSession(),
+                    eventReporter: reporter
+                ).generateSuggestedReplies(
+                    self.makeReplyRequest(task: .standard),
+                    apiKey: "key",
+                    model: .miniMaxM3
+                )
+            },
+            errorHandler: { error in
+                guard let providerError = error as? ProviderConnectionError,
+                    case .structuredOutput(let detail) = providerError
+                else {
+                    XCTFail("Expected structured-output error, got \(error)")
+                    return
+                }
+                XCTAssertEqual(detail.provider, "miniMaxChina")
+                XCTAssertEqual(detail.failure.kind, .invalidJSON)
+                XCTAssertNil(detail.failure.codingPath)
+            }
+        )
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+        XCTAssertEqual(providerAttempts(in: reporter.events), [1])
+    }
+
     private func assertMiniMaxRawJSONInstruction(
         in body: [String: Any],
         file: StaticString = #filePath,

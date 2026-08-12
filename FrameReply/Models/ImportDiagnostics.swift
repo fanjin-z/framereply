@@ -194,12 +194,14 @@ nonisolated struct ShortcutLifecycleReporter: Sendable {
 }
 
 nonisolated enum ChatImportDebugLogger {
-    static func fieldRecoveries(
+    static func structuredOutputRecovery(
         _ recoveries: [StructuredOutputFieldRecovery],
         traceID: ImportTraceID,
         provider: String,
         model: String,
-        attempt: Int
+        attempt: Int,
+        content: String?,
+        includeRawContent: Bool = false
     ) {
         #if DEBUG
             for recovery in recoveries {
@@ -207,6 +209,35 @@ nonisolated enum ChatImportDebugLogger {
                     "[ChatImportAI][field-recovered] trace=\(traceID.diagnosticID) provider=\(provider) model=\(model) attempt=\(attempt) path=\(recovery.path) original_code_points=\(recovery.originalCodePointCount) final_code_points=\(recovery.finalCodePointCount)"
                 )
             }
+            structuredOutputContent(
+                content,
+                traceID: traceID,
+                provider: provider,
+                model: model,
+                attempt: attempt,
+                reason: "recovered",
+                includeRawContent: includeRawContent
+            )
+        #endif
+    }
+
+    private static func rawJSONOutput(
+        _ content: String?,
+        traceID: ImportTraceID,
+        provider: String,
+        model: String,
+        attempt: Int,
+        reason: String
+    ) {
+        #if DEBUG
+            let output = content ?? "<nil>"
+            Swift.print(
+                "[ChatImportAI][raw-json-output-begin] trace=\(traceID.diagnosticID) provider=\(provider) model=\(model) attempt=\(attempt) reason=\(reason) utf8_bytes=\(output.lengthOfBytes(using: .utf8))"
+            )
+            Swift.print(output)
+            Swift.print(
+                "[ChatImportAI][raw-json-output-end] trace=\(traceID.diagnosticID)"
+            )
         #endif
     }
 
@@ -226,14 +257,36 @@ nonisolated enum ChatImportDebugLogger {
             Swift.print(
                 "[ChatImportAI][decode-failed] trace=\(traceID.diagnosticID) provider=\(provider) model=\(model) attempt=\(attempt) finish=\(finish) kind=\(failure.kind.rawValue) path=\(path)"
             )
+            structuredOutputContent(
+                content,
+                traceID: traceID,
+                provider: provider,
+                model: model,
+                attempt: attempt,
+                reason: failure.kind.rawValue,
+                includeRawContent: includeRawContent
+            )
+        #endif
+    }
+
+    private static func structuredOutputContent(
+        _ content: String?,
+        traceID: ImportTraceID,
+        provider: String,
+        model: String,
+        attempt: Int,
+        reason: String,
+        includeRawContent: Bool
+    ) {
+        #if DEBUG
             if includeRawContent {
-                let output = content ?? "<nil>"
-                Swift.print(
-                    "[ChatImportAI][raw-json-output-begin] trace=\(traceID.diagnosticID) utf8_bytes=\(output.lengthOfBytes(using: .utf8))"
-                )
-                Swift.print(output)
-                Swift.print(
-                    "[ChatImportAI][raw-json-output-end] trace=\(traceID.diagnosticID)"
+                rawJSONOutput(
+                    content,
+                    traceID: traceID,
+                    provider: provider,
+                    model: model,
+                    attempt: attempt,
+                    reason: reason
                 )
             } else {
                 Swift.print(
