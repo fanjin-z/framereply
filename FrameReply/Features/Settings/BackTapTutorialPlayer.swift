@@ -15,7 +15,7 @@ struct BackTapTutorialSourceView: View {
                 BackTapTutorialFallbackView()
             }
         }
-        .aspectRatio(16 / 9, contentMode: .fit)
+        .aspectRatio(1178.0 / 1872.0, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -59,6 +59,7 @@ final class BackTapTutorialPlayerModel: NSObject, ObservableObject {
         guard let controller = AVPictureInPictureController(playerLayer: playerLayer) else {
             return
         }
+        controller.canStartPictureInPictureAutomaticallyFromInline = true
         controller.delegate = self
         pictureInPictureController = controller
     }

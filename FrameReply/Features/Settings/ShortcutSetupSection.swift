@@ -58,13 +58,12 @@ struct ShortcutSetupSection: View {
                     .fill(Color.white.opacity(0.46))
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-
-            if isBackTapTutorialRequested {
-                BackTapTutorialSourceView(model: backTapTutorial)
-                    .frame(maxWidth: backTapTutorial.isPictureInPictureActive ? 1 : .infinity)
-                    .frame(height: backTapTutorial.isPictureInPictureActive ? 1 : nil)
-                    .opacity(backTapTutorial.isPictureInPictureActive ? 0.001 : 1)
-                    .accessibilityHidden(backTapTutorial.isPictureInPictureActive)
+            .background {
+                if isBackTapTutorialRequested {
+                    BackTapTutorialSourceView(model: backTapTutorial)
+                        .opacity(0.001)
+                        .accessibilityHidden(true)
+                }
             }
         }
         .onDisappear {
