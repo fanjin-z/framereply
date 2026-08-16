@@ -449,9 +449,6 @@
     "Choose which sender is you before keeping this chat." : {
 
     },
-    "Choose your name if it appears here." : {
-
-    },
     "Clear search" : {
 
     },
@@ -1326,12 +1323,6 @@
     "Highest-quality interpretation and writing at the highest cost" : {
 
     },
-    "None of These" : {
-
-    },
-    "None of these names is me" : {
-
-    },
     "Image Shortcut" : {
 
     },
@@ -1546,6 +1537,12 @@
 
     },
     "No, This Is Me" : {
+
+    },
+    "None of These" : {
+
+    },
+    "None of these names is me" : {
 
     },
     "Not imported: sender labels weren’t shared. Use Share → Copy, then run FrameReply Text, or import screenshots with FrameReply Images." : {

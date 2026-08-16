@@ -269,7 +269,10 @@ struct ChatImportReviewSheet: View {
                             )
                         }
                     }
-                    .padding(24)
+                    .padding(.vertical, 24)
+                    .padding(.horizontal, 16)
+                    .frame(maxWidth: 720, alignment: .leading)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle(chatID == nil ? "Review Imports" : "Review Import")
@@ -536,28 +539,20 @@ private struct ParticipantIdentityReviewCard: View {
     let onReviewIndividually: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            if let provisionalIdentity = reviewGroup.provisionalIdentity {
-                Text("Are you \(provisionalIdentity.selfDisplayLabel)?")
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(question)
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurface)
-            } else {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Which name is yours?")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundStyle(FrameReplyColor.onSurface)
+                    .lineLimit(2)
 
-                    Spacer(minLength: 8)
+                Spacer(minLength: 8)
 
-                    Text("Chat: \(reviewGroup.chatName)")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                        .lineLimit(1)
-                }
-
-                Text("Choose your name if it appears here.")
-                    .font(.system(size: 13, design: .rounded))
+                Text("Chat: \(reviewGroup.chatName)")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
             }
 
             VStack(spacing: 8) {
@@ -565,65 +560,17 @@ private struct ParticipantIdentityReviewCard: View {
                     Button {
                         onSelect(reviewGroup, group)
                     } label: {
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(group.displayLabel)
-                                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                                    .foregroundStyle(FrameReplyColor.onSurface)
-
-                                if reviewGroup.rememberedAliasKeys.contains(
-                                    group.normalizedLabel
-                                ) {
-                                    Text("Used as your name before")
-                                        .font(
-                                            .system(
-                                                size: 11,
-                                                weight: .semibold,
-                                                design: .rounded
-                                            )
-                                        )
-                                        .foregroundStyle(FrameReplyColor.primary)
-                                }
-
-                                ForEach(Array(group.sampleMessages.enumerated()), id: \.offset) {
-                                    _, sample in
-                                    Text(sample)
-                                        .font(.system(size: 12, design: .rounded))
-                                        .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                                        .lineLimit(1)
-                                }
-                            }
-
-                            Spacer(minLength: 8)
-
-                            VStack(alignment: .trailing, spacing: 8) {
-                                Text("\(group.messageIDs.count) messages")
-                                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-
-                                identityActionLabel(
-                                    actionTitle(for: group),
-                                    systemImage: "person.crop.circle.badge.checkmark",
-                                    foregroundColor: .white,
-                                    backgroundColor: FrameReplyColor.primary
-                                )
-                            }
-                        }
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(FrameReplyColor.secondaryContainer.opacity(0.5))
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .stroke(FrameReplyColor.primary.opacity(0.22), lineWidth: 1)
-                                }
-                                .shadow(
-                                    color: FrameReplyColor.primaryContainer.opacity(0.14),
-                                    radius: 8,
-                                    y: 4
-                                )
-                        }
+                        IdentityChoiceRow(
+                            title: Text(verbatim: group.displayLabel),
+                            sampleMessage: group.sampleMessages.first,
+                            messageCount: group.messageIDs.count,
+                            isRememberedAlias: reviewGroup.rememberedAliasKeys.contains(
+                                group.normalizedLabel
+                            ),
+                            actionTitle: actionTitle(for: group),
+                            systemImage: "person.crop.circle.badge.checkmark",
+                            style: .sender
+                        )
                     }
                     .buttonStyle(SoftPressButtonStyle())
                     .accessibilityLabel(
@@ -635,31 +582,40 @@ private struct ParticipantIdentityReviewCard: View {
             if reviewGroup.conversationKind == .group
                 || (reviewGroup.conversationKind == .direct && reviewGroup.groups.count >= 2)
             {
-                HStack {
-                    Spacer(minLength: 0)
-
-                    Button {
-                        onNotShown(reviewGroup)
-                    } label: {
-                        identityActionLabel(
-                            "None of These",
-                            systemImage: "person.crop.circle.badge.xmark",
-                            foregroundColor: FrameReplyColor.secondary,
-                            backgroundColor: FrameReplyColor.secondaryContainer
-                        )
-                    }
-                    .buttonStyle(SoftPressButtonStyle())
-                    .accessibilityLabel("None of these names is me")
+                Button {
+                    onNotShown(reviewGroup)
+                } label: {
+                    IdentityChoiceRow(
+                        title: Text("None of These"),
+                        sampleMessage: nil,
+                        messageCount: nil,
+                        isRememberedAlias: false,
+                        actionTitle: nil,
+                        systemImage: "person.crop.circle.badge.xmark",
+                        style: .notShown
+                    )
                 }
-                .padding(.trailing, 14)
+                .buttonStyle(SoftPressButtonStyle())
+                .accessibilityLabel("None of these names is me")
             }
 
             Button("Review messages individually", action: onReviewIndividually)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(FrameReplyColor.primary)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+                .buttonStyle(.plain)
         }
-        .padding(14)
+        .padding(12)
         .quietReviewPanel(accented: true)
+    }
+
+    private var question: LocalizedStringKey {
+        if let provisionalIdentity = reviewGroup.provisionalIdentity {
+            return "Are you \(provisionalIdentity.selfDisplayLabel)?"
+        }
+        return "Which name is yours?"
     }
 
     private func actionTitle(for group: UnknownSenderLabelGroup) -> LocalizedStringKey {
@@ -671,22 +627,114 @@ private struct ParticipantIdentityReviewCard: View {
             ? "Yes"
             : "No, This Is Me"
     }
+}
 
-    private func identityActionLabel(
-        _ title: LocalizedStringKey,
-        systemImage: String,
-        foregroundColor: Color,
-        backgroundColor: Color
-    ) -> some View {
-        Label(title, systemImage: systemImage)
-            .font(.system(size: 12, weight: .bold, design: .rounded))
-            .foregroundStyle(foregroundColor)
-            .frame(width: 132, height: 32)
-            .background {
-                Capsule(style: .continuous)
-                    .fill(backgroundColor)
+private struct IdentityChoiceRow: View {
+    enum Style: Equatable {
+        case sender
+        case notShown
+    }
+
+    let title: Text
+    let sampleMessage: String?
+    let messageCount: Int?
+    let isRememberedAlias: Bool
+    let actionTitle: LocalizedStringKey?
+    let systemImage: String
+    let style: Style
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                title
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(titleColor)
+                    .lineLimit(1)
+
+                if isRememberedAlias {
+                    Text("Used as your name before")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(FrameReplyColor.primary)
+                        .lineLimit(1)
+                }
+
+                if let sampleMessage {
+                    Text(sampleMessage)
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                        .lineLimit(1)
+                }
             }
-            .contentShape(Capsule(style: .continuous))
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(alignment: .trailing, spacing: 5) {
+                if let messageCount {
+                    Text(messageCountText(messageCount))
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                        .lineLimit(1)
+                }
+
+                if let actionTitle {
+                    Label(actionTitle, systemImage: systemImage)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(FrameReplyColor.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.76)
+                } else {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(FrameReplyColor.secondary)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(backgroundColor)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(borderColor, lineWidth: 1)
+                }
+                .shadow(
+                    color: shadowColor,
+                    radius: style == .sender ? 6 : 0,
+                    y: style == .sender ? 3 : 0
+                )
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var titleColor: Color {
+        style == .sender ? FrameReplyColor.onSurface : FrameReplyColor.secondary
+    }
+
+    private var backgroundColor: Color {
+        switch style {
+        case .sender:
+            FrameReplyColor.secondaryContainer.opacity(0.46)
+        case .notShown:
+            FrameReplyColor.secondaryContainer.opacity(0.78)
+        }
+    }
+
+    private var borderColor: Color {
+        switch style {
+        case .sender:
+            FrameReplyColor.primary.opacity(0.2)
+        case .notShown:
+            FrameReplyColor.secondary.opacity(0.26)
+        }
+    }
+
+    private var shadowColor: Color {
+        FrameReplyColor.primaryContainer.opacity(0.12)
+    }
+
+    private func messageCountText(_ count: Int) -> LocalizedStringKey {
+        "\(count) messages"
     }
 }
 
