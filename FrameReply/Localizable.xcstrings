@@ -449,7 +449,7 @@
     "Choose which sender is you before keeping this chat." : {
 
     },
-    "Choose your name to label these messages." : {
+    "Choose your name if it appears here." : {
 
     },
     "Clear search" : {
@@ -1326,7 +1326,10 @@
     "Highest-quality interpretation and writing at the highest cost" : {
 
     },
-    "I’m not shown in these messages" : {
+    "None of These" : {
+
+    },
+    "None of these names is me" : {
 
     },
     "Image Shortcut" : {

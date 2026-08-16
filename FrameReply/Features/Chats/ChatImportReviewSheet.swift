@@ -555,7 +555,7 @@ private struct ParticipantIdentityReviewCard: View {
                         .lineLimit(1)
                 }
 
-                Text("Choose your name to label these messages.")
+                Text("Choose your name if it appears here.")
                     .font(.system(size: 13, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
             }
@@ -601,18 +601,12 @@ private struct ParticipantIdentityReviewCard: View {
                                     .font(.system(size: 11, weight: .bold, design: .rounded))
                                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
-                                Label(
+                                identityActionLabel(
                                     actionTitle(for: group),
-                                    systemImage: "person.crop.circle.badge.checkmark"
+                                    systemImage: "person.crop.circle.badge.checkmark",
+                                    foregroundColor: .white,
+                                    backgroundColor: FrameReplyColor.primary
                                 )
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 11)
-                                .frame(minHeight: 32)
-                                .background {
-                                    Capsule(style: .continuous)
-                                        .fill(FrameReplyColor.primary)
-                                }
                             }
                         }
                         .padding(14)
@@ -638,12 +632,26 @@ private struct ParticipantIdentityReviewCard: View {
                 }
             }
 
-            if reviewGroup.conversationKind == .direct && reviewGroup.groups.count >= 2 {
-                Button("I’m not shown in these messages") {
-                    onNotShown(reviewGroup)
+            if reviewGroup.conversationKind == .group
+                || (reviewGroup.conversationKind == .direct && reviewGroup.groups.count >= 2)
+            {
+                HStack {
+                    Spacer(minLength: 0)
+
+                    Button {
+                        onNotShown(reviewGroup)
+                    } label: {
+                        identityActionLabel(
+                            "None of These",
+                            systemImage: "person.crop.circle.badge.xmark",
+                            foregroundColor: FrameReplyColor.secondary,
+                            backgroundColor: FrameReplyColor.secondaryContainer
+                        )
+                    }
+                    .buttonStyle(SoftPressButtonStyle())
+                    .accessibilityLabel("None of these names is me")
                 }
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(FrameReplyColor.primary)
+                .padding(.trailing, 14)
             }
 
             Button("Review messages individually", action: onReviewIndividually)
@@ -662,6 +670,23 @@ private struct ParticipantIdentityReviewCard: View {
             == group.normalizedLabel
             ? "Yes"
             : "No, This Is Me"
+    }
+
+    private func identityActionLabel(
+        _ title: LocalizedStringKey,
+        systemImage: String,
+        foregroundColor: Color,
+        backgroundColor: Color
+    ) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .foregroundStyle(foregroundColor)
+            .frame(width: 132, height: 32)
+            .background {
+                Capsule(style: .continuous)
+                    .fill(backgroundColor)
+            }
+            .contentShape(Capsule(style: .continuous))
     }
 }
 

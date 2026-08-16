@@ -1540,10 +1540,14 @@ final class ChatRepository {
                 $0.senderKind == "unknown"
             }
             let groups = UnknownSenderLabelGroup.make(from: unknownMessages)
-            guard groups.count >= 2 else {
+            guard !groups.isEmpty,
+                chat.conversationKind == .group || groups.count >= 2
+            else {
                 throw SenderLabelResolutionError.labelUnavailable
             }
-            try promoteDirectChatForMutation(chat, messages: try messages(chatID: chatID))
+            if chat.conversationKind != .group {
+                try promoteDirectChatForMutation(chat, messages: try messages(chatID: chatID))
+            }
             for message in unknownMessages {
                 if let name = ParticipantLabelNormalizer.displayLabel(message.senderName) {
                     message.senderKind = "group_participant"
@@ -1551,8 +1555,6 @@ final class ChatRepository {
                 }
             }
             if var state = chat.importReviewState {
-                state.identityStatus = .confirmed
-                state.hasKindReview = nil
                 state.meaningfulActionCount += 1
                 chat.importReviewState = state
             }

@@ -496,7 +496,7 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertFalse(chat.requiresImportReview)
     }
 
-    func testNotShownResolutionConvertsTwoLabeledAuthorsToGroupParticipants() throws {
+    func testNotShownResolutionDoesNotConfirmImportAndPreservesExistingGroup() throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let chat = ChatRecord(
@@ -544,7 +544,38 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(messages.map(\.senderName), ["Alex", "Taylor"])
         XCTAssertEqual(chat.previewSenderKind, "group_participant")
         XCTAssertEqual(chat.previewSenderName, "Taylor")
-        XCTAssertEqual(chat.importReviewState?.identityStatus, .confirmed)
+        XCTAssertTrue(chat.requiresImportIdentityReview)
+        XCTAssertEqual(chat.importReviewState?.identityStatus, .needsReview)
+
+        let existingGroup = ChatRecord(
+            id: "existing-group-not-shown",
+            title: "Project Team",
+            previewText: "Status update",
+            conversationKind: .group,
+            isProvisional: true
+        )
+        let groupMessage = ChatMessageRecord(
+            chatID: existingGroup.id,
+            senderKind: "unknown",
+            senderName: "Jordan",
+            text: "Status update",
+            timeLabel: "8:02",
+            sortIndex: 0
+        )
+        container.mainContext.insert(existingGroup)
+        container.mainContext.insert(groupMessage)
+        try container.mainContext.save()
+
+        try repository.resolveUnknownSenderLabelsAsGroup(chatID: existingGroup.id)
+
+        XCTAssertEqual(existingGroup.conversationKind, .group)
+        XCTAssertEqual(existingGroup.title, "Project Team")
+        XCTAssertEqual(groupMessage.senderKind, "group_participant")
+        XCTAssertEqual(groupMessage.senderName, "Jordan")
+        XCTAssertEqual(existingGroup.previewSenderKind, "group_participant")
+        XCTAssertEqual(existingGroup.previewSenderName, "Jordan")
+        XCTAssertTrue(existingGroup.requiresImportIdentityReview)
+        XCTAssertEqual(existingGroup.importReviewState?.identityStatus, .needsReview)
     }
 
     func testManualReclassificationPreservesContextAndRawNamesWhileRefreshingDerivedState()
