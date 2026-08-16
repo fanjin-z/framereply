@@ -167,6 +167,7 @@ struct OpenRouterClient: AIProviderAdapter {
                 finishReason: choice?.finishReason,
                 content: choice?.message.content ?? String(data: data, encoding: .utf8),
                 includeRawContent: failure.kind == .schemaMismatch
+                    || failure.kind == .invalidJSON
             )
             recordStructuredFailure(
                 failure, contract: contract, traceID: analysisRequest.traceID)
@@ -281,6 +282,7 @@ struct OpenRouterClient: AIProviderAdapter {
                 finishReason: choice?.finishReason,
                 content: choice?.message.content ?? String(data: data, encoding: .utf8),
                 includeRawContent: failure.kind == .schemaMismatch
+                    || failure.kind == .invalidJSON
             )
             recordStructuredFailure(
                 failure, contract: contract, traceID: generationRequest.traceID)

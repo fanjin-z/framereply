@@ -167,7 +167,9 @@ struct OpenAIClient: AIProviderAdapter {
                 model: model.rawValue,
                 attempt: 1,
                 finishReason: nil,
-                content: String(data: data, encoding: .utf8)
+                content: String(data: data, encoding: .utf8),
+                includeRawContent: failure.kind == .schemaMismatch
+                    || failure.kind == .invalidJSON
             )
             recordStructuredFailure(
                 failure,
@@ -271,7 +273,9 @@ struct OpenAIClient: AIProviderAdapter {
                 model: model.rawValue,
                 attempt: 1,
                 finishReason: completion.status,
-                content: completion.outputText
+                content: completion.outputText,
+                includeRawContent: failure.kind == .schemaMismatch
+                    || failure.kind == .invalidJSON
             )
             eventReporter.record(
                 .structuredOutputFailure(
@@ -440,6 +444,17 @@ struct OpenAIClient: AIProviderAdapter {
             recordContractValidation(
                 contract, traceID: generationRequest.traceID, provider: "openai",
                 attempt: 1, category: "fatal")
+            ChatImportDebugLogger.structuredOutputFailure(
+                failure,
+                traceID: generationRequest.traceID,
+                provider: "openai",
+                model: model.rawValue,
+                attempt: 1,
+                finishReason: completion.status,
+                content: completion.outputText,
+                includeRawContent: failure.kind == .schemaMismatch
+                    || failure.kind == .invalidJSON
+            )
             eventReporter.record(
                 .structuredOutputFailure(
                     traceID: generationRequest.traceID,
