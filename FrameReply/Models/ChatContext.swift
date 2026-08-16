@@ -226,7 +226,7 @@ nonisolated enum ChatMemoryReconciler {
     static func reconcile(
         memories: [ChatMemory],
         changes: [ChatMemoryChange],
-        allowedOtherParticipantSourceMessageIDs: Set<UUID>,
+        eligibleSourceMessageIDs: Set<UUID>,
         now: Date = Date()
     ) -> [ChatMemory] {
         var result = memories
@@ -235,7 +235,7 @@ nonisolated enum ChatMemoryReconciler {
             let evidence = change.sourceMessageIDs
             guard !evidence.isEmpty,
                 Set(evidence).count == evidence.count,
-                evidence.allSatisfy(allowedOtherParticipantSourceMessageIDs.contains)
+                evidence.allSatisfy(eligibleSourceMessageIDs.contains)
             else {
                 continue
             }

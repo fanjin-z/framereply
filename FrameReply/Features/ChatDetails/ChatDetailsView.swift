@@ -23,6 +23,7 @@ struct ChatDetailsView: View {
     @State private var isEditNamesPresented = false
     @State private var isDeleteConfirmationPresented = false
     @State private var isForgetIdentityConfirmationPresented = false
+    @State private var isDirectConversionPresented = false
     @State private var errorMessage: String?
 
     init(
@@ -74,7 +75,7 @@ struct ChatDetailsView: View {
     }
 
     private var isDirectChat: Bool {
-        chatRecords.first?.conversationKind == .direct
+        (chatRecords.first?.conversationKind ?? chat.conversationKind) == .direct
     }
 
     private var participantAliases: [ChatParticipantAlias] {
@@ -138,6 +139,40 @@ struct ChatDetailsView: View {
                     .padding(20)
                     .glassPanel(cornerRadius: 26)
 
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Conversation Type", systemImage: isDirectChat ? "person" : "person.2.fill")
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundStyle(FrameReplyColor.onSurface)
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(isDirectChat ? "Direct Chat" : "Group Chat")
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                Text(
+                                    isDirectChat
+                                        ? "One other participant"
+                                        : "Named senders remain message-specific"
+                                )
+                                .font(.system(size: 12, design: .rounded))
+                                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                            }
+
+                            Spacer()
+
+                            Button(isDirectChat ? "Make Group" : "Make Direct") {
+                                if isDirectChat {
+                                    convertToGroup()
+                                } else {
+                                    isDirectConversionPresented = true
+                                }
+                            }
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    .padding(20)
+                    .glassPanel(cornerRadius: 26)
+
                     if !rationale.isEmpty {
                         StrategyRationaleCard(strategyRationale: rationale)
                     }
@@ -189,8 +224,7 @@ struct ChatDetailsView: View {
                     }
 
                     ChatMemoryCard(
-                        chatID: chat.id,
-                        chatName: displayedChat.name,
+                        chat: displayedChat,
                         memoryRecords: memoryRecords
                     )
 
@@ -226,6 +260,12 @@ struct ChatDetailsView: View {
                 displayName: displayedChat.name,
                 aliases: participantAliases,
                 repository: repository
+            )
+        }
+        .sheet(isPresented: $isDirectConversionPresented) {
+            DirectCounterpartSelectionSheet(
+                candidateNames: detectedParticipantNames,
+                onSelect: convertToDirect
             )
         }
         .alert("Rename Chat", isPresented: $isRenamePresented) {
@@ -309,11 +349,92 @@ struct ChatDetailsView: View {
         }
     }
 
+    private var detectedParticipantNames: [String] {
+        var seen = Set<String>()
+        return messageRecords.compactMap { message in
+            guard message.senderKind != "user",
+                let name = ParticipantLabelNormalizer.displayLabel(message.senderName),
+                let key = ParticipantLabelNormalizer.key(name),
+                seen.insert(key).inserted
+            else {
+                return nil
+            }
+            return name
+        }
+    }
+
+    private func convertToGroup() {
+        do {
+            try repository.reclassifyConversation(chatID: chat.id, to: .group)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func convertToDirect(_ displayName: String) {
+        do {
+            try repository.reclassifyConversation(
+                chatID: chat.id,
+                to: .direct,
+                directDisplayName: displayName
+            )
+            isDirectConversionPresented = false
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     private var errorBinding: Binding<Bool> {
         Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )
+    }
+}
+
+struct DirectCounterpartSelectionSheet: View {
+    let candidateNames: [String]
+    let onSelect: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var customName = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if !candidateNames.isEmpty {
+                    Section("Detected Names") {
+                        ForEach(candidateNames, id: \.self) { name in
+                            Button(name) { onSelect(name) }
+                        }
+                    }
+                }
+
+                Section {
+                    TextField("Counterpart name", text: $customName)
+                        .textInputAutocapitalization(.words)
+                    Button("Use Custom Name") {
+                        if let name = IdentityLabelPolicy.displayLabel(customName) {
+                            onSelect(name)
+                        }
+                    }
+                    .disabled(IdentityLabelPolicy.displayLabel(customName) == nil)
+                } header: {
+                    Text("Custom Name")
+                } footer: {
+                    Text(
+                        "All non-user messages will be treated as coming from this one person. Original imported sender labels are retained for recovery."
+                    )
+                }
+            }
+            .navigationTitle("Choose Counterpart")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
     }
 }
 

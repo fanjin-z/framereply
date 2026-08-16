@@ -242,6 +242,415 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(try repository.messages(chatID: "sarah-jenkins").count, 2)
     }
 
+    func testGroupImportCanonicalizesSendersAndStoresAttributedPreview() throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let analysis = ChatImportAnalysis(
+            conversationTitle: nil,
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .otherParticipant,
+                    senderName: "Alex",
+                    text: "I can bring snacks",
+                    timestampLabel: "8:00 PM"
+                ),
+                AnalyzedChatMessage(
+                    sender: .otherParticipant,
+                    senderName: nil,
+                    text: "What time should we meet?",
+                    timestampLabel: "8:01 PM"
+                )
+            ],
+            matchedChatID: nil,
+            matchConfidence: 0,
+            conversationKind: .group,
+            titleSource: .unavailable
+        )
+
+        let outcome = try repository.applyImport(analysis: analysis, confirmedChatID: nil)
+        let chat = try XCTUnwrap(repository.chat(id: outcome.chatID))
+        let messages = try repository.messages(chatID: outcome.chatID)
+
+        XCTAssertEqual(chat.conversationKind, .group)
+        XCTAssertNil(chat.title)
+        XCTAssertEqual(chat.displayTitle(), "Group Chat")
+        XCTAssertEqual(messages.map(\.senderKind), ["group_participant", "unknown"])
+        XCTAssertEqual(messages.first?.senderName, "Alex")
+        XCTAssertEqual(chat.previewText, "What time should we meet?")
+        XCTAssertEqual(chat.previewSenderKind, "unknown")
+        XCTAssertNil(chat.previewSenderName)
+        XCTAssertEqual(chat.displayPreview(), "Unknown sender: What time should we meet?")
+        XCTAssertTrue(outcome.reviewRequired)
+
+        try repository.resolveUnknownSender(
+            messageID: try XCTUnwrap(messages.last?.id),
+            as: .groupParticipant,
+            participantName: "Participant"
+        )
+        try repository.confirmProvisionalChat(chatID: chat.id, name: "Group Chat")
+
+        XCTAssertNil(chat.title)
+        XCTAssertEqual(chat.displayTitle(), "Group Chat")
+        XCTAssertFalse(chat.requiresImportIdentityReview)
+    }
+
+    func testSenderReviewRefreshesGroupPreviewMetadata() throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let analysis = ChatImportAnalysis(
+            conversationTitle: "Weekend Crew",
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .unknown,
+                    senderName: "Priya",
+                    text: "I booked the table",
+                    timestampLabel: "7:30 PM"
+                )
+            ],
+            matchedChatID: nil,
+            matchConfidence: 0,
+            conversationKind: .group,
+            titleSource: .header
+        )
+
+        let outcome = try repository.applyImport(analysis: analysis, confirmedChatID: nil)
+        let message = try XCTUnwrap(repository.messages(chatID: outcome.chatID).first)
+        var chat = try XCTUnwrap(repository.chat(id: outcome.chatID))
+        XCTAssertEqual(chat.previewSenderKind, "unknown")
+        XCTAssertEqual(chat.previewSenderName, "Priya")
+        XCTAssertEqual(chat.displayPreview(), "Priya: I booked the table")
+
+        try repository.resolveUnknownSender(
+            messageID: message.id,
+            as: .groupParticipant,
+            participantName: "Priya"
+        )
+
+        chat = try XCTUnwrap(repository.chat(id: outcome.chatID))
+        XCTAssertEqual(message.senderKind, "group_participant")
+        XCTAssertEqual(chat.previewSenderKind, "group_participant")
+        XCTAssertEqual(chat.previewSenderName, "Priya")
+        XCTAssertEqual(chat.displayPreview(), "Priya: I booked the table")
+    }
+
+    func testGroupSupportMigrationBackfillsPreviewAndCanonicalizesMalformedSenders() throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chat = ChatRecord(
+            id: "legacy-group",
+            title: nil,
+            previewText: "Latest",
+            conversationKind: .group
+        )
+        let previewOnlyChat = ChatRecord(
+            id: "legacy-preview-only",
+            title: "Archived chat",
+            previewText: "Preserved denormalized preview",
+            conversationKind: .direct
+        )
+        let named = ChatMessageRecord(
+            chatID: chat.id,
+            senderKind: "other_participant",
+            senderName: "Alex",
+            text: "Earlier",
+            timeLabel: "8:00 PM",
+            sortIndex: 0
+        )
+        let malformed = ChatMessageRecord(
+            chatID: chat.id,
+            senderKind: "alien_sender",
+            senderName: "Mystery label",
+            text: "Latest",
+            timeLabel: "8:01 PM",
+            sortIndex: 1
+        )
+        container.mainContext.insert(chat)
+        container.mainContext.insert(previewOnlyChat)
+        container.mainContext.insert(named)
+        container.mainContext.insert(malformed)
+        try container.mainContext.save()
+
+        try repository.seedIfNeeded()
+        try repository.seedIfNeeded()
+
+        XCTAssertEqual(named.senderKind, "group_participant")
+        XCTAssertEqual(named.senderName, "Alex")
+        XCTAssertEqual(malformed.senderKind, "unknown")
+        XCTAssertEqual(malformed.senderName, "Mystery label")
+        XCTAssertEqual(chat.previewText, "Latest")
+        XCTAssertEqual(chat.previewSenderKind, "unknown")
+        XCTAssertEqual(chat.previewSenderName, "Mystery label")
+        XCTAssertEqual(chat.displayPreview(), "Mystery label: Latest")
+        XCTAssertEqual(previewOnlyChat.previewText, "Preserved denormalized preview")
+        XCTAssertNil(previewOnlyChat.previewSenderKind)
+    }
+
+    func testStrongImportAndExplicitMergePromoteDirectChatsToGroup() throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let direct = ChatRecord(
+            id: "direct-chat",
+            title: "Alex",
+            previewText: nil,
+            conversationKind: .direct
+        )
+        container.mainContext.insert(direct)
+        try container.mainContext.save()
+        let groupAnalysis = ChatImportAnalysis(
+            conversationTitle: "Alex and Friends",
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .groupParticipant,
+                    senderName: "Alex",
+                    text: "Hello everyone",
+                    timestampLabel: nil
+                )
+            ],
+            matchedChatID: "direct-chat",
+            matchConfidence: 0.99,
+            conversationKind: .group,
+            titleSource: .header
+        )
+
+        let promoted = try repository.applyImport(
+            analysis: groupAnalysis,
+            confirmedChatID: direct.id
+        )
+        XCTAssertEqual(promoted.chatID, direct.id)
+        XCTAssertFalse(promoted.reviewRequired)
+        XCTAssertEqual(direct.conversationKind, .group)
+        XCTAssertEqual(direct.title, "Alex and Friends")
+        XCTAssertTrue(direct.requiresImportReview)
+        XCTAssertEqual(direct.importReviewState?.hasKindReview, true)
+
+        let secondDirect = ChatRecord(
+            id: "second-direct",
+            title: "Taylor",
+            previewText: nil,
+            conversationKind: .direct
+        )
+        container.mainContext.insert(secondDirect)
+        try container.mainContext.save()
+        let provisional = try repository.applyImport(
+            analysis: groupAnalysis,
+            confirmedChatID: nil
+        )
+        let groupMemory = ChatMemoryRecord(
+            chatID: provisional.chatID,
+            value: ChatMemory(
+                text: "Alex confirmed the team check-in",
+                origin: .ai,
+                certainty: .aiInferred
+            )
+        )
+        container.mainContext.insert(groupMemory)
+        try container.mainContext.save()
+        try repository.mergeProvisionalChat(provisional.chatID, into: secondDirect.id)
+        XCTAssertNil(try repository.chat(id: provisional.chatID))
+        XCTAssertEqual(secondDirect.conversationKind, .group)
+        XCTAssertEqual(secondDirect.title, "Alex and Friends")
+        XCTAssertEqual(groupMemory.chatID, secondDirect.id)
+        XCTAssertEqual(groupMemory.status, ChatMemoryStatus.active.rawValue)
+    }
+
+    func testInferenceOnlyGroupSuggestionDoesNotMutateDirectChat() throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chat = ChatRecord(
+            id: "ambiguous-direct",
+            title: "Alex",
+            previewText: nil,
+            conversationKind: .direct
+        )
+        container.mainContext.insert(chat)
+        try container.mainContext.save()
+        let analysis = ChatImportAnalysis(
+            conversationTitle: "Alex",
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .otherParticipant,
+                    senderName: "Alex",
+                    text: "Ambiguous snippet",
+                    timestampLabel: nil
+                )
+            ],
+            matchedChatID: chat.id,
+            matchConfidence: 0.99,
+            conversationKind: .direct,
+            conversationKindEvidence: .groupSuspectedWithoutStructuralProof,
+            titleSource: .participantLabel
+        )
+
+        let outcome = try repository.applyImport(
+            analysis: analysis,
+            confirmedChatID: chat.id
+        )
+
+        XCTAssertFalse(outcome.reviewRequired)
+        XCTAssertEqual(chat.conversationKind, .direct)
+        XCTAssertEqual(chat.importReviewState?.hasKindReview, true)
+        XCTAssertTrue(chat.requiresImportReview)
+
+        try repository.confirmConversationKind(chatID: chat.id)
+        XCTAssertEqual(chat.conversationKind, .direct)
+        XCTAssertFalse(chat.requiresImportReview)
+    }
+
+    func testNotShownResolutionConvertsTwoLabeledAuthorsToGroupParticipants() throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chat = ChatRecord(
+            id: "not-shown",
+            title: "Alex",
+            previewText: "Second",
+            conversationKind: .direct,
+            isProvisional: true
+        )
+        let context = ChatContextRecord(
+            chatID: chat.id,
+            currentInteractionGoal: "",
+            personaID: UUID()
+        )
+        let messages = [
+            ChatMessageRecord(
+                chatID: chat.id,
+                senderKind: "unknown",
+                senderName: "Alex",
+                text: "First",
+                timeLabel: "8:00",
+                sortIndex: 0
+            ),
+            ChatMessageRecord(
+                chatID: chat.id,
+                senderKind: "unknown",
+                senderName: "Taylor",
+                text: "Second",
+                timeLabel: "8:01",
+                sortIndex: 1
+            )
+        ]
+        container.mainContext.insert(chat)
+        container.mainContext.insert(context)
+        messages.forEach(container.mainContext.insert)
+        try container.mainContext.save()
+
+        try repository.resolveUnknownSenderLabelsAsGroup(chatID: chat.id)
+
+        XCTAssertEqual(chat.conversationKind, .group)
+        XCTAssertNil(chat.title)
+        XCTAssertEqual(messages.map(\.senderKind), [
+            "group_participant", "group_participant"
+        ])
+        XCTAssertEqual(messages.map(\.senderName), ["Alex", "Taylor"])
+        XCTAssertEqual(chat.previewSenderKind, "group_participant")
+        XCTAssertEqual(chat.previewSenderName, "Taylor")
+        XCTAssertEqual(chat.importReviewState?.identityStatus, .confirmed)
+    }
+
+    func testManualReclassificationPreservesContextAndRawNamesWhileRefreshingDerivedState()
+        throws
+    {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chat = ChatRecord(
+            id: "reclassify-chat",
+            title: "Alex",
+            previewText: "Latest",
+            previewSenderKind: "unknown",
+            previewSenderName: "Taylor",
+            conversationKind: .direct
+        )
+        let context = ChatContextRecord(
+            chatID: chat.id,
+            currentInteractionGoal: "Choose a time",
+            personaID: UUID()
+        )
+        context.participantAliases = [ChatParticipantAlias(displayLabel: "Alex A.")]
+        let alex = ChatMessageRecord(
+            chatID: chat.id,
+            senderKind: "other_participant",
+            senderName: nil,
+            text: "Earlier",
+            timeLabel: "8:00 PM",
+            sortIndex: 0
+        )
+        let taylor = ChatMessageRecord(
+            chatID: chat.id,
+            senderKind: "unknown",
+            senderName: "Taylor",
+            text: "Latest",
+            timeLabel: "8:01 PM",
+            sortIndex: 1
+        )
+        let aiMemory = ChatMemoryRecord(
+            chatID: chat.id,
+            value: ChatMemory(
+                text: "AI inference",
+                origin: .ai,
+                certainty: .aiInferred
+            )
+        )
+        let userMemory = ChatMemoryRecord(
+            chatID: chat.id,
+            value: ChatMemory(text: "User note")
+        )
+        let importRecord = ChatImportRecord(
+            chatID: chat.id,
+            transcriptFingerprint: "old-fingerprint",
+            insertedMessageCount: 2,
+            isDuplicate: false,
+            requiresReview: true
+        )
+        container.mainContext.insert(chat)
+        container.mainContext.insert(context)
+        container.mainContext.insert(alex)
+        container.mainContext.insert(taylor)
+        container.mainContext.insert(aiMemory)
+        container.mainContext.insert(userMemory)
+        container.mainContext.insert(importRecord)
+        insertReplyCache(chatID: chat.id, into: container)
+        try container.mainContext.save()
+
+        try repository.reclassifyConversation(chatID: chat.id, to: .group)
+
+        XCTAssertEqual(chat.conversationKind, .group)
+        XCTAssertNil(chat.title)
+        XCTAssertEqual(alex.senderKind, "group_participant")
+        XCTAssertEqual(alex.senderName, "Alex")
+        XCTAssertEqual(taylor.senderKind, "unknown")
+        XCTAssertEqual(taylor.senderName, "Taylor")
+        XCTAssertEqual(chat.previewSenderKind, "unknown")
+        XCTAssertEqual(chat.previewSenderName, "Taylor")
+        XCTAssertEqual(aiMemory.status, ChatMemoryStatus.active.rawValue)
+        XCTAssertEqual(aiMemory.text, "Alex: AI inference")
+        XCTAssertEqual(userMemory.status, ChatMemoryStatus.active.rawValue)
+        XCTAssertNil(try repository.suggestedReplyCache(chatID: chat.id))
+        XCTAssertNotEqual(importRecord.transcriptFingerprint, "old-fingerprint")
+        XCTAssertEqual(context.currentInteractionGoal, "Choose a time")
+
+        try repository.reclassifyConversation(
+            chatID: chat.id,
+            to: .direct,
+            directDisplayName: "Morgan"
+        )
+
+        XCTAssertEqual(chat.conversationKind, .direct)
+        XCTAssertEqual(chat.title, "Morgan")
+        XCTAssertEqual(alex.senderKind, "other_participant")
+        XCTAssertEqual(alex.senderName, "Alex")
+        XCTAssertEqual(taylor.senderKind, "other_participant")
+        XCTAssertEqual(taylor.senderName, "Taylor")
+        XCTAssertEqual(chat.previewSenderKind, "other_participant")
+        XCTAssertEqual(chat.previewSenderName, "Taylor")
+        XCTAssertEqual(aiMemory.status, ChatMemoryStatus.active.rawValue)
+        XCTAssertEqual(aiMemory.text, "Alex: AI inference")
+        XCTAssertEqual(context.currentInteractionGoal, "Choose a time")
+
+        try repository.reclassifyConversation(chatID: chat.id, to: .group)
+        XCTAssertEqual(aiMemory.status, ChatMemoryStatus.active.rawValue)
+        XCTAssertEqual(aiMemory.text, "Alex: AI inference")
+    }
+
     func testProvisionalAndUnknownSenderIdentityLifecycle() throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)

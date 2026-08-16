@@ -142,54 +142,6 @@
     "Add %@" : {
 
     },
-    "Back Tap" : {
-
-    },
-    "Connect a Model Provider" : {
-
-    },
-    "Skip Anyway" : {
-
-    },
-    "Skip setup?" : {
-
-    },
-    "Finish Setup" : {
-
-    },
-    "Image Shortcut" : {
-
-    },
-    "Import copied messages" : {
-
-    },
-    "Import screenshots" : {
-
-    },
-    "Import messages faster" : {
-
-    },
-    "Skip Setup" : {
-
-    },
-    "Double- or triple-tap the back of your iPhone to import screenshots" : {
-
-    },
-    "Set Up" : {
-
-    },
-    "Step 1 of 2" : {
-
-    },
-    "Step 2 of 2" : {
-
-    },
-    "Text Shortcut" : {
-
-    },
-    "You need a provider before you can generate replies." : {
-
-    },
     "Add an observation" : {
 
     },
@@ -224,6 +176,9 @@
 
     },
     "All imports are reviewed." : {
+
+    },
+    "All non-user messages will be treated as coming from this one person. Original imported sender labels are retained for recovery." : {
 
     },
     "Allow & Connect" : {
@@ -268,10 +223,10 @@
     "Ask whether to add reply guidance when none is supplied." : {
 
     },
-    "Auto-saved" : {
+    "Back" : {
 
     },
-    "Back" : {
+    "Back Tap" : {
 
     },
     "Back to chat assistant" : {
@@ -334,6 +289,18 @@
     "Chat: %@" : {
 
     },
+    "chat.fallback.group-title" : {
+      "comment" : "Fallback title for an imported group chat whose title is unknown.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Group Chat"
+          }
+        }
+      }
+    },
     "chat.fallback.imported" : {
       "comment" : "Fallback title for an imported chat whose participant is not known.",
       "extractionState" : "extracted_with_value",
@@ -382,6 +349,54 @@
         }
       }
     },
+    "chat.preview.sender-message" : {
+      "comment" : "Group chat preview. First value is the sender label; second is the message.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
+    "chat.preview.sender.participant" : {
+      "comment" : "Fallback sender label for a group participant whose name is unavailable.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Participant"
+          }
+        }
+      }
+    },
+    "chat.preview.sender.unknown" : {
+      "comment" : "Sender label for an unresolved latest message in a group chat preview.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Unknown sender"
+          }
+        }
+      }
+    },
+    "chat.preview.sender.you" : {
+      "comment" : "Sender label for the user's own latest message in a group chat preview.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "You"
+          }
+        }
+      }
+    },
     "Chats" : {
 
     },
@@ -422,6 +437,9 @@
     "Choose a suggested reply." : {
 
     },
+    "Choose Counterpart" : {
+
+    },
     "Choose Screenshots" : {
 
     },
@@ -452,6 +470,9 @@
     "Connect" : {
 
     },
+    "Connect a Model Provider" : {
+
+    },
     "Connect OpenAI or a supported vision provider." : {
 
     },
@@ -459,6 +480,9 @@
 
     },
     "Conversation Strategy" : {
+
+    },
+    "Conversation Type" : {
 
     },
     "Copied" : {
@@ -497,6 +521,9 @@
     "Couldn’t Set Default Persona" : {
 
     },
+    "Counterpart name" : {
+
+    },
     "Create New Persona" : {
 
     },
@@ -516,6 +543,9 @@
 
     },
     "Current tab" : {
+
+    },
+    "Custom Name" : {
 
     },
     "Data Sharing" : {
@@ -557,6 +587,12 @@
     "Detailed" : {
 
     },
+    "Detected Names" : {
+
+    },
+    "Direct Chat" : {
+
+    },
     "Dismiss" : {
 
     },
@@ -567,6 +603,9 @@
 
     },
     "Double tap to edit" : {
+
+    },
+    "Double- or triple-tap the back of your iPhone to import screenshots" : {
 
     },
     "Duplicate" : {
@@ -681,6 +720,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Enter a display name for this chat."
+          }
+        }
+      }
+    },
+    "error.chat.incompatible-kinds" : {
+      "comment" : "Shown when importing or merging chats with incompatible conversation types.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A group chat can’t be merged with a one-to-one chat."
           }
         }
       }
@@ -1209,6 +1260,9 @@
     "Fine-tune the voice." : {
 
     },
+    "Finish Setup" : {
+
+    },
     "Forget for this chat" : {
 
     },
@@ -1260,6 +1314,9 @@
     "Generates two replies for a chat analyzed by FrameReply." : {
 
     },
+    "Group Chat" : {
+
+    },
     "Helps FrameReply recognize you in chats." : {
 
     },
@@ -1269,7 +1326,22 @@
     "Highest-quality interpretation and writing at the highest cost" : {
 
     },
+    "I’m not shown in these messages" : {
+
+    },
+    "Image Shortcut" : {
+
+    },
+    "Import copied messages" : {
+
+    },
+    "Import messages faster" : {
+
+    },
     "Import recent conversation messages." : {
+
+    },
+    "Import screenshots" : {
 
     },
     "Import Status" : {
@@ -1380,6 +1452,9 @@
     "Keep reply guidance under 500 characters." : {
 
     },
+    "Keep Separate" : {
+
+    },
     "Learn from my messages" : {
 
     },
@@ -1398,6 +1473,12 @@
     "Lowest cost; may be less reliable with subtle or complex context" : {
 
     },
+    "Make Direct" : {
+
+    },
+    "Make Group" : {
+
+    },
     "Makes this provider active" : {
 
     },
@@ -1408,6 +1489,9 @@
 
     },
     "Merge Imported Chat" : {
+
+    },
+    "Merge into %@" : {
 
     },
     "Merge Into %@" : {
@@ -1429,6 +1513,9 @@
 
     },
     "Name, nickname, or username" : {
+
+    },
+    "Named senders remain message-specific" : {
 
     },
     "New Persona" : {
@@ -1483,6 +1570,9 @@
 
     },
     "OK" : {
+
+    },
+    "One other participant" : {
 
     },
     "One short fact about yourself" : {
@@ -2209,6 +2299,9 @@
     "Set as Default" : {
 
     },
+    "Set Up" : {
+
+    },
     "Settings" : {
 
     },
@@ -2338,7 +2431,22 @@
     "Skip" : {
 
     },
+    "Skip Anyway" : {
+
+    },
+    "Skip Setup" : {
+
+    },
+    "Skip setup?" : {
+
+    },
     "Start from" : {
+
+    },
+    "Step 1 of 2" : {
+
+    },
+    "Step 2 of 2" : {
 
     },
     "Stops the current import or reply generation." : {
@@ -2385,6 +2493,9 @@
 
     },
     "Terms of Use" : {
+
+    },
+    "Text Shortcut" : {
 
     },
     "The chat history could not be saved." : {
@@ -2456,6 +2567,9 @@
     "Use as Display Name" : {
 
     },
+    "Use Custom Name" : {
+
+    },
     "Use Reply" : {
 
     },
@@ -2511,6 +2625,9 @@
 
     },
     "You have 50 saved details. Remove one to add another." : {
+
+    },
+    "You need a provider before you can generate replies." : {
 
     },
     "Your edit will stay as written." : {

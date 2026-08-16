@@ -87,10 +87,11 @@ struct ChatCard: View {
     }
 
     private var accessibilityValue: String {
-        if chat.isProvisional {
-            return "\(chat.preview), \(activityText), Review Import"
+        let chatKind = chat.conversationKind == .group ? "Group chat, " : ""
+        if chat.requiresImportReview {
+            return "\(chatKind)\(chat.preview), \(activityText), Review Import"
         }
-        return "\(chat.preview), \(activityText), \(persona.name) persona"
+        return "\(chatKind)\(chat.preview), \(activityText), \(persona.name) persona"
     }
 
     private var activityText: String {

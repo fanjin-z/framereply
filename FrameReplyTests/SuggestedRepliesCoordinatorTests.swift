@@ -743,23 +743,32 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func testPersistsOnlyMemorySupportedExclusivelyByOtherParticipantMessages() async throws {
+    func testGroupMemoryRequiresNamedNonUserParticipantEvidence() async throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
-        let chatID = "other-participant-owned-memory-chat"
+        let chatID = "group-participant-owned-memory-chat"
         let userMessage = makeMessage(chatID: chatID, index: 0)
         let otherParticipantMessage = makeMessage(chatID: chatID, index: 1)
+        otherParticipantMessage.senderKind = "group_participant"
+        otherParticipantMessage.senderName = "Jordan"
         otherParticipantMessage.text = "Yes, dinner Tuesday at 7 works."
         let otherMessage = makeMessage(chatID: chatID, index: 2)
         otherMessage.senderKind = "group_participant"
         otherMessage.senderName = "Alex"
         otherMessage.sortIndex = 3
         let unknownMessage = makeMessage(chatID: chatID, index: 3)
-        unknownMessage.senderKind = "unknown"
+        unknownMessage.senderKind = "group_participant"
         unknownMessage.senderName = nil
         unknownMessage.sortIndex = 2
 
-        container.mainContext.insert(makeChat(id: chatID))
+        container.mainContext.insert(
+            ChatRecord(
+                id: chatID,
+                title: "Project Team",
+                previewText: otherMessage.text,
+                conversationKind: .group
+            )
+        )
         for message in [userMessage, otherParticipantMessage, otherMessage, unknownMessage] {
             container.mainContext.insert(message)
         }
@@ -768,7 +777,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
         let client = StubReplyService { request in
             XCTAssertEqual(
                 request.recentMessages.map(\.sender),
-                ["user", "other_participant", "unknown", "group_participant"]
+                ["user", "group_participant", "group_participant", "group_participant"]
             )
             return SuggestedReplyGenerationResult(
                 historySummary: request.existingHistorySummary,
@@ -776,36 +785,36 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                 conversationStrategy:
                     "Answer the partner-hotel question without adding unsupported details.",
                 strategyRationale:
-                    "Only other-participant-authored messages can support durable chat memory.",
+                    "Only named non-user messages can support durable chat memory.",
                 memoryChanges: [
                     ChatMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
-                        text: "Asked about partner hotels in Beijing",
+                        text: "Jordan asked about partner hotels in Lisbon",
                         sourceMessageIDs: [otherParticipantMessage.id]
                     ),
                     ChatMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
-                        text: "Dinner together Tuesday at 7 PM",
+                        text: "Jordan confirmed dinner Tuesday at 7 PM",
                         sourceMessageIDs: [otherParticipantMessage.id]
                     ),
                     ChatMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
-                        text: "No partner hotels in Beijing",
+                        text: "No partner hotels in Lisbon",
                         sourceMessageIDs: [userMessage.id]
                     ),
                     ChatMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
-                        text: "Other participant detail",
+                        text: "Alex prefers the north entrance",
                         sourceMessageIDs: [otherMessage.id]
                     ),
                     ChatMemoryChange(
                         action: .add,
                         targetMemoryID: nil,
-                        text: "Unknown sender detail",
+                        text: "Unnamed participant detail",
                         sourceMessageIDs: [unknownMessage.id]
                     ),
                     ChatMemoryChange(
@@ -825,7 +834,11 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
             .filter { $0.status == .active }
         XCTAssertEqual(
             Set(activeMemories.map(\.text)),
-            ["Asked about partner hotels in Beijing", "Dinner together Tuesday at 7 PM"]
+            [
+                "Jordan asked about partner hotels in Lisbon",
+                "Jordan confirmed dinner Tuesday at 7 PM",
+                "Alex prefers the north entrance"
+            ]
         )
         XCTAssertTrue(activeMemories.allSatisfy { $0.origin == .ai })
     }

@@ -89,7 +89,7 @@ class ProviderAnalysisTestCase: XCTestCase {
     func validScreenshotAnalysisJSON() -> String {
         jsonString([
             "conversationTitle": "Sarah",
-            "conversationKind": "direct",
+            "conversationKindEvidence": "no_group_evidence",
             "titleSource": "header",
             "ownershipConvention": [
                 "mode": "opposed_alignment", "screenshotOwnerAlignment": "right",

@@ -21,6 +21,13 @@ struct ChatMessageBubble: View {
                         .foregroundStyle(FrameReplyColor.primary)
                 }
 
+                if let participantName = message.groupParticipantName {
+                    Text(participantName)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(FrameReplyColor.primary)
+                        .lineLimit(1)
+                }
+
                 Text(message.text)
                     .font(.system(size: 15, weight: .regular, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurface)
@@ -33,6 +40,8 @@ struct ChatMessageBubble: View {
                         .foregroundStyle(FrameReplyColor.outline)
                 }
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(Text(verbatim: message.accessibilityDescription))
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
             .frame(maxWidth: 360, alignment: frameAlignment)

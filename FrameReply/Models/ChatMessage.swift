@@ -32,4 +32,25 @@ struct ChatMessage: Identifiable, Equatable {
     var isSenderUnknown: Bool {
         sender == .unknown
     }
+
+    var groupParticipantName: String? {
+        guard case .groupParticipant(let name) = sender else { return nil }
+        return name
+    }
+
+    var accessibilityDescription: String {
+        let senderDescription: String
+        switch sender {
+        case .user:
+            senderDescription = "You"
+        case .otherParticipant:
+            senderDescription = "Other participant"
+        case .groupParticipant(let name):
+            senderDescription = "Sender \(name)"
+        case .unknown:
+            senderDescription = "Unknown sender"
+        }
+        let timestamp = timeLabel.isEmpty ? "" : ", \(timeLabel)"
+        return "\(senderDescription): \(text)\(timestamp)"
+    }
 }

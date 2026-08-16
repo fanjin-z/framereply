@@ -9,7 +9,7 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
             (
                 ChatImportPrompt.contract(for: makeRequest()),
                 [
-                    "conversationTitle", "conversationKind", "titleSource",
+                    "conversationTitle", "titleSource", "conversationKindEvidence",
                     "ownershipConvention", "messages", "matchedChatID", "matchConfidence"
                 ],
                 ChatImportPrompt.screenshotImportVersion
@@ -21,7 +21,7 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
                     )
                 ),
                 [
-                    "conversationTitle", "conversationKind", "titleSource", "messages",
+                    "conversationTitle", "conversationKindEvidence", "titleSource", "messages",
                     "matchedChatID", "matchConfidence"
                 ],
                 ChatImportPrompt.textImportVersion

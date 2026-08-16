@@ -30,6 +30,17 @@ nonisolated enum ChatImportPersistenceError: Error, Equatable, Sendable {
     case noMessages
 }
 
+nonisolated enum ChatConversationCompatibilityError: LocalizedError, Equatable, Sendable {
+    case incompatibleKinds
+
+    var errorDescription: String? {
+        switch self {
+        case .incompatibleKinds:
+            String(localized: AppStrings.Errors.Chat.incompatibleKinds)
+        }
+    }
+}
+
 nonisolated enum ChatParticipantNameError: LocalizedError, Equatable, Sendable {
     case chatUnavailable
     case directChatRequired
@@ -87,6 +98,8 @@ final class ChatRepository {
     private let seedVersion = "1"
     private let seedVersionKey = "sampleSeedVersion"
     private let personalInfoLearningEnabledKey = "personalInfoLearningEnabled"
+    private let groupSupportMigrationKey = "groupSupportMigrationVersion"
+    private let groupSupportMigrationVersion = "1"
 
     init(container: ModelContainer) {
         context = container.mainContext
@@ -102,6 +115,7 @@ final class ChatRepository {
 
     func seedIfNeeded() throws {
         try purgeExpiredDraftingInputs()
+        try migrateGroupSupportIfNeeded()
         let metadata = try context.fetch(
             FetchDescriptor<StoreMetadataRecord>(
                 predicate: #Predicate { $0.key == "sampleSeedVersion" }
@@ -118,6 +132,38 @@ final class ChatRepository {
             context.insert(StoreMetadataRecord(key: seedVersionKey, value: seedVersion))
         }
 
+        try context.save()
+    }
+
+    private func migrateGroupSupportIfNeeded() throws {
+        let key = groupSupportMigrationKey
+        let metadata = try context.fetch(
+            FetchDescriptor<StoreMetadataRecord>(
+                predicate: #Predicate { $0.key == key }
+            )
+        ).first
+        guard metadata?.value != groupSupportMigrationVersion else { return }
+
+        for chat in try context.fetch(FetchDescriptor<ChatRecord>()) {
+            let messageRecords = try messages(chatID: chat.id)
+            _ = canonicalizeStoredSenders(
+                messageRecords,
+                conversationKind: chat.conversationKind
+            )
+            updatePreview(on: chat, from: messageRecords.last)
+            try refreshImportReviewState(chatID: chat.id)
+        }
+
+        if let metadata {
+            metadata.value = groupSupportMigrationVersion
+        } else {
+            context.insert(
+                StoreMetadataRecord(
+                    key: groupSupportMigrationKey,
+                    value: groupSupportMigrationVersion
+                )
+            )
+        }
         try context.save()
     }
 
@@ -243,7 +289,7 @@ final class ChatRepository {
         }
         let hasUnknownSenders = try hasUnknownSenderMessages(chatID: chatID)
         guard var state = chat.importReviewState,
-            chat.requiresImportIdentityReview || hasUnknownSenders
+            chat.requiresImportReview || hasUnknownSenders
         else {
             return false
         }
@@ -275,7 +321,7 @@ final class ChatRepository {
         }
         let hasUnknownSenders = try hasUnknownSenderMessages(chatID: chatID)
         guard var state = chat.importReviewState,
-            chat.requiresImportIdentityReview || hasUnknownSenders
+            chat.requiresImportReview || hasUnknownSenders
         else {
             return false
         }
@@ -1031,6 +1077,7 @@ final class ChatRepository {
             return ChatMatchCandidate(
                 id: chat.id,
                 title: chat.title,
+                conversationKind: chat.conversationKind,
                 participantAliases: try participantAliases(chatID: chat.id).map(\.displayLabel),
                 recentMessages: recentMessages
             )
@@ -1042,14 +1089,33 @@ final class ChatRepository {
         confirmedChatID: String?,
         traceID: ImportTraceID = ImportTraceID()
     ) throws -> ScreenshotImportOutcome {
+        try applyImport(
+            analysis: analysis,
+            matchDecision: confirmedChatID.map(ChatImportMatchDecision.automatic) ?? .none,
+            traceID: traceID
+        )
+    }
+
+    func applyImport(
+        analysis: ChatImportAnalysis,
+        matchDecision: ChatImportMatchDecision,
+        traceID: ImportTraceID = ImportTraceID()
+    ) throws -> ScreenshotImportOutcome {
         guard analysis.extractionStatus == .ok, !analysis.messages.isEmpty else {
             throw ChatImportPersistenceError.noMessages
         }
 
         var matchedExisting = false
         let targetChat: ChatRecord
+        let automaticChatID = matchDecision.automaticChatID
 
-        if let confirmedChatID, let existingChat = try chat(id: confirmedChatID) {
+        if let automaticChatID, let existingChat = try chat(id: automaticChatID) {
+            if existingChat.conversationKind == .direct,
+                analysis.conversationKind == .group,
+                !analysis.hasStrongGroupEvidence
+            {
+                throw ChatConversationCompatibilityError.incompatibleKinds
+            }
             targetChat = existingChat
             matchedExisting = true
         } else {
@@ -1058,16 +1124,51 @@ final class ChatRepository {
             context.insert(makeChatContextRecord(try emptyChatContext(), chatID: targetChat.id))
         }
 
-        targetChat.conversationKind = reconciledConversationKind(
+        let previousKind = targetChat.conversationKind
+        let resolvedKind = reconciledConversationKind(
             current: targetChat.conversationKind,
             incoming: analysis.conversationKind
         )
+        let existingRecords = try messages(chatID: targetChat.id)
+        if previousKind == .direct, resolvedKind == .group {
+            try promoteDirectChatForMutation(
+                targetChat,
+                messages: existingRecords,
+                importedGroupTitle: analysis.titleSource == .header
+                    ? analysis.conversationTitle : nil
+            )
+        } else {
+            targetChat.conversationKind = resolvedKind
+        }
 
+        var reviewState = targetChat.importReviewState
+            ?? ChatImportReviewState(
+                identityStatus: matchedExisting ? .confirmed : .needsReview
+            )
+        reviewState.suggestedMatchChatID = matchDecision.suggestedChatID
+        if previousKind == .direct, targetChat.conversationKind == .group {
+            reviewState.hasKindReview = true
+        } else if analysis.isInferenceOnlyGroupSuggestion {
+            reviewState.hasKindReview = true
+        }
+        if targetChat.requiresImportIdentityReview || reviewState.suggestedMatchChatID != nil
+            || reviewState.hasKindReview == true
+        {
+            targetChat.importReviewState = reviewState
+        }
+
+        let canonicalMessages = canonicalizedMessages(
+            analysis.messages,
+            conversationKind: targetChat.conversationKind
+        )
         let importedMessages = try applyingStoredIdentity(
-            to: analysis.messages,
+            to: canonicalMessages,
             chat: targetChat
         )
-        let existingRecords = try messages(chatID: targetChat.id)
+        _ = canonicalizeStoredSenders(
+            existingRecords,
+            conversationKind: targetChat.conversationKind
+        )
         let existingByID = Dictionary(uniqueKeysWithValues: existingRecords.map { ($0.id, $0) })
         let mergeResult = ChatMessageMerger.merge(
             existing: existingRecords.map(MergeMessage.init(record:)),
@@ -1091,9 +1192,7 @@ final class ChatRepository {
             }
         }
 
-        if let latestMessage = mergeResult.messages.last {
-            targetChat.previewText = latestMessage.text
-        }
+        updatePreview(on: targetChat, from: mergeResult.messages.last)
         targetChat.updatedAt = Date()
 
         let fingerprint = TranscriptFingerprinter.fingerprint(
@@ -1111,7 +1210,7 @@ final class ChatRepository {
         ).first
         let isDuplicate = mergeResult.insertedMessageCount == 0 || previousImport != nil
         let hasUnknownSenders = mergeResult.messages.contains { $0.senderKind == "unknown" }
-        let requiresReview = targetChat.requiresImportIdentityReview || hasUnknownSenders
+        let requiresReview = targetChat.requiresImportReview || hasUnknownSenders
         let importRecord = ChatImportRecord(
             chatID: targetChat.id,
             transcriptFingerprint: fingerprint,
@@ -1147,7 +1246,9 @@ final class ChatRepository {
                     in: try context.fetch(FetchDescriptor<ChatContextRecord>())
                 )
         )
-        let blockingReviewRequired = requiresReview && provisionalIdentity == nil
+        let blockingReviewRequired =
+            (targetChat.requiresImportIdentityReview || hasUnknownSenders)
+            && provisionalIdentity == nil
 
         do {
             try context.save()
@@ -1158,7 +1259,9 @@ final class ChatRepository {
 
         return ScreenshotImportOutcome(
             chatID: targetChat.id,
-            chatTitle: provisionalIdentity?.displayTitle ?? targetChat.title,
+            chatTitle:
+                provisionalIdentity?.displayTitle
+                ?? ChatPresentation.title(for: targetChat),
             importID: importRecord.id,
             diagnosticID: traceID.diagnosticID,
             matchedExisting: matchedExisting,
@@ -1179,11 +1282,19 @@ final class ChatRepository {
         else {
             throw ChatImportReviewError.senderIdentityRequired
         }
-        guard let cleanedName = IdentityLabelPolicy.displayLabel(name) else {
+        let cleanedName = IdentityLabelPolicy.displayLabel(name)
+        let confirmsUntitledGroup =
+            chat.conversationKind == .group
+            && chat.title == nil
+            && (cleanedName == nil
+                || IdentityLabelPolicy.normalizedKey(cleanedName)
+                    == IdentityLabelPolicy.normalizedKey(chat.displayTitle()))
+        guard cleanedName != nil || confirmsUntitledGroup else {
             throw ChatParticipantNameError.emptyDisplayName
         }
         do {
             if chat.conversationKind == .direct,
+                let cleanedName,
                 IdentityLabelPolicy.normalizedKey(chat.title)
                     != IdentityLabelPolicy.normalizedKey(cleanedName)
             {
@@ -1196,10 +1307,11 @@ final class ChatRepository {
                     )
                 }
             }
-            chat.title = cleanedName
+            chat.title = confirmsUntitledGroup ? nil : cleanedName
             var state =
                 chat.importReviewState ?? ChatImportReviewState(identityStatus: .needsReview)
             state.identityStatus = .confirmed
+            state.suggestedMatchChatID = nil
             chat.importReviewState = state
             chat.updatedAt = Date()
             try refreshImportReviewState(chatID: chatID)
@@ -1226,25 +1338,50 @@ final class ChatRepository {
             return
         }
         let observedParticipantLabel = message.senderName
+        let resolvedChat = try chat(id: message.chatID)
 
         switch sender {
         case .user:
             message.senderKind = "user"
             message.senderName = nil
         case .otherParticipant:
-            message.senderKind = "other_participant"
-            message.senderName = nil
+            if resolvedChat?.conversationKind == .group {
+                message.senderKind = "group_participant"
+                message.senderName =
+                    ParticipantLabelNormalizer.displayLabel(
+                        participantName ?? observedParticipantLabel
+                    ) ?? "Participant"
+            } else {
+                message.senderKind = "other_participant"
+                message.senderName = ParticipantLabelNormalizer.displayLabel(
+                    participantName ?? observedParticipantLabel
+                )
+                if resolvedChat?.conversationKind == .unknown {
+                    resolvedChat?.conversationKind = .direct
+                }
+            }
         case .groupParticipant:
-            let trimmedName = participantName?.trimmingCharacters(in: .whitespacesAndNewlines)
-            message.senderKind = "group_participant"
-            message.senderName =
-                trimmedName?.isEmpty == false ? trimmedName : (message.senderName ?? "Participant")
+            if resolvedChat?.conversationKind == .direct {
+                message.senderKind = "other_participant"
+                message.senderName = ParticipantLabelNormalizer.displayLabel(
+                    participantName ?? observedParticipantLabel
+                )
+            } else {
+                message.senderKind = "group_participant"
+                message.senderName =
+                    ParticipantLabelNormalizer.displayLabel(
+                        participantName ?? observedParticipantLabel
+                    ) ?? "Participant"
+                if resolvedChat?.conversationKind == .unknown {
+                    resolvedChat?.conversationKind = .group
+                }
+            }
         case .unknown:
             return
         }
 
-        if let chat = try chat(id: message.chatID) {
-            if sender == .otherParticipant,
+        if let chat = resolvedChat {
+            if message.senderKind == "other_participant",
                 chat.conversationKind == .direct,
                 let observedParticipantLabel
             {
@@ -1396,6 +1533,106 @@ final class ChatRepository {
         }
     }
 
+    func resolveUnknownSenderLabelsAsGroup(chatID: String) throws {
+        do {
+            guard let chat = try chat(id: chatID) else { return }
+            let unknownMessages = try messages(chatID: chatID).filter {
+                $0.senderKind == "unknown"
+            }
+            let groups = UnknownSenderLabelGroup.make(from: unknownMessages)
+            guard groups.count >= 2 else {
+                throw SenderLabelResolutionError.labelUnavailable
+            }
+            try promoteDirectChatForMutation(chat, messages: try messages(chatID: chatID))
+            for message in unknownMessages {
+                if let name = ParticipantLabelNormalizer.displayLabel(message.senderName) {
+                    message.senderKind = "group_participant"
+                    message.senderName = name
+                }
+            }
+            if var state = chat.importReviewState {
+                state.identityStatus = .confirmed
+                state.hasKindReview = nil
+                state.meaningfulActionCount += 1
+                chat.importReviewState = state
+            }
+            chat.updatedAt = Date()
+            try refreshImportReviewState(chatID: chatID)
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
+    func reclassifyConversation(
+        chatID: String,
+        to kind: ChatConversationKind,
+        directDisplayName: String? = nil
+    ) throws {
+        do {
+            guard let chat = try chat(id: chatID), kind != .unknown else { return }
+            let messageRecords = try messages(chatID: chatID)
+            switch kind {
+            case .group:
+                if chat.conversationKind != .group {
+                    try promoteDirectChatForMutation(chat, messages: messageRecords)
+                }
+            case .direct:
+                guard let displayName = IdentityLabelPolicy.displayLabel(directDisplayName) else {
+                    throw ChatParticipantNameError.emptyDisplayName
+                }
+                for message in messageRecords where message.senderKind != "user" {
+                    // This is an explicit, user-confirmed collapse to a two-party chat.
+                    // Preserve each historical label for reversibility, but every
+                    // non-user message now belongs to the selected counterpart.
+                    message.senderKind = "other_participant"
+                }
+                chat.conversationKind = .direct
+                chat.title = displayName
+                let identityContext = try chatContextForMutation(chatID: chatID)
+                identityContext.participantAliases = []
+                for cache in try suggestedReplyCaches(chatID: chatID) {
+                    context.delete(cache)
+                }
+            case .unknown:
+                return
+            }
+            if var state = chat.importReviewState {
+                state.hasKindReview = nil
+                chat.importReviewState = state
+            }
+            chat.updatedAt = Date()
+            try refreshImportReviewState(chatID: chatID)
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
+    func confirmConversationKind(chatID: String) throws {
+        guard let chat = try chat(id: chatID), var state = chat.importReviewState else {
+            return
+        }
+        state.hasKindReview = nil
+        chat.importReviewState = state
+        chat.updatedAt = Date()
+        try refreshImportReviewState(chatID: chatID)
+        try context.save()
+    }
+
+    func dismissSuggestedMatch(chatID: String) throws {
+        guard let chat = try chat(id: chatID), var state = chat.importReviewState else {
+            return
+        }
+        state.suggestedMatchChatID = nil
+        chat.importReviewState = state
+        chat.updatedAt = Date()
+        try refreshImportReviewState(chatID: chatID)
+        try context.save()
+    }
+
     func mergeProvisionalChat(_ provisionalChatID: String, into targetChatID: String) throws {
         guard provisionalChatID != targetChatID,
             let provisionalChat = try chat(id: provisionalChatID),
@@ -1404,9 +1641,8 @@ final class ChatRepository {
         else {
             return
         }
-
         do {
-            targetChat.conversationKind = reconciledConversationKind(
+            let mergedKind = reconciledConversationKind(
                 current: targetChat.conversationKind,
                 incoming: provisionalChat.conversationKind
             )
@@ -1415,17 +1651,33 @@ final class ChatRepository {
             let combinedAliases = targetAliases + provisionalAliases
             let targetMessages = try messages(chatID: targetChatID)
             let provisionalMessages = try messages(chatID: provisionalChatID)
+            if targetChat.conversationKind == .direct, mergedKind == .group {
+                try promoteDirectChatForMutation(
+                    targetChat,
+                    messages: targetMessages,
+                    importedGroupTitle: provisionalChat.title
+                )
+            } else {
+                targetChat.conversationKind = mergedKind
+            }
+            _ = canonicalizeStoredSenders(
+                targetMessages,
+                conversationKind: targetChat.conversationKind
+            )
             let targetIdentityContext = try chatContextForMutation(chatID: targetChatID)
             let provisionalIdentityContext = try chatContext(chatID: provisionalChatID)
             let targetByID = Dictionary(uniqueKeysWithValues: targetMessages.map { ($0.id, $0) })
-            let provisionalAnalyzedMessages = provisionalMessages.map { message in
-                AnalyzedChatMessage(
-                    sender: analyzedSender(for: message),
-                    senderName: message.senderName,
-                    text: message.text,
-                    timestampLabel: message.timeLabel
-                )
-            }
+            let provisionalAnalyzedMessages = canonicalizedMessages(
+                provisionalMessages.map { message in
+                    AnalyzedChatMessage(
+                        sender: analyzedSender(for: message),
+                        senderName: message.senderName,
+                        text: message.text,
+                        timestampLabel: message.timeLabel
+                    )
+                },
+                conversationKind: targetChat.conversationKind
+            )
             let imported = applyingIdentity(
                 to: provisionalAnalyzedMessages,
                 aliasKeys: Set(combinedAliases.map(\.normalizedLabel)),
@@ -1487,7 +1739,30 @@ final class ChatRepository {
                     excludingDisplayName: targetChat.title
                 )
             }
-            for memory in try chatMemories(chatID: provisionalChatID) {
+            let provisionalMemories = try chatMemories(chatID: provisionalChatID)
+            if targetChat.conversationKind == .group,
+                provisionalChat.conversationKind == .direct
+            {
+                let participantName =
+                    IdentityLabelPolicy.displayLabel(provisionalChat.title)
+                    ?? provisionalIdentityContext?.participantAliases.first?.displayLabel
+                    ?? provisionalMessages.lazy.compactMap { message in
+                        guard message.senderKind == "other_participant" else { return nil }
+                        return IdentityLabelPolicy.displayLabel(message.senderName)
+                    }.first
+                let knownParticipantNames =
+                    (provisionalIdentityContext?.participantAliases.map(\.displayLabel) ?? [])
+                    + provisionalMessages.compactMap { message in
+                        guard message.senderKind != "user" else { return nil }
+                        return IdentityLabelPolicy.displayLabel(message.senderName)
+                    }
+                attributeAIMemories(
+                    provisionalMemories,
+                    to: participantName,
+                    recognizing: knownParticipantNames
+                )
+            }
+            for memory in provisionalMemories {
                 memory.chatID = targetChatID
             }
             for replyCache in try suggestedReplyCaches(chatID: provisionalChatID) {
@@ -1511,8 +1786,11 @@ final class ChatRepository {
 
             context.delete(provisionalChat)
 
-            if let latestMessage = mergeResult.messages.last {
-                targetChat.previewText = latestMessage.text
+            updatePreview(on: targetChat, from: mergeResult.messages.last)
+            if var state = targetChat.importReviewState {
+                state.suggestedMatchChatID = nil
+                state.hasKindReview = nil
+                targetChat.importReviewState = state
             }
             targetChat.updatedAt = Date()
             try refreshImportReviewState(chatID: targetChatID)
@@ -1545,27 +1823,131 @@ final class ChatRepository {
     }
 
     private func makeProvisionalChat(from analysis: ChatImportAnalysis) -> ChatRecord {
-        let title = IdentityLabelPolicy.displayLabel(analysis.conversationTitle)
-        let participant = analysis.messages.lazy.compactMap { message -> String? in
-            guard message.sender == .otherParticipant || message.sender == .groupParticipant else {
-                return nil
-            }
-            return IdentityLabelPolicy.displayLabel(message.senderName)
-        }.first
-        let resolvedTitle =
-            [title, participant].compactMap { value -> String? in
-                guard let value, !value.isEmpty else {
-                    return nil
-                }
-                return value
+        let observedTitle = IdentityLabelPolicy.displayLabel(analysis.conversationTitle)
+        let title = analysis.conversationKind == .group
+            ? (analysis.titleSource == .header ? observedTitle : nil)
+            : observedTitle
+        let participant =
+            analysis.conversationKind == .group
+            ? nil
+            : analysis.messages.lazy.compactMap { message -> String? in
+                guard message.sender == .otherParticipant else { return nil }
+                return IdentityLabelPolicy.displayLabel(message.senderName)
             }.first
+        let resolvedTitle = title ?? participant
         return ChatRecord(
             id: UUID().uuidString.lowercased(),
             title: resolvedTitle,
             previewText: analysis.messages.last?.text,
+            previewSenderKind: analysis.messages.last.map {
+                persistedSenderKind(ChatImportMatcher.senderKey($0.sender, name: $0.senderName))
+            },
+            previewSenderName: analysis.messages.last?.senderName,
             conversationKind: analysis.conversationKind,
             isProvisional: true
         )
+    }
+
+    private func canonicalizedMessages(
+        _ messages: [AnalyzedChatMessage],
+        conversationKind: ChatConversationKind
+    ) -> [AnalyzedChatMessage] {
+        messages.map { message in
+            let sender: AnalyzedMessageSender
+            let senderName: String?
+            let cleanedName = ParticipantLabelNormalizer.displayLabel(message.senderName)
+
+            switch (conversationKind, message.sender) {
+            case (_, .user):
+                sender = .user
+                senderName = nil
+            case (.group, .otherParticipant), (.group, .groupParticipant):
+                sender = cleanedName == nil ? .unknown : .groupParticipant
+                senderName = cleanedName
+            case (.direct, .otherParticipant), (.direct, .groupParticipant):
+                sender = .otherParticipant
+                senderName = cleanedName
+            case (_, .unknown):
+                sender = .unknown
+                senderName = cleanedName
+            case (.unknown, .otherParticipant):
+                sender = .otherParticipant
+                senderName = cleanedName
+            case (.unknown, .groupParticipant):
+                sender = cleanedName == nil ? .unknown : .groupParticipant
+                senderName = cleanedName
+            }
+
+            guard sender != message.sender || senderName != message.senderName else {
+                return message
+            }
+            return AnalyzedChatMessage(
+                sender: sender,
+                senderName: senderName,
+                text: message.text,
+                timestampLabel: message.timestampLabel,
+                outerAlignment: message.outerAlignment,
+                outerAuthorLabel: message.outerAuthorLabel,
+                senderConfidence: message.senderConfidence,
+                senderEvidence: message.senderEvidence
+            )
+        }
+    }
+
+    @discardableResult
+    private func canonicalizeStoredSenders(
+        _ messages: [ChatMessageRecord],
+        conversationKind: ChatConversationKind
+    ) -> Bool {
+        var changed = false
+        for message in messages {
+            let previousKind = message.senderKind
+            let previousName = message.senderName
+            let cleanedName = ParticipantLabelNormalizer.displayLabel(message.senderName)
+
+            switch (conversationKind, message.senderKind) {
+            case (_, "user"):
+                message.senderKind = "user"
+                message.senderName = nil
+            case (.group, "other_participant"), (.group, "group_participant"):
+                message.senderKind = cleanedName == nil ? "unknown" : "group_participant"
+                message.senderName = cleanedName
+            case (.direct, "other_participant"), (.direct, "group_participant"):
+                message.senderKind = "other_participant"
+                message.senderName = cleanedName
+            case (_, "unknown"):
+                message.senderKind = "unknown"
+                message.senderName = cleanedName
+            case (.unknown, "other_participant"):
+                message.senderKind = "other_participant"
+                message.senderName = cleanedName
+            case (.unknown, "group_participant"):
+                message.senderKind = cleanedName == nil ? "unknown" : "group_participant"
+                message.senderName = cleanedName
+            default:
+                message.senderKind = "unknown"
+                message.senderName = cleanedName
+            }
+
+            changed = changed
+                || message.senderKind != previousKind
+                || message.senderName != previousName
+        }
+        return changed
+    }
+
+    private func updatePreview(on chat: ChatRecord, from message: MergeMessage?) {
+        guard let message else { return }
+        chat.previewText = message.text
+        chat.previewSenderKind = persistedSenderKind(message.senderKind)
+        chat.previewSenderName = ParticipantLabelNormalizer.displayLabel(message.senderName)
+    }
+
+    private func updatePreview(on chat: ChatRecord, from message: ChatMessageRecord?) {
+        guard let message else { return }
+        chat.previewText = message.text
+        chat.previewSenderKind = message.senderKind
+        chat.previewSenderName = ParticipantLabelNormalizer.displayLabel(message.senderName)
     }
 
     private func persistedSenderKind(_ comparisonKey: String) -> String {
@@ -1657,6 +2039,98 @@ final class ChatRepository {
             return .direct
         }
         return .unknown
+    }
+
+    private func promoteDirectChatForMutation(
+        _ chat: ChatRecord,
+        messages: [ChatMessageRecord],
+        importedGroupTitle: String? = nil
+    ) throws {
+        let identityContext = try chatContextForMutation(chatID: chat.id)
+        let fallbackParticipantName =
+            IdentityLabelPolicy.displayLabel(chat.title)
+            ?? identityContext.participantAliases.first?.displayLabel
+        let knownParticipantNames = identityContext.participantAliases.map(\.displayLabel)
+            + messages.compactMap { message in
+                guard message.senderKind != "user" else { return nil }
+                return IdentityLabelPolicy.displayLabel(message.senderName)
+            }
+
+        for message in messages {
+            switch message.senderKind {
+            case "user":
+                message.senderName = nil
+            case "other_participant", "group_participant":
+                let name = ParticipantLabelNormalizer.displayLabel(message.senderName)
+                    ?? ParticipantLabelNormalizer.displayLabel(fallbackParticipantName)
+                message.senderKind = name == nil ? "unknown" : "group_participant"
+                message.senderName = name
+            case "unknown":
+                message.senderName = ParticipantLabelNormalizer.displayLabel(message.senderName)
+            default:
+                message.senderKind = "unknown"
+                message.senderName = ParticipantLabelNormalizer.displayLabel(message.senderName)
+            }
+        }
+
+        chat.conversationKind = .group
+        if let importedGroupTitle = IdentityLabelPolicy.displayLabel(importedGroupTitle) {
+            chat.title = importedGroupTitle
+        } else {
+            chat.title = nil
+        }
+        identityContext.participantAliases = []
+
+        attributeAIMemories(
+            try chatMemories(chatID: chat.id),
+            to: fallbackParticipantName,
+            recognizing: knownParticipantNames
+        )
+        for cache in try suggestedReplyCaches(chatID: chat.id) {
+            context.delete(cache)
+        }
+    }
+
+    private func attributeAIMemories(
+        _ memories: [ChatMemoryRecord],
+        to participantName: String?,
+        recognizing knownParticipantNames: [String]
+    ) {
+        guard let participantName = IdentityLabelPolicy.displayLabel(participantName) else {
+            return
+        }
+        let foldedNames = ([participantName] + knownParticipantNames)
+            .compactMap { IdentityLabelPolicy.displayLabel($0) }
+            .map {
+                $0.folding(
+                    options: [.caseInsensitive, .diacriticInsensitive],
+                    locale: .current
+                )
+            }
+        let updatedAt = Date()
+
+        for memory in memories
+        where memory.origin == ChatMemoryOrigin.ai.rawValue
+            && memory.status == ChatMemoryStatus.active.rawValue
+        {
+            let text = memory.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let foldedText = text.folding(
+                options: [.caseInsensitive, .diacriticInsensitive],
+                locale: .current
+            )
+            let isAlreadyAttributed = foldedNames.contains { foldedName in
+                foldedText == foldedName
+                    || foldedText.hasPrefix("\(foldedName):")
+                    || foldedText.hasPrefix("\(foldedName) ")
+                    || foldedText.hasPrefix("\(foldedName)'")
+                    || foldedText.hasPrefix("\(foldedName)’")
+            }
+            guard !isAlreadyAttributed else {
+                continue
+            }
+            memory.text = "\(participantName): \(text)"
+            memory.updatedAt = updatedAt
+        }
     }
 
     private func effectiveConversationKind(
@@ -1835,15 +2309,17 @@ final class ChatRepository {
 
     private func refreshImportReviewState(chatID: String) throws {
         let messageRecords = try messages(chatID: chatID)
+        if let chat = try chat(id: chatID) {
+            updatePreview(on: chat, from: messageRecords.last)
+        }
         let stillHasUnknownSender = messageRecords.contains { $0.senderKind == "unknown" }
-        let requiresImportIdentityReview =
-            try chat(id: chatID)?.requiresImportIdentityReview == true
-        let requiresReview = stillHasUnknownSender || requiresImportIdentityReview
+        let requiresImportReview = try chat(id: chatID)?.requiresImportReview == true
+        let requiresReview = stillHasUnknownSender || requiresImportReview
         let fingerprint = TranscriptFingerprinter.fingerprint(
             chatID: chatID,
             messages: messageRecords.map(MergeMessage.init(record:))
         )
-        for importRecord in try imports(chatID: chatID) where importRecord.requiresReview {
+        for importRecord in try imports(chatID: chatID) {
             importRecord.requiresReview = requiresReview
             importRecord.transcriptFingerprint = fingerprint
         }
@@ -1857,8 +2333,10 @@ final class ChatRepository {
             .groupParticipant
         case "unknown":
             .unknown
-        default:
+        case "other_participant":
             .otherParticipant
+        default:
+            .unknown
         }
     }
 }

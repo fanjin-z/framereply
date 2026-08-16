@@ -149,6 +149,79 @@ final class ChatCardTests: XCTestCase {
         )
     }
 
+    func testGroupProjectionUsesTruthfulFallbackSymbolAndAttributedPreview() {
+        let record = ChatRecord(
+            id: "group-chat",
+            title: nil,
+            previewText: "Trail at eight?",
+            previewSenderKind: "group_participant",
+            previewSenderName: "Alex",
+            conversationKind: .group
+        )
+        let chat = Chat(record: record)
+
+        XCTAssertEqual(chat.name, "Group Chat")
+        XCTAssertEqual(chat.avatarSymbol, "person.2.fill")
+        XCTAssertEqual(chat.conversationKind, .group)
+        XCTAssertEqual(chat.preview, "Alex: Trail at eight?")
+
+        record.previewSenderKind = "user"
+        record.previewSenderName = nil
+        XCTAssertEqual(record.displayPreview(), "You: Trail at eight?")
+
+        record.previewSenderKind = "unknown"
+        XCTAssertEqual(record.displayPreview(), "Unknown sender: Trail at eight?")
+    }
+
+    func testDirectProjectionAndMessageLabelsRemainUnchanged() {
+        let record = ChatRecord(
+            id: "direct-chat",
+            title: "Alex",
+            previewText: "Trail at eight?",
+            previewSenderKind: "other_participant",
+            previewSenderName: "Alex",
+            conversationKind: .direct
+        )
+        let chat = Chat(record: record)
+        let directMessage = ChatMessage(
+            id: UUID(),
+            sender: .otherParticipant,
+            text: "Hi",
+            timeLabel: "8:00"
+        )
+        let groupMessage = ChatMessage(
+            id: UUID(),
+            sender: .groupParticipant("Alex"),
+            text: "Hi",
+            timeLabel: "8:00"
+        )
+
+        XCTAssertEqual(chat.name, "Alex")
+        XCTAssertNil(chat.avatarSymbol)
+        XCTAssertEqual(chat.conversationKind, .direct)
+        XCTAssertEqual(chat.preview, "Trail at eight?")
+        XCTAssertNil(directMessage.groupParticipantName)
+        XCTAssertEqual(groupMessage.groupParticipantName, "Alex")
+    }
+
+    func testHistorySearchMatchesGroupParticipantName() {
+        let message = ChatMessage(
+            id: UUID(),
+            sender: .groupParticipant("Priya"),
+            text: "The reservation is confirmed",
+            timeLabel: "9:12 AM"
+        )
+
+        XCTAssertTrue(ChatHistoryPresentation.matches(query: "priya", message: message))
+        XCTAssertTrue(ChatHistoryPresentation.matches(query: "reservation", message: message))
+        XCTAssertTrue(ChatHistoryPresentation.matches(query: "9:12", message: message))
+        XCTAssertFalse(ChatHistoryPresentation.matches(query: "alex", message: message))
+        XCTAssertEqual(
+            message.accessibilityDescription,
+            "Sender Priya: The reservation is confirmed, 9:12 AM"
+        )
+    }
+
     private func makePersona(name: String) -> Persona {
         Persona(
             id: UUID(),

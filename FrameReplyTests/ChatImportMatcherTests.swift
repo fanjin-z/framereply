@@ -221,6 +221,105 @@ final class ChatImportMatcherTests: XCTestCase {
         )
     }
 
+    func testStrongUniqueTranscriptSupportsBothConservativeCrossKindDirections() {
+        let text = "The reservation code is ZXQ-9182."
+        let groupAnalysis = ChatImportAnalysis(
+            conversationTitle: "Planning Crew",
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .groupParticipant,
+                    senderName: "Alex",
+                    text: text,
+                    timestampLabel: "8:42 PM"
+                )
+            ],
+            matchedChatID: "saved-direct",
+            matchConfidence: 0.98,
+            conversationKind: .group,
+            conversationKindEvidence: .explicitGroupLabelOrMemberCount,
+            titleSource: .header
+        )
+        let directCandidate = ChatMatchCandidate(
+            id: "saved-direct",
+            title: "Alex",
+            conversationKind: .direct,
+            recentMessages: [
+                ChatCandidateMessage(
+                    sender: "other_participant", text: text, timeLabel: "8:42 PM")
+            ]
+        )
+
+        XCTAssertEqual(
+            ChatImportMatcher.decision(
+                analysis: groupAnalysis, candidates: [directCandidate]),
+            .automatic(directCandidate.id)
+        )
+
+        let directAnalysis = ChatImportAnalysis(
+            conversationTitle: nil,
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .otherParticipant,
+                    senderName: "Alex",
+                    text: text,
+                    timestampLabel: "8:42 PM"
+                )
+            ],
+            matchedChatID: "saved-group",
+            matchConfidence: 0.98,
+            conversationKind: .direct,
+            titleSource: .unavailable
+        )
+        let groupCandidate = ChatMatchCandidate(
+            id: "saved-group",
+            title: "Planning Crew",
+            conversationKind: .group,
+            recentMessages: [
+                ChatCandidateMessage(
+                    sender: "group_participant:alex", text: text, timeLabel: "8:42 PM")
+            ]
+        )
+
+        XCTAssertEqual(
+            ChatImportMatcher.decision(
+                analysis: directAnalysis, candidates: [groupCandidate]),
+            .automatic(groupCandidate.id)
+        )
+    }
+
+    func testCrossKindTitleOnlyEvidenceCreatesReviewSuggestion() {
+        let analysis = ChatImportAnalysis(
+            conversationTitle: "Planning Crew",
+            messages: [
+                AnalyzedChatMessage(
+                    sender: .groupParticipant,
+                    senderName: "Alex",
+                    text: "A message not in saved history",
+                    timestampLabel: nil
+                )
+            ],
+            matchedChatID: "saved-direct",
+            matchConfidence: 0.99,
+            conversationKind: .group,
+            conversationKindEvidence: .explicitGroupLabelOrMemberCount,
+            titleSource: .header
+        )
+        let candidate = ChatMatchCandidate(
+            id: "saved-direct",
+            title: "Planning Crew",
+            conversationKind: .direct,
+            recentMessages: []
+        )
+
+        XCTAssertEqual(
+            ChatImportMatcher.decision(analysis: analysis, candidates: [candidate]),
+            .reviewSuggested(candidate.id)
+        )
+        XCTAssertNil(
+            ChatImportMatcher.confirmedChatID(analysis: analysis, candidates: [candidate])
+        )
+    }
+
     private func makeAnalysis(
         title: String,
         confidence: Double,

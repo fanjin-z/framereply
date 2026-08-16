@@ -91,7 +91,9 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             messages.contains { $0.text == "A newly imported reply" && $0.senderKind == "user" })
         XCTAssertTrue(
             messages.contains {
-                $0.text == "你好，很高兴认识你" && $0.senderKind == "other_participant"
+                $0.text == "你好，很高兴认识你"
+                    && $0.senderKind == "group_participant"
+                    && $0.senderName == "Sarah Jenkins"
             })
         XCTAssertTrue(
             messages.contains {

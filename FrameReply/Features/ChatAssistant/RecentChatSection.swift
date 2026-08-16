@@ -77,6 +77,13 @@ private struct CompactChatMessageBubble: View {
                         .foregroundStyle(FrameReplyColor.primary)
                 }
 
+                if let participantName = message.groupParticipantName {
+                    Text(participantName)
+                        .font(.system(.caption2, design: .rounded, weight: .bold))
+                        .foregroundStyle(FrameReplyColor.primary)
+                        .lineLimit(1)
+                }
+
                 Text(message.text)
                     .font(.system(.subheadline, design: .rounded, weight: .regular))
                     .foregroundStyle(FrameReplyColor.onSurface)
@@ -84,6 +91,8 @@ private struct CompactChatMessageBubble: View {
                     .lineLimit(2)
                     .multilineTextAlignment(textAlignment)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(Text(verbatim: message.accessibilityDescription))
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .frame(maxWidth: 360, alignment: frameAlignment)

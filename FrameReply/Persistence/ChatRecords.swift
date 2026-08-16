@@ -17,17 +17,23 @@ nonisolated struct ChatImportReviewState: Codable, Equatable {
     var viewCount: Int
     var lastViewedAt: Date?
     var meaningfulActionCount: Int
+    var suggestedMatchChatID: String?
+    var hasKindReview: Bool?
 
     init(
         identityStatus: ImportIdentityReviewStatus,
         viewCount: Int = 0,
         lastViewedAt: Date? = nil,
-        meaningfulActionCount: Int = 0
+        meaningfulActionCount: Int = 0,
+        suggestedMatchChatID: String? = nil,
+        hasKindReview: Bool? = nil
     ) {
         self.identityStatus = identityStatus
         self.viewCount = viewCount
         self.lastViewedAt = lastViewedAt
         self.meaningfulActionCount = meaningfulActionCount
+        self.suggestedMatchChatID = suggestedMatchChatID
+        self.hasKindReview = hasKindReview
     }
 
     init?(json: String?) {
@@ -52,6 +58,8 @@ final class ChatRecord {
     @Attribute(.unique) var id: String
     var title: String?
     var previewText: String?
+    var previewSenderKind: String?
+    var previewSenderName: String?
     var conversationKindRaw: String
     var importReviewStateJSON: String?
     var updatedAt: Date
@@ -73,6 +81,12 @@ final class ChatRecord {
         requiresImportIdentityReview
     }
 
+    var requiresImportReview: Bool {
+        requiresImportIdentityReview
+            || importReviewState?.suggestedMatchChatID != nil
+            || importReviewState?.hasKindReview == true
+    }
+
     var conversationKind: ChatConversationKind {
         get { ChatConversationKind(rawValue: conversationKindRaw) ?? .unknown }
         set { conversationKindRaw = newValue.rawValue }
@@ -82,6 +96,8 @@ final class ChatRecord {
         id: String,
         title: String?,
         previewText: String?,
+        previewSenderKind: String? = nil,
+        previewSenderName: String? = nil,
         conversationKind: ChatConversationKind = .unknown,
         isProvisional: Bool = false,
         importReviewStateJSON: String? = nil,
@@ -90,6 +106,8 @@ final class ChatRecord {
         self.id = id
         self.title = title
         self.previewText = previewText
+        self.previewSenderKind = previewSenderKind
+        self.previewSenderName = previewSenderName
         self.conversationKindRaw = conversationKind.rawValue
         if let importReviewStateJSON {
             self.importReviewStateJSON = importReviewStateJSON

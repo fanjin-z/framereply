@@ -27,11 +27,39 @@ nonisolated enum AppStrings {
             defaultValue: "Imported Chat",
             comment: "Fallback title for an imported chat whose participant or title is unknown."
         )
+        static let groupTitleFallback = LocalizedStringResource(
+            "chat.fallback.group-title",
+            defaultValue: "Group Chat",
+            comment: "Fallback title for an imported group chat whose title is unknown."
+        )
         static let previewFallback = LocalizedStringResource(
             "chat.fallback.preview",
             defaultValue: "No messages yet",
             comment: "Preview text for a chat that has no stored messages."
         )
+        static let previewYou = LocalizedStringResource(
+            "chat.preview.sender.you",
+            defaultValue: "You",
+            comment: "Sender label for the user's own latest message in a group chat preview."
+        )
+        static let previewUnknownSender = LocalizedStringResource(
+            "chat.preview.sender.unknown",
+            defaultValue: "Unknown sender",
+            comment: "Sender label for an unresolved latest message in a group chat preview."
+        )
+        static let previewParticipant = LocalizedStringResource(
+            "chat.preview.sender.participant",
+            defaultValue: "Participant",
+            comment: "Fallback sender label for a group participant whose name is unavailable."
+        )
+
+        static func preview(sender: String, message: String) -> LocalizedStringResource {
+            LocalizedStringResource(
+                "chat.preview.sender-message",
+                defaultValue: "\(sender): \(message)",
+                comment: "Group chat preview. First value is the sender label; second is the message."
+            )
+        }
 
         static func mergeCandidate(title: String, alias: String) -> LocalizedStringResource {
             LocalizedStringResource(
@@ -108,6 +136,11 @@ nonisolated enum AppStrings {
             static let emptyName = LocalizedStringResource(
                 "error.chat.empty-name",
                 defaultValue: "Enter a display name for this chat."
+            )
+            static let incompatibleKinds = LocalizedStringResource(
+                "error.chat.incompatible-kinds",
+                defaultValue: "A group chat can’t be merged with a one-to-one chat.",
+                comment: "Shown when importing or merging chats with incompatible conversation types."
             )
             static let senderLabelUnavailable = LocalizedStringResource(
                 "error.chat.sender-label-unavailable",

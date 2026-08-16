@@ -274,13 +274,13 @@ struct ChatsView: View {
     }
 
     private var reviewCount: Int {
-        let provisionalIDs = Set(chatRecords.filter(\.isProvisional).map(\.id))
+        let provisionalIDs = Set(chatRecords.filter(\.requiresImportReview).map(\.id))
         let unknownIDs = Set(unknownSenderMessages.map(\.chatID))
         return provisionalIDs.union(unknownIDs).count
     }
 
     private var hasProvisionalImportReview: Bool {
-        chatRecords.contains { $0.isProvisional }
+        chatRecords.contains { $0.requiresImportReview }
     }
 
     private var hasUnknownSenderReview: Bool {
@@ -395,12 +395,12 @@ enum ChatsPresentation {
     }
 
     static func badge(for chat: Chat, persona: Persona) -> Badge {
-        chat.isProvisional ? .reviewImport : .persona(persona)
+        chat.requiresImportReview ? .reviewImport : .persona(persona)
     }
 
     static func matches(query: String, chat: Chat, persona: Persona) -> Bool {
         let matchesReview =
-            chat.isProvisional
+            chat.requiresImportReview
             && String(localized: "Review Import").localizedCaseInsensitiveContains(query)
         return chat.name.localizedCaseInsensitiveContains(query)
             || chat.preview.localizedCaseInsensitiveContains(query)

@@ -32,7 +32,9 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertTrue(result.recovered)
         XCTAssertEqual(result.value.extractionStatus, .ok)
         XCTAssertNil(result.value.conversationTitle)
-        XCTAssertEqual(result.value.conversationKind, .unknown)
+        XCTAssertEqual(result.value.conversationKind, .direct)
+        XCTAssertEqual(result.value.conversationKindEvidence, .noGroupEvidence)
+        XCTAssertFalse(result.value.hasStrongGroupEvidence)
         XCTAssertEqual(result.value.titleSource, .unavailable)
         XCTAssertEqual(result.value.ownershipConvention, .unobservable)
         XCTAssertNil(result.value.matchedChatID)
@@ -155,6 +157,28 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(try decodeResult(user).value.messages.first?.sender, .user)
     }
 
+    func testTwoNamedAuthorsOppositeOwnerAlignmentEstablishGroupWithoutVisibleOwner() throws {
+        let content = """
+            {"conversationTitle":null,"conversationKindEvidence":"two_or_more_named_authors_opposite_owner_alignment","titleSource":"unavailable","ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"group_participant","senderName":"Alice","text":"First","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":"Alice","senderConfidence":0.9,"senderEvidence":"alignment_convention"},{"sender":"group_participant","senderName":"Bob","text":"Second","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":"Bob","senderConfidence":0.9,"senderEvidence":"alignment_convention"}],"matchedChatID":null,"matchConfidence":0}
+            """
+
+        let result = try decodeResult(content)
+
+        XCTAssertEqual(result.value.conversationKind, .group)
+        XCTAssertEqual(
+            result.value.conversationKindEvidence,
+            .twoOrMoreNamedAuthorsOppositeOwnerAlignment)
+        XCTAssertTrue(result.value.hasStrongGroupEvidence)
+        XCTAssertFalse(result.value.messages.contains { $0.sender == .user })
+
+        let sameSideContent = content.replacingOccurrences(
+            of: #""outerAlignment":"left""#,
+            with: #""outerAlignment":"right""#)
+        let sameSideResult = try decodeResult(sameSideContent)
+        XCTAssertEqual(sameSideResult.value.conversationKind, .direct)
+        XCTAssertFalse(sameSideResult.value.hasStrongGroupEvidence)
+    }
+
     func testSharedTranscriptIgnoresVisualMetadataWithoutInferringOwnership() throws {
         let content = validSharedJSON().replacingOccurrences(
             of: "\"senderEvidence\":\"author_label\"",
@@ -197,6 +221,56 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         }
     }
 
+    func testAmbiguousSharedFragmentsDefaultToDirect() throws {
+        for authorNames in [["Alice"], ["Alice", "Bob"]] {
+            let result = try decodeSharedResult(sharedTranscriptJSON(authors: authorNames))
+
+            XCTAssertEqual(result.value.conversationKind, .direct)
+            XCTAssertTrue(result.value.isInferenceOnlyGroupSuggestion)
+            XCTAssertFalse(result.value.hasStrongGroupEvidence)
+        }
+    }
+
+    func testWhatsAppGroupFixturePreservesMultilineTextAndNormalizesTilde() throws {
+        let result = try decodeSharedResult(whatsAppGroupJSON())
+        let messages = result.value.messages
+
+        XCTAssertEqual(result.value.conversationKind, .group)
+        XCTAssertTrue(result.value.hasStrongGroupEvidence)
+        XCTAssertEqual(messages.count, 3)
+        XCTAssertEqual(messages.map(\.senderName), ["Aster", "Robin", "Mica"])
+        XCTAssertEqual(messages.map(\.timestampLabel), [
+            "04/02/31, 9:05:11 AM", "04/02/31, 1:17:42 PM",
+            "04/03/31, 8:26:19 AM"
+        ])
+        XCTAssertEqual(
+            messages[1].text,
+            "Read the sample chapters: pages 12 and 18, plus the practice audio."
+        )
+        XCTAssertEqual(
+            messages[2].text,
+            "Practice plan\nApril 3, 2031\nProject Atlas\nPages 21, 22, and 24"
+        )
+    }
+
+    func testWeChatGroupFixturePreservesEmojiNamesTimesAndOrdering() throws {
+        let result = try decodeSharedResult(weChatGroupJSON())
+        let messages = result.value.messages
+
+        XCTAssertEqual(result.value.conversationKind, .group)
+        XCTAssertTrue(result.value.hasStrongGroupEvidence)
+        XCTAssertEqual(messages.count, 4)
+        XCTAssertEqual(messages.map(\.senderName), [
+            "🪐 Sky Lab 🪐", "Nori", "🍋", "🌙 Luna 🌙"
+        ])
+        XCTAssertEqual(messages.map(\.text), [
+            "Passing this along", "I signed up 🙋‍♀️", "Check the bike details 🚲",
+            "Message me, @Nori"
+        ])
+        XCTAssertEqual(messages.first?.timestampLabel, "April 2, 2031 at 9:05 PM")
+        XCTAssertEqual(messages.last?.timestampLabel, "April 3, 2031 at 9:16 AM")
+    }
+
     private func decodeResult(_ content: String?, finishReason: String? = "stop") throws
         -> StructuredOutputDecodingResult<ChatImportAnalysis>
     {
@@ -205,6 +279,17 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
             finishReason: finishReason,
             isSharedTranscript: false,
             candidateIDs: ["known"])
+    }
+
+    private func decodeSharedResult(_ content: String) throws
+        -> StructuredOutputDecodingResult<ChatImportAnalysis>
+    {
+        try ChatImportAnalysisDecoder.decodeResult(
+            content: content,
+            finishReason: "stop",
+            isSharedTranscript: true,
+            candidateIDs: []
+        )
     }
 
     private func assertFailure(
@@ -228,13 +313,13 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
 
     private func validScreenshotJSON() -> String {
         """
-        {"conversationTitle":"Alex","conversationKind":"direct","titleSource":"header","ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"other_participant","senderName":"Alex","text":"Hello","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention"}],"matchedChatID":null,"matchConfidence":0}
+        {"conversationTitle":"Alex","conversationKindEvidence":"no_group_evidence","titleSource":"header","ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"other_participant","senderName":"Alex","text":"Hello","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention"}],"matchedChatID":null,"matchConfidence":0}
         """
     }
 
     private func validSharedJSON() -> String {
         """
-        {"conversationTitle":null,"conversationKind":"unknown","titleSource":"unavailable","messages":[{"sender":"unknown","senderName":"Alice","text":"Hello","timestampLabel":"9:42 PM","senderConfidence":0.5,"senderEvidence":"author_label"}],"matchedChatID":null,"matchConfidence":0}
+        {"conversationTitle":null,"conversationKindEvidence":"no_group_evidence","titleSource":"unavailable","messages":[{"sender":"unknown","senderName":"Alice","text":"Hello","timestampLabel":"9:42 PM","senderConfidence":0.5,"senderEvidence":"author_label"}],"matchedChatID":null,"matchConfidence":0}
         """
     }
 
@@ -249,9 +334,66 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         ]
         let object: [String: Any] = [
             "conversationTitle": NSNull(),
-            "conversationKind": "unknown",
+            "conversationKindEvidence": "no_group_evidence",
             "titleSource": "unavailable",
             "messages": Array(repeating: message, count: messageCount),
+            "matchedChatID": NSNull(),
+            "matchConfidence": 0
+        ]
+        let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        return try XCTUnwrap(String(data: data, encoding: .utf8))
+    }
+
+    private func sharedTranscriptJSON(authors: [String]) throws -> String {
+        let messages = authors.enumerated().map { index, author in
+            [
+                "sender": "unknown", "senderName": author, "text": "Message \(index)",
+                "timestampLabel": "10:0\(index)", "senderConfidence": 0.8,
+                "senderEvidence": "author_label"
+            ] as [String: Any]
+        }
+        let object: [String: Any] = [
+            "conversationTitle": NSNull(),
+            "conversationKindEvidence": "three_or_more_named_message_authors",
+            "titleSource": "unavailable",
+            "messages": messages,
+            "matchedChatID": NSNull(),
+            "matchConfidence": 0
+        ]
+        let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        return try XCTUnwrap(String(data: data, encoding: .utf8))
+    }
+
+    private func whatsAppGroupJSON() throws -> String {
+        try fixtureJSON(messages: [
+            ("~\u{202F}Aster", "Robin, could you share the fictional reading list?", "04/02/31, 9:05:11 AM"),
+            ("~\u{202F}Robin", "Read the sample chapters: pages 12 and 18, plus the practice audio.", "04/02/31, 1:17:42 PM"),
+            ("~\u{202F}Mica", "Practice plan\nApril 3, 2031\nProject Atlas\nPages 21, 22, and 24", "04/03/31, 8:26:19 AM")
+        ])
+    }
+
+    private func weChatGroupJSON() throws -> String {
+        try fixtureJSON(messages: [
+            ("🪐 Sky Lab 🪐", "Passing this along", "April 2, 2031 at 9:05 PM"),
+            ("Nori", "I signed up 🙋‍♀️", "April 2, 2031 at 9:07 PM"),
+            ("🍋", "Check the bike details 🚲", "April 2, 2031 at 10:11 PM"),
+            ("🌙 Luna 🌙", "Message me, @Nori", "April 3, 2031 at 9:16 AM")
+        ])
+    }
+
+    private func fixtureJSON(messages: [(String, String, String)]) throws -> String {
+        let values = messages.map { name, text, timestamp in
+            [
+                "sender": "unknown", "senderName": name, "text": text,
+                "timestampLabel": timestamp, "senderConfidence": 0.9,
+                "senderEvidence": "author_label"
+            ] as [String: Any]
+        }
+        let object: [String: Any] = [
+            "conversationTitle": NSNull(),
+            "conversationKindEvidence": "three_or_more_named_message_authors",
+            "titleSource": "unavailable",
+            "messages": values,
             "matchedChatID": NSNull(),
             "matchConfidence": 0
         ]

@@ -54,16 +54,32 @@ Screenshots are re-encoded, stripped of metadata, and bounded before upload. Pas
 
 Sender roles are relative to the person importing the conversation. Visible alignment, author labels, and attached delivery indicators may establish ownership; conflicting or insufficient evidence produces an unknown sender rather than a guess.
 
+Screenshot and pasted-text imports use one downstream workflow but expose different observable fields. The provider returns literal `conversationKindEvidence`; it does not return `conversationKind`. Local code validates count- and alignment-based claims, then derives the effective kind:
+
+| Validated evidence | Effective kind |
+| --- | --- |
+| Explicit Group UI/member count or a Group membership event | Group |
+| At least three distinct authors in structured message records | Group |
+| Screenshot with at least two distinct named authors on the side opposite a known left/right owner alignment | Group |
+| Group is suspected but structural proof is absent | Direct, with a non-blocking review suggestion |
+| No Group evidence and at least one message | Direct |
+| No recoverable participant messages | Unknown |
+
+One- and two-author pasted fragments therefore remain Direct even when they may be partial Group history. This avoids automatically combining a Direct chat with unrelated Group content. The user can convert or explicitly merge the fragment later. Unsupported sender roles are canonicalized to unknown; named Group non-user messages become group participants, while Direct non-user messages become the single other participant.
+
 ### Accepting a proposed chat match
 
 The provider may propose an existing chat and a confidence score. FrameReply accepts it automatically only when the proposed identifier is valid, confidence meets the current `0.85` threshold, and deterministic identity evidence also supports it.
 
 | Local evidence | Decision |
 | --- | --- |
-| A unique observed title or participant alias matches | Accept the proposed chat. |
+| A unique observed title or participant alias matches within the same kind | Accept the proposed chat when provider confidence also meets the threshold. |
 | The same label belongs to multiple chats | Require strong transcript evidence. |
 | A direct-chat title conflicts | Reject unless transcript evidence is strong. |
 | No reliable title match | Require strong transcript evidence. |
+| Only a title or alias supports a cross-kind match | Suggest review; do not merge automatically. |
+| Strong transcript identity connects an ambiguous Direct fragment to a saved Group | Attach to the Group; never downgrade it. |
+| Strong Group evidence and strong transcript identity connect a Group fragment to a saved Direct chat | Attach and promote the saved chat to Group. |
 | Evidence is missing, generic, or weak | Create a provisional chat for review. |
 
 Strong transcript evidence requires distinctive incoming content: either a unique exact incoming message with a timestamp, or at least two unique exact matches including an incoming message. Generic overlap and outgoing messages do not establish identity by themselves.
@@ -85,7 +101,7 @@ Alignment is a weighted sequence problem, not a set comparison. Candidate pairs 
 
 Matched imported messages are duplicates. Unmatched messages are inserted before the next aligned anchor or appended after the final anchor, preserving existing records and adding only genuinely new history.
 
-If the chat or sender identity remains uncertain, the import is still retained but marked for review. A user can confirm it, identify senders, or merge it into an existing chat.
+If the chat or sender identity remains uncertain, the import is still retained but marked for review. A user can confirm it, identify senders, or merge it into an existing chat. Explicit cross-kind merges resolve to Group. Users can also reclassify a chat in Chat Details: Direct to Group is immediate; Group to Direct requires selecting the single counterpart so no mutation occurs before that identity choice is complete.
 
 ## Reply generation and learning
 
@@ -128,11 +144,13 @@ Provider-proposed learning is filtered locally:
 
 | Proposed change | Required evidence | Purpose |
 | --- | --- | --- |
-| Chat memory | Eligible messages from the other participant | Retain one readable, atomic fact or confirmed shared plan per item in the app language. |
+| Chat memory | Direct-counterpart messages, or named non-user Group-participant messages | Retain one readable, atomic fact or confirmed shared plan per item in the app language. When evidence supplies participant names, include the relevant names so the standalone context remains attributable. |
 | Personal Info | Confirmed user-authored messages in the latest 20 | Retain one directly stated, durable detail about the user. Goals, one-off plans, sensitive identifiers, exact locations, and detailed health information are excluded. |
 | Persona observation | Two to ten recent user-authored messages | Learn reusable writing style rather than conversation facts. |
 
 Unsupported, duplicate, protected, or stale changes are ignored. Personal Info and persona learning share the reply-generation request; neither adds a provider call. Valid summaries, memory, Personal Info, persona observations, and cache state are persisted together.
+
+Group sender names are message-scoped display labels, not a participant roster or stable identity system. Chat memory follows the same learning and persistence path for Direct and Group chats. It stores available attribution in the memory text rather than creating participant identity records. When a Direct chat is promoted to Group, the repository prefixes an unattributed active AI memory with the known Direct counterpart name; attributed and manually added memories are preserved unchanged.
 
 ### One-use drafting isolation
 

@@ -18,7 +18,7 @@ flowchart TB
     Store -->|Observed state| Entry
 ```
 
-FrameReply is an iOS reply assistant that carries forward chat history and person-specific context to generate two user-reviewed draft replies. Users can bring in screenshots or copied messages through the SwiftUI app or Apple Shortcuts; both entry points use the same import and generation workflows.
+FrameReply is an iOS reply assistant that carries forward Direct- and Group-chat history and relevant context to generate two user-reviewed draft replies. Users can bring in screenshots or copied messages through the SwiftUI app or Apple Shortcuts; both entry points use the same import and generation workflows.
 
 AI output is always a **proposal**. Local code validates identity, evidence, freshness, and persistence rules before the output can change stored data.
 
@@ -72,7 +72,7 @@ flowchart LR
     Validate --> Persist[Persist safe results]
 ```
 
-Import turns external conversation data into trusted local history. Reply generation reads that history and can propose replies, compact summaries, chat memory, Personal Info, and persona-style learning under separate evidence rules.
+Import turns external conversation data into trusted local history. The app derives conversation type from validated structural evidence, conservatively treating ambiguous nonempty fragments as Direct. Reply generation reads that history and can propose replies, compact summaries, chat memory, Personal Info, and persona-style learning under separate evidence rules. AI-authored chat memory is available in Direct and Group chats; users can edit or add context in either kind.
 
 See [AI Workflows](ai-workflows.md) for the matching algorithm and the state rules shared by these workflows.
 
@@ -86,10 +86,11 @@ Persistent identity is language-independent: chat titles are optional verbatim c
 
 | Term | Meaning |
 | --- | --- |
+| **Conversation kind** | The locally derived or user-selected Direct, Group, or Unknown classification. Ambiguous imported fragments default to Direct; saved Group chats are never downgraded by an ambiguous import. |
 | **Provisional chat** | A newly imported conversation whose identity has not been confirmed. |
 | **Unknown sender** | A message whose owner cannot be established safely from visible or remembered evidence. |
-| **Participant alias** | A previously observed name for the same participant, scoped to one chat. |
-| **Chat memory** | A short, atomic, chat-specific fact or confirmed shared plan supported by the other participant. AI-authored memory uses the app language; manual memory remains verbatim. |
+| **Participant alias** | A previously observed name for the single non-user participant in a Direct chat, scoped to that chat. Group sender names remain message-scoped labels rather than stable identities. |
+| **Chat memory** | A short, atomic, chat-specific fact or confirmed shared plan. AI-authored memory uses the app language; manually managed context remains verbatim. When source messages provide names, the memory includes the relevant participant names so it remains attributable if the conversation type later changes. |
 | **Personal Info** | Account-wide durable details about the user, learned only from confirmed user-authored messages or entered directly. It supplies optional factual context, not writing style. |
 | **Persona observation** | A reusable writing-style pattern learned from the user's own messages or supplied explicitly. |
 | **One-use drafting input** | Optional context or a rough draft used for one generation without becoming history, memory, or persona learning. |

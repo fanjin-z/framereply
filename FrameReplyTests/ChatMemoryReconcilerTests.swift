@@ -53,7 +53,7 @@ final class ChatMemoryReconcilerTests: XCTestCase {
                     sourceMessageIDs: [evidenceID]
                 )
             ],
-            allowedOtherParticipantSourceMessageIDs: [evidenceID],
+            eligibleSourceMessageIDs: [evidenceID],
             now: now
         )
 
@@ -97,7 +97,7 @@ final class ChatMemoryReconcilerTests: XCTestCase {
                     sourceMessageIDs: [UUID()]
                 )
             ],
-            allowedOtherParticipantSourceMessageIDs: [allowedID]
+            eligibleSourceMessageIDs: [allowedID]
         )
 
         XCTAssertEqual(result, [memory])
@@ -114,7 +114,7 @@ final class ChatMemoryReconcilerTests: XCTestCase {
                     sourceMessageIDs: [otherParticipantID, disallowedID]
                 )
             ],
-            allowedOtherParticipantSourceMessageIDs: [otherParticipantID]
+            eligibleSourceMessageIDs: [otherParticipantID]
         )
 
         XCTAssertTrue(mixedEvidenceResult.isEmpty)
@@ -159,7 +159,7 @@ final class ChatMemoryReconcilerTests: XCTestCase {
                     sourceMessageIDs: [evidenceID]
                 )
             ],
-            allowedOtherParticipantSourceMessageIDs: [evidenceID]
+            eligibleSourceMessageIDs: [evidenceID]
         )
 
         XCTAssertEqual(

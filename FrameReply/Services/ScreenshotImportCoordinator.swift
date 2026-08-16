@@ -7,8 +7,10 @@ import Foundation
 
 struct PreparedScreenshotImport {
     let analysis: ChatImportAnalysis
-    let confirmedChatID: String?
+    let matchDecision: ChatImportMatchDecision
     let traceID: ImportTraceID
+
+    var confirmedChatID: String? { matchDecision.automaticChatID }
 }
 
 nonisolated enum ChatImportInputSource: Equatable, Sendable {
@@ -189,7 +191,7 @@ final class ScreenshotImportCoordinator {
         do {
             let outcome = try repository.applyImport(
                 analysis: prepared.analysis,
-                confirmedChatID: prepared.confirmedChatID,
+                matchDecision: prepared.matchDecision,
                 traceID: prepared.traceID
             )
             eventReporter.record(
@@ -331,12 +333,12 @@ final class ScreenshotImportCoordinator {
             throw error
         }
 
-        let confirmedChatID: String?
+        let matchDecision: ChatImportMatchDecision
         if let destinationChatID {
-            confirmedChatID = destinationChatID
+            matchDecision = .automatic(destinationChatID)
         } else {
             eventReporter.record(.stageStarted(traceID: traceID, stage: .matching))
-            confirmedChatID = ChatImportMatcher.confirmedChatID(
+            matchDecision = ChatImportMatcher.decision(
                 analysis: analysis,
                 candidates: candidates
             )
@@ -344,7 +346,7 @@ final class ScreenshotImportCoordinator {
 
         return PreparedScreenshotImport(
             analysis: analysis,
-            confirmedChatID: confirmedChatID,
+            matchDecision: matchDecision,
             traceID: traceID
         )
     }

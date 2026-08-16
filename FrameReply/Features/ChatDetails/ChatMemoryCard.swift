@@ -2,8 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct ChatMemoryCard: View {
-    let chatID: String
-    let chatName: String
+    let chat: Chat
     let memoryRecords: [ChatMemoryRecord]
 
     @Environment(\.modelContext) private var modelContext
@@ -22,17 +21,7 @@ struct ChatMemoryCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionHeader(symbolName: "brain", title: "Remembered Context") {
-                Text("Auto-saved")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.outline)
-                    .padding(.horizontal, 12)
-                    .frame(minHeight: 30)
-                    .background {
-                        Capsule(style: .continuous)
-                            .fill(Color.white.opacity(0.46))
-                    }
-            }
+            SectionHeader(symbolName: "brain", title: "Remembered Context")
 
             if activeMemories.isEmpty {
                 Text("Nothing saved yet. Add a detail you would like to remember.")
@@ -72,7 +61,7 @@ struct ChatMemoryCard: View {
             .lineSpacing(4)
             .lineLimit(1...)
             .frame(minHeight: 42, alignment: .topLeading)
-            .accessibilityLabel("New remembered context for \(chatName)")
+            .accessibilityLabel("New remembered context for \(chat.name)")
 
             Button(action: addMemory) {
                 Text("Add")
@@ -161,7 +150,9 @@ struct ChatMemoryCard: View {
     private func addMemory() {
         guard !trimmedDraft.isEmpty else { return }
         KeyboardDismissal.dismiss()
-        modelContext.insert(ChatMemoryRecord(chatID: chatID, value: ChatMemory(text: trimmedDraft)))
+        modelContext.insert(
+            ChatMemoryRecord(chatID: chat.id, value: ChatMemory(text: trimmedDraft))
+        )
         if save() {
             draft = ""
         }

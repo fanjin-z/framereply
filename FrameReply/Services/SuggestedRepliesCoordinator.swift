@@ -366,16 +366,20 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             summarizedPrefixFingerprint = summaryPlan.summarizedPrefixFingerprint
         }
 
-        let otherParticipantEvidenceMessageIDs = Set(
+        let eligibleMemorySourceMessageIDs = Set(
             (summaryPlan.messages + recentMessages)
-                .filter { $0.senderKind == "other_participant" }
+                .filter { message in
+                    message.senderKind == "other_participant"
+                        || (message.senderKind == "group_participant"
+                            && ParticipantLabelNormalizer.displayLabel(message.senderName) != nil)
+                }
                 .map(\.id)
         )
         var reconciledContext = chatContext
         reconciledContext.chatMemories = ChatMemoryReconciler.reconcile(
             memories: chatContext.chatMemories,
             changes: generated.memoryChanges,
-            allowedOtherParticipantSourceMessageIDs: otherParticipantEvidenceMessageIDs
+            eligibleSourceMessageIDs: eligibleMemorySourceMessageIDs
         )
         let validObservationChanges = generated.personaObservationChanges.filter {
             (2...10).contains($0.sourceMessageIDs.count)

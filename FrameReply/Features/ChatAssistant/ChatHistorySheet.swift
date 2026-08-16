@@ -6,6 +6,14 @@
 import SwiftData
 import SwiftUI
 
+enum ChatHistoryPresentation {
+    static func matches(query: String, message: ChatMessage) -> Bool {
+        message.text.localizedCaseInsensitiveContains(query)
+            || message.timeLabel.localizedCaseInsensitiveContains(query)
+            || message.groupParticipantName?.localizedCaseInsensitiveContains(query) == true
+    }
+}
+
 struct ChatHistorySheet: View {
     let chat: Chat
     let provisionalIdentity: ProvisionalIdentityInterpretation?
@@ -41,8 +49,7 @@ struct ChatHistorySheet: View {
         }
 
         return messages.filter { message in
-            message.text.localizedCaseInsensitiveContains(query)
-                || message.timeLabel.localizedCaseInsensitiveContains(query)
+            ChatHistoryPresentation.matches(query: query, message: message)
         }
     }
 

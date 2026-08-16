@@ -8,17 +8,20 @@ import Foundation
 nonisolated struct ChatMatchCandidate: Codable, Equatable, Sendable {
     let id: String
     let title: String?
+    let conversationKind: ChatConversationKind
     let participantAliases: [String]
     let recentMessages: [ChatCandidateMessage]
 
     init(
         id: String,
         title: String?,
+        conversationKind: ChatConversationKind = .unknown,
         participantAliases: [String] = [],
         recentMessages: [ChatCandidateMessage]
     ) {
         self.id = id
         self.title = title
+        self.conversationKind = conversationKind
         self.participantAliases = participantAliases
         self.recentMessages = recentMessages
     }
@@ -129,6 +132,7 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
     let matchedChatID: String?
     let matchConfidence: Double
     let conversationKind: ChatConversationKind
+    let conversationKindEvidence: ConversationKindEvidence
     let titleSource: ChatTitleSource
     let ownershipConvention: MessageOwnershipConvention
 
@@ -139,6 +143,7 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
         case matchedChatID
         case matchConfidence
         case conversationKind
+        case conversationKindEvidence
         case titleSource
         case ownershipConvention
     }
@@ -150,6 +155,7 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
         matchedChatID: String?,
         matchConfidence: Double,
         conversationKind: ChatConversationKind = .direct,
+        conversationKindEvidence: ConversationKindEvidence = .trustedInternal,
         titleSource: ChatTitleSource = .header,
         ownershipConvention: MessageOwnershipConvention = .unobservable
     ) {
@@ -159,10 +165,43 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
         self.matchedChatID = matchedChatID
         self.matchConfidence = matchConfidence
         self.conversationKind = conversationKind
+        self.conversationKindEvidence = conversationKindEvidence
         self.titleSource = titleSource
         self.ownershipConvention = ownershipConvention
     }
 
+    var isInferenceOnlyGroupSuggestion: Bool {
+        conversationKindEvidence == .groupSuspectedWithoutStructuralProof
+            && conversationKind != .group
+    }
+
+    var hasStrongGroupEvidence: Bool {
+        conversationKind == .group
+            && conversationKindEvidence.isStructuralGroupEvidence
+    }
+
+}
+
+nonisolated enum ConversationKindEvidence: String, Codable, Equatable, Sendable {
+    case explicitGroupLabelOrMemberCount = "explicit_group_label_or_member_count"
+    case groupMembershipChangeEvent = "group_membership_change_event"
+    case threeOrMoreNamedMessageAuthors = "three_or_more_named_message_authors"
+    case twoOrMoreNamedAuthorsOppositeOwnerAlignment =
+        "two_or_more_named_authors_opposite_owner_alignment"
+    case groupSuspectedWithoutStructuralProof = "group_suspected_without_structural_proof"
+    case noGroupEvidence = "no_group_evidence"
+    case trustedInternal = "trusted_internal"
+
+    fileprivate var isStructuralGroupEvidence: Bool {
+        switch self {
+        case .explicitGroupLabelOrMemberCount, .groupMembershipChangeEvent,
+            .threeOrMoreNamedMessageAuthors, .twoOrMoreNamedAuthorsOppositeOwnerAlignment,
+            .trustedInternal:
+            true
+        case .groupSuspectedWithoutStructuralProof, .noGroupEvidence:
+            false
+        }
+    }
 }
 
 nonisolated enum ChatExtractionStatus: String, Codable, Equatable, Sendable {
@@ -174,6 +213,10 @@ nonisolated enum ChatConversationKind: String, Codable, Equatable, Sendable {
     case direct
     case group
     case unknown
+
+    func isCompatible(with other: Self) -> Bool {
+        self == .unknown || other == .unknown || self == other
+    }
 }
 
 nonisolated enum ChatTitleSource: String, Codable, Equatable, Sendable {

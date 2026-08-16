@@ -15,11 +15,42 @@ extension SelfAliasRecord {
 
 extension ChatRecord {
     func displayTitle(locale: Locale = .current) -> String {
-        title ?? AppStrings.resolve(AppStrings.Chat.titleFallback, locale: locale)
+        if let title {
+            return title
+        }
+        let fallback = conversationKind == .group
+            ? AppStrings.Chat.groupTitleFallback
+            : AppStrings.Chat.titleFallback
+        return AppStrings.resolve(fallback, locale: locale)
     }
 
     func displayPreview(locale: Locale = .current) -> String {
-        previewText ?? AppStrings.resolve(AppStrings.Chat.previewFallback, locale: locale)
+        guard let previewText else {
+            return AppStrings.resolve(AppStrings.Chat.previewFallback, locale: locale)
+        }
+        guard conversationKind == .group else { return previewText }
+
+        let sender: String?
+        switch previewSenderKind {
+        case "user":
+            sender = AppStrings.resolve(AppStrings.Chat.previewYou, locale: locale)
+        case "group_participant", "other_participant":
+            sender =
+                ParticipantLabelNormalizer.displayLabel(previewSenderName)
+                ?? AppStrings.resolve(AppStrings.Chat.previewParticipant, locale: locale)
+        case "unknown":
+            sender =
+                ParticipantLabelNormalizer.displayLabel(previewSenderName)
+                ?? AppStrings.resolve(AppStrings.Chat.previewUnknownSender, locale: locale)
+        default:
+            sender = nil
+        }
+
+        guard let sender else { return previewText }
+        return AppStrings.resolve(
+            AppStrings.Chat.preview(sender: sender, message: previewText),
+            locale: locale
+        )
     }
 }
 
@@ -69,11 +100,13 @@ extension Chat {
             id: record.id,
             name: name,
             preview: preview,
-            avatarSymbol: nil,
+            avatarSymbol: record.conversationKind == .group ? "person.2.fill" : nil,
             initials: Self.initials(for: name),
             gradient: Self.gradient(for: record.id),
             updatedAt: record.updatedAt,
-            isProvisional: record.isProvisional
+            conversationKind: record.conversationKind,
+            isProvisional: record.isProvisional,
+            requiresImportReview: record.requiresImportReview
         )
     }
 
@@ -111,8 +144,10 @@ extension ChatMessage {
             sender = .groupParticipant(record.senderName ?? "Participant")
         case "unknown":
             sender = .unknown
-        default:
+        case "other_participant":
             sender = .otherParticipant
+        default:
+            sender = .unknown
         }
 
         self.init(id: record.id, sender: sender, text: record.text, timeLabel: record.timeLabel)

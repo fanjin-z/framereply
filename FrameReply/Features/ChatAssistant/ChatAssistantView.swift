@@ -146,12 +146,22 @@ struct ChatAssistantView: View {
         currentChatRecord?.isProvisional ?? chat.isProvisional
     }
 
+    private var hasCurrentKindReview: Bool {
+        currentChatRecord?.importReviewState?.hasKindReview == true
+    }
+
+    private var hasSuggestedMatch: Bool {
+        currentChatRecord?.importReviewState?.suggestedMatchChatID != nil
+    }
+
     private var unknownSenderCount: Int {
         messageRecords.filter { $0.senderKind == "unknown" }.count
     }
 
     private var mergeCandidates: [ChatRecord] {
-        mergeCandidateRecords.filter { !$0.requiresImportIdentityReview }
+        return mergeCandidateRecords.filter {
+            !$0.requiresImportIdentityReview
+        }
     }
 
     private func mergeCandidateLabel(_ candidate: ChatRecord) -> String {
@@ -175,7 +185,7 @@ struct ChatAssistantView: View {
     }
 
     private var shouldShowImportReviewCard: Bool {
-        isCurrentChatProvisional || unknownSenderCount > 0
+        currentChatRecord?.requiresImportReview == true || unknownSenderCount > 0
     }
 
     private var replyCacheKey: Int {
@@ -235,6 +245,10 @@ struct ChatAssistantView: View {
                             unknownSenderCount: unknownSenderCount,
                             canMerge: !mergeCandidates.isEmpty,
                             provisionalIdentity: provisionalIdentity,
+                            hasKindReview: hasCurrentKindReview,
+                            conversationKind: currentChatRecord?.conversationKind
+                                ?? chat.conversationKind,
+                            hasSuggestedMatch: hasSuggestedMatch,
                             onKeepAsNew: confirmCurrentChat,
                             onConfirmIdentity: confirmInferredIdentity,
                             onMergeTap: {
@@ -701,6 +715,9 @@ private struct ChatImportReviewCard: View {
     let unknownSenderCount: Int
     let canMerge: Bool
     let provisionalIdentity: ProvisionalIdentityInterpretation?
+    let hasKindReview: Bool
+    let conversationKind: ChatConversationKind
+    let hasSuggestedMatch: Bool
     let onKeepAsNew: () -> Void
     let onConfirmIdentity: () -> Void
     let onMergeTap: () -> Void
@@ -780,6 +797,15 @@ private struct ChatImportReviewCard: View {
     }
 
     private var nudgeText: String {
+        if hasKindReview, conversationKind == .group {
+            return "Converted to Group"
+        }
+        if hasKindReview {
+            return "This may be a group chat"
+        }
+        if hasSuggestedMatch {
+            return "Possible matching chat"
+        }
         if let provisionalIdentity {
             return "Assuming you are \(provisionalIdentity.selfDisplayLabel)"
         }
@@ -793,15 +819,19 @@ private struct ChatImportReviewCard: View {
     }
 
     private var iconName: String {
-        unknownSenderCount > 0 ? "person.crop.circle.badge.questionmark" : "tray.and.arrow.down"
+        if hasKindReview { return "person.2.fill" }
+        if hasSuggestedMatch { return "link.badge.plus" }
+        return unknownSenderCount > 0
+            ? "person.crop.circle.badge.questionmark" : "tray.and.arrow.down"
     }
 
     private var primaryActionTitle: String {
-        unknownSenderCount > 0 ? "Review" : "Keep"
+        unknownSenderCount > 0 || hasKindReview || hasSuggestedMatch ? "Review" : "Keep"
     }
 
     private var primaryAction: () -> Void {
-        unknownSenderCount > 0 ? onReviewSenders : onKeepAsNew
+        unknownSenderCount > 0 || hasKindReview || hasSuggestedMatch
+            ? onReviewSenders : onKeepAsNew
     }
 
     private var hasSecondaryActions: Bool {

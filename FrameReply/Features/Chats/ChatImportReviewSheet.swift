@@ -17,8 +17,10 @@ struct ChatImportReviewSheet: View {
     @Query private var allChats: [ChatRecord]
     @Query private var allChatContexts: [ChatContextRecord]
     @Query private var unknownSenderMessages: [ChatMessageRecord]
+    @Query(sort: \ChatMessageRecord.sortIndex) private var allMessageRecords: [ChatMessageRecord]
     @State private var errorMessage: String?
     @State private var individuallyReviewedChatIDs: Set<String> = []
+    @State private var directConversionChatID: String?
 
     private let chatID: String?
     private let onMerged: ((String) -> Void)?
@@ -58,6 +60,13 @@ struct ChatImportReviewSheet: View {
 
     private var confirmedChats: [ChatRecord] {
         allChats.filter { !$0.requiresImportIdentityReview }
+    }
+
+    private var kindReviewChats: [ChatRecord] {
+        allChats.filter {
+            $0.importReviewState?.hasKindReview == true
+                && (chatID == nil || $0.id == chatID)
+        }
     }
 
     private var previouslyUsedSelfAliasLabels: [String] {
@@ -107,6 +116,8 @@ struct ChatImportReviewSheet: View {
                         == .orderedAscending
                 },
                 rememberedAliasKeys: rememberedAliasKeys,
+                conversationKind: allChats.first(where: { $0.id == id })?.conversationKind
+                    ?? .direct,
                 provisionalIdentity: provisionalIdentity
             )
         }
@@ -149,6 +160,17 @@ struct ChatImportReviewSheet: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
+                        if !kindReviewChats.isEmpty {
+                            ImportReviewSectionHeader(title: "Conversation type")
+                            ForEach(kindReviewChats) { chat in
+                                ConversationKindReviewCard(
+                                    chat: chat,
+                                    onAccept: acceptKindReview,
+                                    onReject: rejectKindReview
+                                )
+                            }
+                        }
+
                         if !visibleParticipantReviewGroups.isEmpty {
                             if showsSectionHeaders {
                                 ImportReviewSectionHeader(title: "Sender identities")
@@ -159,6 +181,7 @@ struct ChatImportReviewSheet: View {
                                     ParticipantIdentityReviewCard(
                                         reviewGroup: reviewGroup,
                                         onSelect: resolveIdentity,
+                                        onNotShown: resolveIdentityAsGroup,
                                         onReviewIndividually: {
                                             individuallyReviewedChatIDs.insert(reviewGroup.chatID)
                                         }
@@ -176,6 +199,9 @@ struct ChatImportReviewSheet: View {
                                     UnknownSenderReviewCard(
                                         message: message,
                                         chatName: presentationTitle(chatID: message.chatID),
+                                        conversationKind: conversationKind(
+                                            chatID: message.chatID
+                                        ),
                                         onResolve: resolveSender
                                     )
                                 }
@@ -191,6 +217,9 @@ struct ChatImportReviewSheet: View {
                                     UnknownSenderReviewCard(
                                         message: message,
                                         chatName: presentationTitle(chatID: message.chatID),
+                                        conversationKind: conversationKind(
+                                            chatID: message.chatID
+                                        ),
                                         onResolve: resolveSender
                                     )
                                 }
@@ -210,7 +239,15 @@ struct ChatImportReviewSheet: View {
                                     ImportReviewCard(
                                         chat: chat,
                                         provisionalIdentity: provisionalIdentity,
-                                        mergeCandidates: confirmedChats,
+                                        mergeCandidates: confirmedChats.filter {
+                                            $0.id != chat.id
+                                        }.sorted {
+                                            let suggestedID = chat.importReviewState?
+                                                .suggestedMatchChatID
+                                            if $0.id == suggestedID { return true }
+                                            if $1.id == suggestedID { return false }
+                                            return $0.updatedAt > $1.updatedAt
+                                        },
                                         mergeLabel: mergeCandidateLabel,
                                         canConfirm: !participantReviewGroups.contains {
                                             $0.chatID == chat.id
@@ -222,7 +259,9 @@ struct ChatImportReviewSheet: View {
                             }
                         }
 
-                        if provisionalChats.isEmpty && unknownSenderMessages.isEmpty {
+                        if provisionalChats.isEmpty && unknownSenderMessages.isEmpty
+                            && kindReviewChats.isEmpty
+                        {
                             ContentUnavailableView(
                                 "Imports Reviewed",
                                 systemImage: "checkmark.bubble",
@@ -247,6 +286,14 @@ struct ChatImportReviewSheet: View {
             } message: {
                 Text(verbatim: errorMessage ?? String(localized: AppStrings.Common.tryAgain))
             }
+            .sheet(isPresented: directConversionBinding) {
+                DirectCounterpartSelectionSheet(
+                    candidateNames: detectedParticipantNames(
+                        chatID: directConversionChatID
+                    ),
+                    onSelect: convertReviewedChatToDirect
+                )
+            }
         }
     }
 
@@ -266,6 +313,10 @@ struct ChatImportReviewSheet: View {
             for: allChats.first(where: { $0.id == chatID }),
             provisionalIdentity: provisionalIdentitiesByChatID[chatID]
         )
+    }
+
+    private func conversationKind(chatID: String) -> ChatConversationKind {
+        allChats.first(where: { $0.id == chatID })?.conversationKind ?? .unknown
     }
 
     private func confirm(chatID: String, name: String) {
@@ -337,6 +388,73 @@ struct ChatImportReviewSheet: View {
             errorMessage = error.localizedDescription
         }
     }
+
+    private func resolveIdentityAsGroup(_ reviewGroup: ParticipantReviewGroup) {
+        do {
+            try repository.resolveUnknownSenderLabelsAsGroup(chatID: reviewGroup.chatID)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func acceptKindReview(_ chat: ChatRecord) {
+        do {
+            if chat.conversationKind == .group {
+                try repository.confirmConversationKind(chatID: chat.id)
+            } else {
+                try repository.reclassifyConversation(chatID: chat.id, to: .group)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func rejectKindReview(_ chat: ChatRecord) {
+        if chat.conversationKind == .group {
+            directConversionChatID = chat.id
+        } else {
+            do {
+                try repository.confirmConversationKind(chatID: chat.id)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private var directConversionBinding: Binding<Bool> {
+        Binding(
+            get: { directConversionChatID != nil },
+            set: { if !$0 { directConversionChatID = nil } }
+        )
+    }
+
+    private func detectedParticipantNames(chatID: String?) -> [String] {
+        guard let chatID else { return [] }
+        var seen = Set<String>()
+        return allMessageRecords.compactMap { message in
+            guard message.chatID == chatID,
+                message.senderKind != "user",
+                let name = ParticipantLabelNormalizer.displayLabel(message.senderName),
+                let key = ParticipantLabelNormalizer.key(name),
+                seen.insert(key).inserted
+            else { return nil }
+            return name
+        }
+    }
+
+    private func convertReviewedChatToDirect(_ name: String) {
+        guard let chatID = directConversionChatID else { return }
+        do {
+            try repository.reclassifyConversation(
+                chatID: chatID,
+                to: .direct,
+                directDisplayName: name
+            )
+            directConversionChatID = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 }
 
 private struct ParticipantReviewGroup: Identifiable {
@@ -344,6 +462,7 @@ private struct ParticipantReviewGroup: Identifiable {
     let chatName: String
     let groups: [UnknownSenderLabelGroup]
     let rememberedAliasKeys: Set<String>
+    let conversationKind: ChatConversationKind
     let provisionalIdentity: ProvisionalIdentityInterpretation?
 
     var id: String { chatID }
@@ -363,6 +482,7 @@ private struct ImportReviewSectionHeader: View {
 private struct UnknownSenderReviewCard: View {
     let message: ChatMessageRecord
     let chatName: String
+    let conversationKind: ChatConversationKind
     let onResolve: (UUID, AnalyzedMessageSender, String?) -> Void
 
     var body: some View {
@@ -391,12 +511,16 @@ private struct UnknownSenderReviewCard: View {
                     onResolve(message.id, .user, nil)
                 }
 
-                SenderChoiceChip("Other Participant") {
-                    onResolve(message.id, .otherParticipant, nil)
+                if conversationKind != .group {
+                    SenderChoiceChip("Other Participant") {
+                        onResolve(message.id, .otherParticipant, message.senderName)
+                    }
                 }
 
-                SenderChoiceChip(message.senderName ?? "Participant") {
-                    onResolve(message.id, .groupParticipant, message.senderName)
+                if conversationKind != .direct {
+                    SenderChoiceChip(message.senderName ?? "Participant") {
+                        onResolve(message.id, .groupParticipant, message.senderName)
+                    }
                 }
             }
         }
@@ -408,6 +532,7 @@ private struct UnknownSenderReviewCard: View {
 private struct ParticipantIdentityReviewCard: View {
     let reviewGroup: ParticipantReviewGroup
     let onSelect: (ParticipantReviewGroup, UnknownSenderLabelGroup) -> Void
+    let onNotShown: (ParticipantReviewGroup) -> Void
     let onReviewIndividually: () -> Void
 
     var body: some View {
@@ -513,6 +638,14 @@ private struct ParticipantIdentityReviewCard: View {
                 }
             }
 
+            if reviewGroup.conversationKind == .direct && reviewGroup.groups.count >= 2 {
+                Button("I’m not shown in these messages") {
+                    onNotShown(reviewGroup)
+                }
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(FrameReplyColor.primary)
+            }
+
             Button("Review messages individually", action: onReviewIndividually)
                 .font(.system(size: 13, weight: .bold, design: .rounded))
                 .foregroundStyle(FrameReplyColor.primary)
@@ -530,6 +663,45 @@ private struct ParticipantIdentityReviewCard: View {
             ? "Yes"
             : "No, This Is Me"
     }
+}
+
+private struct ConversationKindReviewCard: View {
+    let chat: ChatRecord
+    let onAccept: (ChatRecord) -> Void
+    let onReject: (ChatRecord) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(title, systemImage: "person.2.fill")
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundStyle(FrameReplyColor.onSurface)
+
+            Text(message)
+                .font(.system(size: 13, design: .rounded))
+                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+
+            HStack(spacing: 10) {
+                Button(primaryTitle) { onAccept(chat) }
+                    .buttonStyle(.borderedProminent)
+                Button(secondaryTitle) { onReject(chat) }
+                    .buttonStyle(.bordered)
+            }
+        }
+        .padding(14)
+        .quietReviewPanel(accented: true)
+    }
+
+    private var wasApplied: Bool { chat.conversationKind == .group }
+    private var title: String {
+        wasApplied ? "Converted to Group" : "This may be a group chat"
+    }
+    private var message: String {
+        wasApplied
+            ? "FrameReply found structural evidence of multiple participants in \(chat.displayTitle())."
+            : "The importer suspected multiple participants but did not find enough structural evidence to change this Direct chat automatically."
+    }
+    private var primaryTitle: String { wasApplied ? "Keep Group" : "Convert" }
+    private var secondaryTitle: String { wasApplied ? "Change to Direct" : "Keep Direct" }
 }
 
 private struct ImportReviewCard: View {
@@ -564,7 +736,10 @@ private struct ImportReviewCard: View {
         self.onConfirm = onConfirm
         self.onMerge = onMerge
         _name = State(
-            initialValue: chat.title ?? provisionalIdentity?.displayTitle ?? ""
+            initialValue:
+                chat.title
+                ?? provisionalIdentity?.displayTitle
+                ?? (chat.conversationKind == .group ? chat.displayTitle() : "")
         )
     }
 
@@ -604,50 +779,116 @@ private struct ImportReviewCard: View {
                 .lineLimit(1)
 
             HStack(spacing: 10) {
-                Button {
-                    onConfirm(chat.id, name)
-                } label: {
-                    Text("Keep")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: 36)
-                        .background {
-                            Capsule(style: .continuous)
-                                .fill(FrameReplyColor.primary)
-                        }
-                }
-                .buttonStyle(SoftPressButtonStyle())
-                .disabled(!canKeep)
-                .opacity(canKeep ? 1 : 0.48)
-
-                if !mergeCandidates.isEmpty {
-                    Menu {
-                        ForEach(mergeCandidates) { candidate in
-                            Button(mergeLabel(candidate)) {
-                                onMerge(chat.id, candidate.id)
-                            }
-                        }
+                if let suggestedCandidate {
+                    Button {
+                        onMerge(chat.id, suggestedCandidate.id)
                     } label: {
-                        Text("Merge into...")
+                        Text("Merge into \(mergeLabel(suggestedCandidate))")
                             .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(FrameReplyColor.primary)
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                             .frame(maxWidth: .infinity)
                             .frame(minHeight: 36)
                             .background {
                                 Capsule(style: .continuous)
-                                    .fill(FrameReplyColor.secondaryContainer.opacity(0.46))
+                                    .fill(FrameReplyColor.primary)
                             }
                     }
                     .buttonStyle(SoftPressButtonStyle())
+
+                    keepButton(prominent: false)
+                } else {
+                    keepButton(prominent: true)
+                    if !mergeCandidates.isEmpty {
+                        mergeMenu(candidates: mergeCandidates, title: "Merge into...")
+                    }
                 }
+            }
+
+            if suggestedCandidate != nil, !otherMergeCandidates.isEmpty {
+                mergeMenu(candidates: otherMergeCandidates, title: "Other destinations...")
             }
         }
         .padding(14)
         .quietReviewPanel()
         .onChange(of: chat.title) { _, _ in
-            name = chat.title ?? provisionalIdentity?.displayTitle ?? ""
+            name =
+                chat.title
+                ?? provisionalIdentity?.displayTitle
+                ?? (chat.conversationKind == .group ? chat.displayTitle() : "")
         }
+    }
+
+    private func candidateLabel(_ candidate: ChatRecord) -> String {
+        var label = mergeLabel(candidate)
+        if candidate.id == chat.importReviewState?.suggestedMatchChatID {
+            label += " · Suggested"
+        }
+        if !chat.conversationKind.isCompatible(with: candidate.conversationKind) {
+            label += " · Result: Group"
+        }
+        return label
+    }
+
+    private var suggestedCandidate: ChatRecord? {
+        guard let suggestedID = chat.importReviewState?.suggestedMatchChatID else {
+            return nil
+        }
+        return mergeCandidates.first { $0.id == suggestedID }
+    }
+
+    private var otherMergeCandidates: [ChatRecord] {
+        guard let suggestedCandidate else { return mergeCandidates }
+        return mergeCandidates.filter { $0.id != suggestedCandidate.id }
+    }
+
+    private func keepButton(prominent: Bool) -> some View {
+        Button {
+            onConfirm(chat.id, name)
+        } label: {
+            Text(prominent ? "Keep" : "Keep Separate")
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(prominent ? Color.white : FrameReplyColor.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 36)
+                .background {
+                    Capsule(style: .continuous)
+                        .fill(
+                            prominent
+                                ? FrameReplyColor.primary
+                                : FrameReplyColor.secondaryContainer.opacity(0.46)
+                        )
+                }
+        }
+        .buttonStyle(SoftPressButtonStyle())
+        .disabled(!canKeep)
+        .opacity(canKeep ? 1 : 0.48)
+    }
+
+    private func mergeMenu(candidates: [ChatRecord], title: String) -> some View {
+        Menu {
+            ForEach(candidates) { candidate in
+                Button(candidateLabel(candidate)) {
+                    onMerge(chat.id, candidate.id)
+                }
+            }
+        } label: {
+            Text(title)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(FrameReplyColor.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 36)
+                .background {
+                    Capsule(style: .continuous)
+                        .fill(FrameReplyColor.secondaryContainer.opacity(0.46))
+                }
+        }
+        .buttonStyle(SoftPressButtonStyle())
     }
 }
 
