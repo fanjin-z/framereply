@@ -50,6 +50,55 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         XCTAssertTrue(createdPersona.waitForExistence(timeout: 3))
     }
 
+    func testPersonaObservationTapEditSwipeRemoveAndVerticalScroll() {
+        let app = launchShowcase()
+        app.buttons["app-tab-personas"].tap()
+
+        let professional = element("persona-card-professional", in: app)
+        XCTAssertTrue(professional.waitForExistence(timeout: 3))
+        professional.tap()
+        XCTAssertTrue(element("persona-detail-screen", in: app).waitForExistence(timeout: 3))
+
+        let rowIdentifierPrefix = "persona-observation-row-"
+        let observationRow = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", rowIdentifierPrefix)
+        ).firstMatch
+        XCTAssertTrue(scrollUntilHittable(observationRow, swiping: app.swipeUp))
+
+        let observationID = String(observationRow.identifier.dropFirst(rowIdentifierPrefix.count))
+        XCTAssertFalse(observationID.isEmpty)
+        let removeObservation = app.buttons["persona-observation-remove-\(observationID)"]
+
+        let dragStart = observationRow.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.65, dy: 0.75)
+        )
+        let dragEnd = app.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.55, dy: 0.2)
+        )
+        dragStart.press(forDuration: 0.05, thenDragTo: dragEnd)
+        let exampleCardTitle = app.staticTexts["Teach It Your Voice"]
+        XCTAssertTrue(exampleCardTitle.waitForExistence(timeout: 3))
+        XCTAssertTrue(exampleCardTitle.isHittable)
+        XCTAssertFalse(removeObservation.exists)
+
+        XCTAssertTrue(scrollUntilHittable(observationRow, swiping: app.swipeDown))
+        observationRow.tap()
+        let editor = element("persona-observation-editor-\(observationID)", in: app)
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Save"].exists)
+        XCTAssertTrue(app.buttons["Cancel"].exists)
+        app.buttons["Cancel"].tap()
+
+        XCTAssertTrue(observationRow.waitForExistence(timeout: 3))
+        observationRow.swipeLeft()
+        XCTAssertTrue(removeObservation.waitForExistence(timeout: 3))
+        removeObservation.tap()
+
+        let removedRow = app.buttons["persona-observation-row-\(observationID)"]
+        XCTAssertTrue(removedRow.waitForNonExistence(timeout: 3))
+        XCTAssertFalse(app.sheets.firstMatch.exists)
+    }
+
     func testFreshInstallShowsProviderOnboardingAndExplicitEscapeOpensSettings() {
         let app = launchStandard(onboardingVersion: 0)
 

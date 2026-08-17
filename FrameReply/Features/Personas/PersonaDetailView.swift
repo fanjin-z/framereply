@@ -15,6 +15,7 @@ struct PersonaDetailView: View {
     @State private var newObservation = ""
     @State private var editingID: UUID?
     @State private var observationDraft = ""
+    @State private var revealedObservationID: UUID?
     @State private var isAnalyzing = false
     @State private var exampleError: String?
     @State private var defaultPersonaID: UUID?
@@ -52,7 +53,9 @@ struct PersonaDetailView: View {
                     }
                     .padding(.horizontal, 24).padding(.top, 12).padding(.bottom, 40)
                     .frame(maxWidth: 720).frame(maxWidth: .infinity)
-                }.scrollIndicators(.hidden)
+                }
+                .scrollIndicators(.hidden)
+                .accessibilityIdentifier("persona-detail-screen")
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) { topBar }
@@ -142,8 +145,24 @@ struct PersonaDetailView: View {
                     )
                 ).labelsHidden()
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("persona-observations-card")
+            .padding(.horizontal, 22)
+            .padding(.top, 22)
 
-            ForEach(activeObservations) { observationRow($0) }
+            if !activeObservations.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(activeObservations.enumerated()), id: \.element.id) {
+                        index, observation in
+                        observationRow(
+                            observation,
+                            showsSeparator: index < activeObservations.count - 1
+                        )
+                    }
+                }
+                .background(FrameReplyColor.surfaceContainerLow)
+                .clipped()
+            }
 
             HStack {
                 TextField("Add an observation", text: $newObservation, axis: .vertical)
@@ -155,31 +174,40 @@ struct PersonaDetailView: View {
                 }.disabled(
                     newObservation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                         || activeObservations.count >= PersonaLimits.maximumActiveObservations)
-            }.padding(14).background(
+            }
+            .padding(14)
+            .background(
                 FrameReplyColor.secondaryContainer.opacity(0.2),
                 in: RoundedRectangle(cornerRadius: 18))
+            .padding(.horizontal, 22)
+            .padding(.bottom, 22)
 
-        }.padding(22).glassPanel(cornerRadius: 28)
+        }
+        .glassPanel(cornerRadius: 28)
     }
 
-    private func observationRow(_ observation: PersonaObservationRecord) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label(
-                    sourceLabel(observation),
-                    systemImage: observation.isUserProtected ? "lock.fill" : "sparkles"
-                )
-                .font(.caption.bold()).foregroundStyle(FrameReplyColor.outline)
-                Spacer()
-                Text(observation.updatedAt, style: .date).font(.caption2).foregroundStyle(
-                    FrameReplyColor.outline)
-            }
-            if editingID == observation.id {
+    @ViewBuilder
+    private func observationRow(
+        _ observation: PersonaObservationRecord,
+        showsSeparator: Bool
+    ) -> some View {
+        if editingID == observation.id {
+            VStack(alignment: .leading, spacing: 10) {
+                observationMetadata(observation)
+
                 TextField("Observation", text: $observationDraft, axis: .vertical)
-                HStack {
+                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                    .foregroundStyle(FrameReplyColor.onSurface)
+                    .accessibilityIdentifier(
+                        "persona-observation-editor-\(observation.id.uuidString)"
+                    )
+
+                HStack(spacing: 12) {
                     Button("Remove", role: .destructive) { archive(observation) }
+                        .frame(minWidth: 72, minHeight: 44)
                     Spacer()
                     Button("Cancel") { editingID = nil }
+                        .frame(minWidth: 72, minHeight: 44)
                     Button("Save") {
                         KeyboardDismissal.dismiss()
                         try? personaRepository.updateObservation(
@@ -187,20 +215,95 @@ struct PersonaDetailView: View {
                         editingID = nil
                     }.disabled(
                         observationDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }.font(.caption.bold())
-            } else {
-                Button {
-                    editingID = observation.id
-                    observationDraft = observation.localizedText
-                } label: {
-                    Text(verbatim: observation.localizedText).frame(
-                        maxWidth: .infinity, alignment: .leading)
+                    .frame(minWidth: 72, minHeight: 44)
                 }
-                .buttonStyle(.plain)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
             }
-        }.padding(14).background(
-            FrameReplyColor.secondaryContainer.opacity(0.28), in: RoundedRectangle(cornerRadius: 18)
-        )
+            .padding(.horizontal, 22)
+            .padding(.vertical, 10)
+            .compactSwipeRowSurface(showsSeparator: showsSeparator)
+        } else {
+            CompactSwipeRow(
+                isRevealed: revealedObservationID == observation.id,
+                onReveal: {
+                    editingID = nil
+                    revealedObservationID = observation.id
+                },
+                onClose: {
+                    if revealedObservationID == observation.id {
+                        revealedObservationID = nil
+                    }
+                },
+                onAction: {
+                    archive(observation)
+                },
+                actionTitle: "Remove",
+                actionSystemImage: "trash",
+                actionTint: .red,
+                actionAccessibilityIdentifier:
+                    "persona-observation-remove-\(observation.id.uuidString)"
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    observationMetadata(observation)
+
+                    Text(verbatim: observation.localizedText)
+                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                        .foregroundStyle(FrameReplyColor.onSurface)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.horizontal, 22)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if revealedObservationID == observation.id {
+                        revealedObservationID = nil
+                    } else {
+                        beginEditing(observation)
+                    }
+                }
+                .compactSwipeRowSurface(showsSeparator: showsSeparator)
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityLabel("Observation: \(observation.localizedText)")
+                .accessibilityHint("Double tap to edit, or swipe left to remove")
+                .accessibilityIdentifier(
+                    "persona-observation-row-\(observation.id.uuidString)"
+                )
+                .accessibilityAction(named: "Edit") {
+                    beginEditing(observation)
+                }
+                .accessibilityAction(named: "Remove") {
+                    archive(observation)
+                }
+                .contextMenu {
+                    Button("Edit", systemImage: "pencil") {
+                        beginEditing(observation)
+                    }
+                    Button("Remove", systemImage: "trash", role: .destructive) {
+                        archive(observation)
+                    }
+                }
+            }
+        }
+    }
+
+    private func observationMetadata(_ observation: PersonaObservationRecord) -> some View {
+        HStack {
+            Label(
+                sourceLabel(observation),
+                systemImage: observation.isUserProtected ? "lock.fill" : "sparkles"
+            )
+            .font(.system(size: 10, weight: .semibold, design: .rounded))
+            .foregroundStyle(FrameReplyColor.outline)
+
+            Spacer()
+
+            Text(observation.updatedAt, style: .date)
+                .font(.system(size: 10, weight: .regular, design: .rounded))
+                .foregroundStyle(FrameReplyColor.outline)
+        }
     }
 
     private var exampleCard: some View {
@@ -266,7 +369,14 @@ struct PersonaDetailView: View {
         }
     }
 
+    private func beginEditing(_ observation: PersonaObservationRecord) {
+        revealedObservationID = nil
+        editingID = observation.id
+        observationDraft = observation.localizedText
+    }
+
     private func archive(_ observation: PersonaObservationRecord) {
+        revealedObservationID = nil
         try? personaRepository.archiveObservation(observation)
         editingID = nil
     }

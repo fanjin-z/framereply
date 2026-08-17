@@ -605,6 +605,9 @@
     "Double tap to edit, or swipe left to delete" : {
 
     },
+    "Double tap to edit, or swipe left to remove" : {
+
+    },
     "Double- or triple-tap the back of your iPhone to import screenshots" : {
 
     },
@@ -1564,6 +1567,9 @@
 
     },
     "Observation History" : {
+
+    },
+    "Observation: %@" : {
 
     },
     "Observations" : {

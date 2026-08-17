@@ -1,6 +1,5 @@
 import SwiftData
 import SwiftUI
-import UIKit
 
 struct ChatMemoryCard: View {
     let chat: Chat
@@ -127,9 +126,9 @@ struct ChatMemoryCard: View {
             }
             .padding(.horizontal, 22)
             .padding(.vertical, 10)
-            .compactMemoryRowSurface(showsSeparator: showsSeparator)
+            .compactSwipeRowSurface(showsSeparator: showsSeparator)
         } else {
-            CompactMemorySwipeRow(
+            CompactSwipeRow(
                 isRevealed: revealedMemoryID == memory.id,
                 onReveal: {
                     editingMemoryID = nil
@@ -140,10 +139,13 @@ struct ChatMemoryCard: View {
                         revealedMemoryID = nil
                     }
                 },
-                onDelete: {
+                onAction: {
                     deleteMemory(memory.id)
                 },
-                deleteAccessibilityIdentifier: "chat-memory-delete-\(memory.id.uuidString)"
+                actionTitle: "Delete",
+                actionSystemImage: "trash",
+                actionTint: .red,
+                actionAccessibilityIdentifier: "chat-memory-delete-\(memory.id.uuidString)"
             ) {
                 VStack(alignment: .leading, spacing: 4) {
                     if memory.origin == ChatMemoryOrigin.ai.rawValue {
@@ -171,7 +173,7 @@ struct ChatMemoryCard: View {
                         beginEditing(memory)
                     }
                 }
-                .compactMemoryRowSurface(showsSeparator: showsSeparator)
+                .compactSwipeRowSurface(showsSeparator: showsSeparator)
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(.isButton)
                 .accessibilityLabel("Memory: \(memory.text)")
@@ -264,173 +266,5 @@ struct ChatMemoryCard: View {
             get: { saveError != nil },
             set: { if !$0 { saveError = nil } }
         )
-    }
-}
-
-extension View {
-    fileprivate func compactMemoryRowSurface(showsSeparator: Bool) -> some View {
-        background(FrameReplyColor.surfaceContainerLow)
-            .overlay(alignment: .bottom) {
-                if showsSeparator {
-                    Rectangle()
-                        .fill(FrameReplyColor.outlineVariant.opacity(0.55))
-                        .frame(height: 0.5)
-                        .padding(.horizontal, 22)
-                }
-            }
-    }
-}
-
-private struct CompactMemorySwipeRow<Content: View>: View {
-    private let actionWidth: CGFloat = 82
-    private let swipeProjectionTime: CGFloat = 0.2
-
-    let isRevealed: Bool
-    let onReveal: () -> Void
-    let onClose: () -> Void
-    let onDelete: () -> Void
-    let deleteAccessibilityIdentifier: String
-    let content: Content
-
-    @State private var dragTranslation: CGFloat = 0
-
-    init(
-        isRevealed: Bool,
-        onReveal: @escaping () -> Void,
-        onClose: @escaping () -> Void,
-        onDelete: @escaping () -> Void,
-        deleteAccessibilityIdentifier: String,
-        @ViewBuilder content: () -> Content
-    ) {
-        self.isRevealed = isRevealed
-        self.onReveal = onReveal
-        self.onClose = onClose
-        self.onDelete = onDelete
-        self.deleteAccessibilityIdentifier = deleteAccessibilityIdentifier
-        self.content = content()
-    }
-
-    var body: some View {
-        ZStack(alignment: .trailing) {
-            Button(role: .destructive, action: onDelete) {
-                VStack(spacing: 3) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("Delete")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                }
-                .foregroundStyle(.white)
-                .frame(width: actionWidth)
-            }
-            .buttonStyle(.plain)
-            .opacity(isActionVisible ? 1 : 0)
-            .allowsHitTesting(isRevealed)
-            .accessibilityHidden(!isRevealed)
-            .accessibilityIdentifier(deleteAccessibilityIdentifier)
-
-            content
-                .offset(x: rowOffset)
-                .gesture(
-                    HorizontalPanGesture(
-                        onChanged: { translation in
-                            dragTranslation = translation
-                        },
-                        onEnded: finishSwipe,
-                        onCancelled: {
-                            dragTranslation = 0
-                        }
-                    )
-                )
-        }
-        .background(alignment: .trailing) {
-            Color.red
-                .opacity(isActionVisible ? 1 : 0)
-                .frame(width: actionWidth)
-        }
-        .background(FrameReplyColor.surfaceContainerLow)
-        .contentShape(Rectangle())
-        .animation(.snappy(duration: 0.2), value: isRevealed)
-    }
-
-    private var isActionVisible: Bool {
-        isRevealed || dragTranslation < 0
-    }
-
-    private var rowOffset: CGFloat {
-        let restingOffset = isRevealed ? -actionWidth : 0
-        return min(0, max(-actionWidth, restingOffset + dragTranslation))
-    }
-
-    private func finishSwipe(translation: CGFloat, velocity: CGFloat) {
-        let restingOffset = isRevealed ? -actionWidth : 0
-        let projectedTranslation = translation + velocity * swipeProjectionTime
-        let projectedOffset = min(
-            0,
-            max(-actionWidth, restingOffset + projectedTranslation)
-        )
-
-        dragTranslation = 0
-        if projectedOffset < -actionWidth / 2 {
-            onReveal()
-        } else {
-            onClose()
-        }
-    }
-}
-
-/// A pan gesture that fails before recognition unless the user's movement is
-/// predominantly horizontal. Failing early leaves vertical drags to the
-/// enclosing chat-details scroll view.
-private struct HorizontalPanGesture: UIGestureRecognizerRepresentable {
-    let onChanged: (CGFloat) -> Void
-    let onEnded: (_ translation: CGFloat, _ velocity: CGFloat) -> Void
-    let onCancelled: () -> Void
-
-    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
-        Coordinator()
-    }
-
-    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
-        let recognizer = UIPanGestureRecognizer()
-        recognizer.delegate = context.coordinator
-        recognizer.minimumNumberOfTouches = 1
-        recognizer.maximumNumberOfTouches = 1
-        return recognizer
-    }
-
-    func handleUIGestureRecognizerAction(
-        _ recognizer: UIPanGestureRecognizer,
-        context: Context
-    ) {
-        let translation = recognizer.translation(in: recognizer.view).x
-
-        switch recognizer.state {
-        case .began, .changed:
-            onChanged(translation)
-        case .ended:
-            onEnded(translation, recognizer.velocity(in: recognizer.view).x)
-        case .cancelled, .failed:
-            onCancelled()
-        default:
-            break
-        }
-    }
-
-    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
-        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-            guard let panGesture = gestureRecognizer as? UIPanGestureRecognizer else {
-                return false
-            }
-
-            let velocity = panGesture.velocity(in: panGesture.view)
-            return abs(velocity.x) > abs(velocity.y)
-        }
-
-        func gestureRecognizer(
-            _ gestureRecognizer: UIGestureRecognizer,
-            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
-        ) -> Bool {
-            otherGestureRecognizer.view is UIScrollView
-        }
     }
 }
