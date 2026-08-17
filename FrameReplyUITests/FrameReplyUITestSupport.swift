@@ -27,7 +27,8 @@ class FrameReplyUITestCase: XCTestCase {
     }
 
     func launchShowcase(
-        contentSizeCategory: String = "UICTContentSizeCategoryL"
+        contentSizeCategory: String = "UICTContentSizeCategoryL",
+        additionalArguments: [String] = []
     ) -> XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
@@ -38,6 +39,7 @@ class FrameReplyUITestCase: XCTestCase {
             "-UIPreferredContentSizeCategoryName", contentSizeCategory,
             "-UIAccessibilityReduceMotionEnabled", "YES"
         ]
+        app.launchArguments += additionalArguments
         app.launch()
         XCUIDevice.shared.orientation = .portrait
         let portraitExpectation = XCTNSPredicateExpectation(

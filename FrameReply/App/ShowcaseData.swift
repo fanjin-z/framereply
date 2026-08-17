@@ -236,6 +236,27 @@
             )
         ]
 
+        static let memoryListTestFixture = [
+            Memory(
+                id: uuid("20000000-0000-4000-8000-000000000002"),
+                text:
+                    "Maya prefers outdoor stalls and usually arrives early enough to avoid the busiest crowds.",
+                minutesBeforeUpdate: 29
+            ),
+            Memory(
+                id: uuid("20000000-0000-4000-8000-000000000003"),
+                text:
+                    "Maya recommended the bakery near the park because its seasonal pastries change every weekend.",
+                minutesBeforeUpdate: 28
+            ),
+            Memory(
+                id: uuid("20000000-0000-4000-8000-000000000004"),
+                text:
+                    "Maya would like coffee before walking through the market and checking the local craft stalls.",
+                minutesBeforeUpdate: 27
+            )
+        ]
+
         static func chat(id: String) -> Chat? {
             chats.first { $0.id == id }
         }
@@ -247,7 +268,11 @@
 
     @MainActor
     enum ShowcaseDataSeeder {
-        static func seed(in container: ModelContainer, now: Date = Date()) throws {
+        static func seed(
+            in container: ModelContainer,
+            now: Date = Date(),
+            includesMemoryListTestFixture: Bool = false
+        ) throws {
             let context = container.mainContext
             let personaRepository = PersonaRepository(context: context)
             let personas = try personaRepository.personas()
@@ -317,6 +342,24 @@
                             updatedAt: updatedAt
                         )
                     )
+                }
+                if includesMemoryListTestFixture, scenario.id == ShowcaseScenario.ChatID.maya {
+                    for memory in ShowcaseScenario.memoryListTestFixture {
+                        context.insert(
+                            ChatMemoryRecord(
+                                id: memory.id,
+                                chatID: scenario.id,
+                                text: memory.text,
+                                origin: ChatMemoryOrigin.ai.rawValue,
+                                certainty: ChatMemoryCertainty.userConfirmed.rawValue,
+                                status: ChatMemoryStatus.active.rawValue,
+                                createdAt: updatedAt.addingTimeInterval(
+                                    TimeInterval(-memory.minutesBeforeUpdate * 60)
+                                ),
+                                updatedAt: updatedAt
+                            )
+                        )
+                    }
                 }
                 context.insert(
                     SuggestedReplyCacheRecord(
@@ -389,7 +432,12 @@
             let chatRepository = ChatRepository(context: container.mainContext)
             let personaRepository = PersonaRepository(context: container.mainContext)
             try personaRepository.seedPersonasIfNeeded()
-            try ShowcaseDataSeeder.seed(in: container)
+            try ShowcaseDataSeeder.seed(
+                in: container,
+                includesMemoryListTestFixture: ProcessInfo.processInfo.arguments.contains(
+                    "--framereply-showcase-memory-list"
+                )
+            )
 
             let providerStore = try ShowcaseEnvironment.makeProviderStore(
                 seedsProvider: !completesOnboarding

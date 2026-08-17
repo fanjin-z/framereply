@@ -449,9 +449,6 @@
     "Choose which sender is you before keeping this chat." : {
 
     },
-    "Select Default Persona" : {
-
-    },
     "Clear search" : {
 
     },
@@ -605,7 +602,7 @@
     "Done" : {
 
     },
-    "Double tap to edit" : {
+    "Double tap to edit, or swipe left to delete" : {
 
     },
     "Double- or triple-tap the back of your iPhone to import screenshots" : {
@@ -2264,6 +2261,9 @@
 
     },
     "Search chats..." : {
+
+    },
+    "Select Default Persona" : {
 
     },
     "Select performance" : {

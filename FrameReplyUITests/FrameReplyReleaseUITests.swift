@@ -237,6 +237,50 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         XCTAssertTrue(confirmation.waitForNonExistence(timeout: 2))
     }
 
+    func testChatMemoryTapToEditAndSwipeToDelete() {
+        let app = launchShowcase(
+            additionalArguments: ["--framereply-showcase-memory-list"]
+        )
+        openMaya(in: app)
+
+        let details = element("open-chat-details", in: app)
+        XCTAssertTrue(details.waitForExistence(timeout: 3))
+        details.tap()
+
+        let memoryID = "20000000-0000-4000-8000-000000000001"
+        let memoryRow = element("chat-memory-row-\(memoryID)", in: app)
+        let deleteMemory = app.buttons["chat-memory-delete-\(memoryID)"]
+        XCTAssertTrue(scrollUntilHittable(memoryRow, swiping: app.swipeUp))
+
+        let dragStart = memoryRow.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.65, dy: 0.75)
+        )
+        let dragEnd = app.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.55, dy: 0.2)
+        )
+        dragStart.press(forDuration: 0.05, thenDragTo: dragEnd)
+        XCTAssertTrue(app.buttons["Delete Chat"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Delete Chat"].isHittable)
+        XCTAssertFalse(deleteMemory.exists)
+        app.swipeDown()
+        XCTAssertTrue(scrollUntilHittable(memoryRow, swiping: app.swipeUp))
+
+        memoryRow.tap()
+        let editor = element("chat-memory-editor-\(memoryID)", in: app)
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Save"].exists)
+        XCTAssertTrue(app.buttons["Cancel"].exists)
+        app.buttons["Cancel"].tap()
+
+        XCTAssertTrue(memoryRow.waitForExistence(timeout: 3))
+        memoryRow.swipeLeft()
+        XCTAssertTrue(deleteMemory.waitForExistence(timeout: 3))
+        deleteMemory.tap()
+
+        XCTAssertTrue(memoryRow.waitForNonExistence(timeout: 3))
+        XCTAssertFalse(app.sheets.firstMatch.exists)
+    }
+
     func testReplyGuidancePersistsIntoImport() {
         let app = launchShowcase()
         openMaya(in: app)
