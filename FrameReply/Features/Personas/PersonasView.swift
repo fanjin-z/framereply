@@ -4,7 +4,6 @@ import SwiftUI
 struct PersonasView: View {
     private let repository: PersonaRepository
     let onPersonaTap: (UUID) -> Void
-    let onCreateTap: () -> Void
     @Query(sort: \PersonaRecord.createdAt) private var records: [PersonaRecord]
     @State private var personaToDelete: PersonaRecord?
     @State private var defaultPersonaID: UUID?
@@ -13,12 +12,10 @@ struct PersonasView: View {
 
     init(
         repository: PersonaRepository,
-        onPersonaTap: @escaping (UUID) -> Void,
-        onCreateTap: @escaping () -> Void
+        onPersonaTap: @escaping (UUID) -> Void
     ) {
         self.repository = repository
         self.onPersonaTap = onPersonaTap
-        self.onCreateTap = onCreateTap
     }
 
     var body: some View {
@@ -40,18 +37,9 @@ struct PersonasView: View {
                     }
                 }
                 .padding(.top, 14)
-
-                Button {
-                    onCreateTap()
-                } label: {
-                    Label("Create New Persona", systemImage: "plus")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white).frame(maxWidth: .infinity).frame(minHeight: 50)
-                        .background(Capsule().fill(FrameReplyColor.primary))
-                }
-                .buttonStyle(SoftPressButtonStyle()).padding(.top, 6)
             }
-            .padding(.horizontal, 24).padding(.bottom, 94)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 162)
             .frame(maxWidth: 720, alignment: .leading).frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)

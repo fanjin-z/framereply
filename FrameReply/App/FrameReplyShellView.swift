@@ -57,9 +57,6 @@ struct FrameReplyShellView: View {
                             repository: personaRepository,
                             onPersonaTap: { personaID in
                                 navigationPath.append(.persona(personaID))
-                            },
-                            onCreateTap: {
-                                navigationPath.append(.newPersona)
                             }
                         )
                     case .settings:
@@ -77,9 +74,21 @@ struct FrameReplyShellView: View {
                 }
                 .ignoresSafeArea(.container, edges: .bottom)
 
-                FloatingBottomNavigation(selectedTab: $selectedTab)
-                    .padding(.horizontal, 22)
-                    .padding(.bottom, 12)
+                VStack(spacing: 20) {
+                    if selectedTab == .personas {
+                        HStack {
+                            Spacer()
+                            floatingCreatePersonaButton
+                        }
+                        .padding(.horizontal, 24)
+                        .frame(maxWidth: 720)
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    FloatingBottomNavigation(selectedTab: $selectedTab)
+                        .padding(.horizontal, 22)
+                }
+                .padding(.bottom, 12)
             }
             .ignoresSafeArea(.keyboard, edges: .bottom)
             .navigationDestination(for: FrameReplyRoute.self) { route in
@@ -174,6 +183,30 @@ struct FrameReplyShellView: View {
                 selectedTab = .settings
             }
         }
+    }
+
+    private var floatingCreatePersonaButton: some View {
+        Button {
+            navigationPath.append(.newPersona)
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 48, height: 48)
+                .background {
+                    Circle()
+                        .fill(FrameReplyColor.primary)
+                        .shadow(
+                            color: FrameReplyColor.primaryContainer.opacity(0.18),
+                            radius: 10,
+                            x: 0,
+                            y: 6
+                        )
+                }
+        }
+        .buttonStyle(SoftPressButtonStyle())
+        .accessibilityLabel("Create New Persona")
+        .accessibilityIdentifier("Create New Persona")
     }
 
     private func chat(withID id: String) -> Chat? {

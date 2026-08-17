@@ -54,15 +54,18 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         XCTAssertTrue(element("chats-screen", in: app).waitForExistence(timeout: 3))
         XCTAssertEqual(chats.value as? String, "Current tab")
         XCTAssertNotEqual(personas.value as? String, "Current tab")
+        XCTAssertFalse(app.buttons["Create New Persona"].exists)
 
         personas.tap()
         XCTAssertTrue(element("personas-screen", in: app).waitForExistence(timeout: 3))
         XCTAssertEqual(personas.value as? String, "Current tab")
         XCTAssertNotEqual(chats.value as? String, "Current tab")
+        XCTAssertTrue(app.buttons["Create New Persona"].isHittable)
 
         settings.tap()
         XCTAssertEqual(settings.value as? String, "Current tab")
         XCTAssertNotEqual(personas.value as? String, "Current tab")
+        XCTAssertFalse(app.buttons["Create New Persona"].exists)
     }
 
     func testProviderConsentCanBeCancelledWithoutSaving() {

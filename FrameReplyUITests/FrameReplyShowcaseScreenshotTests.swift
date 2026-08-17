@@ -66,8 +66,12 @@ final class FrameReplyShowcaseScreenshotTests: FrameReplyUITestCase {
         for persona in ["professional", "spark", "thoughtful"] {
             XCTAssertTrue(element("persona-card-\(persona)", in: app).waitForExistence(timeout: 3))
         }
-        XCTAssertTrue(app.buttons["Create New Persona"].isHittable)
+        let createPersona = app.buttons["Create New Persona"]
+        XCTAssertTrue(createPersona.isHittable)
         capture("05-personas")
+
+        createPersona.tap()
+        XCTAssertTrue(app.staticTexts["New Persona"].waitForExistence(timeout: 3))
     }
 
     func test06ContextAndRationale() {
