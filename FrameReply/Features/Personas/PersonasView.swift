@@ -120,3 +120,38 @@ struct PersonasView: View {
         }
     }
 }
+
+struct CreatePersonaFloatingButton: View {
+    let accessibilityIdentifier: String
+    let action: () -> Void
+
+    init(
+        accessibilityIdentifier: String = "Create New Persona",
+        action: @escaping () -> Void
+    ) {
+        self.accessibilityIdentifier = accessibilityIdentifier
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "plus")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 48, height: 48)
+                .background {
+                    Circle()
+                        .fill(FrameReplyColor.primary)
+                        .shadow(
+                            color: FrameReplyColor.primaryContainer.opacity(0.18),
+                            radius: 10,
+                            x: 0,
+                            y: 6
+                        )
+                }
+        }
+        .buttonStyle(SoftPressButtonStyle())
+        .accessibilityLabel("Create New Persona")
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}

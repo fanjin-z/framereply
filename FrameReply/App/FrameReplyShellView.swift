@@ -186,27 +186,9 @@ struct FrameReplyShellView: View {
     }
 
     private var floatingCreatePersonaButton: some View {
-        Button {
+        CreatePersonaFloatingButton {
             navigationPath.append(.newPersona)
-        } label: {
-            Image(systemName: "plus")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 48, height: 48)
-                .background {
-                    Circle()
-                        .fill(FrameReplyColor.primary)
-                        .shadow(
-                            color: FrameReplyColor.primaryContainer.opacity(0.18),
-                            radius: 10,
-                            x: 0,
-                            y: 6
-                        )
-                }
         }
-        .buttonStyle(SoftPressButtonStyle())
-        .accessibilityLabel("Create New Persona")
-        .accessibilityIdentifier("Create New Persona")
     }
 
     private func chat(withID id: String) -> Chat? {

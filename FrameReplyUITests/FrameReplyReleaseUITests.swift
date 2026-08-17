@@ -1,6 +1,55 @@
 import XCTest
 
 final class FrameReplyReleaseUITests: FrameReplyUITestCase {
+    func testPersonaOnboardingRequiresSelectionAndPersistsDefault() {
+        let app = launchShowcaseOnboarding()
+
+        XCTAssertTrue(element("onboarding-persona-step", in: app).waitForExistence(timeout: 8))
+        let continueButton = app.buttons["continue-from-persona"]
+        XCTAssertTrue(continueButton.exists)
+        XCTAssertFalse(continueButton.isEnabled)
+
+        let spark = element("onboarding-persona-card-spark", in: app)
+        XCTAssertTrue(spark.waitForExistence(timeout: 3))
+        spark.tap()
+        XCTAssertTrue(continueButton.isEnabled)
+        continueButton.tap()
+
+        XCTAssertTrue(element("onboarding-shortcuts-step", in: app).waitForExistence(timeout: 3))
+        app.buttons["finish-onboarding"].tap()
+        XCTAssertTrue(element("chats-screen", in: app).waitForExistence(timeout: 5))
+
+        app.buttons["app-tab-personas"].tap()
+        let persistedSpark = element("persona-card-spark", in: app)
+        XCTAssertTrue(persistedSpark.waitForExistence(timeout: 3))
+        XCTAssertEqual(persistedSpark.value as? String, "Default persona")
+    }
+
+    func testPersonaCreatedDuringOnboardingBecomesDefault() {
+        let app = launchShowcaseOnboarding()
+
+        XCTAssertTrue(element("onboarding-persona-step", in: app).waitForExistence(timeout: 8))
+        app.buttons["onboarding-create-persona"].tap()
+        XCTAssertTrue(app.staticTexts["New Persona"].waitForExistence(timeout: 3))
+
+        let name = app.textFields["e.g. Work Mode"]
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.tap()
+        name.typeText("Onboarding Persona")
+        app.buttons["Create Persona"].tap()
+
+        XCTAssertTrue(element("onboarding-persona-step", in: app).waitForExistence(timeout: 5))
+        let continueButton = app.buttons["continue-from-persona"]
+        XCTAssertTrue(continueButton.isEnabled)
+        continueButton.tap()
+        app.buttons["finish-onboarding"].tap()
+
+        XCTAssertTrue(element("chats-screen", in: app).waitForExistence(timeout: 5))
+        app.buttons["app-tab-personas"].tap()
+        let createdPersona = app.staticTexts["Onboarding Persona"]
+        XCTAssertTrue(createdPersona.waitForExistence(timeout: 3))
+    }
+
     func testFreshInstallShowsProviderOnboardingAndExplicitEscapeOpensSettings() {
         let app = launchStandard(onboardingVersion: 0)
 

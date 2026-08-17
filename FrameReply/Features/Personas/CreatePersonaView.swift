@@ -53,7 +53,6 @@ struct CreatePersonaView: View {
         }
         .safeAreaInset(edge: .top, spacing: 0) { topBar }
         .safeAreaInset(edge: .bottom, spacing: 0) { creationBar }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         .interactiveSwipeBackEnabled()
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)

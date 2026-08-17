@@ -13,6 +13,10 @@
                 .showcase
             )
             XCTAssertEqual(
+                AppLaunchMode.resolve(arguments: ["--framereply-showcase-onboarding"]),
+                .showcaseOnboarding
+            )
+            XCTAssertEqual(
                 AppLaunchMode.resolve(arguments: ["framereply-showcase"]),
                 .standard
             )
@@ -30,6 +34,14 @@
                 )
             ).first
             XCTAssertEqual(record?.title, "Updated Showcase Name")
+        }
+
+        func testShowcaseOnboardingStartsPendingWithASeededDefaultPersona() throws {
+            let runtime = try AppRuntime.showcase(completesOnboarding: false)
+
+            XCTAssertEqual(runtime.onboardingStore.presentation, .initial)
+            XCTAssertNotNil(try runtime.personaRepository.defaultPersonaID())
+            XCTAssertFalse(runtime.providerStore.providers.isEmpty)
         }
 
     }

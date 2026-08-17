@@ -5,6 +5,38 @@ import XCTest
 
 @MainActor
 final class PersonaPersistenceTests: XCTestCase {
+    func testSeededAndSelectedDefaultsSurviveRepositoryRecreation() throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = PersonaRepository(container: container)
+        try repository.seedPersonasIfNeeded()
+
+        let seededDefaultID = try repository.defaultPersonaID()
+        XCTAssertEqual(
+            try PersonaRepository(container: container).defaultPersonaID(),
+            seededDefaultID
+        )
+
+        let selectedID = try XCTUnwrap(
+            repository.personas().first { $0.builtInID == .thoughtful }?.id
+        )
+        try repository.setDefaultPersona(id: selectedID)
+
+        XCTAssertEqual(
+            try PersonaRepository(container: container).defaultPersonaID(),
+            selectedID
+        )
+    }
+
+    func testFailedDefaultSelectionKeepsExistingDefault() throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = PersonaRepository(container: container)
+        try repository.seedPersonasIfNeeded()
+        let existingDefaultID = try repository.defaultPersonaID()
+
+        XCTAssertThrowsError(try repository.setDefaultPersona(id: UUID()))
+        XCTAssertEqual(try repository.defaultPersonaID(), existingDefaultID)
+    }
+
     func testSeedingAndSelectedDefaultsDriveNewContexts() throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = PersonaRepository(container: container)

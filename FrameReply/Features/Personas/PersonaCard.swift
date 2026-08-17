@@ -10,8 +10,8 @@ struct PersonaCard: View {
     let usageCount: Int
     let isDefault: Bool
     let onTap: () -> Void
-    let onSetDefault: () -> Void
-    let onDuplicate: () -> Void
+    let onSetDefault: (() -> Void)?
+    let onDuplicate: (() -> Void)?
     let onDelete: (() -> Void)?
 
     var body: some View {
@@ -52,26 +52,35 @@ struct PersonaCard: View {
 
                 Spacer()
 
-                Menu {
-                    if isDefault {
-                        Button("Default Persona", systemImage: "checkmark.circle.fill") {}
-                            .disabled(true)
-                    } else {
-                        Button(
-                            "Set as Default", systemImage: "checkmark.circle", action: onSetDefault)
+                if hasManagementActions {
+                    Menu {
+                        if isDefault {
+                            Button("Default Persona", systemImage: "checkmark.circle.fill") {}
+                                .disabled(true)
+                        } else if let onSetDefault {
+                            Button(
+                                "Set as Default", systemImage: "checkmark.circle",
+                                action: onSetDefault)
+                        }
+                        if let onDuplicate {
+                            Button(
+                                "Duplicate", systemImage: "plus.square.on.square",
+                                action: onDuplicate)
+                        }
+                        if let onDelete {
+                            Button(
+                                "Delete", systemImage: "trash", role: .destructive,
+                                action: onDelete)
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 20, weight: .bold))
+                            .rotationEffect(.degrees(90))
+                            .foregroundStyle(FrameReplyColor.outline)
+                            .frame(width: 36, height: 36)
                     }
-                    Button("Duplicate", systemImage: "plus.square.on.square", action: onDuplicate)
-                    if let onDelete {
-                        Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 20, weight: .bold))
-                        .rotationEffect(.degrees(90))
-                        .foregroundStyle(FrameReplyColor.outline)
-                        .frame(width: 36, height: 36)
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
 
             Text(persona.summary)
@@ -95,5 +104,9 @@ struct PersonaCard: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
         .accessibilityValue(isDefault ? "Default persona" : "")
+    }
+
+    private var hasManagementActions: Bool {
+        onSetDefault != nil || onDuplicate != nil || onDelete != nil
     }
 }

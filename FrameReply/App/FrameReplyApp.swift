@@ -58,7 +58,11 @@ final class AppStartupController: ObservableObject {
         do {
             #if DEBUG
                 if launchMode.isShowcase {
-                    state = .ready(try AppRuntime.showcase())
+                    state = .ready(
+                        try AppRuntime.showcase(
+                            completesOnboarding: !launchMode.showsShowcaseOnboarding
+                        )
+                    )
                     return
                 }
             #endif
@@ -93,10 +97,14 @@ enum AppLaunchMode: Equatable {
     case standard
     #if DEBUG
         case showcase
+        case showcaseOnboarding
     #endif
 
     static func resolve(arguments: [String] = ProcessInfo.processInfo.arguments) -> Self {
         #if DEBUG
+            if arguments.contains("--framereply-showcase-onboarding") {
+                return .showcaseOnboarding
+            }
             if arguments.contains("--framereply-showcase") {
                 return .showcase
             }
@@ -106,7 +114,15 @@ enum AppLaunchMode: Equatable {
 
     var isShowcase: Bool {
         #if DEBUG
-            self == .showcase
+            self == .showcase || self == .showcaseOnboarding
+        #else
+            false
+        #endif
+    }
+
+    var showsShowcaseOnboarding: Bool {
+        #if DEBUG
+            self == .showcaseOnboarding
         #else
             false
         #endif

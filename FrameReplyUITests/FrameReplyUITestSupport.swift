@@ -49,6 +49,20 @@ class FrameReplyUITestCase: XCTestCase {
         return app
     }
 
+    func launchShowcaseOnboarding() -> XCUIApplication {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "--framereply-showcase-onboarding",
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US",
+            "-UIAccessibilityReduceMotionEnabled", "YES"
+        ]
+        app.launch()
+        XCUIDevice.shared.orientation = .portrait
+        return app
+    }
+
     func openMaya(in app: XCUIApplication) {
         let maya = app.buttons["chat-card-showcase.maya"]
         XCTAssertTrue(maya.waitForExistence(timeout: 5))

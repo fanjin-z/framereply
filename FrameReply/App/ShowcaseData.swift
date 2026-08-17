@@ -384,19 +384,23 @@
 
     @MainActor
     extension AppRuntime {
-        static func showcase() throws -> AppRuntime {
+        static func showcase(completesOnboarding: Bool = true) throws -> AppRuntime {
             let container = try FrameReplyDataStore.makeContainer(inMemory: true)
             let chatRepository = ChatRepository(context: container.mainContext)
             let personaRepository = PersonaRepository(context: container.mainContext)
             try personaRepository.seedPersonasIfNeeded()
             try ShowcaseDataSeeder.seed(in: container)
 
-            let providerStore = try ShowcaseEnvironment.makeProviderStore()
+            let providerStore = try ShowcaseEnvironment.makeProviderStore(
+                seedsProvider: !completesOnboarding
+            )
             let onboardingStore = OnboardingStore(
                 userDefaults: ShowcaseEnvironment.userDefaults,
                 installationMarkerKey: ProviderStore.installationMarkerKey
             )
-            onboardingStore.completeCurrentOnboarding()
+            if completesOnboarding {
+                onboardingStore.completeCurrentOnboarding()
+            }
             return AppRuntime(
                 modelContainer: container,
                 onboardingStore: onboardingStore,
@@ -417,15 +421,24 @@
             UserDefaults(suiteName: defaultsSuiteName)!
         }
 
-        static func makeProviderStore() throws -> ProviderStore {
+        static func makeProviderStore(seedsProvider: Bool = false) throws -> ProviderStore {
             let defaults = userDefaults
             defaults.removePersistentDomain(forName: defaultsSuiteName)
-            return ProviderStore(
+            let keychain = InMemoryKeychainStore()
+            let store = ProviderStore(
                 userDefaults: defaults,
                 registry: .live(),
-                keychain: InMemoryKeychainStore(),
+                keychain: keychain,
                 reconcileInstallation: false
             )
+            if seedsProvider {
+                try keychain.set("showcase-api-key", for: ProviderPlatform.openAI.keychainAccount)
+                store.providers = [
+                    ProviderConnection(platform: .openAI, tier: .advanced)
+                ]
+                store.activate(platform: .openAI)
+            }
+            return store
         }
     }
 
