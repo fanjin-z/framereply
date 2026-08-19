@@ -133,9 +133,6 @@
     "%lld/10 messages" : {
 
     },
-    "•" : {
-
-    },
     "Add" : {
 
     },
@@ -449,6 +446,9 @@
     "Choose which sender is you before keeping this chat." : {
 
     },
+    "Chooses the persona for this chat" : {
+
+    },
     "Clear search" : {
 
     },
@@ -489,6 +489,9 @@
 
     },
     "Copied text" : {
+
+    },
+    "Copies this suggested reply" : {
 
     },
     "Copy" : {
@@ -537,6 +540,12 @@
 
     },
     "Current Goal" : {
+
+    },
+    "Current Goal Editor" : {
+
+    },
+    "Current Goal: %@" : {
 
     },
     "Current model provider" : {
@@ -639,9 +648,6 @@
 
     },
     "Edit Personal Info" : {
-
-    },
-    "Edit reply brief" : {
 
     },
     "Emoji" : {
@@ -1620,6 +1626,9 @@
     "Opens full chat history" : {
 
     },
+    "Opens the current goal editor" : {
+
+    },
     "Opens screenshot and pasted-text import options." : {
 
     },
@@ -1660,6 +1669,9 @@
 
     },
     "Persona" : {
+
+    },
+    "Persona: %@" : {
 
     },
     "persona.copy-name" : {
@@ -2250,16 +2262,6 @@
     "Reply Brief" : {
 
     },
-    "Reply Brief, Current Goal: %@, Persona: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Reply Brief, Current Goal: %1$@, Persona: %2$@"
-          }
-        }
-      }
-    },
     "Reply Guidance" : {
 
     },
@@ -2351,9 +2353,6 @@
 
     },
     "Settings" : {
-
-    },
-    "Shape the next suggested replies" : {
 
     },
     "Shared or copied chat text with sender labels." : {
@@ -2598,6 +2597,9 @@
 
     },
     "Unavailable" : {
+
+    },
+    "Update" : {
 
     },
     "Update Replies" : {

@@ -10,7 +10,7 @@ struct RecentChatSection: View {
     let onHistoryTap: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 7) {
             SectionHeader(symbolName: "bubble.left.and.text.bubble.right", title: "Recent Chat") {
                 Button(action: onHistoryTap) {
                     HStack(spacing: 4) {
@@ -30,7 +30,7 @@ struct RecentChatSection: View {
             }
 
             Button(action: onHistoryTap) {
-                VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     if messages.isEmpty {
                         Text(AppStrings.Chat.previewFallback)
                             .font(.system(.subheadline, design: .rounded, weight: .medium))
@@ -42,17 +42,17 @@ struct RecentChatSection: View {
                         }
                     }
                 }
-                .padding(12)
+                .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .fill(Color.white.opacity(0.48))
                         .overlay {
-                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
                                 .stroke(Color.white.opacity(0.4), lineWidth: 1)
                         }
                 }
-                .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
             .buttonStyle(SoftPressButtonStyle())
             .accessibilityHint("Opens full chat history")
@@ -93,8 +93,8 @@ private struct CompactChatMessageBubble: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(Text(verbatim: message.accessibilityDescription))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .frame(maxWidth: 360, alignment: frameAlignment)
             .background {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)

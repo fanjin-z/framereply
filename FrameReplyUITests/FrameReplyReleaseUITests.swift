@@ -369,18 +369,33 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         let app = launchShowcase()
         openMaya(in: app)
         let guidance = element("reply-guidance-field", in: app)
-        let replyBrief = element("reply-brief-summary", in: app)
-        let dialog = element("reply-brief-dialog", in: app)
+        let goal = app.buttons["reply-brief-goal"]
+        let persona = app.buttons["reply-brief-persona"]
+        let goalInput = element("reply-brief-goal-input", in: app)
         XCTAssertTrue(guidance.waitForExistence(timeout: 3))
-        XCTAssertTrue(replyBrief.waitForExistence(timeout: 3))
+        XCTAssertTrue(goal.waitForExistence(timeout: 3))
+        XCTAssertTrue(persona.waitForExistence(timeout: 3))
 
         guidance.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
-        replyBrief.tap()
+        persona.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 2))
-        XCTAssertFalse(dialog.exists)
+        XCTAssertFalse(app.buttons["Spark"].exists)
 
-        replyBrief.tap()
-        XCTAssertTrue(dialog.waitForExistence(timeout: 3))
+        guidance.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+        goal.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 2))
+        XCTAssertFalse(goalInput.exists)
+
+        goal.tap()
+        XCTAssertTrue(goalInput.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+        XCTAssertTrue(element("reply-goal-dialog", in: app).exists)
+        XCTAssertFalse(guidance.exists)
+
+        app.buttons["reply-goal-cancel"].tap()
+        XCTAssertTrue(element("reply-goal-dialog", in: app).waitForNonExistence(timeout: 2))
+        XCTAssertTrue(guidance.waitForExistence(timeout: 2))
     }
 }

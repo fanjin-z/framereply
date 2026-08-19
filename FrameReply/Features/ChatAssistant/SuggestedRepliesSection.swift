@@ -35,7 +35,7 @@ struct SuggestedRepliesSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 9) {
             SectionHeader(symbolName: "rectangle.on.rectangle.angled", title: "Suggested Replies") {
                 if (!hasNoReplyRecommendation && replies.isEmpty) || needsRefresh {
                     Button(action: onGenerate) {
@@ -60,11 +60,11 @@ struct SuggestedRepliesSection: View {
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 }
-                .padding(22)
+                .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .glassPanel(cornerRadius: 24)
+                .glassPanel(cornerRadius: 18)
             } else if let errorMessage, replies.isEmpty && !hasNoReplyRecommendation {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 10) {
                     Text(errorMessage)
                         .font(.system(size: 15, weight: .regular, design: .rounded))
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
@@ -73,25 +73,16 @@ struct SuggestedRepliesSection: View {
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .buttonStyle(.borderedProminent)
                 }
-                .padding(22)
+                .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .glassPanel(cornerRadius: 24)
+                .glassPanel(cornerRadius: 18)
             } else if let noReplyState {
                 Text(noReplyState.sectionMessage)
                     .font(.system(size: 15, weight: .regular, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                    .padding(22)
+                    .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .glassPanel(cornerRadius: 24)
-
-                if needsRefresh && !isLoading {
-                    Label(
-                        "The reply brief changed. Update when you’re ready.",
-                        systemImage: "arrow.triangle.2.circlepath"
-                    )
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                }
+                    .glassPanel(cornerRadius: 18)
 
                 if isLoading {
                     ProgressView("Refreshing replies…")
@@ -105,11 +96,11 @@ struct SuggestedRepliesSection: View {
                 Text("Generate replies when you’re ready.")
                     .font(.system(size: 15, weight: .regular, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                    .padding(22)
+                    .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .glassPanel(cornerRadius: 24)
+                    .glassPanel(cornerRadius: 18)
             } else {
-                VStack(spacing: 14) {
+                VStack(spacing: 9) {
                     ForEach(Array(replies.enumerated()), id: \.element.id) { index, reply in
                         SuggestedReplyCard(
                             reply: reply,
@@ -120,15 +111,6 @@ struct SuggestedRepliesSection: View {
                         )
                         .accessibilityIdentifier("suggested-reply-\(index + 1)")
                     }
-                }
-
-                if needsRefresh && !isLoading {
-                    Label(
-                        "The reply brief changed. Update when you’re ready.",
-                        systemImage: "arrow.triangle.2.circlepath"
-                    )
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 }
 
                 if isLoading {

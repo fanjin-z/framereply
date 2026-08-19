@@ -17,7 +17,6 @@ struct ChatAssistantView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
     @State private var isHistoryPresented = false
-    @State private var isReplyBriefPresented = false
     @State private var isImportSourcePresented = false
     @State private var isReviewPresented = false
     @State private var isMergeConfirmationPresented = false
@@ -27,9 +26,13 @@ struct ChatAssistantView: View {
     @State private var importTask: Task<Void, Never>?
     @State private var replyGuidance = ""
     @State private var goalDraft = ""
+    @State private var goalEditorDraft = ""
+    @State private var isGoalEditorPresented = false
     @FocusState private var isReplyGuidanceFocused: Bool
     @State private var didLoadContext = false
     @State private var needsReplyRefresh = false
+    @State private var isImportStatusDismissed = false
+    @State private var isReplyRefreshNoticeDismissed = false
     @State private var copiedReplyID: UUID?
     @Query private var currentChatRecords: [ChatRecord]
     @Query private var messageRecords: [ChatMessageRecord]
@@ -198,6 +201,22 @@ struct ChatAssistantView: View {
         currentChatRecord?.requiresImportReview == true || unknownSenderCount > 0
     }
 
+    private var shouldShowImportNotice: Bool {
+        importModel.isLoading
+            || (!isImportStatusDismissed && importStatusMessage != nil)
+    }
+
+    private var shouldShowReplyRefreshNotice: Bool {
+        needsReplyRefresh
+            && (!isReplyRefreshNoticeDismissed || suggestedRepliesModel.isLoading)
+    }
+
+    private var shouldShowStatusRail: Bool {
+        shouldShowImportNotice
+            || shouldShowReplyRefreshNotice
+            || shouldShowImportReviewCard
+    }
+
     private var replyCacheKey: Int {
         var hasher = Hasher()
         for message in messageRecords {
@@ -243,68 +262,135 @@ struct ChatAssistantView: View {
         return hasher.finalize()
     }
 
+    private var assistantStatusRail: some View {
+        VStack(spacing: 0) {
+            importNotice
+
+            if shouldShowReplyRefreshNotice {
+                if shouldShowImportNotice {
+                    assistantStatusDivider
+                }
+
+                replyRefreshNotice
+            }
+
+            if shouldShowImportReviewCard {
+                if shouldShowImportNotice || shouldShowReplyRefreshNotice {
+                    assistantStatusDivider
+                }
+
+                ChatImportReviewCard(
+                    isProvisional: isCurrentChatProvisional,
+                    unknownSenderCount: unknownSenderCount,
+                    canMerge: !mergeCandidates.isEmpty,
+                    provisionalIdentity: provisionalIdentity,
+                    hasKindReview: hasCurrentKindReview,
+                    conversationKind: currentChatRecord?.conversationKind
+                        ?? chat.conversationKind,
+                    hasSuggestedMatch: hasSuggestedMatch,
+                    onKeepAsNew: confirmCurrentChat,
+                    onConfirmIdentity: confirmInferredIdentity,
+                    onMergeTap: {
+                        isMergeConfirmationPresented = true
+                    },
+                    onReviewSenders: {
+                        isReviewPresented = true
+                    }
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(FrameReplyColor.surfaceContainerLow.opacity(0.42))
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(FrameReplyColor.outlineVariant.opacity(0.42), lineWidth: 1)
+                }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("assistant-status-rail")
+    }
+
+    @ViewBuilder private var importNotice: some View {
+        if shouldShowImportNotice {
+            if importModel.isLoading {
+                ChatAssistantNoticeRow(
+                    symbolName: "sparkles",
+                    message: importModel.importKind == .copiedMessages
+                        ? importProgressMessage(for: "chat text")
+                        : importProgressMessage(for: "selected screenshots"),
+                    isLoading: true,
+                    actionTitle: "Cancel",
+                    onAction: cancelImport
+                )
+                .accessibilityIdentifier("assistant-import-notice")
+            } else if let importStatusMessage {
+                ChatAssistantNoticeRow(
+                    symbolName: importStatusSymbolName,
+                    message: importStatusMessage,
+                    onDismiss: dismissImportStatus
+                )
+                .accessibilityIdentifier("assistant-import-notice")
+            }
+        }
+    }
+
+    @ViewBuilder private var replyRefreshNotice: some View {
+        if suggestedRepliesModel.isLoading {
+            ChatAssistantNoticeRow(
+                symbolName: "arrow.triangle.2.circlepath",
+                message: String(localized: "Refreshing replies…"),
+                isLoading: true
+            )
+            .accessibilityIdentifier("assistant-reply-refresh-notice")
+        } else {
+            ChatAssistantNoticeRow(
+                symbolName: "arrow.triangle.2.circlepath",
+                message: String(
+                    localized: "The reply brief changed. Update when you’re ready."
+                ),
+                actionTitle: "Update",
+                onAction: generateReplies,
+                onDismiss: { isReplyRefreshNoticeDismissed = true }
+            )
+            .accessibilityIdentifier("assistant-reply-refresh-notice")
+        }
+    }
+
+    private var assistantStatusDivider: some View {
+        Divider()
+            .overlay(FrameReplyColor.outlineVariant.opacity(0.42))
+            .padding(.leading, 42)
+    }
+
     var body: some View {
         ZStack {
             EtherealBackground()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    if shouldShowImportReviewCard {
-                        ChatImportReviewCard(
-                            isProvisional: isCurrentChatProvisional,
-                            unknownSenderCount: unknownSenderCount,
-                            canMerge: !mergeCandidates.isEmpty,
-                            provisionalIdentity: provisionalIdentity,
-                            hasKindReview: hasCurrentKindReview,
-                            conversationKind: currentChatRecord?.conversationKind
-                                ?? chat.conversationKind,
-                            hasSuggestedMatch: hasSuggestedMatch,
-                            onKeepAsNew: confirmCurrentChat,
-                            onConfirmIdentity: confirmInferredIdentity,
-                            onMergeTap: {
-                                isMergeConfirmationPresented = true
-                            },
-                            onReviewSenders: {
-                                isReviewPresented = true
-                            }
-                        )
+                VStack(alignment: .leading, spacing: 12) {
+                    if shouldShowStatusRail {
+                        assistantStatusRail
                     }
 
-                    VStack(alignment: .leading, spacing: 14) {
-                        RecentChatSection(
-                            messages: latestMessages,
-                            onHistoryTap: {
-                                isHistoryPresented = true
-                            }
-                        )
-
-                        if importModel.isLoading {
-                            ScreenshotImportStatusCard(
-                                symbolName: "sparkles",
-                                message: importModel.importKind == .copiedMessages
-                                    ? importProgressMessage(for: "chat text")
-                                    : importProgressMessage(for: "selected screenshots"),
-                                isLoading: true,
-                                onCancel: cancelImport
-                            )
-                        } else if let importStatusMessage {
-                            ScreenshotImportStatusCard(
-                                symbolName: importStatusSymbolName,
-                                message: importStatusMessage,
-                                isLoading: false,
-                                onDismiss: importErrorDismissAction
-                            )
+                    RecentChatSection(
+                        messages: latestMessages,
+                        onHistoryTap: {
+                            isHistoryPresented = true
                         }
-                    }
+                    )
 
                     ReplyBriefSummaryCard(
                         goal: goalDraft,
                         personaID: currentChatContext?.personaID,
-                        onTap: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
-                                isReplyBriefPresented = true
-                            }
-                        }
+                        onGoalTap: presentGoalEditor,
+                        onPersonaSelect: assignPersona
                     )
 
                     SuggestedRepliesSection(
@@ -323,20 +409,26 @@ struct ChatAssistantView: View {
                         ConversationStrategyCard(conversationStrategy: conversationStrategy)
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 12)
-                .padding(.bottom, 36)
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                .padding(.bottom, 24)
                 .frame(maxWidth: 720, alignment: .leading)
                 .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
-            .highPriorityGesture(
-                TapGesture().onEnded {
-                    isReplyGuidanceFocused = false
-                },
-                including: isReplyGuidanceFocused ? .all : .subviews
-            )
             .accessibilityIdentifier("chat-assistant-screen")
+
+            if isReplyGuidanceFocused && !isGoalEditorPresented {
+                Rectangle()
+                    .fill(.clear)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        KeyboardDismissal.dismiss()
+                        isReplyGuidanceFocused = false
+                    }
+                    .accessibilityHidden(true)
+                    .zIndex(1)
+            }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             ChatAssistantTopBar(
@@ -348,25 +440,25 @@ struct ChatAssistantView: View {
             )
         }
         .safeAreaBar(edge: .bottom, spacing: 0) {
-            ConversationUpdateComposer(
-                replyGuidance: $replyGuidance,
-                isGuidanceFocused: $isReplyGuidanceFocused,
-                isImporting: importModel.isLoading,
-                isUpdatingReplies: suggestedRepliesModel.isLoading,
-                onAddMessagesTap: {
-                    isImportSourcePresented = true
-                },
-                onSubmitGuidance: submitReplyGuidance
-            )
+            if !isGoalEditorPresented {
+                ConversationUpdateComposer(
+                    replyGuidance: $replyGuidance,
+                    isGuidanceFocused: $isReplyGuidanceFocused,
+                    isImporting: importModel.isLoading,
+                    isUpdatingReplies: suggestedRepliesModel.isLoading,
+                    onAddMessagesTap: {
+                        isImportSourcePresented = true
+                    },
+                    onSubmitGuidance: submitReplyGuidance
+                )
+            }
         }
         .overlay {
-            if isReplyBriefPresented {
-                ReplyBriefDialog(
-                    goalDraft: $goalDraft,
-                    personaID: currentChatContext?.personaID,
-                    onGoalCommit: commitGoal,
-                    onPersonaSelect: assignPersona,
-                    onDismiss: dismissReplyBrief
+            if isGoalEditorPresented {
+                ReplyGoalDialog(
+                    goalDraft: $goalEditorDraft,
+                    onCancel: dismissGoalEditor,
+                    onSave: saveGoalEditor
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
                 .zIndex(10)
@@ -442,6 +534,9 @@ struct ChatAssistantView: View {
                 && !suggestedRepliesModel.isLoading && !importModel.isLoading
             {
                 needsReplyRefresh = currentLanguageCache != nil
+                if needsReplyRefresh {
+                    isReplyRefreshNoticeDismissed = false
+                }
             }
         }
     }
@@ -490,14 +585,16 @@ struct ChatAssistantView: View {
         photoLoadErrorMessage != nil || importModel.errorMessage != nil
     }
 
-    private var importErrorDismissAction: (() -> Void)? {
-        guard hasImportError else { return nil }
-        return { dismissImportError() }
-    }
-
     private func dismissImportError() {
         photoLoadErrorMessage = nil
         importModel.dismissError()
+    }
+
+    private func dismissImportStatus() {
+        isImportStatusDismissed = true
+        if hasImportError {
+            dismissImportError()
+        }
     }
 
     private func importProgressMessage(for source: String) -> String {
@@ -517,6 +614,7 @@ struct ChatAssistantView: View {
         guard !items.isEmpty else { return }
         defer { selectedScreenshotItems = [] }
         photoLoadErrorMessage = nil
+        isImportStatusDismissed = false
 
         do {
             let imageDataList = try await ChatScreenshotPhotoLoader.loadData(from: items)
@@ -535,12 +633,14 @@ struct ChatAssistantView: View {
         } catch is CancellationError {
         } catch {
             photoLoadErrorMessage = error.localizedDescription
+            isImportStatusDismissed = false
         }
     }
 
     private func importCopiedMessages(_ items: [String]) async {
         guard !items.isEmpty else { return }
         photoLoadErrorMessage = nil
+        isImportStatusDismissed = false
 
         let draftingInput = replyGuidance
         if let result = await importModel.importCopiedMessages(
@@ -612,6 +712,9 @@ struct ChatAssistantView: View {
         suggestedRepliesModel.loadCached(localization: localizationContext)
         needsReplyRefresh =
             currentLanguageCache != nil && suggestedRepliesModel.replies.isEmpty
+        if needsReplyRefresh {
+            isReplyRefreshNoticeDismissed = false
+        }
     }
 
     private func confirmCurrentChat() {
@@ -658,25 +761,39 @@ struct ChatAssistantView: View {
         }
     }
 
-    private func commitGoal() {
-        guard didLoadContext else { return }
-        do {
-            if try repository.updateInteractionGoal(chatID: chat.id, goal: goalDraft) {
-                goalDraft = String(
-                    goalDraft.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500)
-                )
-                needsReplyRefresh = currentLanguageCache != nil
-            }
-        } catch {
-            actionErrorMessage = error.localizedDescription
+    private func presentGoalEditor() {
+        goalEditorDraft = goalDraft
+        isReplyGuidanceFocused = false
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+            isGoalEditorPresented = true
         }
     }
 
-    private func dismissReplyBrief() {
+    private func dismissGoalEditor() {
         KeyboardDismissal.dismiss()
-        commitGoal()
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
-            isReplyBriefPresented = false
+        goalEditorDraft = goalDraft
+        withAnimation(.spring(response: 0.26, dampingFraction: 0.9)) {
+            isGoalEditorPresented = false
+        }
+    }
+
+    private func saveGoalEditor() {
+        guard didLoadContext else { return }
+        let normalizedGoal = String(
+            goalEditorDraft.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500)
+        )
+        do {
+            if try repository.updateInteractionGoal(chatID: chat.id, goal: normalizedGoal) {
+                goalDraft = normalizedGoal
+                needsReplyRefresh = currentLanguageCache != nil
+                isReplyRefreshNoticeDismissed = false
+            }
+            KeyboardDismissal.dismiss()
+            withAnimation(.spring(response: 0.26, dampingFraction: 0.9)) {
+                isGoalEditorPresented = false
+            }
+        } catch {
+            actionErrorMessage = error.localizedDescription
         }
     }
 
@@ -684,6 +801,7 @@ struct ChatAssistantView: View {
         do {
             if try repository.assignPersona(personaID: personaID, toChatID: chat.id) {
                 needsReplyRefresh = currentLanguageCache != nil
+                isReplyRefreshNoticeDismissed = false
             }
         } catch {
             actionErrorMessage = error.localizedDescription
@@ -720,6 +838,62 @@ struct ChatAssistantView: View {
     }
 }
 
+private struct ChatAssistantNoticeRow: View {
+    let symbolName: String
+    let message: String
+    var isLoading = false
+    var actionTitle: LocalizedStringResource? = nil
+    var onAction: (() -> Void)? = nil
+    var onDismiss: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Group {
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: symbolName)
+                        .font(.system(size: 14, weight: .semibold))
+                }
+            }
+            .foregroundStyle(FrameReplyColor.primary)
+            .tint(FrameReplyColor.primary)
+            .frame(width: 20)
+
+            Text(message)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(FrameReplyColor.onSurface)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let actionTitle, let onAction {
+                Button(actionTitle, action: onAction)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(FrameReplyColor.primary)
+                    .frame(minHeight: 44)
+                    .buttonStyle(.plain)
+            }
+
+            if let onDismiss {
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                .accessibilityLabel("Dismiss")
+            }
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, onDismiss == nil ? 12 : 2)
+        .padding(.vertical, 2)
+        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+    }
+}
+
 private struct ChatImportReviewCard: View {
     let isProvisional: Bool
     let unknownSenderCount: Int
@@ -749,16 +923,11 @@ private struct ChatImportReviewCard: View {
 
             Button(primaryActionTitle, action: primaryAction)
                 .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(FrameReplyColor.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.82)
-                .padding(.horizontal, 14)
-                .frame(minHeight: 34)
-                .background {
-                    Capsule(style: .continuous)
-                        .fill(FrameReplyColor.primary)
-                }
-                .buttonStyle(SoftPressButtonStyle())
+                .frame(minHeight: 44)
+                .buttonStyle(.plain)
 
             if hasSecondaryActions {
                 Menu {
@@ -772,38 +941,17 @@ private struct ChatImportReviewCard: View {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(FrameReplyColor.primary)
-                        .frame(width: 34, height: 34)
-                        .background {
-                            Circle()
-                                .fill(FrameReplyColor.secondaryContainer.opacity(0.42))
-                        }
+                        .frame(width: 44, height: 44)
                 }
-                .buttonStyle(SoftPressButtonStyle())
+                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(FrameReplyColor.surfaceContainerLow.opacity(0.42))
-                }
-                .overlay(alignment: .leading) {
-                    if unknownSenderCount > 0 {
-                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                            .fill(FrameReplyColor.primary.opacity(0.56))
-                            .frame(width: 3)
-                            .padding(.vertical, 12)
-                    }
-                }
-                .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(FrameReplyColor.outlineVariant.opacity(0.46), lineWidth: 1)
-                }
-        }
+        .padding(.leading, 12)
+        .padding(.trailing, hasSecondaryActions ? 2 : 12)
+        .padding(.vertical, 2)
+        .frame(minHeight: 48)
+        .accessibilityIdentifier("assistant-import-review-notice")
     }
 
     private var nudgeText: String {

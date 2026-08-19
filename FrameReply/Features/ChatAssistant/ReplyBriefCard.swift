@@ -5,12 +5,14 @@
 
 import SwiftData
 import SwiftUI
-import UIKit
 
 struct ReplyBriefSummaryCard: View {
     let goal: String
     let personaID: UUID?
-    let onTap: () -> Void
+    let onGoalTap: () -> Void
+    let onPersonaSelect: (UUID) -> Void
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query(sort: \PersonaRecord.createdAt) private var personas: [PersonaRecord]
 
     private var goalSummary: String {
@@ -24,224 +26,218 @@ struct ReplyBriefSummaryCard: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 14) {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(FrameReplyColor.primary)
-                    .frame(width: 22)
+        VStack(alignment: .leading, spacing: 7) {
+            SectionHeader(symbolName: "slider.horizontal.3", title: "Reply Brief")
+                .accessibilityIdentifier("reply-brief-summary")
 
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Reply Brief")
-                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                        .foregroundStyle(FrameReplyColor.primary)
-
-                    HStack(spacing: 6) {
-                        Text(goalSummary)
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                        Text("•")
-                            .accessibilityHidden(true)
-
-                        Text(personaName)
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(spacing: 0) {
+                        goalSection
+                        Divider()
+                            .overlay(FrameReplyColor.outlineVariant.opacity(0.42))
+                        personaSection
                     }
-                    .font(.system(.footnote, design: .rounded, weight: .medium))
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                } else {
+                    HStack(spacing: 0) {
+                        goalSection
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                        Divider()
+                            .overlay(FrameReplyColor.outlineVariant.opacity(0.42))
+
+                        personaSection
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(FrameReplyColor.outline)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
-            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.white.opacity(0.46))
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .accessibilityElement(children: .contain)
         }
-        .buttonStyle(SoftPressButtonStyle())
-        .glassPanel(cornerRadius: 22)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityHint("Edit reply brief")
-        .accessibilityIdentifier("reply-brief-summary")
     }
 
-    private var accessibilityLabel: Text {
-        Text("Reply Brief, Current Goal: \(goalSummary), Persona: \(personaName)")
+    private var goalSection: some View {
+        Button(action: onGoalTap) {
+            briefSectionLabel(
+                title: "Current Goal",
+                value: goalSummary,
+                symbolName: "target",
+                trailingSymbolName: "chevron.right"
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Current Goal: \(goalSummary)")
+        .accessibilityHint("Opens the current goal editor")
+        .accessibilityIdentifier("reply-brief-goal")
     }
+
+    private var personaSection: some View {
+        Menu {
+            ForEach(personas) { persona in
+                Button {
+                    onPersonaSelect(persona.id)
+                } label: {
+                    if persona.id == personaID {
+                        Label(persona.name, systemImage: "checkmark")
+                    } else {
+                        Text(persona.name)
+                    }
+                }
+            }
+        } label: {
+            briefSectionLabel(
+                title: "Persona",
+                value: personaName,
+                symbolName: "theatermasks",
+                trailingSymbolName: "chevron.down"
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Persona: \(personaName)")
+        .accessibilityHint("Chooses the persona for this chat")
+        .accessibilityIdentifier("reply-brief-persona")
+    }
+
+    private func briefSectionLabel(
+        title: LocalizedStringResource,
+        value: String,
+        symbolName: String,
+        trailingSymbolName: String
+    ) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: symbolName)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(FrameReplyColor.primary)
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+
+                Text(value)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(FrameReplyColor.onSurface)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Image(systemName: trailingSymbolName)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(FrameReplyColor.outline)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
 }
 
-struct ReplyBriefDialog: View {
+struct ReplyGoalDialog: View {
     @Binding var goalDraft: String
-    let personaID: UUID?
-    let onGoalCommit: () -> Void
-    let onPersonaSelect: (UUID) -> Void
-    let onDismiss: () -> Void
+    let onCancel: () -> Void
+    let onSave: () -> Void
 
-    @Query(sort: \PersonaRecord.createdAt) private var personas: [PersonaRecord]
     @FocusState private var isGoalFocused: Bool
-    @State private var keyboardHeight: CGFloat = 0
-
-    private var selectedPersonaName: String {
-        personas.first(where: { $0.id == personaID })?.name
-            ?? String(localized: "Select Persona")
-    }
 
     var body: some View {
-        GeometryReader { proxy in
-            let availableHeight = max(0, proxy.size.height - keyboardHeight)
+        ZStack {
+            Color.black.opacity(0.24)
+                .ignoresSafeArea()
+                .onTapGesture(perform: onCancel)
 
-            ZStack {
-                Color.black.opacity(0.24)
-                    .ignoresSafeArea()
-                    .onTapGesture(perform: onDismiss)
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityLabel("Current Goal Editor")
+                .accessibilityIdentifier("reply-goal-dialog")
 
-                ScrollView {
-                    dialogCard
-                        .frame(maxWidth: 560)
-                        .frame(
-                            maxWidth: .infinity,
-                            minHeight: availableHeight,
-                            alignment: keyboardHeight > 0 ? .top : .center
-                        )
-                        .padding(.horizontal, 24)
-                        .padding(.top, keyboardHeight > 0 ? 12 : 24)
-                        .padding(.bottom, keyboardHeight + 24)
-                }
-                .scrollIndicators(.hidden)
-                .scrollDismissesKeyboard(.interactively)
+            VStack {
+                Spacer(minLength: 20)
+                dialogCard
+                    .frame(maxWidth: 560)
+                Spacer(minLength: 20)
             }
+            .padding(.horizontal, 20)
         }
         .accessibilityAddTraits(.isModal)
-        .accessibilityIdentifier("reply-brief-dialog")
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: UIResponder.keyboardWillChangeFrameNotification
-            )
-        ) { notification in
-            updateKeyboardHeight(from: notification)
-        }
-        .onReceive(
-            NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
-        ) { _ in
-            withAnimation(.easeOut(duration: 0.25)) {
-                keyboardHeight = 0
+        .onAppear {
+            Task { @MainActor in
+                isGoalFocused = true
             }
         }
     }
 
     private var dialogCard: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            header
-            editor
-        }
-        .padding(20)
-        .glassPanel(cornerRadius: 26)
-    }
+        VStack(alignment: .leading, spacing: 16) {
+            Label("Current Goal", systemImage: "target")
+                .font(.system(.title3, design: .rounded, weight: .bold))
+                .foregroundStyle(FrameReplyColor.onSurface)
 
-    private var header: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Reply Brief")
-                    .font(.system(.title2, design: .rounded, weight: .bold))
-                    .foregroundStyle(FrameReplyColor.onSurface)
-
-                Text("Shape the next suggested replies")
-                    .font(.system(.subheadline, design: .rounded, weight: .medium))
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+            TextField(
+                "e.g. Agree on a time for dinner…",
+                text: limitedGoal,
+                axis: .vertical
+            )
+            .font(.system(size: 17, weight: .regular, design: .rounded))
+            .foregroundStyle(FrameReplyColor.onSurface)
+            .lineLimit(3...5)
+            .submitLabel(.done)
+            .focused($isGoalFocused)
+            .onSubmit(onSave)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
+            .background {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(FrameReplyColor.secondaryContainer.opacity(0.28))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color.white.opacity(0.46), lineWidth: 1)
+                    }
             }
+            .accessibilityLabel("Current Goal")
+            .accessibilityIdentifier("reply-brief-goal-input")
 
-            Spacer(minLength: 8)
+            HStack(spacing: 10) {
+                Button("Cancel", action: onCancel)
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background {
+                        Capsule(style: .continuous)
+                            .fill(FrameReplyColor.secondaryContainer.opacity(0.38))
+                    }
+                    .buttonStyle(SoftPressButtonStyle())
+                    .accessibilityIdentifier("reply-goal-cancel")
 
-            Button(action: onDismiss) {
-                Text("Done")
+                Button("Save", action: onSave)
                     .font(.system(.subheadline, design: .rounded, weight: .bold))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 18)
-                    .frame(minHeight: 44)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .background {
                         Capsule(style: .continuous)
                             .fill(FrameReplyColor.primary)
                     }
+                    .buttonStyle(SoftPressButtonStyle())
+                    .accessibilityIdentifier("reply-goal-save")
             }
-            .buttonStyle(SoftPressButtonStyle())
-            .accessibilityIdentifier("reply-brief-done")
         }
+        .padding(20)
+        .glassPanel(cornerRadius: 24)
     }
 
-    private func updateKeyboardHeight(from notification: Notification) {
-        guard
-            let endFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey]
-                as? CGRect
-        else { return }
-
-        withAnimation(.easeOut(duration: 0.25)) {
-            keyboardHeight = endFrame.height
-        }
-    }
-
-    private var editor: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Current Goal", systemImage: "target")
-                    .font(.system(.footnote, design: .rounded, weight: .bold))
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-
-                ChatContextField(
-                    text: $goalDraft,
-                    placeholder: "e.g. Agree on a time for dinner…"
-                )
-                .focused($isGoalFocused)
-                .onSubmit(onGoalCommit)
-            }
-
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Persona", systemImage: "theatermasks")
-                    .font(.system(.footnote, design: .rounded, weight: .bold))
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-
-                Menu {
-                    ForEach(personas) { persona in
-                        Button(persona.name) {
-                            onPersonaSelect(persona.id)
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 10) {
-                        Text(selectedPersonaName)
-                            .font(.system(.body, design: .rounded, weight: .regular))
-                            .foregroundStyle(FrameReplyColor.onSurface)
-                            .lineLimit(1)
-
-                        Spacer(minLength: 8)
-
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                    }
-                    .padding(.horizontal, 16)
-                    .frame(minHeight: 48)
-                    .background {
-                        Capsule(style: .continuous)
-                            .fill(FrameReplyColor.secondaryContainer.opacity(0.28))
-                            .overlay {
-                                Capsule(style: .continuous)
-                                    .stroke(Color.white.opacity(0.36), lineWidth: 1)
-                            }
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .onChange(of: isGoalFocused) { wasFocused, isFocused in
-            if wasFocused && !isFocused {
-                onGoalCommit()
-            }
-        }
+    private var limitedGoal: Binding<String> {
+        Binding(
+            get: { goalDraft },
+            set: { goalDraft = String($0.prefix(500)) }
+        )
     }
 }
 
@@ -251,22 +247,29 @@ private struct ReplyBriefCard_Previews: PreviewProvider {
             ReplyBriefSummaryCard(
                 goal: "Agree on a time for dinner",
                 personaID: nil,
-                onTap: {}
+                onGoalTap: {},
+                onPersonaSelect: { _ in }
             )
             .previewDisplayName("Populated goal")
 
-            ReplyBriefSummaryCard(goal: "", personaID: nil, onTap: {})
-                .previewDisplayName("Empty goal")
+            ReplyBriefSummaryCard(
+                goal: "",
+                personaID: nil,
+                onGoalTap: {},
+                onPersonaSelect: { _ in }
+            )
+            .previewDisplayName("Empty goal")
 
             ReplyBriefSummaryCard(
                 goal: "A deliberately long goal that should truncate safely in the summary card",
                 personaID: nil,
-                onTap: {}
+                onGoalTap: {},
+                onPersonaSelect: { _ in }
             )
             .environment(\.dynamicTypeSize, .accessibility5)
             .previewDisplayName("Accessibility XXXL")
         }
-        .padding(24)
+        .padding(16)
         .frame(width: 390)
         .background(EtherealBackground())
         .modelContainer(try! FrameReplyDataStore.makeContainer(inMemory: true))

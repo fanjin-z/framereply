@@ -11,6 +11,30 @@ final class FrameReplyShowcaseScreenshotTests: FrameReplyUITestCase {
         let secondReply = element("suggested-reply-2", in: app)
         XCTAssertTrue(secondReply.waitForExistence(timeout: 3))
         XCTAssertTrue(secondReply.isHittable)
+
+        let copyButtons = app.buttons.matching(
+            NSPredicate(format: "label == %@", "Copy")
+        )
+        XCTAssertGreaterThanOrEqual(copyButtons.count, 2)
+        let firstCopy = copyButtons.element(boundBy: 0)
+        let secondCopy = copyButtons.element(boundBy: 1)
+        XCTAssertTrue(firstCopy.isHittable)
+        XCTAssertTrue(secondCopy.isHittable)
+        XCTAssertEqual(firstCopy.frame.maxX, secondCopy.frame.maxX, accuracy: 2)
+        let copyButtonRightEdge = secondCopy.frame.maxX
+        XCTAssertGreaterThan(firstCopy.frame.midX, element("suggested-reply-1", in: app).frame.midX)
+        XCTAssertGreaterThan(secondCopy.frame.midX, secondReply.frame.midX)
+        XCTAssertLessThan(element("suggested-reply-1", in: app).frame.height, 120)
+        XCTAssertLessThan(secondReply.frame.height, 120)
+
+        firstCopy.tap()
+        let copiedButton = app.buttons.matching(
+            NSPredicate(format: "label == %@", "Copied")
+        ).firstMatch
+        XCTAssertTrue(copiedButton.waitForExistence(timeout: 2))
+        XCTAssertEqual(copiedButton.frame.height, 44, accuracy: 1)
+        XCTAssertLessThan(copiedButton.frame.width, 100)
+        XCTAssertEqual(copiedButton.frame.maxX, copyButtonRightEdge, accuracy: 2)
         capture("01-suggested-replies")
     }
 
@@ -35,15 +59,28 @@ final class FrameReplyShowcaseScreenshotTests: FrameReplyUITestCase {
         openMaya(in: app)
         let replyBrief = element("reply-brief-summary", in: app)
         XCTAssertTrue(replyBrief.waitForExistence(timeout: 5))
-        replyBrief.tap()
-
-        XCTAssertTrue(element("reply-brief-dialog", in: app).waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Shape the next suggested replies"].exists)
-        XCTAssertTrue(app.staticTexts["Current Goal"].exists)
-        XCTAssertTrue(app.buttons["Thoughtful"].exists)
-        XCTAssertTrue(app.buttons["reply-brief-done"].isHittable)
+        XCTAssertTrue(app.buttons["reply-brief-goal"].isHittable)
+        XCTAssertTrue(app.buttons["reply-brief-persona"].isHittable)
+        XCTAssertFalse(element("reply-brief-dialog", in: app).exists)
         XCTAssertFalse(app.keyboards.firstMatch.exists)
+
+        app.buttons["reply-brief-goal"].tap()
+        XCTAssertTrue(element("reply-goal-dialog", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("reply-brief-goal-input", in: app).isHittable)
+        XCTAssertTrue(app.buttons["reply-goal-save"].isHittable)
+        XCTAssertTrue(app.buttons["reply-goal-cancel"].isHittable)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+        XCTAssertFalse(element("reply-guidance-field", in: app).exists)
         capture("03-reply-brief")
+
+        element("reply-brief-goal-input", in: app).typeText("!")
+        app.buttons["reply-goal-save"].tap()
+        XCTAssertTrue(element("reply-goal-dialog", in: app).waitForNonExistence(timeout: 2))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 2))
+        XCTAssertTrue(element("reply-guidance-field", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(
+            element("assistant-reply-refresh-notice", in: app).waitForExistence(timeout: 2)
+        )
     }
 
     func test04Chats() {
