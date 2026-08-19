@@ -33,7 +33,7 @@ final class LocalizationArchitectureTests: XCTestCase {
         XCTAssertEqual(value, "Project Team — also Alex")
     }
 
-    func testSuccessfulWaitPresentationUsesLocalizedResources() {
+    func testSuccessfulNoReplyPresentationsUseLocalizedResources() {
         let locale = Locale(identifier: "en")
 
         XCTAssertEqual(
@@ -57,6 +57,28 @@ final class LocalizationArchitectureTests: XCTestCase {
                 locale: locale
             ),
             "You sent the latest message, so another message now may be premature. Their response determines the useful next step."
+        )
+        XCTAssertEqual(
+            AppStrings.resolve(AppStrings.Replies.groupPauseSectionMessage, locale: locale),
+            "No reply is needed right now. You can wait for a better opening in the group."
+        )
+        XCTAssertEqual(
+            AppStrings.resolve(
+                AppStrings.Replies.groupPauseStrategy(
+                    direction: "Join when the discussion returns to shared logistics."
+                ),
+                locale: locale
+            ),
+            "Wait for a better opening in the group. Join when the discussion returns to shared logistics."
+        )
+        XCTAssertEqual(
+            AppStrings.resolve(
+                AppStrings.Replies.groupPauseRationale(
+                    reason: "The current request is between two other participants."
+                ),
+                locale: locale
+            ),
+            "The latest group turn does not need your response. The current request is between two other participants."
         )
     }
 

@@ -103,6 +103,34 @@ nonisolated enum SuggestedRepliesError: LocalizedError, Sendable {
 final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
     static let recentMessageLimit = 20
 
+    private enum ReplyTurnContext {
+        case latestUser
+        case incomingDirect
+        case incomingGroup
+
+        init?(latestSenderKind: String) {
+            switch latestSenderKind {
+            case "user":
+                self = .latestUser
+            case "other_participant":
+                self = .incomingDirect
+            case "group_participant":
+                self = .incomingGroup
+            default:
+                return nil
+            }
+        }
+
+        func acceptsReplyCount(_ count: Int) -> Bool {
+            switch self {
+            case .latestUser, .incomingGroup:
+                count == 0 || count == 2
+            case .incomingDirect:
+                count == 2
+            }
+        }
+    }
+
     private let aiService: any AIServiceProviding
     private let repository: ChatRepository
 
@@ -140,7 +168,9 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             for: messages[messages.count - 1],
             provisionalIdentity: provisionalIdentity
         )
-        guard latestSenderKind != "unknown" else { return nil }
+        guard let turnContext = ReplyTurnContext(latestSenderKind: latestSenderKind) else {
+            return nil
+        }
 
         let chatContext = try repository.chatContextValue(chatID: chatID)
         let persona = try repository.personaPromptContext(personaID: chatContext.personaID)
@@ -172,7 +202,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
         )
         guard cache.inputFingerprint == inputFingerprint,
             cache.promptVersion == SuggestedReplyPrompt.version,
-            replyCountIsValid(cache.replies.count, latestSenderKind: latestSenderKind)
+            turnContext.acceptsReplyCount(cache.replies.count)
         else {
             return nil
         }
@@ -205,7 +235,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             for: messages[messages.count - 1],
             provisionalIdentity: provisionalIdentity
         )
-        guard latestSenderKind != "unknown" else {
+        guard let turnContext = ReplyTurnContext(latestSenderKind: latestSenderKind) else {
             throw SuggestedRepliesError.senderReviewRequired
         }
 
@@ -249,7 +279,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             let cache,
             cache.inputFingerprint == inputFingerprint,
             cache.promptVersion == SuggestedReplyPrompt.version,
-            replyCountIsValid(cache.replies.count, latestSenderKind: latestSenderKind)
+            turnContext.acceptsReplyCount(cache.replies.count)
         {
             return SuggestedRepliesOutcome(
                 replies: cache.replies,
@@ -323,8 +353,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             throw error
         }
         try Task.checkCancellation()
-        guard replyCountIsValid(generated.replies.count, latestSenderKind: latestSenderKind)
-        else {
+        guard turnContext.acceptsReplyCount(generated.replies.count) else {
             throw SuggestedRepliesError.invalidProviderResponse
         }
         guard
@@ -337,21 +366,13 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
         else {
             throw CancellationError()
         }
-        let presentedConversationStrategy: String
-        let presentedStrategyRationale: String
-        if latestSenderKind == "user", generated.replies.isEmpty {
-            presentedConversationStrategy = AppStrings.resolve(
-                AppStrings.Replies.waitStrategy(direction: generated.conversationStrategy),
-                locale: localization.locale
-            )
-            presentedStrategyRationale = AppStrings.resolve(
-                AppStrings.Replies.waitRationale(reason: generated.strategyRationale),
-                locale: localization.locale
-            )
-        } else {
-            presentedConversationStrategy = generated.conversationStrategy
-            presentedStrategyRationale = generated.strategyRationale
-        }
+        let presentedGuidance = presentedGuidance(
+            for: generated,
+            turnContext: turnContext,
+            localization: localization
+        )
+        let presentedConversationStrategy = presentedGuidance.conversationStrategy
+        let presentedStrategyRationale = presentedGuidance.strategyRationale
 
         let historySummary: String
         let summarizedMessageCount: Int
@@ -544,14 +565,48 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
         provisionalIdentity?.senderKind(for: message) ?? message.senderKind
     }
 
-    private func replyCountIsValid(_ count: Int, latestSenderKind: String) -> Bool {
-        switch latestSenderKind {
-        case "user":
-            count == 0 || count == 2
-        case "other_participant", "group_participant":
-            count == 2
-        default:
-            false
+    private func presentedGuidance(
+        for generated: SuggestedReplyGenerationResult,
+        turnContext: ReplyTurnContext,
+        localization: LocalizationContext
+    ) -> (conversationStrategy: String, strategyRationale: String) {
+        guard generated.replies.isEmpty else {
+            return (generated.conversationStrategy, generated.strategyRationale)
+        }
+
+        switch turnContext {
+        case .latestUser:
+            return (
+                AppStrings.resolve(
+                    AppStrings.Replies.waitStrategy(
+                        direction: generated.conversationStrategy
+                    ),
+                    locale: localization.locale
+                ),
+                AppStrings.resolve(
+                    AppStrings.Replies.waitRationale(
+                        reason: generated.strategyRationale
+                    ),
+                    locale: localization.locale
+                )
+            )
+        case .incomingGroup:
+            return (
+                AppStrings.resolve(
+                    AppStrings.Replies.groupPauseStrategy(
+                        direction: generated.conversationStrategy
+                    ),
+                    locale: localization.locale
+                ),
+                AppStrings.resolve(
+                    AppStrings.Replies.groupPauseRationale(
+                        reason: generated.strategyRationale
+                    ),
+                    locale: localization.locale
+                )
+            )
+        case .incomingDirect:
+            return (generated.conversationStrategy, generated.strategyRationale)
         }
     }
 

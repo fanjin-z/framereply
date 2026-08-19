@@ -331,12 +331,19 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
 
     @MainActor
     func testIncomingDirectAndGroupTurnsAcceptExactlyTwoUserReplies() async throws {
-        let cases: [(ChatConversationKind, String, String)] = [
-            (.direct, "other_participant", "synthetic-direct-incoming-chat"),
-            (.group, "group_participant", "synthetic-group-incoming-chat")
+        let cases: [(ChatConversationKind, String, String, String)] = [
+            (
+                .direct, "other_participant", "Can you confirm the plan?",
+                "synthetic-direct-incoming-chat"
+            ),
+            (
+                .group, "group_participant",
+                "@ParticipantAlpha, could you reserve synthetic lab slot 42?",
+                "synthetic-group-incoming-chat"
+            )
         ]
 
-        for (conversationKind, senderKind, chatID) in cases {
+        for (conversationKind, senderKind, messageText, chatID) in cases {
             let container = try FrameReplyDataStore.makeContainer(inMemory: true)
             let repository = ChatRepository(container: container)
             let chat = ChatRecord(
@@ -349,11 +356,23 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
                 chatID: chatID,
                 senderKind: senderKind,
                 senderName: "Contact",
-                text: "Can you confirm the plan?",
+                text: messageText,
                 timeLabel: "",
                 sortIndex: 0
             )
             container.mainContext.insert(chat)
+            if conversationKind == .group {
+                container.mainContext.insert(
+                    ChatMessageRecord(
+                        chatID: chatID,
+                        senderKind: "group_participant",
+                        senderName: "ParticipantAlpha",
+                        text: "I manage reservations in this synthetic scenario.",
+                        timeLabel: "",
+                        sortIndex: -1
+                    )
+                )
+            }
             container.mainContext.insert(incoming)
             try container.mainContext.save()
 
@@ -379,7 +398,7 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func testIncomingTurnRejectsSuccessfulEmptyReplyResult() async throws {
+    func testIncomingDirectTurnRejectsSuccessfulEmptyReplyResult() async throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let chatID = "synthetic-incoming-empty-chat"
@@ -404,6 +423,187 @@ final class SuggestedRepliesCoordinatorTests: XCTestCase {
             XCTAssertEqual(error.code, "reply_schema_mismatch")
         }
         XCTAssertNil(try repository.suggestedReplyCache(chatID: chatID))
+    }
+
+    @MainActor
+    func testEveryResolvedTurnContextRejectsOneReply() async throws {
+        let cases: [(ChatConversationKind, String, String)] = [
+            (.direct, "user", "synthetic-user-single-reply-chat"),
+            (.direct, "other_participant", "synthetic-direct-single-reply-chat"),
+            (.group, "group_participant", "synthetic-group-single-reply-chat")
+        ]
+
+        for (conversationKind, senderKind, chatID) in cases {
+            let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+            let repository = ChatRepository(container: container)
+            container.mainContext.insert(
+                ChatRecord(
+                    id: chatID,
+                    title: "Conversation",
+                    previewText: "Latest message",
+                    conversationKind: conversationKind
+                )
+            )
+            container.mainContext.insert(
+                ChatMessageRecord(
+                    chatID: chatID,
+                    senderKind: senderKind,
+                    senderName: senderKind == "user" ? nil : "Contact",
+                    text: "Latest message",
+                    timeLabel: "",
+                    sortIndex: 0
+                )
+            )
+            try container.mainContext.save()
+
+            let service = StubReplyService { _ in
+                SuggestedReplyGenerationResult(
+                    historySummary: nil,
+                    replies: ["Only one reply"],
+                    conversationStrategy: "Continue the conversation.",
+                    strategyRationale: "A single reply violates the shared contract."
+                )
+            }
+            let coordinator = SuggestedRepliesCoordinator(
+                aiService: service,
+                repository: repository
+            )
+
+            do {
+                _ = try await coordinator.generate(chatID: chatID)
+                XCTFail("Expected one reply to be rejected for \(senderKind)")
+            } catch let error as SuggestedRepliesError {
+                XCTAssertEqual(error.code, "reply_schema_mismatch")
+            }
+            XCTAssertNil(try repository.suggestedReplyCache(chatID: chatID))
+        }
+    }
+
+    @MainActor
+    func testIncomingGroupTurnAcceptsAndCachesSuccessfulEmptyReplyResult() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "synthetic-group-empty-chat"
+        let chat = ChatRecord(
+            id: chatID,
+            title: "Synthetic Group",
+            previewText: "@ParticipantAlpha, could you reserve synthetic lab slot 42?",
+            conversationKind: .group
+        )
+        let incoming = ChatMessageRecord(
+            chatID: chatID,
+            senderKind: "group_participant",
+            senderName: "ParticipantBeta",
+            text: "@ParticipantAlpha, could you reserve synthetic lab slot 42?",
+            timeLabel: "",
+            sortIndex: 0
+        )
+        container.mainContext.insert(chat)
+        container.mainContext.insert(incoming)
+        try container.mainContext.save()
+
+        let service = StubReplyService { request in
+            XCTAssertEqual(request.recentMessages.map(\.sender), ["group_participant"])
+            XCTAssertFalse(request.recentMessages.contains { $0.sender == "user" })
+            return SuggestedReplyGenerationResult(
+                historySummary: nil,
+                replies: [],
+                conversationStrategy:
+                    "Join when the discussion returns to a topic where a contribution would help.",
+                strategyRationale:
+                    "The current request names another participant and does not require a response."
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(
+            aiService: service,
+            repository: repository
+        )
+
+        let outcome = try await coordinator.generate(chatID: chatID)
+
+        XCTAssertTrue(outcome.replies.isEmpty)
+        XCTAssertEqual(
+            outcome.conversationStrategy,
+            "Wait for a better opening in the group. Join when the discussion returns to a topic where a contribution would help."
+        )
+        XCTAssertEqual(
+            outcome.strategyRationale,
+            "The latest group turn does not need your response. The current request names another participant and does not require a response."
+        )
+        let cache = try XCTUnwrap(repository.suggestedReplyCache(chatID: chatID))
+        XCTAssertTrue(cache.replies.isEmpty)
+        XCTAssertEqual(cache.conversationStrategy, outcome.conversationStrategy)
+        XCTAssertEqual(cache.strategyRationale, outcome.strategyRationale)
+        let cachedOutcome = try XCTUnwrap(coordinator.cachedReplies(chatID: chatID))
+        XCTAssertEqual(cachedOutcome.replies, outcome.replies)
+        XCTAssertEqual(cachedOutcome.conversationStrategy, outcome.conversationStrategy)
+        XCTAssertEqual(cachedOutcome.strategyRationale, outcome.strategyRationale)
+        XCTAssertEqual(cachedOutcome.source, .cached)
+        XCTAssertEqual(service.requests.count, 1)
+    }
+
+    @MainActor
+    func testGroupDraftingGuidanceCanProduceTwoRepliesWithoutKnownUserIdentity() async throws {
+        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
+        let chatID = "synthetic-group-drafting-chat"
+        container.mainContext.insert(
+            ChatRecord(
+                id: chatID,
+                title: "Synthetic Group",
+                previewText: "@ParticipantAlpha, could you reserve synthetic lab slot 42?",
+                conversationKind: .group
+            )
+        )
+        container.mainContext.insert(
+                ChatMessageRecord(
+                    chatID: chatID,
+                    senderKind: "group_participant",
+                    senderName: "ParticipantBeta",
+                    text: "@ParticipantAlpha, could you reserve synthetic lab slot 42?",
+                    timeLabel: "",
+                    sortIndex: 0
+            )
+        )
+        try container.mainContext.save()
+
+        let service = StubReplyService { request in
+            XCTAssertEqual(request.task, .drafting)
+            XCTAssertEqual(
+                request.draftingInput,
+                "Say I can help test the synthetic reservation workflow too"
+            )
+            XCTAssertFalse(request.recentMessages.contains { $0.sender == "user" })
+            return SuggestedReplyGenerationResult(
+                historySummary: nil,
+                replies: [
+                    "I can help test the synthetic reservation workflow too.",
+                    "I’m available to help test that synthetic workflow as well."
+                ],
+                conversationStrategy:
+                    "Offer help without answering for ParticipantAlpha.",
+                strategyRationale:
+                    "The synthetic guidance explicitly asks to participate."
+            )
+        }
+        let coordinator = SuggestedRepliesCoordinator(
+            aiService: service,
+            repository: repository
+        )
+
+        let outcome = try await coordinator.generate(
+            chatID: chatID,
+            draftingInput: "Say I can help test the synthetic reservation workflow too"
+        )
+
+        XCTAssertEqual(
+            outcome.replies,
+            [
+                "I can help test the synthetic reservation workflow too.",
+                "I’m available to help test that synthetic workflow as well."
+            ]
+        )
+        XCTAssertEqual(service.requests.count, 1)
     }
 
     @MainActor

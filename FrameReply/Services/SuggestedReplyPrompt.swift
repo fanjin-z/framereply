@@ -12,9 +12,11 @@ nonisolated enum SuggestedReplyPrompt {
     private static let senderAndTurnRules = """
         Sender and turn rules
         - A non-user participant has sender "other_participant" in a direct chat or "group_participant" in a group chat. "unknown" is unresolved and does not establish whether the sender is "user" or a non-user participant. Never infer sender roles from message content, language, names, or turn order.
-        - Latest "other_participant" or "group_participant": return exactly two replies.
+        - Latest "other_participant": return exactly two replies because this is an incoming turn in a direct chat.
+        - Latest "group_participant": default to exactly two replies. Return replies [] only if every plausible response would be irrelevant, intrusive, unsupported, or unsafe.
+        - In groups, uncertainty about context, "user"'s identity or prior participation, or the addressee affects wording, not eligibility by itself. A mention matching a known non-user senderName may identify that participant; otherwise it is unresolved. Never assume an unresolved mention identifies "user" or reply on another participant's behalf.
         - Latest "user": return two follow-ups only for a clearly incomplete trailing turn or when draftingInput explicitly requests more content. Otherwise return replies [], including uncertain completion or a style-only draftingInput.
-        - For replies []: conversationStrategy starts with what to do after a non-user participant responds, omits the wait instruction, and does not predict the response. strategyRationale grounds that direction in the conversation, currentInteractionGoal, and uncertainty without misattributing "user" messages.
+        - For replies []: conversationStrategy gives the next useful condition without stating the wait itself—after a non-user response for latest "user", or at a better opening for latest "group_participant"—and does not predict a response. strategyRationale grounds the choice and direction without misattributing "user" messages.
         """
     private static let personalInfoUseRules = """
         Personal Info use
@@ -25,7 +27,7 @@ nonisolated enum SuggestedReplyPrompt {
         - Each reply string must contain only the ready-to-send message. Do not add labels, introductions, explanations about the reply, or audit commentary.
         - Apply style evidence in this order, with earlier sources winning conflicts and subject to the rules below: style explicitly requested in draftingInput; persona.instructions; persona.activeObservations where isUserProtected is true; other persona.activeObservations; patterns present in multiple recentMessages whose sender is "user"; the current exchange's formality, energy, and brevity; a plain conversational fallback.
         - Match supported vocabulary, cadence, casing, contractions, length, punctuation, emoji, fragments, directness, warmth, humor, and polish. Treat a habit as recurring only when it appears in multiple independent messages whose sender is "user"; when evidence is sparse or inconsistent, do not infer a habit or add stylistic decoration.
-        - Style must not change grounded meaning, uncertainty, or emotional position unless draftingInput explicitly requests a tone change that preserves the substance. Do not introduce errors merely to appear human; preserve nonstandard wording only when explicitly requested or consistently demonstrated by messages whose sender is "user".
+        - When styling a candidate, do not change its grounded meaning, uncertainty, or emotional position unless draftingInput explicitly requests a tone change that preserves the substance. Do not introduce errors merely to appear human; preserve nonstandard wording only when explicitly requested or consistently demonstrated by messages whose sender is "user".
         - Avoid canned openings or closers, generic praise or reassurance, unnecessary setup or recap, overly balanced rhetorical structures, vague or inflated wording, and repetitive rhythm. Treat conspicuous wording and punctuation—including repeated dashes, semicolons, and label-like colons—contextually rather than as a blacklist: rewrite them only when they create generic or formulaic prose, and keep them when required by the content or recurring writing style of "user".
         - Messages from non-user participants remain valid sources for reply content. Use their style only to estimate the exchange's formality, energy, and brevity; never treat their vocabulary, dialect, catchphrases, punctuation habits, or identity markers as evidence of the writing style of "user".
         - Before returning JSON, silently check each reply against these rules and revise it if needed.
@@ -52,7 +54,7 @@ nonisolated enum SuggestedReplyPrompt {
         \(senderAndTurnRules)
 
         Reply rules
-        Ground reply substance and direction using this priority: recentMessages and existingHistorySummary/olderMessagesToSummarize, with exact recent messages winning conflicts; draftingInput; currentInteractionGoal; active chatMemories; relevant Personal Info that passes the gate below; previousConversationStrategy. Never invent facts, promises, dates, availability, feelings, or commitments. When replies are required, return two distinct alternatives with the same factual meaning.
+        Ground reply substance and direction using this priority: recentMessages and existingHistorySummary/olderMessagesToSummarize, with exact recent messages winning conflicts; draftingInput; currentInteractionGoal; active chatMemories; relevant Personal Info that passes the gate below; previousConversationStrategy. Never invent facts, promises, dates, availability, feelings, or commitments. When replies are required, return two distinct, compatible alternatives that may vary in tone or directness but never in factual assumptions.
 
         \(replyStyleRules)
 

@@ -158,7 +158,7 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
         XCTAssertNotNil(standard["recentMessages"])
         for excluded in [
             "personaLearningMessages", "personalInfoLearningMessages", "appLanguage",
-            "presentationLanguageIdentifier", "chatName", "personaName"
+            "presentationLanguageIdentifier", "chatName", "personaName", "userAliases"
         ] {
             XCTAssertNil(standard[excluded], excluded)
         }

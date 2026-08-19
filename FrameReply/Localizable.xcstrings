@@ -2175,6 +2175,42 @@
     "Replies unavailable" : {
 
     },
+    "replies.group-pause.rationale" : {
+      "comment" : "Rationale for sitting out a group turn. The value explains the AI-generated evidence and uncertainty.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The latest group turn does not need your response. %@"
+          }
+        }
+      }
+    },
+    "replies.group-pause.section-message" : {
+      "comment" : "Shown instead of reply cards when participating in the latest group turn would not help.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No reply is needed right now. You can wait for a better opening in the group."
+          }
+        }
+      }
+    },
+    "replies.group-pause.strategy" : {
+      "comment" : "Conversation strategy when the user should sit out the current group turn. The value is an AI-generated direction for a later opening.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Wait for a better opening in the group. %@"
+          }
+        }
+      }
+    },
     "replies.wait.rationale" : {
       "comment" : "Rationale for waiting after a completed outgoing turn. The value explains the conditional longer-term strategy.",
       "extractionState" : "extracted_with_value",

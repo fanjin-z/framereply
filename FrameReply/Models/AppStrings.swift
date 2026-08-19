@@ -72,6 +72,32 @@ nonisolated enum AppStrings {
     }
 
     enum Replies {
+        static let groupPauseSectionMessage = LocalizedStringResource(
+            "replies.group-pause.section-message",
+            defaultValue:
+                "No reply is needed right now. You can wait for a better opening in the group.",
+            comment:
+                "Shown instead of reply cards when participating in the latest group turn would not help."
+        )
+
+        static func groupPauseStrategy(direction: String) -> LocalizedStringResource {
+            LocalizedStringResource(
+                "replies.group-pause.strategy",
+                defaultValue: "Wait for a better opening in the group. \(direction)",
+                comment:
+                    "Conversation strategy when the user should sit out the current group turn. The value is an AI-generated direction for a later opening."
+            )
+        }
+
+        static func groupPauseRationale(reason: String) -> LocalizedStringResource {
+            LocalizedStringResource(
+                "replies.group-pause.rationale",
+                defaultValue: "The latest group turn does not need your response. \(reason)",
+                comment:
+                    "Rationale for sitting out a group turn. The value explains the AI-generated evidence and uncertainty."
+            )
+        }
+
         static let waitSectionMessage = LocalizedStringResource(
             "replies.wait.section-message",
             defaultValue: "You sent the latest message. No reply is needed yet.",

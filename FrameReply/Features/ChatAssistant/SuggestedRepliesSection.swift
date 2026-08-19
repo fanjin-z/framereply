@@ -5,24 +5,42 @@
 
 import SwiftUI
 
+enum SuggestedRepliesNoReplyState {
+    case awaitingResponse
+    case groupPause
+
+    var sectionMessage: LocalizedStringResource {
+        switch self {
+        case .awaitingResponse:
+            AppStrings.Replies.waitSectionMessage
+        case .groupPause:
+            AppStrings.Replies.groupPauseSectionMessage
+        }
+    }
+}
+
 struct SuggestedRepliesSection: View {
     let replies: [SuggestedReply]
     let copiedReplyID: UUID?
     let isLoading: Bool
     let needsRefresh: Bool
-    let isWaitingForResponse: Bool
+    let noReplyState: SuggestedRepliesNoReplyState?
     let errorMessage: String?
     let onCopy: (SuggestedReply) -> Void
     let onRetry: () -> Void
     let onGenerate: () -> Void
 
+    private var hasNoReplyRecommendation: Bool {
+        noReplyState != nil
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader(symbolName: "rectangle.on.rectangle.angled", title: "Suggested Replies") {
-                if (!isWaitingForResponse && replies.isEmpty) || needsRefresh {
+                if (!hasNoReplyRecommendation && replies.isEmpty) || needsRefresh {
                     Button(action: onGenerate) {
                         Label(
-                            isWaitingForResponse
+                            hasNoReplyRecommendation
                                 ? "Update Replies"
                                 : (replies.isEmpty ? "Generate Replies" : "Update Replies"),
                             systemImage: "sparkles"
@@ -35,7 +53,7 @@ struct SuggestedRepliesSection: View {
                 }
             }
 
-            if isLoading && replies.isEmpty && !isWaitingForResponse {
+            if isLoading && replies.isEmpty && !hasNoReplyRecommendation {
                 HStack(spacing: 12) {
                     ProgressView()
                     Text("Creating replies from this conversation…")
@@ -45,7 +63,7 @@ struct SuggestedRepliesSection: View {
                 .padding(22)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .glassPanel(cornerRadius: 24)
-            } else if let errorMessage, replies.isEmpty && !isWaitingForResponse {
+            } else if let errorMessage, replies.isEmpty && !hasNoReplyRecommendation {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(errorMessage)
                         .font(.system(size: 15, weight: .regular, design: .rounded))
@@ -58,8 +76,8 @@ struct SuggestedRepliesSection: View {
                 .padding(22)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .glassPanel(cornerRadius: 24)
-            } else if isWaitingForResponse {
-                Text(AppStrings.Replies.waitSectionMessage)
+            } else if let noReplyState {
+                Text(noReplyState.sectionMessage)
                     .font(.system(size: 15, weight: .regular, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                     .padding(22)
