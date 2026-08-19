@@ -103,34 +103,6 @@ nonisolated enum SuggestedRepliesError: LocalizedError, Sendable {
 final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
     static let recentMessageLimit = 20
 
-    private enum ReplyTurnContext {
-        case latestUser
-        case incomingDirect
-        case incomingGroup
-
-        init?(latestSenderKind: String) {
-            switch latestSenderKind {
-            case "user":
-                self = .latestUser
-            case "other_participant":
-                self = .incomingDirect
-            case "group_participant":
-                self = .incomingGroup
-            default:
-                return nil
-            }
-        }
-
-        func acceptsReplyCount(_ count: Int) -> Bool {
-            switch self {
-            case .latestUser, .incomingGroup:
-                count == 0 || count == 2
-            case .incomingDirect:
-                count == 2
-            }
-        }
-    }
-
     private let aiService: any AIServiceProviding
     private let repository: ChatRepository
 
@@ -168,7 +140,11 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             for: messages[messages.count - 1],
             provisionalIdentity: provisionalIdentity
         )
-        guard let turnContext = ReplyTurnContext(latestSenderKind: latestSenderKind) else {
+        guard
+            let turnContext = SuggestedReplyTurnContext(
+                latestSenderKind: latestSenderKind
+            )
+        else {
             return nil
         }
 
@@ -235,7 +211,11 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             for: messages[messages.count - 1],
             provisionalIdentity: provisionalIdentity
         )
-        guard let turnContext = ReplyTurnContext(latestSenderKind: latestSenderKind) else {
+        guard
+            let turnContext = SuggestedReplyTurnContext(
+                latestSenderKind: latestSenderKind
+            )
+        else {
             throw SuggestedRepliesError.senderReviewRequired
         }
 
@@ -567,7 +547,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
 
     private func presentedGuidance(
         for generated: SuggestedReplyGenerationResult,
-        turnContext: ReplyTurnContext,
+        turnContext: SuggestedReplyTurnContext,
         localization: LocalizationContext
     ) -> (conversationStrategy: String, strategyRationale: String) {
         guard generated.replies.isEmpty else {
@@ -639,7 +619,10 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
             "model": model.rawValue,
             "appLanguage": appLanguage,
             "provisionalIdentity": provisionalIdentity.map(identityObject) ?? NSNull(),
-            "promptVersion": SuggestedReplyPrompt.version
+            "promptVersion": SuggestedReplyPrompt.version,
+            "promptIdentity": SuggestedReplyPrompt.cacheIdentity(
+                appLanguage: appLanguage
+            )
         ]
         return digest(payload)
     }

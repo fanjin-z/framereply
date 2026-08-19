@@ -48,6 +48,34 @@ nonisolated enum SuggestedReplyTask: String, Equatable, Sendable {
     case personaStyleLearning
 }
 
+nonisolated enum SuggestedReplyTurnContext: Equatable, Sendable {
+    case latestUser
+    case incomingDirect
+    case incomingGroup
+
+    init?(latestSenderKind: String) {
+        switch latestSenderKind {
+        case "user":
+            self = .latestUser
+        case "other_participant":
+            self = .incomingDirect
+        case "group_participant":
+            self = .incomingGroup
+        default:
+            return nil
+        }
+    }
+
+    func acceptsReplyCount(_ count: Int) -> Bool {
+        switch self {
+        case .latestUser, .incomingGroup:
+            count == 0 || count == 2
+        case .incomingDirect:
+            count == 2
+        }
+    }
+}
+
 nonisolated enum SuggestedReplyTextLimits {
     static let conversationStrategyMaximumCodePoints = 300
     static let strategyRationaleMaximumCodePoints = 450

@@ -236,6 +236,21 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
         XCTAssertNil(input["appLanguage"])
     }
 
+    @MainActor
+    func testSuggestedReplyCacheIdentityCoversCachedPromptVariants() throws {
+        let english = SuggestedReplyPrompt.cacheIdentity(appLanguage: "en")
+        let french = SuggestedReplyPrompt.cacheIdentity(appLanguage: "fr")
+
+        XCTAssertEqual(
+            Set(english.keys),
+            ["contracts", "turnRequirements", "textLengthReminders"]
+        )
+        XCTAssertEqual((english["contracts"] as? [[String: Any]])?.count, 2)
+        XCTAssertEqual((english["turnRequirements"] as? [String])?.count, 3)
+        XCTAssertEqual((english["textLengthReminders"] as? [String])?.count, 2)
+        XCTAssertNotEqual(try schemaText(english), try schemaText(french))
+    }
+
     private func conversationPayload(from input: String) throws -> [String: Any] {
         let startMarker = "<conversation_data>\n"
         let endMarker = "\n</conversation_data>"

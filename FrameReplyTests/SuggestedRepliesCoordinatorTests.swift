@@ -4,6 +4,30 @@ import XCTest
 @testable import FrameReply
 
 final class SuggestedRepliesCoordinatorTests: XCTestCase {
+    func testTurnContextUsesExistingSenderRolesForSharedReplyCardinality() {
+        let latestUser = SuggestedReplyTurnContext(latestSenderKind: "user")
+        let incomingDirect = SuggestedReplyTurnContext(
+            latestSenderKind: "other_participant"
+        )
+        let incomingGroup = SuggestedReplyTurnContext(
+            latestSenderKind: "group_participant"
+        )
+
+        XCTAssertEqual(latestUser, .latestUser)
+        XCTAssertEqual(incomingDirect, .incomingDirect)
+        XCTAssertEqual(incomingGroup, .incomingGroup)
+        XCTAssertNil(SuggestedReplyTurnContext(latestSenderKind: "unknown"))
+
+        for context in [latestUser, incomingGroup].compactMap({ $0 }) {
+            XCTAssertTrue(context.acceptsReplyCount(0))
+            XCTAssertFalse(context.acceptsReplyCount(1))
+            XCTAssertTrue(context.acceptsReplyCount(2))
+        }
+        XCTAssertFalse(incomingDirect?.acceptsReplyCount(0) ?? true)
+        XCTAssertFalse(incomingDirect?.acceptsReplyCount(1) ?? true)
+        XCTAssertTrue(incomingDirect?.acceptsReplyCount(2) ?? false)
+    }
+
     @MainActor
     func testProvisionalIdentityGroundsRepliesWithoutDurableLearning() async throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)

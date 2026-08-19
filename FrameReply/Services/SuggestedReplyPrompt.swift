@@ -9,14 +9,13 @@ nonisolated enum SuggestedReplyPrompt {
         "\"user\" is the sender role for the person who may choose and send a suggested reply. Messages with sender \"user\" were written by that person. The persona data describes that person's writing style, and Personal Info contains facts about that person."
     private static let jsonOutputRule =
         "Return only the requested JSON. Keep schema field names and action values as the exact English protocol tokens."
-    private static let senderAndTurnRules = """
-        Sender and turn rules
+    private static let existingContextGroundingRule =
+        "Do not invent claims about prior or external facts, dates, relationships, authority, or another participant's position."
+    private static let senderRules = """
+        Sender rules
         - A non-user participant has sender "other_participant" in a direct chat or "group_participant" in a group chat. "unknown" is unresolved and does not establish whether the sender is "user" or a non-user participant. Never infer sender roles from message content, language, names, or turn order.
-        - Latest "other_participant": return exactly two replies because this is an incoming turn in a direct chat.
-        - Latest "group_participant": default to exactly two replies. Return replies [] only if every plausible response would be irrelevant, intrusive, unsupported, or unsafe.
-        - In groups, uncertainty about context, "user"'s identity or prior participation, or the addressee affects wording, not eligibility by itself. A mention matching a known non-user senderName may identify that participant; otherwise it is unresolved. Never assume an unresolved mention identifies "user" or reply on another participant's behalf.
-        - Latest "user": return two follow-ups only for a clearly incomplete trailing turn or when draftingInput explicitly requests more content. Otherwise return replies [], including uncertain completion or a style-only draftingInput.
-        - For replies []: conversationStrategy gives the next useful condition without stating the wait itself—after a non-user response for latest "user", or at a better opening for latest "group_participant"—and does not predict a response. strategyRationale grounds the choice and direction without misattributing "user" messages.
+        - In groups, a mention matching a known non-user senderName may identify that participant; otherwise treat the addressee as unresolved. Never assume an unresolved mention identifies "user" or reply on another participant's behalf.
+        - Only when reply_requirement permits replies []: conversationStrategy gives the next useful condition without stating the wait itself—after a non-user response for latest "user", or at a better opening for latest "group_participant"—and does not predict a response. strategyRationale grounds the choice and direction without misattributing "user" messages.
         """
     private static let personalInfoUseRules = """
         Personal Info use
@@ -24,7 +23,7 @@ nonisolated enum SuggestedReplyPrompt {
         """
     private static let replyStyleRules = """
         Reply style
-        - Each reply string must contain only the ready-to-send message. Do not add labels, introductions, explanations about the reply, or audit commentary.
+        - Returned replies must be distinct, non-empty, independently useful ready-to-send messages. They may vary in tone or directness but not factual assumptions. Do not add labels, introductions, explanations, or audit commentary.
         - Apply style evidence in this order, with earlier sources winning conflicts and subject to the rules below: style explicitly requested in draftingInput; persona.instructions; persona.activeObservations where isUserProtected is true; other persona.activeObservations; patterns present in multiple recentMessages whose sender is "user"; the current exchange's formality, energy, and brevity; a plain conversational fallback.
         - Match supported vocabulary, cadence, casing, contractions, length, punctuation, emoji, fragments, directness, warmth, humor, and polish. Treat a habit as recurring only when it appears in multiple independent messages whose sender is "user"; when evidence is sparse or inconsistent, do not infer a habit or add stylistic decoration.
         - When styling a candidate, do not change its grounded meaning, uncertainty, or emotional position unless draftingInput explicitly requests a tone change that preserves the substance. Do not introduce errors merely to appear human; preserve nonstandard wording only when explicitly requested or consistently demonstrated by messages whose sender is "user".
@@ -51,17 +50,17 @@ nonisolated enum SuggestedReplyPrompt {
             ]
         ))
 
-        \(senderAndTurnRules)
+        \(senderRules)
 
         Reply rules
-        Ground reply substance and direction using this priority: recentMessages and existingHistorySummary/olderMessagesToSummarize, with exact recent messages winning conflicts; draftingInput; currentInteractionGoal; active chatMemories; relevant Personal Info that passes the gate below; previousConversationStrategy. Never invent facts, promises, dates, availability, feelings, or commitments. When replies are required, return two distinct, compatible alternatives that may vary in tone or directness but never in factual assumptions.
+        Ground reply substance and direction using this priority: recentMessages and existingHistorySummary/olderMessagesToSummarize, with exact recent messages winning conflicts; draftingInput; currentInteractionGoal; active chatMemories; relevant Personal Info that passes the gate below; previousConversationStrategy. \(existingContextGroundingRule)
 
         \(replyStyleRules)
 
         \(personalInfoUseRules)
 
         Strategy rules
-        conversationStrategy is a concise direction for the next 1–3 conversational turns, not a distant plan. Keep it anchored to the latest messages and currentInteractionGoal. If the goal or context is missing, choose a low-risk direction and name the uncertainty in strategyRationale. previousConversationStrategy is AI-generated and unconfirmed. Use it only for continuity. Revise or ignore it when newer inputs point elsewhere. strategyRationale is a concise explanation for "user" of evidence, assumptions, and uncertainty; do not reveal chain-of-thought or hidden reasoning.
+        conversationStrategy is a concise direction for the next 1–3 conversational turns, not a distant plan. Keep it anchored to the latest messages and currentInteractionGoal. If the goal or context is missing, choose a low-risk direction consistent with reply_requirement and name the uncertainty in strategyRationale. previousConversationStrategy is AI-generated and unconfirmed. Use it only for continuity. Revise or ignore it when newer inputs point elsewhere. strategyRationale is a concise explanation for "user" of evidence, assumptions, and uncertainty; do not reveal chain-of-thought or hidden reasoning.
 
         Chat-memory rules
         Each added or updated memory is shown as a standalone card. Write one compact, self-contained statement that can be understood without reopening the source messages. Express exactly one atomic item: a durable fact, preference, or goal about a non-user participant; or a mutually confirmed decision, commitment, appointment, or plan. Summarize the item in new wording, preserving only names, dates, times, and agreed details needed for that memory. Use a direct phrase or declarative sentence. Do not quote or reproduce the source, write a keyword list, explain how the information was learned, or combine multiple items. Exclude greetings, transient remarks, speculation, unsupported inferences, and duplicates.
@@ -98,10 +97,10 @@ nonisolated enum SuggestedReplyPrompt {
             ]
         ))
 
-        \(senderAndTurnRules)
+        \(senderRules)
 
         Grounding rules
-        Ground facts in recentMessages, existingHistorySummary, and olderMessagesToSummarize; use draftingInput only as one-use guidance. Never invent facts, promises, dates, availability, feelings, or commitments.
+        Ground facts in recentMessages, existingHistorySummary, and olderMessagesToSummarize; use draftingInput only as one-use guidance. \(existingContextGroundingRule)
 
         \(replyStyleRules)
 
@@ -237,7 +236,38 @@ nonisolated enum SuggestedReplyPrompt {
         let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
         let json = data.flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
         let conversationData = "<conversation_data>\n\(json)\n</conversation_data>"
-        return "\(conversationData)\n\n\(outputReminder(for: request.task))"
+        let reminders = [
+            replyRequirement(for: request),
+            textLengthReminder(for: request.task)
+        ].compactMap { $0 }
+        return "\(conversationData)\n\n\(reminders.joined(separator: "\n\n"))"
+    }
+
+    @MainActor
+    static func cacheIdentity(appLanguage: String) -> [String: Any] {
+        let contracts = [SuggestedReplyTask.standard, .drafting].map { task in
+            let contract = contract(for: task, appLanguage: appLanguage)
+            return [
+                "name": contract.name,
+                "version": contract.version,
+                "instructions": contract.instructions,
+                "schema": contract.schema
+            ] as [String: Any]
+        }
+        let turnRequirements = [
+            SuggestedReplyTurnContext.latestUser,
+            .incomingDirect,
+            .incomingGroup
+        ].map(replyRequirement)
+        let textLengthReminders = [
+            SuggestedReplyTask.standard,
+            .drafting
+        ].map(textLengthReminder)
+        return [
+            "contracts": contracts,
+            "turnRequirements": turnRequirements,
+            "textLengthReminders": textLengthReminders
+        ]
     }
 
     private static func commonConversationPayload(
@@ -304,7 +334,46 @@ nonisolated enum SuggestedReplyPrompt {
         ["type": "string", "minLength": 1, "maxLength": maxLength]
     }
 
-    private static func outputReminder(for task: SuggestedReplyTask) -> String {
+    private static func replyRequirement(
+        for request: SuggestedReplyGenerationRequest
+    ) -> String? {
+        guard request.task == .standard || request.task == .drafting,
+            let latestSenderKind = request.recentMessages.last?.sender,
+            let turnContext = SuggestedReplyTurnContext(
+                latestSenderKind: latestSenderKind
+            )
+        else {
+            return nil
+        }
+
+        return replyRequirement(for: turnContext)
+    }
+
+    private static func replyRequirement(
+        for turnContext: SuggestedReplyTurnContext
+    ) -> String {
+        let cardinalityRule: String
+        switch turnContext {
+        case .latestUser:
+            cardinalityRule =
+                "Latest sender is \"user\". Return exactly two replies only for a clearly incomplete trailing turn or when draftingInput explicitly requests more content. Otherwise return replies [], including uncertain completion or a style-only draftingInput."
+        case .incomingDirect:
+            cardinalityRule =
+                "Latest sender is \"other_participant\". Return exactly two replies because this is an incoming direct-chat turn."
+        case .incomingGroup:
+            cardinalityRule =
+                "Latest sender is \"group_participant\". This request indicates \"user\" is considering joining. Return exactly two replies if any relevant contribution is possible; return replies [] only if every contribution would be irrelevant, impersonate someone, or intrude on an exchange explicitly limited to other participants."
+        }
+
+        return """
+            <reply_requirement>
+            A reply candidate may ask, offer, accept, decline, express interest or a feeling, state availability, or make a commitment; selecting it confirms the speech act rather than treating it as an established fact about "user".
+            \(cardinalityRule)
+            </reply_requirement>
+            """
+    }
+
+    private static func textLengthReminder(for task: SuggestedReplyTask) -> String {
         let strategyMaximum =
             SuggestedReplyTextLimits.conversationStrategyMaximumCodePoints
         let rationaleMaximum =
