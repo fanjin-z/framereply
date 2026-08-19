@@ -299,6 +299,7 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         let memoryID = "20000000-0000-4000-8000-000000000001"
         let memoryRow = element("chat-memory-row-\(memoryID)", in: app)
         let deleteMemory = app.buttons["chat-memory-delete-\(memoryID)"]
+        let memoryComposer = element("chat-memory-composer", in: app)
         XCTAssertTrue(scrollUntilHittable(memoryRow, swiping: app.swipeUp))
 
         let dragStart = memoryRow.coordinate(
@@ -308,8 +309,8 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
             withNormalizedOffset: CGVector(dx: 0.55, dy: 0.2)
         )
         dragStart.press(forDuration: 0.05, thenDragTo: dragEnd)
-        XCTAssertTrue(app.buttons["Delete Chat"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["Delete Chat"].isHittable)
+        XCTAssertTrue(memoryComposer.waitForExistence(timeout: 3))
+        XCTAssertTrue(memoryComposer.isHittable)
         XCTAssertFalse(deleteMemory.exists)
         app.swipeDown()
         XCTAssertTrue(scrollUntilHittable(memoryRow, swiping: app.swipeUp))
@@ -328,6 +329,49 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
 
         XCTAssertTrue(memoryRow.waitForNonExistence(timeout: 3))
         XCTAssertFalse(app.sheets.firstMatch.exists)
+    }
+
+    func testChatActionsMenuCanEditReclassifyAndDelete() {
+        let app = launchShowcase()
+        openMaya(in: app)
+
+        let details = element("open-chat-details", in: app)
+        let actions = element("chat-actions-menu", in: app)
+        XCTAssertTrue(details.waitForExistence(timeout: 3))
+        XCTAssertTrue(actions.waitForExistence(timeout: 3))
+        XCTAssertTrue(actions.isHittable)
+        XCTAssertEqual(details.label, "Open chat details for Maya")
+        XCTAssertEqual(details.value as? String, "Direct Chat")
+
+        actions.tap()
+        XCTAssertTrue(app.buttons["Edit Names"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Mark as Group Chat"].exists)
+        XCTAssertTrue(app.buttons["Delete Chat"].exists)
+
+        app.buttons["Edit Names"].tap()
+        XCTAssertTrue(app.navigationBars["Edit Names"].waitForExistence(timeout: 3))
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(app.navigationBars["Edit Names"].waitForNonExistence(timeout: 3))
+
+        actions.tap()
+        XCTAssertTrue(app.buttons["Mark as Group Chat"].waitForExistence(timeout: 3))
+        app.buttons["Mark as Group Chat"].tap()
+
+        let groupValue = NSPredicate(format: "value == %@", "Group Chat")
+        let groupExpectation = XCTNSPredicateExpectation(predicate: groupValue, object: details)
+        XCTAssertEqual(XCTWaiter.wait(for: [groupExpectation], timeout: 3), .completed)
+
+        actions.tap()
+        XCTAssertTrue(app.buttons["Rename Chat"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Mark as Direct Chat"].exists)
+        app.buttons["Delete Chat"].tap()
+
+        let confirmation = app.sheets.firstMatch
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 3))
+        confirmation.buttons["Delete Chat"].tap()
+
+        XCTAssertTrue(element("chats-screen", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["chat-card-showcase.maya"].waitForNonExistence(timeout: 3))
     }
 
     func testReplyGuidancePersistsIntoImport() {

@@ -21,39 +21,40 @@ struct ChatMemoryCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 7) {
             SectionHeader(symbolName: "brain", title: "Remembered Context")
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("chat-memory-card")
-                .padding(.horizontal, 22)
-                .padding(.top, 22)
 
-            if activeMemories.isEmpty {
-                Text("Nothing saved yet. Add a detail you would like to remember.")
-                    .font(.system(size: 14, weight: .regular, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.outline)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("chat-memory-empty-state")
-                    .padding(.horizontal, 22)
-            } else {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(activeMemories.enumerated()), id: \.element.id) {
-                        index, memory in
-                        memoryRow(
-                            memory,
-                            showsSeparator: index < activeMemories.count - 1
-                        )
+            VStack(alignment: .leading, spacing: 0) {
+                if activeMemories.isEmpty {
+                    Text("Nothing saved yet. Add a detail you would like to remember.")
+                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                        .foregroundStyle(FrameReplyColor.outline)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("chat-memory-empty-state")
+                        .padding(.horizontal, 14)
+                        .padding(.top, 14)
+                        .padding(.bottom, 2)
+                } else {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(activeMemories.enumerated()), id: \.element.id) {
+                            index, memory in
+                            memoryRow(
+                                memory,
+                                showsSeparator: index < activeMemories.count - 1
+                            )
+                        }
                     }
+                    .background(FrameReplyColor.surfaceContainerLow)
                 }
-                .background(FrameReplyColor.surfaceContainerLow)
-                .clipped()
-            }
 
-            memoryComposer
-                .padding(.horizontal, 22)
-                .padding(.bottom, 22)
+                memoryComposer
+                    .padding(10)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .glassPanel(cornerRadius: 18)
         }
-        .glassPanel(cornerRadius: 28)
         .alert("Couldn’t Save Remembered Context", isPresented: saveErrorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -62,18 +63,19 @@ struct ChatMemoryCard: View {
     }
 
     private var memoryComposer: some View {
-        HStack(alignment: .bottom, spacing: 10) {
+        HStack(alignment: .bottom, spacing: 8) {
             TextField(
                 "e.g. We met at university, they prefer vegetarian restaurants…",
                 text: $draft,
                 axis: .vertical
             )
-            .font(.system(size: 15, weight: .regular, design: .rounded))
+            .font(.system(size: 14, weight: .regular, design: .rounded))
             .foregroundStyle(FrameReplyColor.onSurface)
-            .lineSpacing(4)
-            .lineLimit(1...)
-            .frame(minHeight: 42, alignment: .topLeading)
+            .lineSpacing(3)
+            .lineLimit(1...4)
+            .frame(minHeight: 40, alignment: .topLeading)
             .accessibilityLabel("New remembered context for \(chat.name)")
+            .accessibilityIdentifier("chat-memory-composer")
 
             Button(action: addMemory) {
                 Text("Add")
@@ -84,12 +86,14 @@ struct ChatMemoryCard: View {
             }
             .buttonStyle(SoftPressButtonStyle())
             .disabled(trimmedDraft.isEmpty)
+            .frame(minWidth: 44, minHeight: 44)
             .accessibilityHint("Saves this as a separate memory")
         }
-        .padding(14)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
         .background(
             FrameReplyColor.secondaryContainer.opacity(0.2),
-            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
     }
 
@@ -124,8 +128,8 @@ struct ChatMemoryCard: View {
                 }
                 .font(.system(size: 13, weight: .bold, design: .rounded))
             }
-            .padding(.horizontal, 22)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
             .compactSwipeRowSurface(showsSeparator: showsSeparator)
         } else {
             CompactSwipeRow(
@@ -145,55 +149,56 @@ struct ChatMemoryCard: View {
                 actionTitle: "Delete",
                 actionSystemImage: "trash",
                 actionTint: .red,
-                actionAccessibilityIdentifier: "chat-memory-delete-\(memory.id.uuidString)"
-            ) {
-                VStack(alignment: .leading, spacing: 4) {
-                    if memory.origin == ChatMemoryOrigin.ai.rawValue {
-                        Label("From conversation", systemImage: "sparkles")
-                            .font(
-                                .system(size: 10, weight: .semibold, design: .rounded)
-                            )
-                            .foregroundStyle(FrameReplyColor.primary)
-                    }
+                actionAccessibilityIdentifier: "chat-memory-delete-\(memory.id.uuidString)",
+                content: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        if memory.origin == ChatMemoryOrigin.ai.rawValue {
+                            Label("From conversation", systemImage: "sparkles")
+                                .font(
+                                    .system(size: 10, weight: .semibold, design: .rounded)
+                                )
+                                .foregroundStyle(FrameReplyColor.primary)
+                        }
 
-                    Text(memory.text)
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
-                        .foregroundStyle(FrameReplyColor.onSurface)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .padding(.horizontal, 22)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    if revealedMemoryID == memory.id {
-                        revealedMemoryID = nil
-                    } else {
+                        Text(memory.text)
+                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                            .foregroundStyle(FrameReplyColor.onSurface)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if revealedMemoryID == memory.id {
+                            revealedMemoryID = nil
+                        } else {
+                            beginEditing(memory)
+                        }
+                    }
+                    .compactSwipeRowSurface(showsSeparator: showsSeparator)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityLabel("Memory: \(memory.text)")
+                    .accessibilityHint("Double tap to edit, or swipe left to delete")
+                    .accessibilityIdentifier("chat-memory-row-\(memory.id.uuidString)")
+                    .accessibilityAction(named: "Edit") {
                         beginEditing(memory)
                     }
-                }
-                .compactSwipeRowSurface(showsSeparator: showsSeparator)
-                .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.isButton)
-                .accessibilityLabel("Memory: \(memory.text)")
-                .accessibilityHint("Double tap to edit, or swipe left to delete")
-                .accessibilityIdentifier("chat-memory-row-\(memory.id.uuidString)")
-                .accessibilityAction(named: "Edit") {
-                    beginEditing(memory)
-                }
-                .accessibilityAction(named: "Delete") {
-                    deleteMemory(memory.id)
-                }
-                .contextMenu {
-                    Button("Edit", systemImage: "pencil") {
-                        beginEditing(memory)
-                    }
-                    Button("Delete", systemImage: "trash", role: .destructive) {
+                    .accessibilityAction(named: "Delete") {
                         deleteMemory(memory.id)
                     }
+                    .contextMenu {
+                        Button("Edit", systemImage: "pencil") {
+                            beginEditing(memory)
+                        }
+                        Button("Delete", systemImage: "trash", role: .destructive) {
+                            deleteMemory(memory.id)
+                        }
+                    }
                 }
-            }
+            )
         }
     }
 

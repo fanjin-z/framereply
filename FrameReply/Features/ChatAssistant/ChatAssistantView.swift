@@ -12,6 +12,7 @@ struct ChatAssistantView: View {
     @ObservedObject var providerStore: ProviderStore
     private let repository: ChatRepository
     let onDetailsTap: () -> Void
+    let onDeleted: () -> Void
     let onMergedIntoChat: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -20,10 +21,16 @@ struct ChatAssistantView: View {
     @State private var isImportSourcePresented = false
     @State private var isReviewPresented = false
     @State private var isMergeConfirmationPresented = false
+    @State private var isRenamePresented = false
+    @State private var renameDraft = ""
+    @State private var isEditNamesPresented = false
+    @State private var isDeleteConfirmationPresented = false
+    @State private var isDirectConversionPresented = false
     @State private var actionErrorMessage: String?
     @State private var selectedScreenshotItems: [PhotosPickerItem] = []
     @State private var photoLoadErrorMessage: String?
     @State private var importTask: Task<Void, Never>?
+    @State private var activeImportTaskID: UUID?
     @State private var replyGuidance = ""
     @State private var goalDraft = ""
     @State private var goalEditorDraft = ""
@@ -51,12 +58,14 @@ struct ChatAssistantView: View {
         suggestedRepliesCoordinator: any SuggestedRepliesCoordinating,
         presentImportReviewOnAppear: Bool = false,
         onDetailsTap: @escaping () -> Void,
+        onDeleted: @escaping () -> Void,
         onMergedIntoChat: @escaping (String) -> Void
     ) {
         self.chat = chat
         self.providerStore = providerStore
         self.repository = repository
         self.onDetailsTap = onDetailsTap
+        self.onDeleted = onDeleted
         self.onMergedIntoChat = onMergedIntoChat
         _isReviewPresented = State(initialValue: presentImportReviewOnAppear)
         let chatID = chat.id
@@ -153,6 +162,18 @@ struct ChatAssistantView: View {
 
     private var currentChatContext: ChatContextRecord? {
         chatContextRecords.first
+    }
+
+    private var isDirectChat: Bool {
+        (currentChatRecord?.conversationKind ?? chat.conversationKind) == .direct
+    }
+
+    private var participantAliases: [ChatParticipantAlias] {
+        currentChatContext?.participantAliases ?? []
+    }
+
+    private var isManagementDisabled: Bool {
+        activeImportTaskID != nil || importModel.isLoading || suggestedRepliesModel.isLoading
     }
 
     private var isCurrentChatProvisional: Bool {
@@ -433,10 +454,15 @@ struct ChatAssistantView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             ChatAssistantTopBar(
                 chat: displayedChat,
+                isDirectChat: isDirectChat,
+                isManagementDisabled: isManagementDisabled,
                 onBackTap: {
                     dismiss()
                 },
-                onDetailsTap: onDetailsTap
+                onDetailsTap: onDetailsTap,
+                onEditNamesTap: presentNameEditor,
+                onConversationTypeTap: updateConversationType,
+                onDeleteTap: presentDeleteConfirmation
             )
         }
         .safeAreaBar(edge: .bottom, spacing: 0) {
@@ -478,8 +504,7 @@ struct ChatAssistantView: View {
                 screenshotSelection: $selectedScreenshotItems,
                 draftingInput: $replyGuidance,
                 onPaste: { items in
-                    importTask?.cancel()
-                    importTask = Task {
+                    startImportTask {
                         await importCopiedMessages(items)
                     }
                 }
@@ -491,6 +516,37 @@ struct ChatAssistantView: View {
                 repository: repository,
                 onMerged: onMergedIntoChat
             )
+        }
+        .sheet(isPresented: $isEditNamesPresented) {
+            EditParticipantNamesSheet(
+                chatID: chat.id,
+                displayName: displayedChat.name,
+                aliases: participantAliases,
+                repository: repository
+            )
+        }
+        .sheet(isPresented: $isDirectConversionPresented) {
+            DirectCounterpartSelectionSheet(
+                candidateNames: detectedParticipantNames,
+                onSelect: convertToDirect
+            )
+        }
+        .alert("Rename Chat", isPresented: $isRenamePresented) {
+            TextField("Chat name", text: $renameDraft)
+            Button("Save", action: renameChat)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Choose a clear name for this chat.")
+        }
+        .confirmationDialog(
+            "Delete chat with \(displayedChat.name)?",
+            isPresented: $isDeleteConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Chat", role: .destructive, action: deleteChat)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently deletes this chat and its data. This can’t be undone.")
         }
         .confirmationDialog(
             "Merge Imported Chat",
@@ -521,11 +577,9 @@ struct ChatAssistantView: View {
             recordReviewExposureIfNeeded()
         }
         .onChange(of: selectedScreenshotItems) { _, items in
-            if !items.isEmpty {
-                isImportSourcePresented = false
-            }
-            importTask?.cancel()
-            importTask = Task {
+            guard !items.isEmpty else { return }
+            isImportSourcePresented = false
+            startImportTask {
                 await importSelectedScreenshots(items)
             }
         }
@@ -608,6 +662,18 @@ struct ChatAssistantView: View {
 
     private func cancelImport() {
         importTask?.cancel()
+    }
+
+    private func startImportTask(operation: @escaping @MainActor () async -> Void) {
+        importTask?.cancel()
+        let taskID = UUID()
+        activeImportTaskID = taskID
+        importTask = Task { @MainActor in
+            await operation()
+            guard activeImportTaskID == taskID else { return }
+            activeImportTaskID = nil
+            importTask = nil
+        }
     }
 
     private func importSelectedScreenshots(_ items: [PhotosPickerItem]) async {
@@ -746,6 +812,87 @@ struct ChatAssistantView: View {
             if try repository.chat(id: chat.id) == nil {
                 onMergedIntoChat(targetChatID)
             }
+        } catch {
+            actionErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func presentNameEditor() {
+        guard !isManagementDisabled else { return }
+        if isDirectChat {
+            isEditNamesPresented = true
+        } else {
+            renameDraft = displayedChat.name
+            isRenamePresented = true
+        }
+    }
+
+    private func updateConversationType() {
+        guard !isManagementDisabled else { return }
+        if isDirectChat {
+            convertToGroup()
+        } else {
+            isDirectConversionPresented = true
+        }
+    }
+
+    private func presentDeleteConfirmation() {
+        guard !isManagementDisabled else { return }
+        isDeleteConfirmationPresented = true
+    }
+
+    private func renameChat() {
+        guard !isManagementDisabled else { return }
+        do {
+            try repository.renameChat(id: chat.id, name: renameDraft)
+        } catch {
+            actionErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func deleteChat() {
+        guard !isManagementDisabled else { return }
+        cancelImport()
+        do {
+            try repository.deleteChat(id: chat.id)
+            onDeleted()
+        } catch {
+            actionErrorMessage = error.localizedDescription
+        }
+    }
+
+    private var detectedParticipantNames: [String] {
+        var seen = Set<String>()
+        return messageRecords.compactMap { message in
+            guard message.senderKind != "user",
+                let name = ParticipantLabelNormalizer.displayLabel(message.senderName),
+                let key = ParticipantLabelNormalizer.key(name),
+                seen.insert(key).inserted
+            else {
+                return nil
+            }
+            return name
+        }
+    }
+
+    private func convertToGroup() {
+        guard !isManagementDisabled else { return }
+        do {
+            try repository.reclassifyConversation(chatID: chat.id, to: .group)
+        } catch {
+            actionErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func convertToDirect(_ displayName: String) {
+        guard !isManagementDisabled else { return }
+        do {
+            try repository.reclassifyConversation(
+                chatID: chat.id,
+                to: .direct,
+                directDisplayName: displayName
+            )
+            isDirectConversionPresented = false
         } catch {
             actionErrorMessage = error.localizedDescription
         }

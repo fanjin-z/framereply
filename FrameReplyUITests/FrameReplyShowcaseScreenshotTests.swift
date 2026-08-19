@@ -119,8 +119,11 @@ final class FrameReplyShowcaseScreenshotTests: FrameReplyUITestCase {
         details.tap()
 
         XCTAssertTrue(element("chat-details-screen", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("chat-details-back", in: app).isHittable)
         XCTAssertTrue(element("strategy-rationale-card", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("chat-memory-card", in: app).waitForExistence(timeout: 3))
+        XCTAssertFalse(element("chat-details-top-bar", in: app).exists)
+        XCTAssertFalse(app.buttons["Delete Chat"].exists)
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         capture("06-context-and-rationale")
     }

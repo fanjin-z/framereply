@@ -98,9 +98,7 @@ struct FrameReplyShellView: View {
                         ChatDetailsView(
                             chat: chat,
                             repository: chatRepository
-                        ) {
-                            navigationPath.removeAll()
-                        }
+                        )
                     }
                 case .chatAssistant(let chatID):
                     if let chat = chat(withID: chatID) {
@@ -111,6 +109,9 @@ struct FrameReplyShellView: View {
                             suggestedRepliesCoordinator: suggestedRepliesCoordinator,
                             onDetailsTap: {
                                 navigationPath.append(.chatDetails(chatID))
+                            },
+                            onDeleted: {
+                                navigationPath.removeAll()
                             },
                             onMergedIntoChat: { targetChatID in
                                 replaceCurrentRoute(with: .chatAssistant(targetChatID))
@@ -127,6 +128,9 @@ struct FrameReplyShellView: View {
                             presentImportReviewOnAppear: true,
                             onDetailsTap: {
                                 navigationPath.append(.chatDetails(chatID))
+                            },
+                            onDeleted: {
+                                navigationPath.removeAll()
                             },
                             onMergedIntoChat: { targetChatID in
                                 replaceCurrentRoute(with: .chatAssistant(targetChatID))

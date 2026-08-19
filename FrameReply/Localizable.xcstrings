@@ -253,8 +253,8 @@
     "Casual" : {
 
     },
-    "Chat Details" : {
-
+    "Chat actions for %@" : {
+      "comment" : "Accessibility label for the chat management menu. The value is the user-defined chat name."
     },
     "Chat History" : {
 
@@ -482,9 +482,6 @@
     "Conversation Strategy" : {
 
     },
-    "Conversation Type" : {
-
-    },
     "Copied" : {
 
     },
@@ -646,6 +643,9 @@
     },
     "Edit Names" : {
 
+    },
+    "Edit names, change conversation type, or delete this chat" : {
+      "comment" : "Accessibility hint describing the actions available in the chat management menu."
     },
     "Edit Personal Info" : {
 
@@ -1479,17 +1479,17 @@
     "Lowest cost; may be less reliable with subtle or complex context" : {
 
     },
-    "Make Direct" : {
-
-    },
-    "Make Group" : {
-
-    },
     "Makes this provider active" : {
 
     },
     "Manage Personal Info" : {
 
+    },
+    "Mark as Direct Chat" : {
+      "comment" : "Reclassifies how FrameReply interprets the conversation; it does not change participants in another messaging app."
+    },
+    "Mark as Group Chat" : {
+      "comment" : "Reclassifies how FrameReply interprets the conversation; it does not create a group in another messaging app."
     },
     "Memory: %@" : {
 
@@ -1519,9 +1519,6 @@
 
     },
     "Name, nickname, or username" : {
-
-    },
-    "Named senders remain message-specific" : {
 
     },
     "New Persona" : {
@@ -1587,9 +1584,6 @@
     "OK" : {
 
     },
-    "One other participant" : {
-
-    },
     "One short fact about yourself" : {
 
     },
@@ -1626,10 +1620,10 @@
     "Opens full chat history" : {
 
     },
-    "Opens the current goal editor" : {
+    "Opens screenshot and pasted-text import options." : {
 
     },
-    "Opens screenshot and pasted-text import options." : {
+    "Opens the current goal editor" : {
 
     },
     "Opens the photo library to select up to eight chat screenshots." : {
@@ -1654,9 +1648,6 @@
 
     },
     "Paste Copied Text" : {
-
-    },
-    "Pending review · Assuming you are %@" : {
 
     },
     "Performance" : {
@@ -2472,8 +2463,8 @@
     "Show API key" : {
 
     },
-    "Shows chat settings and memory" : {
-
+    "Shows reply rationale and remembered context" : {
+      "comment" : "Accessibility hint for opening the content-only Chat Details screen."
     },
     "Skip" : {
 
