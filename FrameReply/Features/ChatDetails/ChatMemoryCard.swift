@@ -6,6 +6,7 @@ struct ChatMemoryCard: View {
     let memoryRecords: [ChatMemoryRecord]
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var draft = ""
     @State private var editingMemoryID: UUID?
     @State private var editingText = ""
@@ -22,20 +23,20 @@ struct ChatMemoryCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            SectionHeader(symbolName: "brain", title: "Remembered Context")
+            ChatDetailsSectionHeader(symbolName: "brain", title: "Remembered Context")
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("chat-memory-card")
 
             VStack(alignment: .leading, spacing: 0) {
                 if activeMemories.isEmpty {
                     Text("Nothing saved yet. Add a detail you would like to remember.")
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
-                        .foregroundStyle(FrameReplyColor.outline)
+                        .font(.callout)
+                        .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("chat-memory-empty-state")
-                        .padding(.horizontal, 14)
-                        .padding(.top, 14)
-                        .padding(.bottom, 2)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 16)
+                        .padding(.bottom, 4)
                 } else {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(Array(activeMemories.enumerated()), id: \.element.id) {
@@ -50,7 +51,7 @@ struct ChatMemoryCard: View {
                 }
 
                 memoryComposer
-                    .padding(10)
+                    .padding(12)
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .glassPanel(cornerRadius: 18)
@@ -63,38 +64,58 @@ struct ChatMemoryCard: View {
     }
 
     private var memoryComposer: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TextField(
-                "e.g. We met at university, they prefer vegetarian restaurants…",
-                text: $draft,
-                axis: .vertical
-            )
-            .font(.system(size: 14, weight: .regular, design: .rounded))
-            .foregroundStyle(FrameReplyColor.onSurface)
-            .lineSpacing(3)
-            .lineLimit(1...4)
-            .frame(minHeight: 40, alignment: .topLeading)
-            .accessibilityLabel("New remembered context for \(chat.name)")
-            .accessibilityIdentifier("chat-memory-composer")
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    memoryComposerField
 
-            Button(action: addMemory) {
-                Text("Add")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundStyle(
-                        trimmedDraft.isEmpty ? FrameReplyColor.outline : FrameReplyColor.primary
-                    )
+                    HStack {
+                        Spacer()
+                        addMemoryButton
+                    }
+                }
+            } else {
+                HStack(alignment: .bottom, spacing: 8) {
+                    memoryComposerField
+                    addMemoryButton
+                }
             }
-            .buttonStyle(SoftPressButtonStyle())
-            .disabled(trimmedDraft.isEmpty)
-            .frame(minWidth: 44, minHeight: 44)
-            .accessibilityHint("Saves this as a separate memory")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
         .background(
             FrameReplyColor.secondaryContainer.opacity(0.2),
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
+    }
+
+    private var memoryComposerField: some View {
+        TextField(
+            "e.g. We met at university, they prefer vegetarian restaurants…",
+            text: $draft,
+            axis: .vertical
+        )
+        .font(.callout)
+        .foregroundStyle(FrameReplyColor.onSurface)
+        .lineSpacing(4)
+        .lineLimit(1...4)
+        .frame(minHeight: 40, alignment: .topLeading)
+        .accessibilityLabel("New remembered context for \(chat.name)")
+        .accessibilityIdentifier("chat-memory-composer")
+    }
+
+    private var addMemoryButton: some View {
+        Button(action: addMemory) {
+            Text("Add")
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
+                .foregroundStyle(
+                    trimmedDraft.isEmpty ? FrameReplyColor.outline : FrameReplyColor.primary
+                )
+        }
+        .buttonStyle(SoftPressButtonStyle())
+        .disabled(trimmedDraft.isEmpty)
+        .frame(minWidth: 44, minHeight: 44)
+        .accessibilityHint("Saves this as a separate memory")
     }
 
     @ViewBuilder
@@ -105,8 +126,9 @@ struct ChatMemoryCard: View {
         if editingMemoryID == memory.id {
             VStack(alignment: .leading, spacing: 10) {
                 TextEditor(text: $editingText)
-                    .font(.system(size: 15, weight: .regular, design: .rounded))
+                    .font(.body)
                     .foregroundStyle(FrameReplyColor.onSurface)
+                    .lineSpacing(4)
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 68)
                     .accessibilityLabel("Edit memory")
@@ -126,10 +148,10 @@ struct ChatMemoryCard: View {
                     .disabled(editingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .frame(minWidth: 72, minHeight: 44)
                 }
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(.footnote, design: .rounded, weight: .bold))
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
             .compactSwipeRowSurface(showsSeparator: showsSeparator)
         } else {
             CompactSwipeRow(
@@ -151,24 +173,30 @@ struct ChatMemoryCard: View {
                 actionTint: .red,
                 actionAccessibilityIdentifier: "chat-memory-delete-\(memory.id.uuidString)",
                 content: {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 7) {
                         if memory.origin == ChatMemoryOrigin.ai.rawValue {
-                            Label("From conversation", systemImage: "sparkles")
-                                .font(
-                                    .system(size: 10, weight: .semibold, design: .rounded)
-                                )
-                                .foregroundStyle(FrameReplyColor.primary)
+                            HStack(spacing: 6) {
+                                Image(systemName: "sparkles")
+                                    .foregroundStyle(FrameReplyColor.primary.opacity(0.82))
+
+                                Text("From conversation")
+                                    .foregroundStyle(
+                                        FrameReplyColor.onSurfaceVariant.opacity(0.88)
+                                    )
+                            }
+                            .font(.system(.caption, design: .rounded, weight: .semibold))
                         }
 
                         Text(memory.text)
-                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                            .font(.body)
                             .foregroundStyle(FrameReplyColor.onSurface)
+                            .lineSpacing(4)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         if revealedMemoryID == memory.id {

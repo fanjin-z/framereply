@@ -10,12 +10,16 @@ struct StrategyRationaleCard: View {
 
     var body: some View {
         Text(strategyRationale)
-            .font(.system(size: 15, weight: .regular, design: .rounded))
+            .font(.callout)
             .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-            .lineSpacing(3)
+            .lineSpacing(4)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(14)
+            .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                FrameReplyColor.secondaryContainer.opacity(0.14),
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            )
             .glassPanel(cornerRadius: 18)
             .accessibilityIdentifier("strategy-rationale-card")
     }

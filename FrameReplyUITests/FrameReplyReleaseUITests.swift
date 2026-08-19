@@ -331,6 +331,31 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         XCTAssertFalse(app.sheets.firstMatch.exists)
     }
 
+    func testChatDetailsContentRemainsReachableAtAccessibilityTextSize() {
+        let app = launchShowcase(
+            contentSizeCategory: "UICTContentSizeCategoryAccessibilityXXXL"
+        )
+        openMaya(in: app)
+
+        let details = element("open-chat-details", in: app)
+        XCTAssertTrue(details.waitForExistence(timeout: 3))
+        details.tap()
+
+        XCTAssertTrue(element("chat-details-screen", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("chat-details-back", in: app).isHittable)
+        XCTAssertTrue(element("strategy-rationale-card", in: app).waitForExistence(timeout: 3))
+
+        let memoryComposer = element("chat-memory-composer", in: app)
+        XCTAssertTrue(scrollUntilHittable(memoryComposer, swiping: app.swipeUp))
+        XCTAssertTrue(memoryComposer.isHittable)
+        XCTAssertGreaterThan(memoryComposer.frame.width, 100)
+
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "chat-details-accessibility-text"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     func testChatActionsMenuCanEditReclassifyAndDelete() {
         let app = launchShowcase()
         openMaya(in: app)

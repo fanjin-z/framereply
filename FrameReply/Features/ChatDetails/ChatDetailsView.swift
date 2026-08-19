@@ -62,7 +62,7 @@ struct ChatDetailsView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     if !rationale.isEmpty {
                         VStack(alignment: .leading, spacing: 7) {
-                            SectionHeader(
+                            ChatDetailsSectionHeader(
                                 symbolName: "sparkles",
                                 title: "Why These Replies"
                             )
@@ -135,7 +135,7 @@ struct ChatDetailsView: View {
 
     private var selfAliasesSection: some View {
         VStack(alignment: .leading, spacing: 7) {
-            SectionHeader(
+            ChatDetailsSectionHeader(
                 symbolName: "person.text.rectangle",
                 title: "You appear as"
             )
@@ -143,14 +143,14 @@ struct ChatDetailsView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(selfAliasRecords.map(\.displayLabel).joined(separator: ", "))
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(FrameReplyColor.onSurface)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(
                     "These names help recognize you in this chat and may be suggested for other imports."
                 )
-                .font(.system(size: 12, design: .rounded))
+                .font(.footnote)
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -165,14 +165,14 @@ struct ChatDetailsView: View {
                         HStack(spacing: 5) {
                             Text("Manage Personal Info")
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.caption.weight(.semibold))
                         }
                     }
                 }
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(.footnote, design: .rounded, weight: .bold))
                 .frame(minHeight: 44)
             }
-            .padding(14)
+            .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .glassPanel(cornerRadius: 18)
         }
@@ -191,5 +191,28 @@ struct ChatDetailsView: View {
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )
+    }
+}
+
+struct ChatDetailsSectionHeader: View {
+    let symbolName: String
+    let title: LocalizedStringResource
+
+    @ScaledMetric(relativeTo: .headline) private var symbolWidth = 20.0
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: symbolName)
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(FrameReplyColor.primary)
+                .frame(width: symbolWidth)
+
+            Text(title)
+                .font(.system(.headline, design: .rounded, weight: .semibold))
+                .foregroundStyle(FrameReplyColor.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 12)
+        }
     }
 }
