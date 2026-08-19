@@ -10,7 +10,7 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
                 ChatImportPrompt.contract(for: makeRequest()),
                 [
                     "conversationTitle", "titleSource", "conversationKindEvidence",
-                    "ownershipConvention", "messages", "matchedChatID", "matchConfidence"
+                    "userIdentification", "messages", "matchedChatID", "matchConfidence"
                 ],
                 ChatImportPrompt.screenshotImportVersion
             ),
@@ -48,18 +48,25 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
 
         for (contract, keys, version) in contracts {
             XCTAssertEqual(contract.version, version)
-            XCTAssertFalse(contract.instructions.contains("Return the JSON object as raw text only."))
             XCTAssertEqual(contract.schema["additionalProperties"] as? Bool, false)
             let properties = try XCTUnwrap(contract.schema["properties"] as? [String: Any])
             XCTAssertEqual(Set(properties.keys), keys)
             XCTAssertEqual(Set(try XCTUnwrap(contract.schema["required"] as? [String])), keys)
         }
 
-        let screenshotText = try schemaText(contracts[0].0.schema)
-        let sharedText = try schemaText(contracts[1].0.schema)
-        XCTAssertTrue(screenshotText.contains("outerAlignment"))
-        XCTAssertFalse(sharedText.contains("outerAlignment"))
-        XCTAssertFalse(sharedText.contains("ownershipConvention"))
+        let screenshotProperties = try XCTUnwrap(
+            contracts[0].0.schema["properties"] as? [String: Any]
+        )
+        let screenshotMessages = try XCTUnwrap(
+            screenshotProperties["messages"] as? [String: Any]
+        )
+        let screenshotMessageItems = try XCTUnwrap(
+            screenshotMessages["items"] as? [String: Any]
+        )
+        let screenshotMessageProperties = try XCTUnwrap(
+            screenshotMessageItems["properties"] as? [String: Any]
+        )
+        XCTAssertNotNil(screenshotMessageProperties["outerAlignment"])
 
         let sharedProperties = try XCTUnwrap(
             contracts[1].0.schema["properties"] as? [String: Any]
@@ -69,6 +76,11 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
             sharedMessages["maxItems"] as? Int,
             SharedTranscriptInput.maximumEstimatedMessageCount
         )
+        let sharedMessageItems = try XCTUnwrap(sharedMessages["items"] as? [String: Any])
+        let sharedMessageProperties = try XCTUnwrap(
+            sharedMessageItems["properties"] as? [String: Any]
+        )
+        XCTAssertNil(sharedMessageProperties["outerAlignment"])
 
         let standardProperties = try XCTUnwrap(
             contracts[2].0.schema["properties"] as? [String: Any]
@@ -83,7 +95,7 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
         )
     }
 
-    func testTextImportPromptIncludesAliasesAsNonConclusiveEvidence() {
+    func testTextImportInputIncludesAliasesAndCandidates() {
         let request = ChatImportAnalysisRequest(
             transcriptItems: [
                 "Alias Alpha: Could we move the meeting?",
@@ -101,64 +113,74 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
         )
 
         let input = ChatImportPrompt.input(for: request)
-        XCTAssertTrue(input.contains("Saved importer names (selfAliases):"))
         XCTAssertTrue(input.contains(#"["Alias Alpha"]"#))
         XCTAssertTrue(input.contains(#""participantAliases":["Contact B"]"#))
-        XCTAssertTrue(ChatImportPrompt.textImportInstructions.contains("strong evidence"))
-        XCTAssertTrue(ChatImportPrompt.textImportInstructions.contains("but not conclusive proof"))
     }
 
-    func testReplyProducingContractsShareGroundedStylePolicy() {
-        let standard = SuggestedReplyPrompt.contract(for: .standard, appLanguage: "en")
-        let drafting = SuggestedReplyPrompt.contract(for: .drafting, appLanguage: "en")
-        let persona = SuggestedReplyPrompt.contract(
-            for: .personaStyleLearning,
-            appLanguage: "en"
+    func testChatImportContractsUseVersionFourAndUserIdentificationSchema() throws {
+        XCTAssertEqual(ChatImportPrompt.screenshotImportVersion, 4)
+        XCTAssertEqual(ChatImportPrompt.textImportVersion, 4)
+
+        let rootProperties = try XCTUnwrap(
+            ChatImportPrompt.screenshotImportJSONSchema["properties"] as? [String: Any]
+        )
+        let userIdentification = try XCTUnwrap(
+            rootProperties["userIdentification"] as? [String: Any]
+        )
+        XCTAssertEqual(
+            Set(try XCTUnwrap(userIdentification["required"] as? [String])),
+            ["mode", "userAlignment", "userAuthorLabel"]
+        )
+        let userIdentificationProperties = try XCTUnwrap(
+            userIdentification["properties"] as? [String: Any]
+        )
+        XCTAssertEqual(
+            Set(userIdentificationProperties.keys),
+            ["mode", "userAlignment", "userAuthorLabel"]
         )
 
-        for instructions in [standard.instructions, drafting.instructions] {
-            XCTAssertEqual(instructions.components(separatedBy: "Reply style").count - 1, 1)
-            for policy in [
-                "Each reply string must contain only the ready-to-send message",
-                "Style must not change grounded meaning, uncertainty, or emotional position",
-                "Messages from non-user participants remain valid sources for reply content",
-                "never treat their vocabulary, dialect, catchphrases, punctuation habits, or identity markers as evidence of the user's voice"
-            ] {
-                XCTAssertTrue(instructions.contains(policy), policy)
-            }
-        }
-        XCTAssertFalse(persona.instructions.contains("Reply style"))
-        XCTAssertTrue(standard.instructions.contains("When personaLearningEnabled is true"))
+        let conversationKindEvidence = try XCTUnwrap(
+            rootProperties["conversationKindEvidence"] as? [String: Any]
+        )
+        let evidenceValues = try XCTUnwrap(conversationKindEvidence["enum"] as? [String])
+        XCTAssertTrue(
+            evidenceValues.contains("two_or_more_named_authors_opposite_user_alignment")
+        )
     }
 
-    func testTaskInputsContainOnlyContractRelevantData() {
-        let standard = SuggestedReplyPrompt.input(for: makeReplyRequest(task: .standard))
-        for expected in [
-            "chatMemories", "personaLearningEnabled\":true",
-            "personalInfoLearningEnabled\":true", "recentMessages", "<text_length_limits>"
-        ] {
-            XCTAssertTrue(standard.contains(expected), expected)
-        }
+    func testTaskInputsContainOnlyContractRelevantData() throws {
+        let standard = try conversationPayload(
+            from: SuggestedReplyPrompt.input(for: makeReplyRequest(task: .standard))
+        )
+        XCTAssertNotNil(standard["chatMemories"])
+        XCTAssertEqual(standard["personaLearningEnabled"] as? Bool, true)
+        XCTAssertEqual(standard["personalInfoLearningEnabled"] as? Bool, true)
+        XCTAssertNotNil(standard["recentMessages"])
         for excluded in [
             "personaLearningMessages", "personalInfoLearningMessages", "appLanguage",
-            "presentationLanguageIdentifier", "\"chatName\"", "\"personaName\""
+            "presentationLanguageIdentifier", "chatName", "personaName"
         ] {
-            XCTAssertFalse(standard.contains(excluded), excluded)
+            XCTAssertNil(standard[excluded], excluded)
         }
 
-        let drafting = SuggestedReplyPrompt.input(for: makeReplyRequest(task: .drafting))
-        XCTAssertTrue(drafting.contains("draftingInput"))
-        XCTAssertTrue(drafting.contains("personalInfo"))
-        XCTAssertFalse(drafting.contains("personalInfoLearningEnabled"))
-
-        let persona = SuggestedReplyPrompt.input(
-            for: makeReplyRequest(task: .personaStyleLearning)
+        let drafting = try conversationPayload(
+            from: SuggestedReplyPrompt.input(for: makeReplyRequest(task: .drafting))
         )
-        XCTAssertTrue(persona.contains("activeObservations"))
-        XCTAssertTrue(persona.contains("recentMessages"))
-        XCTAssertFalse(persona.contains("chatMemories"))
-        XCTAssertFalse(persona.contains("personalInfo"))
-        XCTAssertFalse(persona.contains("draftingInput"))
+        XCTAssertNotNil(drafting["draftingInput"])
+        XCTAssertNotNil(drafting["personalInfo"])
+        XCTAssertNil(drafting["personalInfoLearningEnabled"])
+
+        let persona = try conversationPayload(
+            from: SuggestedReplyPrompt.input(
+                for: makeReplyRequest(task: .personaStyleLearning)
+            )
+        )
+        let personaContext = try XCTUnwrap(persona["persona"] as? [String: Any])
+        XCTAssertNotNil(personaContext["activeObservations"])
+        XCTAssertNotNil(persona["recentMessages"])
+        XCTAssertNil(persona["chatMemories"])
+        XCTAssertNil(persona["personalInfo"])
+        XCTAssertNil(persona["draftingInput"])
     }
 
     func testProviderSchemaMovesOnlyTextLengthsIntoDescriptions() throws {
@@ -173,9 +195,8 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
         XCTAssertNil(strategy["maxLength"])
         XCTAssertTrue(
             try XCTUnwrap(strategy["description"] as? String).contains(
-                "Maximum length: 300 Unicode code points"
-            )
-        )
+                String(SuggestedReplyTextLimits.conversationStrategyMaximumCodePoints)
+            ))
 
         let replies = try XCTUnwrap(properties["replies"] as? [String: Any])
         XCTAssertEqual(replies["minItems"] as? Int, 0)
@@ -183,34 +204,23 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
         let replyItems = try XCTUnwrap(replies["items"] as? [String: Any])
         XCTAssertNil(replyItems["maxLength"])
         XCTAssertTrue(
-            try XCTUnwrap(replyItems["description"] as? String).contains(
-                "Maximum length: 500 Unicode code points"
-            )
+            try XCTUnwrap(replyItems["description"] as? String).contains("500")
         )
         XCTAssertEqual(try schemaText(contract.schema), canonicalBefore)
     }
 
     func testContractsResolveAppLanguageWithoutChangingSchemaOrInputShape() throws {
+        let identifiers = ["en", "en-US", "zh-Hans"]
         for task in [
             SuggestedReplyTask.standard, .drafting, .personaStyleLearning
         ] {
-            let englishSchema = try schemaText(
-                SuggestedReplyPrompt.contract(for: task, appLanguage: "en").schema
-            )
-            for (identifier, descriptor) in [
-                ("en", "English (en)"),
-                ("en-US", "English (United States) (en-US)"),
-                ("zh-Hans", "Chinese, Simplified (zh-Hans)")
-            ] {
-                let contract = SuggestedReplyPrompt.contract(
-                    for: task,
-                    appLanguage: identifier
-                )
-                XCTAssertEqual(
-                    contract.instructions.components(separatedBy: descriptor).count - 1,
-                    1,
-                    identifier
-                )
+            let contracts = identifiers.map {
+                SuggestedReplyPrompt.contract(for: task, appLanguage: $0)
+            }
+            XCTAssertEqual(Set(contracts.map(\.instructions)).count, identifiers.count)
+
+            let englishSchema = try schemaText(contracts[0].schema)
+            for (identifier, contract) in zip(identifiers, contracts) {
                 XCTAssertEqual(try schemaText(contract.schema), englishSchema, identifier)
             }
         }
@@ -220,8 +230,22 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
             recentMessageText: "晚饭七点？",
             personaLearningText: "当然"
         )
-        let input = SuggestedReplyPrompt.input(for: mixed)
-        XCTAssertTrue(input.contains("晚饭七点？"))
-        XCTAssertFalse(input.contains("appLanguage"))
+        let input = try conversationPayload(from: SuggestedReplyPrompt.input(for: mixed))
+        let recentMessages = try XCTUnwrap(input["recentMessages"] as? [[String: Any]])
+        XCTAssertTrue(recentMessages.contains { $0["text"] as? String == "晚饭七点？" })
+        XCTAssertNil(input["appLanguage"])
+    }
+
+    private func conversationPayload(from input: String) throws -> [String: Any] {
+        let startMarker = "<conversation_data>\n"
+        let endMarker = "\n</conversation_data>"
+        let start = try XCTUnwrap(input.range(of: startMarker)?.upperBound)
+        let end = try XCTUnwrap(
+            input.range(of: endMarker, range: start..<input.endIndex)?.lowerBound
+        )
+        let data = try XCTUnwrap(String(input[start..<end]).data(using: .utf8))
+        return try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
     }
 }

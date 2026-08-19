@@ -271,7 +271,7 @@ final class ScreenshotImportCoordinator {
             analysis = try ChatImportAnalysisDecoder.validate(
                 providerAnalysis,
                 candidateIDs: Set(candidates.map(\.id)),
-                normalizeVisualOwnership: request.sharedTranscript == nil,
+                normalizeVisualUserIdentification: request.sharedTranscript == nil,
                 maximumMessageCount: request.sharedTranscript == nil
                     ? nil : SharedTranscriptInput.maximumEstimatedMessageCount
             )

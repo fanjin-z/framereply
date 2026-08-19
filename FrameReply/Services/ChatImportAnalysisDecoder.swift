@@ -39,11 +39,11 @@ nonisolated enum ChatImportAnalysisDecoder {
         var recovered = normalized.recovered
         let knownRootKeys: Set<String> = [
             "conversationTitle", "titleSource", "messages",
-            "matchedChatID", "matchConfidence", "ownershipConvention",
+            "matchedChatID", "matchConfidence", "userIdentification",
             "conversationKindEvidence"
         ]
         if !Set(root.keys).subtracting(knownRootKeys).isEmpty
-            || (isSharedTranscript && root["ownershipConvention"] != nil)
+            || (isSharedTranscript && root["userIdentification"] != nil)
         {
             recovered = true
         }
@@ -147,19 +147,19 @@ nonisolated enum ChatImportAnalysisDecoder {
             root["conversationKindEvidence"],
             recovered: &recovered
         )
-        let ownershipConvention: MessageOwnershipConvention
+        let userIdentification: ScreenshotUserIdentification
         if isSharedTranscript {
-            ownershipConvention = .unobservable
+            userIdentification = .unobservable
         } else {
-            ownershipConvention = recoveredOwnershipConvention(
-                root["ownershipConvention"], recovered: &recovered)
+            userIdentification = recoveredUserIdentification(
+                root["userIdentification"], recovered: &recovered)
         }
         let (effectiveConversationKind, validatedConversationKindEvidence) =
             conversationKindResult(
                 evidence: conversationKindEvidence,
                 messages: messages,
                 isSharedTranscript: isSharedTranscript,
-                ownershipConvention: ownershipConvention
+                userIdentification: userIdentification
             )
         let titleSource: ChatTitleSource
         if let rawSource = root["titleSource"] as? String,
@@ -202,10 +202,10 @@ nonisolated enum ChatImportAnalysisDecoder {
                 conversationKind: effectiveConversationKind,
                 conversationKindEvidence: validatedConversationKindEvidence,
                 titleSource: titleSource,
-                ownershipConvention: ownershipConvention
+                userIdentification: userIdentification
             ),
             candidateIDs: candidateIDs,
-            normalizeVisualOwnership: !isSharedTranscript,
+            normalizeVisualUserIdentification: !isSharedTranscript,
             maximumMessageCount: isSharedTranscript
                 ? SharedTranscriptInput.maximumEstimatedMessageCount : nil
         )
@@ -215,11 +215,11 @@ nonisolated enum ChatImportAnalysisDecoder {
     static func validate(
         _ input: ChatImportAnalysis,
         candidateIDs: Set<String>,
-        normalizeVisualOwnership: Bool = true,
+        normalizeVisualUserIdentification: Bool = true,
         maximumMessageCount: Int? = nil
     ) throws -> ChatImportAnalysis {
         let analysis: ChatImportAnalysis
-        if normalizeVisualOwnership {
+        if normalizeVisualUserIdentification {
             let normalization = normalize(input)
             analysis = normalization.analysis
             ChatImportDebugLogger.normalization(notes: normalization.notes)
@@ -262,7 +262,7 @@ nonisolated enum ChatImportAnalysisDecoder {
         }
         let messages = analysis.messages.enumerated().map { index, message in
             let resolved = resolvedSender(
-                for: message, convention: analysis.ownershipConvention,
+                for: message, identification: analysis.userIdentification,
                 kind: analysis.conversationKind)
             guard resolved != message.sender else { return message }
 
@@ -290,7 +290,7 @@ nonisolated enum ChatImportAnalysisDecoder {
                 conversationKind: analysis.conversationKind,
                 conversationKindEvidence: analysis.conversationKindEvidence,
                 titleSource: titleSource,
-                ownershipConvention: analysis.ownershipConvention
+                userIdentification: analysis.userIdentification
             ),
             notes: notes
         )
@@ -345,22 +345,23 @@ nonisolated enum ChatImportAnalysisDecoder {
         evidence: ConversationKindEvidence,
         messages: [AnalyzedChatMessage],
         isSharedTranscript: Bool,
-        ownershipConvention: MessageOwnershipConvention
+        userIdentification: ScreenshotUserIdentification
     ) -> (ChatConversationKind, ConversationKindEvidence) {
         let explicitLabels = Set(
             messages.compactMap { message in
-                let label = isSharedTranscript
+                let label =
+                    isSharedTranscript
                     ? message.senderName
                     : (message.outerAuthorLabel ?? message.senderName)
                 return ParticipantLabelNormalizer.key(label)
             }
         )
-        let namedAuthorsOppositeOwnerAlignment = Set(
+        let namedAuthorsOppositeUserAlignment = Set(
             messages.compactMap { message -> String? in
                 guard !isSharedTranscript,
-                    isOppositeOwnerAlignment(
+                    isOppositeUserAlignment(
                         message.outerAlignment,
-                        ownerAlignment: ownershipConvention.screenshotOwnerAlignment)
+                        userAlignment: userIdentification.userAlignment)
                 else { return nil }
                 return ParticipantLabelNormalizer.key(message.outerAuthorLabel)
             }
@@ -374,8 +375,8 @@ nonisolated enum ChatImportAnalysisDecoder {
         case .threeOrMoreNamedMessageAuthors:
             evidenceIsStrong = explicitLabels.count >= 3
             invalidAuthorCountClaim = !evidenceIsStrong
-        case .twoOrMoreNamedAuthorsOppositeOwnerAlignment:
-            evidenceIsStrong = namedAuthorsOppositeOwnerAlignment.count >= 2
+        case .twoOrMoreNamedAuthorsOppositeUserAlignment:
+            evidenceIsStrong = namedAuthorsOppositeUserAlignment.count >= 2
             invalidAuthorCountClaim = !evidenceIsStrong
         case .groupSuspectedWithoutStructuralProof, .noGroupEvidence, .trustedInternal:
             evidenceIsStrong = false
@@ -384,7 +385,8 @@ nonisolated enum ChatImportAnalysisDecoder {
         if evidenceIsStrong {
             return (.group, evidence)
         }
-        let validatedEvidence: ConversationKindEvidence = invalidAuthorCountClaim
+        let validatedEvidence: ConversationKindEvidence =
+            invalidAuthorCountClaim
             ? .groupSuspectedWithoutStructuralProof : evidence
         return (messages.isEmpty ? .unknown : .direct, validatedEvidence)
     }
@@ -422,23 +424,23 @@ nonisolated enum ChatImportAnalysisDecoder {
         return number
     }
 
-    private static func recoveredOwnershipConvention(
+    private static func recoveredUserIdentification(
         _ value: Any?,
         recovered: inout Bool
-    ) -> MessageOwnershipConvention {
+    ) -> ScreenshotUserIdentification {
         guard let object = value as? [String: Any] else {
             recovered = true
             return .unobservable
         }
         let knownKeys: Set<String> = [
-            "mode", "screenshotOwnerAlignment", "screenshotOwnerAuthorLabel"
+            "mode", "userAlignment", "userAuthorLabel"
         ]
         if !Set(object.keys).subtracting(knownKeys).isEmpty {
             recovered = true
         }
-        let mode: MessageOwnershipMode
+        let mode: UserIdentificationMode
         if let rawMode = object["mode"] as? String,
-            let value = MessageOwnershipMode(rawValue: rawMode)
+            let value = UserIdentificationMode(rawValue: rawMode)
         {
             mode = value
         } else {
@@ -446,7 +448,7 @@ nonisolated enum ChatImportAnalysisDecoder {
             recovered = true
         }
         let alignment: MessageAlignment
-        if let rawAlignment = object["screenshotOwnerAlignment"] as? String,
+        if let rawAlignment = object["userAlignment"] as? String,
             let value = MessageAlignment(rawValue: rawAlignment)
         {
             alignment = value
@@ -455,17 +457,17 @@ nonisolated enum ChatImportAnalysisDecoder {
             recovered = true
         }
         let label = optionalString(
-            object["screenshotOwnerAuthorLabel"], recovered: &recovered)
-        return MessageOwnershipConvention(
+            object["userAuthorLabel"], recovered: &recovered)
+        return ScreenshotUserIdentification(
             mode: mode,
-            screenshotOwnerAlignment: alignment,
-            screenshotOwnerAuthorLabel: label
+            userAlignment: alignment,
+            userAuthorLabel: label
         )
     }
 
-    private static func ownershipDecisions(
+    private static func userIdentificationDecisions(
         for message: AnalyzedChatMessage,
-        convention: MessageOwnershipConvention
+        identification: ScreenshotUserIdentification
     ) -> [Bool] {
         var decisions: [Bool] = []
 
@@ -473,30 +475,30 @@ nonisolated enum ChatImportAnalysisDecoder {
             decisions.append(true)
         }
 
-        if convention.mode == .opposedAlignment || convention.mode == .mixed,
-            convention.screenshotOwnerAlignment != .unknown,
+        if identification.mode == .opposedAlignment || identification.mode == .mixed,
+            identification.userAlignment != .unknown,
             message.outerAlignment != .unknown,
-            convention.screenshotOwnerAlignment != .fullWidth,
+            identification.userAlignment != .fullWidth,
             message.outerAlignment != .fullWidth
         {
-            decisions.append(message.outerAlignment == convention.screenshotOwnerAlignment)
+            decisions.append(message.outerAlignment == identification.userAlignment)
         }
 
-        if convention.mode == .authorIdentity || convention.mode == .mixed,
-            let screenshotOwnerLabel = normalizedLabel(convention.screenshotOwnerAuthorLabel),
+        if identification.mode == .authorIdentity || identification.mode == .mixed,
+            let userLabel = normalizedLabel(identification.userAuthorLabel),
             let outerLabel = normalizedLabel(message.outerAuthorLabel)
         {
-            decisions.append(outerLabel == screenshotOwnerLabel)
+            decisions.append(outerLabel == userLabel)
         }
 
         return decisions
     }
 
-    private static func isOppositeOwnerAlignment(
+    private static func isOppositeUserAlignment(
         _ messageAlignment: MessageAlignment,
-        ownerAlignment: MessageAlignment
+        userAlignment: MessageAlignment
     ) -> Bool {
-        switch (messageAlignment, ownerAlignment) {
+        switch (messageAlignment, userAlignment) {
         case (.left, .right), (.right, .left):
             true
         default:
@@ -506,10 +508,11 @@ nonisolated enum ChatImportAnalysisDecoder {
 
     private static func resolvedSender(
         for message: AnalyzedChatMessage,
-        convention: MessageOwnershipConvention,
+        identification: ScreenshotUserIdentification,
         kind: ChatConversationKind
     ) -> AnalyzedMessageSender {
-        let visibleDecisions = ownershipDecisions(for: message, convention: convention)
+        let visibleDecisions = userIdentificationDecisions(
+            for: message, identification: identification)
 
         if visibleDecisions.contains(true), visibleDecisions.contains(false) {
             return .unknown
@@ -523,7 +526,7 @@ nonisolated enum ChatImportAnalysisDecoder {
                 kind: kind)
         }
 
-        guard convention.mode != .unobservable,
+        guard identification.mode != .unobservable,
             message.senderEvidence != .insufficient,
             message.senderConfidence >= 0.75
         else {

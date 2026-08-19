@@ -51,10 +51,10 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             matchedChatID: "sarah-jenkins",
             matchConfidence: 0.97,
             conversationKind: .group,
-            ownershipConvention: MessageOwnershipConvention(
+            userIdentification: ScreenshotUserIdentification(
                 mode: .opposedAlignment,
-                screenshotOwnerAlignment: .right,
-                screenshotOwnerAuthorLabel: nil
+                userAlignment: .right,
+                userAuthorLabel: nil
             )
         )
         let reporter = CoordinatorEventReporter()
@@ -128,10 +128,10 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
                 matchedChatID: "cross-source-chat",
                 matchConfidence: 0.99,
                 titleSource: .header,
-                ownershipConvention: MessageOwnershipConvention(
+                userIdentification: ScreenshotUserIdentification(
                     mode: .opposedAlignment,
-                    screenshotOwnerAlignment: .right,
-                    screenshotOwnerAuthorLabel: nil
+                    userAlignment: .right,
+                    userAuthorLabel: nil
                 )
             )
         }
@@ -326,7 +326,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
                     matchedChatID: nil,
                     matchConfidence: 0,
                     titleSource: .unavailable,
-                    ownershipConvention: .unobservable
+                    userIdentification: .unobservable
                 )
             ),
             repository: ChatRepository(container: container)
@@ -374,7 +374,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             matchConfidence: 0,
             conversationKind: .unknown,
             titleSource: .unavailable,
-            ownershipConvention: .unobservable
+            userIdentification: .unobservable
         )
         let coordinator = ScreenshotImportCoordinator(
             aiService: StubAnalysisService(analysis: analysis),

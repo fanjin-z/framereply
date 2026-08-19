@@ -91,9 +91,9 @@ class ProviderAnalysisTestCase: XCTestCase {
             "conversationTitle": "Sarah",
             "conversationKindEvidence": "no_group_evidence",
             "titleSource": "header",
-            "ownershipConvention": [
-                "mode": "opposed_alignment", "screenshotOwnerAlignment": "right",
-                "screenshotOwnerAuthorLabel": NSNull()
+            "userIdentification": [
+                "mode": "opposed_alignment", "userAlignment": "right",
+                "userAuthorLabel": NSNull()
             ],
             "messages": [
                 [

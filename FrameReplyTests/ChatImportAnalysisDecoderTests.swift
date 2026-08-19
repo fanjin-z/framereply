@@ -36,7 +36,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(result.value.conversationKindEvidence, .noGroupEvidence)
         XCTAssertFalse(result.value.hasStrongGroupEvidence)
         XCTAssertEqual(result.value.titleSource, .unavailable)
-        XCTAssertEqual(result.value.ownershipConvention, .unobservable)
+        XCTAssertEqual(result.value.userIdentification, .unobservable)
         XCTAssertNil(result.value.matchedChatID)
         XCTAssertEqual(result.value.matchConfidence, 0)
 
@@ -51,7 +51,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(message.senderEvidence, .insufficient)
     }
 
-    func testInvalidSenderCannotBeRecoveredFromOtherOwnershipFields() throws {
+    func testInvalidSenderCannotBeRecoveredFromOtherUserIdentificationFields() throws {
         let content = validScreenshotJSON().replacingOccurrences(
             of: "\"sender\":\"other_participant\"",
             with: "\"sender\":42")
@@ -136,7 +136,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
             path: "finish_reason")
     }
 
-    func testVisualOwnershipNormalizationPreservesSenderSafeguards() throws {
+    func testVisualUserIdentificationPreservesSenderSafeguards() throws {
         let contradictory = validScreenshotJSON()
             .replacingOccurrences(
                 of: "\"sender\":\"other_participant\"",
@@ -157,9 +157,9 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(try decodeResult(user).value.messages.first?.sender, .user)
     }
 
-    func testTwoNamedAuthorsOppositeOwnerAlignmentEstablishGroupWithoutVisibleOwner() throws {
+    func testTwoNamedAuthorsOppositeUserAlignmentEstablishGroupWithoutVisibleUser() throws {
         let content = """
-            {"conversationTitle":null,"conversationKindEvidence":"two_or_more_named_authors_opposite_owner_alignment","titleSource":"unavailable","ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"group_participant","senderName":"Alice","text":"First","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":"Alice","senderConfidence":0.9,"senderEvidence":"alignment_convention"},{"sender":"group_participant","senderName":"Bob","text":"Second","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":"Bob","senderConfidence":0.9,"senderEvidence":"alignment_convention"}],"matchedChatID":null,"matchConfidence":0}
+            {"conversationTitle":null,"conversationKindEvidence":"two_or_more_named_authors_opposite_user_alignment","titleSource":"unavailable","userIdentification":{"mode":"opposed_alignment","userAlignment":"right","userAuthorLabel":null},"messages":[{"sender":"group_participant","senderName":"Alice","text":"First","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":"Alice","senderConfidence":0.9,"senderEvidence":"alignment_convention"},{"sender":"group_participant","senderName":"Bob","text":"Second","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":"Bob","senderConfidence":0.9,"senderEvidence":"alignment_convention"}],"matchedChatID":null,"matchConfidence":0}
             """
 
         let result = try decodeResult(content)
@@ -167,7 +167,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(result.value.conversationKind, .group)
         XCTAssertEqual(
             result.value.conversationKindEvidence,
-            .twoOrMoreNamedAuthorsOppositeOwnerAlignment)
+            .twoOrMoreNamedAuthorsOppositeUserAlignment)
         XCTAssertTrue(result.value.hasStrongGroupEvidence)
         XCTAssertFalse(result.value.messages.contains { $0.sender == .user })
 
@@ -179,7 +179,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertFalse(sameSideResult.value.hasStrongGroupEvidence)
     }
 
-    func testSharedTranscriptIgnoresVisualMetadataWithoutInferringOwnership() throws {
+    func testSharedTranscriptIgnoresVisualMetadataWithoutIdentifyingUser() throws {
         let content = validSharedJSON().replacingOccurrences(
             of: "\"senderEvidence\":\"author_label\"",
             with: "\"outerAlignment\":\"left\",\"senderEvidence\":\"author_label\"")
@@ -190,7 +190,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
             candidateIDs: [])
         XCTAssertTrue(result.recovered)
         XCTAssertEqual(result.value.messages.first?.senderName, "Alice")
-        XCTAssertEqual(result.value.ownershipConvention, .unobservable)
+        XCTAssertEqual(result.value.userIdentification, .unobservable)
         XCTAssertEqual(result.value.messages.first?.outerAlignment, .unknown)
     }
 
@@ -239,10 +239,12 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertTrue(result.value.hasStrongGroupEvidence)
         XCTAssertEqual(messages.count, 3)
         XCTAssertEqual(messages.map(\.senderName), ["Aster", "Robin", "Mica"])
-        XCTAssertEqual(messages.map(\.timestampLabel), [
-            "04/02/31, 9:05:11 AM", "04/02/31, 1:17:42 PM",
-            "04/03/31, 8:26:19 AM"
-        ])
+        XCTAssertEqual(
+            messages.map(\.timestampLabel),
+            [
+                "04/02/31, 9:05:11 AM", "04/02/31, 1:17:42 PM",
+                "04/03/31, 8:26:19 AM"
+            ])
         XCTAssertEqual(
             messages[1].text,
             "Read the sample chapters: pages 12 and 18, plus the practice audio."
@@ -260,13 +262,17 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         XCTAssertEqual(result.value.conversationKind, .group)
         XCTAssertTrue(result.value.hasStrongGroupEvidence)
         XCTAssertEqual(messages.count, 4)
-        XCTAssertEqual(messages.map(\.senderName), [
-            "🪐 Sky Lab 🪐", "Nori", "🍋", "🌙 Luna 🌙"
-        ])
-        XCTAssertEqual(messages.map(\.text), [
-            "Passing this along", "I signed up 🙋‍♀️", "Check the bike details 🚲",
-            "Message me, @Nori"
-        ])
+        XCTAssertEqual(
+            messages.map(\.senderName),
+            [
+                "🪐 Sky Lab 🪐", "Nori", "🍋", "🌙 Luna 🌙"
+            ])
+        XCTAssertEqual(
+            messages.map(\.text),
+            [
+                "Passing this along", "I signed up 🙋‍♀️", "Check the bike details 🚲",
+                "Message me, @Nori"
+            ])
         XCTAssertEqual(messages.first?.timestampLabel, "April 2, 2031 at 9:05 PM")
         XCTAssertEqual(messages.last?.timestampLabel, "April 3, 2031 at 9:16 AM")
     }
@@ -313,7 +319,7 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
 
     private func validScreenshotJSON() -> String {
         """
-        {"conversationTitle":"Alex","conversationKindEvidence":"no_group_evidence","titleSource":"header","ownershipConvention":{"mode":"opposed_alignment","screenshotOwnerAlignment":"right","screenshotOwnerAuthorLabel":null},"messages":[{"sender":"other_participant","senderName":"Alex","text":"Hello","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention"}],"matchedChatID":null,"matchConfidence":0}
+        {"conversationTitle":"Alex","conversationKindEvidence":"no_group_evidence","titleSource":"header","userIdentification":{"mode":"opposed_alignment","userAlignment":"right","userAuthorLabel":null},"messages":[{"sender":"other_participant","senderName":"Alex","text":"Hello","timestampLabel":null,"outerAlignment":"left","outerAuthorLabel":null,"senderConfidence":0.9,"senderEvidence":"alignment_convention"}],"matchedChatID":null,"matchConfidence":0}
         """
     }
 
@@ -366,9 +372,20 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
 
     private func whatsAppGroupJSON() throws -> String {
         try fixtureJSON(messages: [
-            ("~\u{202F}Aster", "Robin, could you share the fictional reading list?", "04/02/31, 9:05:11 AM"),
-            ("~\u{202F}Robin", "Read the sample chapters: pages 12 and 18, plus the practice audio.", "04/02/31, 1:17:42 PM"),
-            ("~\u{202F}Mica", "Practice plan\nApril 3, 2031\nProject Atlas\nPages 21, 22, and 24", "04/03/31, 8:26:19 AM")
+            (
+                "~\u{202F}Aster", "Robin, could you share the fictional reading list?",
+                "04/02/31, 9:05:11 AM"
+            ),
+            (
+                "~\u{202F}Robin",
+                "Read the sample chapters: pages 12 and 18, plus the practice audio.",
+                "04/02/31, 1:17:42 PM"
+            ),
+            (
+                "~\u{202F}Mica",
+                "Practice plan\nApril 3, 2031\nProject Atlas\nPages 21, 22, and 24",
+                "04/03/31, 8:26:19 AM"
+            )
         ])
     }
 

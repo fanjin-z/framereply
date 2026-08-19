@@ -26,7 +26,7 @@ final class ChatPersistenceTests: XCTestCase {
             matchConfidence: 0,
             conversationKind: .unknown,
             titleSource: .unavailable,
-            ownershipConvention: .unobservable
+            userIdentification: .unobservable
         )
 
         XCTAssertThrowsError(
@@ -538,9 +538,11 @@ final class ChatPersistenceTests: XCTestCase {
 
         XCTAssertEqual(chat.conversationKind, .group)
         XCTAssertNil(chat.title)
-        XCTAssertEqual(messages.map(\.senderKind), [
-            "group_participant", "group_participant"
-        ])
+        XCTAssertEqual(
+            messages.map(\.senderKind),
+            [
+                "group_participant", "group_participant"
+            ])
         XCTAssertEqual(messages.map(\.senderName), ["Alex", "Taylor"])
         XCTAssertEqual(chat.previewSenderKind, "group_participant")
         XCTAssertEqual(chat.previewSenderName, "Taylor")
@@ -762,7 +764,7 @@ final class ChatPersistenceTests: XCTestCase {
             ],
             matchedChatID: "known-chat",
             matchConfidence: 0.95,
-            ownershipConvention: .unobservable
+            userIdentification: .unobservable
         )
         let unknownOutcome = try reviewRepository.applyImport(
             analysis: unknownAnalysis,

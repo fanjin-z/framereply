@@ -134,7 +134,7 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
     let conversationKind: ChatConversationKind
     let conversationKindEvidence: ConversationKindEvidence
     let titleSource: ChatTitleSource
-    let ownershipConvention: MessageOwnershipConvention
+    let userIdentification: ScreenshotUserIdentification
 
     private enum CodingKeys: String, CodingKey {
         case conversationTitle
@@ -145,7 +145,7 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
         case conversationKind
         case conversationKindEvidence
         case titleSource
-        case ownershipConvention
+        case userIdentification
     }
 
     init(
@@ -157,7 +157,7 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
         conversationKind: ChatConversationKind = .direct,
         conversationKindEvidence: ConversationKindEvidence = .trustedInternal,
         titleSource: ChatTitleSource = .header,
-        ownershipConvention: MessageOwnershipConvention = .unobservable
+        userIdentification: ScreenshotUserIdentification = .unobservable
     ) {
         self.extractionStatus = extractionStatus
         self.conversationTitle = conversationTitle
@@ -167,7 +167,7 @@ nonisolated struct ChatImportAnalysis: Codable, Equatable, Sendable {
         self.conversationKind = conversationKind
         self.conversationKindEvidence = conversationKindEvidence
         self.titleSource = titleSource
-        self.ownershipConvention = ownershipConvention
+        self.userIdentification = userIdentification
     }
 
     var isInferenceOnlyGroupSuggestion: Bool {
@@ -186,8 +186,8 @@ nonisolated enum ConversationKindEvidence: String, Codable, Equatable, Sendable 
     case explicitGroupLabelOrMemberCount = "explicit_group_label_or_member_count"
     case groupMembershipChangeEvent = "group_membership_change_event"
     case threeOrMoreNamedMessageAuthors = "three_or_more_named_message_authors"
-    case twoOrMoreNamedAuthorsOppositeOwnerAlignment =
-        "two_or_more_named_authors_opposite_owner_alignment"
+    case twoOrMoreNamedAuthorsOppositeUserAlignment =
+        "two_or_more_named_authors_opposite_user_alignment"
     case groupSuspectedWithoutStructuralProof = "group_suspected_without_structural_proof"
     case noGroupEvidence = "no_group_evidence"
     case trustedInternal = "trusted_internal"
@@ -195,7 +195,7 @@ nonisolated enum ConversationKindEvidence: String, Codable, Equatable, Sendable 
     fileprivate var isStructuralGroupEvidence: Bool {
         switch self {
         case .explicitGroupLabelOrMemberCount, .groupMembershipChangeEvent,
-            .threeOrMoreNamedMessageAuthors, .twoOrMoreNamedAuthorsOppositeOwnerAlignment,
+            .threeOrMoreNamedMessageAuthors, .twoOrMoreNamedAuthorsOppositeUserAlignment,
             .trustedInternal:
             true
         case .groupSuspectedWithoutStructuralProof, .noGroupEvidence:
@@ -286,7 +286,7 @@ nonisolated enum AnalyzedMessageSender: String, Codable, Equatable, Sendable {
     case unknown
 }
 
-nonisolated enum MessageOwnershipMode: String, Codable, Equatable, Sendable {
+nonisolated enum UserIdentificationMode: String, Codable, Equatable, Sendable {
     case opposedAlignment = "opposed_alignment"
     case authorIdentity = "author_identity"
     case mixed
@@ -310,14 +310,14 @@ nonisolated enum MessageSenderEvidence: String, Codable, Equatable, Sendable {
     case insufficient
 }
 
-nonisolated struct MessageOwnershipConvention: Codable, Equatable, Sendable {
-    let mode: MessageOwnershipMode
-    let screenshotOwnerAlignment: MessageAlignment
-    let screenshotOwnerAuthorLabel: String?
+nonisolated struct ScreenshotUserIdentification: Codable, Equatable, Sendable {
+    let mode: UserIdentificationMode
+    let userAlignment: MessageAlignment
+    let userAuthorLabel: String?
 
-    static let unobservable = MessageOwnershipConvention(
+    static let unobservable = ScreenshotUserIdentification(
         mode: .unobservable,
-        screenshotOwnerAlignment: .unknown,
-        screenshotOwnerAuthorLabel: nil
+        userAlignment: .unknown,
+        userAuthorLabel: nil
     )
 }
