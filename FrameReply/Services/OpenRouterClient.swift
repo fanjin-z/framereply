@@ -46,7 +46,7 @@ struct OpenRouterClient: AIProviderAdapter {
             "messages": [
                 ["role": "user", "content": "Return status ok."]
             ],
-            "max_tokens": 64,
+            "max_tokens": ProviderRequestLimits.connectionCheckMaxToken,
             "reasoning": ["effort": "none"],
             "stream": false,
             "response_format": strictResponseFormat(
@@ -78,7 +78,7 @@ struct OpenRouterClient: AIProviderAdapter {
         try requireSupported(model)
         let contract = ChatImportPrompt.contract(for: analysisRequest)
         let images = try analysisRequest.imageDataList.map(ScreenshotImagePayload.init(data:))
-        let maxTokens = 4_000
+        let maxTokens = ProviderRequestLimits.chatImportMaxToken
         let attempt = 1
         let provider = platform.rawValue
         let userContent: [[String: Any]] =
@@ -191,7 +191,8 @@ struct OpenRouterClient: AIProviderAdapter {
             for: generationRequest.task,
             appLanguage: generationRequest.appLanguage
         )
-        let maxTokens = 3_200
+        let maxTokens = ProviderRequestLimits.suggestedRepliesMaxToken(
+            for: generationRequest.task)
         let attempt = 1
         eventReporter.record(
             .providerAttempt(

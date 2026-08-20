@@ -60,7 +60,7 @@ struct MiniMaxClient: AIProviderAdapter {
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody(
             model: model,
             messages: [["role": "user", "content": "Reply exactly: OK."]],
-            maxCompletionTokens: 64
+            maxCompletionTokens: ProviderRequestLimits.connectionCheckMaxToken
         ))
 
         let (data, response) = try await perform(request)
@@ -91,7 +91,7 @@ struct MiniMaxClient: AIProviderAdapter {
         let contract = ChatImportPrompt.contract(for: analysisRequest)
         let images = try analysisRequest.imageDataList.map(ScreenshotImagePayload.init(data:))
         let candidateIDs = Set(analysisRequest.candidates.map(\.id))
-        let maxTokens = 4_000
+        let maxTokens = ProviderRequestLimits.chatImportMaxToken
         let userContent: [[String: Any]] = images.map { image in
             [
                 "type": "image_url",
@@ -239,7 +239,8 @@ struct MiniMaxClient: AIProviderAdapter {
             for: generationRequest.task,
             appLanguage: generationRequest.appLanguage
         )
-        let maxTokens = 3_200
+        let maxTokens = ProviderRequestLimits.suggestedRepliesMaxToken(
+            for: generationRequest.task)
         let attempt = 1
 
         eventReporter.record(.providerAttempt(

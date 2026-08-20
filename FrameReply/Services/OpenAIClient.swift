@@ -9,7 +9,6 @@ struct OpenAIClient: AIProviderAdapter {
     private let baseURL = URL(string: "https://api.openai.com/v1")!
     private let session: URLSession
     private let eventReporter: any ImportEventReporting
-    private let validationMaxOutputTokens = 16
 
     init(
         session: URLSession = ProviderNetworkSession.make(),
@@ -42,7 +41,7 @@ struct OpenAIClient: AIProviderAdapter {
             OpenAIResponseRequest(
                 model: model.rawValue,
                 input: "Reply exactly: OK.",
-                maxOutputTokens: validationMaxOutputTokens,
+                maxOutputTokens: ProviderRequestLimits.openAIConnectionCheckMaxToken,
                 reasoning: OpenAIReasoning(effort: "none")
             )
         )
@@ -78,13 +77,14 @@ struct OpenAIClient: AIProviderAdapter {
         let contract = ChatImportPrompt.contract(for: analysisRequest)
         let images = try analysisRequest.imageDataList.map(ScreenshotImagePayload.init(data:))
         let provider = "openai"
+        let maxTokens = ProviderRequestLimits.chatImportMaxToken
         eventReporter.record(
             .providerAttempt(
                 traceID: analysisRequest.traceID,
                 provider: provider,
                 model: model.rawValue,
                 attempt: 1,
-                maxTokens: 4_000
+                maxTokens: maxTokens
             )
         )
         var request = URLRequest(url: baseURL.appending(path: "responses"))
@@ -114,7 +114,7 @@ struct OpenAIClient: AIProviderAdapter {
                         "content": content
                     ]
                 ],
-                "max_output_tokens": 4_000,
+                "max_output_tokens": maxTokens,
                 "reasoning": ["effort": "none"],
                 "store": false,
                 "prompt_cache_key": "\(contract.name)-v\(contract.version)-\(model.rawValue)",
@@ -308,7 +308,8 @@ struct OpenAIClient: AIProviderAdapter {
             for: generationRequest.task,
             appLanguage: generationRequest.appLanguage
         )
-        let maxTokens = 3_200
+        let maxTokens = ProviderRequestLimits.suggestedRepliesMaxToken(
+            for: generationRequest.task)
         eventReporter.record(
             .providerAttempt(
                 traceID: generationRequest.traceID,
