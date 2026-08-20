@@ -37,14 +37,12 @@ struct ChatAssistantView: View {
     @State private var isGoalEditorPresented = false
     @FocusState private var isReplyGuidanceFocused: Bool
     @State private var didLoadContext = false
-    @State private var needsReplyRefresh = false
+    @State private var replyRefreshNoticeState = ReplyRefreshNoticeState()
     @State private var isImportStatusDismissed = false
-    @State private var isReplyRefreshNoticeDismissed = false
     @State private var copiedReplyID: UUID?
     @Query private var currentChatRecords: [ChatRecord]
     @Query private var messageRecords: [ChatMessageRecord]
     @Query private var chatContextRecords: [ChatContextRecord]
-    @Query private var chatMemoryRecords: [ChatMemoryRecord]
     @Query private var suggestedReplyCacheRecords: [SuggestedReplyCacheRecord]
     @Query private var mergeCandidateRecords: [ChatRecord]
     @Query private var mergeCandidateContextRecords: [ChatContextRecord]
@@ -78,10 +76,6 @@ struct ChatAssistantView: View {
         )
         _chatContextRecords = Query(
             filter: #Predicate<ChatContextRecord> { $0.chatID == chatID }
-        )
-        _chatMemoryRecords = Query(
-            filter: #Predicate<ChatMemoryRecord> { $0.chatID == chatID },
-            sort: \ChatMemoryRecord.createdAt
         )
         _suggestedReplyCacheRecords = Query(
             filter: #Predicate<SuggestedReplyCacheRecord> { $0.chatID == chatID }
@@ -228,8 +222,7 @@ struct ChatAssistantView: View {
     }
 
     private var shouldShowReplyRefreshNotice: Bool {
-        needsReplyRefresh
-            && (!isReplyRefreshNoticeDismissed || suggestedRepliesModel.isLoading)
+        replyRefreshNoticeState.isVisible
     }
 
     private var shouldShowStatusRail: Bool {
@@ -262,24 +255,6 @@ struct ChatAssistantView: View {
         hasher.combine(localizationContext.languageIdentifier)
         hasher.combine(providerStore.activeProvider?.platform.rawValue)
         hasher.combine(providerStore.activeProvider?.tier.rawValue)
-        return hasher.finalize()
-    }
-
-    private var contextRevisionKey: Int {
-        var hasher = Hasher()
-        if let context = currentChatContext {
-            hasher.combine(context.currentInteractionGoal)
-            hasher.combine(context.personaID)
-            hasher.combine(context.personaAssignedAt)
-        }
-        for memory in chatMemoryRecords {
-            hasher.combine(memory.id)
-            hasher.combine(memory.text)
-            hasher.combine(memory.origin)
-            hasher.combine(memory.certainty)
-            hasher.combine(memory.status)
-            hasher.combine(memory.updatedAt)
-        }
         return hasher.finalize()
     }
 
@@ -378,7 +353,7 @@ struct ChatAssistantView: View {
                 ),
                 actionTitle: "Update",
                 onAction: generateReplies,
-                onDismiss: { isReplyRefreshNoticeDismissed = true }
+                onDismiss: { replyRefreshNoticeState.dismiss() }
             )
             .accessibilityIdentifier("assistant-reply-refresh-notice")
         }
@@ -418,7 +393,7 @@ struct ChatAssistantView: View {
                         replies: suggestedRepliesModel.replies,
                         copiedReplyID: copiedReplyID,
                         isLoading: suggestedRepliesModel.isLoading,
-                        needsRefresh: needsReplyRefresh,
+                        needsRefresh: replyRefreshNoticeState.needsRefresh,
                         noReplyState: noReplyState,
                         errorMessage: suggestedRepliesModel.errorMessage,
                         onCopy: copyReply,
@@ -583,16 +558,6 @@ struct ChatAssistantView: View {
                 await importSelectedScreenshots(items)
             }
         }
-        .onChange(of: contextRevisionKey) { oldValue, newValue in
-            if didLoadContext && oldValue != newValue
-                && !suggestedRepliesModel.isLoading && !importModel.isLoading
-            {
-                needsReplyRefresh = currentLanguageCache != nil
-                if needsReplyRefresh {
-                    isReplyRefreshNoticeDismissed = false
-                }
-            }
-        }
     }
 
     private var actionErrorBinding: Binding<Bool> {
@@ -690,8 +655,8 @@ struct ChatAssistantView: View {
                 draftingInput: draftingInput
             ), result.chatID == chat.id {
                 suggestedRepliesModel.loadCached(localization: localizationContext)
-                needsReplyRefresh = false
                 if result.replies != nil {
+                    replyRefreshNoticeState.generationSucceeded()
                     clearReplyGuidance(ifMatching: draftingInput)
                 }
                 recordMeaningfulReviewAction()
@@ -714,8 +679,8 @@ struct ChatAssistantView: View {
             draftingInput: draftingInput
         ), result.chatID == chat.id {
             suggestedRepliesModel.loadCached(localization: localizationContext)
-            needsReplyRefresh = false
             if result.replies != nil {
+                replyRefreshNoticeState.generationSucceeded()
                 clearReplyGuidance(ifMatching: draftingInput)
             }
             recordMeaningfulReviewAction()
@@ -737,7 +702,7 @@ struct ChatAssistantView: View {
                 draftingInput: nil,
                 localization: localizationContext
             ) {
-                needsReplyRefresh = false
+                replyRefreshNoticeState.generationSucceeded()
                 recordMeaningfulReviewAction()
             }
         }
@@ -757,7 +722,7 @@ struct ChatAssistantView: View {
                 draftingInput: submittedGuidance,
                 localization: localizationContext
             ) {
-                needsReplyRefresh = false
+                replyRefreshNoticeState.generationSucceeded()
                 clearReplyGuidance(ifMatching: submittedGuidance)
                 recordMeaningfulReviewAction()
             }
@@ -776,11 +741,6 @@ struct ChatAssistantView: View {
 
     private func loadCachedReplies() {
         suggestedRepliesModel.loadCached(localization: localizationContext)
-        needsReplyRefresh =
-            currentLanguageCache != nil && suggestedRepliesModel.replies.isEmpty
-        if needsReplyRefresh {
-            isReplyRefreshNoticeDismissed = false
-        }
     }
 
     private func confirmCurrentChat() {
@@ -932,8 +892,9 @@ struct ChatAssistantView: View {
         do {
             if try repository.updateInteractionGoal(chatID: chat.id, goal: normalizedGoal) {
                 goalDraft = normalizedGoal
-                needsReplyRefresh = currentLanguageCache != nil
-                isReplyRefreshNoticeDismissed = false
+                replyRefreshNoticeState.replyBriefChanged(
+                    hasExistingReplyCache: currentLanguageCache != nil
+                )
             }
             KeyboardDismissal.dismiss()
             withAnimation(.spring(response: 0.26, dampingFraction: 0.9)) {
@@ -947,8 +908,9 @@ struct ChatAssistantView: View {
     private func assignPersona(_ personaID: UUID) {
         do {
             if try repository.assignPersona(personaID: personaID, toChatID: chat.id) {
-                needsReplyRefresh = currentLanguageCache != nil
-                isReplyRefreshNoticeDismissed = false
+                replyRefreshNoticeState.replyBriefChanged(
+                    hasExistingReplyCache: currentLanguageCache != nil
+                )
             }
         } catch {
             actionErrorMessage = error.localizedDescription
@@ -982,6 +944,30 @@ struct ChatAssistantView: View {
         suggestedReplyCacheRecords.first {
             $0.appLanguage == localizationContext.languageIdentifier
         }
+    }
+}
+
+struct ReplyRefreshNoticeState: Equatable {
+    private(set) var needsRefresh = false
+    private(set) var isDismissed = false
+
+    var isVisible: Bool {
+        needsRefresh && !isDismissed
+    }
+
+    mutating func replyBriefChanged(hasExistingReplyCache: Bool) {
+        needsRefresh = hasExistingReplyCache
+        isDismissed = false
+    }
+
+    mutating func dismiss() {
+        guard needsRefresh else { return }
+        isDismissed = true
+    }
+
+    mutating func generationSucceeded() {
+        needsRefresh = false
+        isDismissed = false
     }
 }
 
