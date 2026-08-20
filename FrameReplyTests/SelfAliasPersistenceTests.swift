@@ -5,72 +5,35 @@ import XCTest
 
 @MainActor
 final class SelfAliasPersistenceTests: XCTestCase {
-    func testStoreNameAndUnassociatedAliasPersistAcrossReload() throws {
-        XCTAssertEqual(FrameReplyDataStore.configurationName, "FrameReplyChatsV1")
-
+    func testNormalizedAliasAssociationsPersistAndSurviveOneChatDeletion() throws {
         let storeURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("store")
-        defer { try? FileManager.default.removeItem(at: storeURL) }
-
-        do {
-            let container = try FrameReplyDataStore.makeContainer(url: storeURL)
-            let repository = ChatRepository(container: container)
-            try repository.addSelfAlias(displayLabel: "  Alias   Alpha  ")
-
-            XCTAssertEqual(try repository.selfAliases().map(\.displayLabel), ["Alias Alpha"])
+        defer {
+            for url in [
+                storeURL,
+                URL(fileURLWithPath: storeURL.path + "-wal"),
+                URL(fileURLWithPath: storeURL.path + "-shm")
+            ] where FileManager.default.fileExists(atPath: url.path) {
+                try? FileManager.default.removeItem(at: url)
+            }
         }
-
-        do {
-            let container = try FrameReplyDataStore.makeContainer(url: storeURL)
-            let repository = ChatRepository(container: container)
-
-            XCTAssertEqual(try repository.selfAliases().map(\.displayLabel), ["Alias Alpha"])
-            XCTAssertTrue(
-                try container.mainContext.fetch(FetchDescriptor<ChatContextRecord>()).isEmpty)
-        }
-    }
-
-    func testOneAliasCanBelongToMultipleContextsWithoutDuplicates() throws {
-        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        try insertChat(id: "chat-gamma", title: "Chat Gamma", into: container)
-        try insertChat(id: "chat-delta", title: "Chat Delta", into: container)
-
-        let first = try repository.addSelfAlias(
-            displayLabel: "Alias Alpha",
-            chatID: "chat-gamma"
-        )
-        let repeated = try repository.addSelfAlias(
-            displayLabel: " alias alpha ",
-            chatID: "chat-gamma"
-        )
-        let shared = try repository.addSelfAlias(
-            displayLabel: "ALIAS ALPHA",
-            chatID: "chat-delta"
-        )
-
-        XCTAssertEqual(try repository.selfAliases().count, 1)
-        XCTAssertTrue(first === repeated)
-        XCTAssertTrue(first === shared)
-        try repository.renameChat(id: "chat-gamma", name: "Chat Gamma Renamed")
-        XCTAssertEqual(try repository.selfAliases(chatID: "chat-gamma").count, 1)
-        XCTAssertEqual(try repository.selfAliases(chatID: "chat-delta").count, 1)
-    }
-
-    func testSharedContextAssociationsPersistAcrossReload() throws {
-        let storeURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("store")
-        defer { try? FileManager.default.removeItem(at: storeURL) }
 
         do {
             let container = try FrameReplyDataStore.makeContainer(url: storeURL)
             let repository = ChatRepository(container: container)
             try insertChat(id: "chat-gamma", title: "Chat Gamma", into: container)
             try insertChat(id: "chat-delta", title: "Chat Delta", into: container)
-            try repository.addSelfAlias(displayLabel: "Alias Alpha", chatID: "chat-gamma")
-            try repository.addSelfAlias(displayLabel: "Alias Alpha", chatID: "chat-delta")
+            let first = try repository.addSelfAlias(
+                displayLabel: "  Alias   Alpha  ", chatID: "chat-gamma")
+            let repeated = try repository.addSelfAlias(
+                displayLabel: "alias alpha", chatID: "chat-gamma")
+            let shared = try repository.addSelfAlias(
+                displayLabel: "ALIAS ALPHA", chatID: "chat-delta")
+
+            XCTAssertTrue(first === repeated)
+            XCTAssertTrue(first === shared)
+            XCTAssertEqual(try repository.selfAliases().map(\.displayLabel), ["Alias Alpha"])
         }
 
         do {
@@ -86,6 +49,7 @@ final class SelfAliasPersistenceTests: XCTestCase {
                 try repository.selfAliases(chatID: "chat-delta").map(\.displayLabel),
                 ["Alias Alpha"]
             )
+            try repository.renameChat(id: "chat-gamma", name: "Chat Gamma Renamed")
             try repository.deleteChat(id: "chat-gamma")
         }
 

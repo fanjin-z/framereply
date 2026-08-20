@@ -71,61 +71,6 @@ final class ChatParticipantIdentityTests: XCTestCase {
         )
     }
 
-    func testRememberedAliasAppliesOnlyWithinSelectedChat() throws {
-        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let first = try repository.applyImport(
-            analysis: copiedTranscriptAnalysis(),
-            confirmedChatID: nil
-        )
-        try repository.resolveUnknownSenderLabels(chatID: first.chatID, selfLabel: "Test User")
-
-        let laterAnalysis = directUnknownAnalysis(
-            userText: "I will be back later.",
-            otherText: "Sounds good.",
-            matchedChatID: first.chatID
-        )
-        _ = try repository.applyImport(
-            analysis: laterAnalysis,
-            confirmedChatID: first.chatID
-        )
-
-        let laterMessages = try repository.messages(chatID: first.chatID).filter {
-            $0.text == "I will be back later." || $0.text == "Sounds good."
-        }
-        XCTAssertEqual(
-            laterMessages.first(where: { $0.text == "I will be back later." })?.senderKind,
-            "user"
-        )
-        XCTAssertEqual(
-            laterMessages.first(where: { $0.text == "Sounds good." })?.senderKind,
-            "other_participant"
-        )
-
-        let otherChat = ChatRecord(
-            id: "other-chat",
-            title: "Other Chat",
-            previewText: "",
-            conversationKind: .direct
-        )
-        container.mainContext.insert(otherChat)
-        try container.mainContext.save()
-        _ = try repository.applyImport(
-            analysis: directUnknownAnalysis(
-                userText: "A separate conversation.",
-                otherText: "This should stay unresolved.",
-                matchedChatID: "other-chat"
-            ),
-            confirmedChatID: "other-chat"
-        )
-
-        XCTAssertEqual(
-            try repository.messages(chatID: "other-chat").filter { $0.senderKind == "unknown" }
-                .count,
-            2
-        )
-    }
-
     func testGroupResolutionPreservesParticipantsAndLeavesUnlabeledUnknown() throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)

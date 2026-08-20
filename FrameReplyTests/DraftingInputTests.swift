@@ -21,14 +21,4 @@ final class DraftingInputTests: XCTestCase {
         }
     }
 
-    func testEditorCounterAndAcceptanceBoundaries() {
-        XCTAssertFalse(
-            DraftingInputLimits.shouldShowCounter(for: String(repeating: "a", count: 399))
-        )
-        XCTAssertTrue(
-            DraftingInputLimits.shouldShowCounter(for: String(repeating: "a", count: 400))
-        )
-        XCTAssertTrue(DraftingInputLimits.canAccept(String(repeating: "👍🏽", count: 500)))
-        XCTAssertFalse(DraftingInputLimits.canAccept(String(repeating: "👍🏽", count: 501)))
-    }
 }

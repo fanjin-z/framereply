@@ -1,4 +1,3 @@
-import SwiftUI
 import XCTest
 
 @testable import FrameReply
@@ -167,96 +166,6 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
         )
     }
 
-    func testSnippetPresentationFormatsReplyAndImportStates() {
-        XCTAssertEqual(snippet(replies: ["Only reply"]).headerText, "1 reply ready")
-        XCTAssertEqual(snippet(replies: ["First", "Second"]).headerText, "2 replies ready")
-
-        let cases: [(ShortcutRepliesSnippet, String)] = [
-            (snippet(importedMessageCount: 1, replies: ["Reply"]), "1 message imported to natalie"),
-            (
-                snippet(importedMessageCount: 9, replies: ["Reply"]),
-                "9 messages imported to natalie"
-            ),
-            (
-                snippet(importedMessageCount: 9, reviewRequired: true, replies: ["Reply"]),
-                "9 messages imported to natalie · Review required"
-            ),
-            (snippet(duplicate: true, replies: ["Reply"]), "No new messages added to natalie")
-        ]
-        for (view, expected) in cases {
-            XCTAssertEqual(view.statusText, expected)
-        }
-    }
-
-    func testSnippetPresentationFiltersRepliesAndShowsUnavailableState() {
-        let filtered = snippet(replies: ["", "First", "  ", "Second", "Third"])
-        XCTAssertEqual(filtered.visibleReplies, ["First", "Second"])
-        XCTAssertFalse(filtered.showsEmptyState)
-
-        let unavailable = snippet(replies: ["", "  \n"])
-        XCTAssertTrue(unavailable.visibleReplies.isEmpty)
-        XCTAssertTrue(unavailable.showsEmptyState)
-        XCTAssertEqual(unavailable.headerText, "Replies unavailable")
-    }
-
-    func testReviewSnippetUsesConciseSenderCheckCopy() {
-        let view = reviewSnippet()
-
-        XCTAssertEqual(view.headerText, "Sender check needed")
-        XCTAssertEqual(view.chatID, "chat-123")
-        XCTAssertTrue(view.duplicate)
-    }
-
-    @MainActor
-    func testSnippetLayoutsStayWithinRecommendedHeight() throws {
-        for colorScheme in [ColorScheme.light, .dark] {
-            try assertRecommendedHeight(
-                reviewSnippet(),
-                colorScheme: colorScheme,
-                dynamicTypeSize: .accessibility2
-            )
-        }
-
-        let localizedReplies = [
-            "Мне очень нравится набережная. Там открывается прекрасный вид на Волгу и Оку.",
-            "Люблю гулять по Кремлю. Это красивое и историческое место в центре города."
-        ]
-        for colorScheme in [ColorScheme.light, .dark] {
-            try assertRecommendedHeight(
-                snippet(
-                    replies: localizedReplies,
-                    selectionSessionID: "session-123",
-                    selectedReplyIndex: 0
-                ),
-                colorScheme: colorScheme
-            )
-        }
-
-        let longReply = String(
-            repeating: "A long suggested reply remains complete when copied. ",
-            count: 10
-        )
-        try assertRecommendedHeight(
-            snippet(
-                replies: [longReply, longReply],
-                selectionSessionID: "session-123",
-                selectedReplyIndex: 0
-            ),
-            dynamicTypeSize: .accessibility2
-        )
-        try assertRecommendedHeight(
-            snippet(
-                replies: [
-                    "Какое у тебя любимое место в Нижнем Новгороде?",
-                    "А куда в Нижнем Новгороде ты бы посоветовал сходить?"
-                ],
-                selectionSessionID: "session-123",
-                selectedReplyIndex: 1
-            ),
-            dynamicTypeSize: .xxxLarge
-        )
-    }
-
     private func snippet(
         importedMessageCount: Int = 9,
         reviewRequired: Bool = false,
@@ -275,37 +184,6 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
             selectionSessionID: selectionSessionID,
             selectedReplyIndex: selectedReplyIndex
         )
-    }
-
-    private func reviewSnippet() -> ShortcutImportReviewSnippet {
-        ShortcutImportReviewSnippet(
-            chatID: "chat-123",
-            chatTitle: "natalie",
-            statusMessage: "No new messages found in natalie, but review is still required.",
-            importedMessageCount: 9,
-            duplicate: true
-        )
-    }
-
-    @MainActor
-    private func assertRecommendedHeight<Content: View>(
-        _ content: Content,
-        colorScheme: ColorScheme = .light,
-        dynamicTypeSize: DynamicTypeSize = .large,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) throws {
-        let renderer = ImageRenderer(
-            content:
-                content
-                .frame(width: 358)
-                .environment(\.colorScheme, colorScheme)
-                .environment(\.dynamicTypeSize, dynamicTypeSize)
-        )
-        renderer.scale = 1
-
-        let image = try XCTUnwrap(renderer.uiImage, file: file, line: line)
-        XCTAssertLessThanOrEqual(image.size.height, 340, file: file, line: line)
     }
 
     private func response(

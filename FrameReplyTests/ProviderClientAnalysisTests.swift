@@ -95,23 +95,21 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
     }
 
     @MainActor
-    func testOpenRouterRecoversSingletonObjectArrayForScreenshots() async throws {
-        let reporter = SpyImportEventReporter()
+    func testOpenRouterRecoversSupportedOutputsAndRejectsExtraFieldsWithoutRetry() async throws {
+        let arrayReporter = SpyImportEventReporter()
         AnalysisURLProtocolStub.responses = [
             (200, openRouterResponse(content: "[\(validScreenshotAnalysisJSON())]"))
         ]
 
-        let result = try await OpenRouterClient(
-            session: makeSession(), eventReporter: reporter
+        let arrayResult = try await OpenRouterClient(
+            session: makeSession(), eventReporter: arrayReporter
         ).analyzeChatScreenshot(makeRequest(), apiKey: "key", model: .qwen37Plus)
 
-        XCTAssertEqual(result.messages.map(\.text), ["Hello"])
+        XCTAssertEqual(arrayResult.messages.map(\.text), ["Hello"])
         XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
-        XCTAssertTrue(hasValidationCategory("recovered", in: reporter.events))
-    }
+        XCTAssertTrue(hasValidationCategory("recovered", in: arrayReporter.events))
 
-    @MainActor
-    func testOpenRouterAcceptsSemanticRecoveryButRejectsExtraFieldsWithoutRetry() async throws {
+        AnalysisURLProtocolStub.reset()
         var recoverable = try XCTUnwrap(
             JSONSerialization.jsonObject(with: Data(validScreenshotAnalysisJSON().utf8))
                 as? [String: Any]
@@ -309,7 +307,7 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
     }
 
     @MainActor
-    func testMiniMaxUsesOneRequestForRecoveredAndFatalReplies() async throws {
+    func testMiniMaxUsesOneRequestForRecoveredAndInvalidReplies() async throws {
         let recoveredReporter = SpyImportEventReporter()
         AnalysisURLProtocolStub.responses = [
             (200, miniMaxResponse(content: "Result:\n\(validStandardRepliesJSON())"))
@@ -352,10 +350,8 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
         )
         XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
         XCTAssertEqual(providerAttempts(in: fatalReporter.events), [1])
-    }
 
-    @MainActor
-    func testMiniMaxRejectsInvalidReplyJSONWithoutRetry() async throws {
+        AnalysisURLProtocolStub.reset()
         let reporter = SpyImportEventReporter()
         AnalysisURLProtocolStub.responses = [
             (200, miniMaxResponse(content: "This is not JSON."))

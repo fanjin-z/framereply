@@ -49,6 +49,16 @@
                BlueprintName = "FrameReplyUITests"
                ReferencedContainer = "container:FrameReply.xcodeproj">
             </BuildableReference>
+            <SelectedTests>
+               <Test Identifier = "FrameReplyReleaseUITests/testPersonaOnboardingRequiresSelectionAndPersistsDefault()">
+               </Test>
+               <Test Identifier = "FrameReplyReleaseUITests/testFreshInstallCanLeaveProviderOnboardingForSettings()">
+               </Test>
+               <Test Identifier = "FrameReplyReleaseUITests/testCriticalNavigationAndPrivacyControlsAreReachable()">
+               </Test>
+               <Test Identifier = "FrameReplyReleaseUITests/testReplyGuidancePersistsIntoImport()">
+               </Test>
+            </SelectedTests>
          </TestableReference>
       </Testables>
    </TestAction>

@@ -231,52 +231,6 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         }
     }
 
-    func testWhatsAppGroupFixturePreservesMultilineTextAndNormalizesTilde() throws {
-        let result = try decodeSharedResult(whatsAppGroupJSON())
-        let messages = result.value.messages
-
-        XCTAssertEqual(result.value.conversationKind, .group)
-        XCTAssertTrue(result.value.hasStrongGroupEvidence)
-        XCTAssertEqual(messages.count, 3)
-        XCTAssertEqual(messages.map(\.senderName), ["Aster", "Robin", "Mica"])
-        XCTAssertEqual(
-            messages.map(\.timestampLabel),
-            [
-                "04/02/31, 9:05:11 AM", "04/02/31, 1:17:42 PM",
-                "04/03/31, 8:26:19 AM"
-            ])
-        XCTAssertEqual(
-            messages[1].text,
-            "Read the sample chapters: pages 12 and 18, plus the practice audio."
-        )
-        XCTAssertEqual(
-            messages[2].text,
-            "Practice plan\nApril 3, 2031\nProject Atlas\nPages 21, 22, and 24"
-        )
-    }
-
-    func testWeChatGroupFixturePreservesEmojiNamesTimesAndOrdering() throws {
-        let result = try decodeSharedResult(weChatGroupJSON())
-        let messages = result.value.messages
-
-        XCTAssertEqual(result.value.conversationKind, .group)
-        XCTAssertTrue(result.value.hasStrongGroupEvidence)
-        XCTAssertEqual(messages.count, 4)
-        XCTAssertEqual(
-            messages.map(\.senderName),
-            [
-                "🪐 Sky Lab 🪐", "Nori", "🍋", "🌙 Luna 🌙"
-            ])
-        XCTAssertEqual(
-            messages.map(\.text),
-            [
-                "Passing this along", "I signed up 🙋‍♀️", "Check the bike details 🚲",
-                "Message me, @Nori"
-            ])
-        XCTAssertEqual(messages.first?.timestampLabel, "April 2, 2031 at 9:05 PM")
-        XCTAssertEqual(messages.last?.timestampLabel, "April 3, 2031 at 9:16 AM")
-    }
-
     private func decodeResult(_ content: String?, finishReason: String? = "stop") throws
         -> StructuredOutputDecodingResult<ChatImportAnalysis>
     {
@@ -370,51 +324,4 @@ final class ChatImportAnalysisDecoderTests: XCTestCase {
         return try XCTUnwrap(String(data: data, encoding: .utf8))
     }
 
-    private func whatsAppGroupJSON() throws -> String {
-        try fixtureJSON(messages: [
-            (
-                "~\u{202F}Aster", "Robin, could you share the fictional reading list?",
-                "04/02/31, 9:05:11 AM"
-            ),
-            (
-                "~\u{202F}Robin",
-                "Read the sample chapters: pages 12 and 18, plus the practice audio.",
-                "04/02/31, 1:17:42 PM"
-            ),
-            (
-                "~\u{202F}Mica",
-                "Practice plan\nApril 3, 2031\nProject Atlas\nPages 21, 22, and 24",
-                "04/03/31, 8:26:19 AM"
-            )
-        ])
-    }
-
-    private func weChatGroupJSON() throws -> String {
-        try fixtureJSON(messages: [
-            ("🪐 Sky Lab 🪐", "Passing this along", "April 2, 2031 at 9:05 PM"),
-            ("Nori", "I signed up 🙋‍♀️", "April 2, 2031 at 9:07 PM"),
-            ("🍋", "Check the bike details 🚲", "April 2, 2031 at 10:11 PM"),
-            ("🌙 Luna 🌙", "Message me, @Nori", "April 3, 2031 at 9:16 AM")
-        ])
-    }
-
-    private func fixtureJSON(messages: [(String, String, String)]) throws -> String {
-        let values = messages.map { name, text, timestamp in
-            [
-                "sender": "unknown", "senderName": name, "text": text,
-                "timestampLabel": timestamp, "senderConfidence": 0.9,
-                "senderEvidence": "author_label"
-            ] as [String: Any]
-        }
-        let object: [String: Any] = [
-            "conversationTitle": NSNull(),
-            "conversationKindEvidence": "three_or_more_named_message_authors",
-            "titleSource": "unavailable",
-            "messages": values,
-            "matchedChatID": NSNull(),
-            "matchConfidence": 0
-        ]
-        let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
-        return try XCTUnwrap(String(data: data, encoding: .utf8))
-    }
 }

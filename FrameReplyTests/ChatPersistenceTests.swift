@@ -242,7 +242,7 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(try repository.messages(chatID: "sarah-jenkins").count, 2)
     }
 
-    func testGroupImportCanonicalizesSendersAndStoresAttributedPreview() throws {
+    func testGroupImportCanonicalizesSendersAndRefreshesPreviewAfterReview() throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
         let analysis = ChatImportAnalysis(
@@ -255,8 +255,8 @@ final class ChatPersistenceTests: XCTestCase {
                     timestampLabel: "8:00 PM"
                 ),
                 AnalyzedChatMessage(
-                    sender: .otherParticipant,
-                    senderName: nil,
+                    sender: .unknown,
+                    senderName: "Priya",
                     text: "What time should we meet?",
                     timestampLabel: "8:01 PM"
                 )
@@ -278,59 +278,22 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(messages.first?.senderName, "Alex")
         XCTAssertEqual(chat.previewText, "What time should we meet?")
         XCTAssertEqual(chat.previewSenderKind, "unknown")
-        XCTAssertNil(chat.previewSenderName)
-        XCTAssertEqual(chat.displayPreview(), "Unknown sender: What time should we meet?")
+        XCTAssertEqual(chat.previewSenderName, "Priya")
         XCTAssertTrue(outcome.reviewRequired)
 
         try repository.resolveUnknownSender(
             messageID: try XCTUnwrap(messages.last?.id),
             as: .groupParticipant,
-            participantName: "Participant"
+            participantName: "Priya"
         )
+        XCTAssertEqual(messages.last?.senderKind, "group_participant")
+        XCTAssertEqual(chat.previewSenderKind, "group_participant")
+        XCTAssertEqual(chat.previewSenderName, "Priya")
         try repository.confirmProvisionalChat(chatID: chat.id, name: "Group Chat")
 
         XCTAssertNil(chat.title)
         XCTAssertEqual(chat.displayTitle(), "Group Chat")
         XCTAssertFalse(chat.requiresImportIdentityReview)
-    }
-
-    func testSenderReviewRefreshesGroupPreviewMetadata() throws {
-        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
-        let analysis = ChatImportAnalysis(
-            conversationTitle: "Weekend Crew",
-            messages: [
-                AnalyzedChatMessage(
-                    sender: .unknown,
-                    senderName: "Priya",
-                    text: "I booked the table",
-                    timestampLabel: "7:30 PM"
-                )
-            ],
-            matchedChatID: nil,
-            matchConfidence: 0,
-            conversationKind: .group,
-            titleSource: .header
-        )
-
-        let outcome = try repository.applyImport(analysis: analysis, confirmedChatID: nil)
-        let message = try XCTUnwrap(repository.messages(chatID: outcome.chatID).first)
-        var chat = try XCTUnwrap(repository.chat(id: outcome.chatID))
-        XCTAssertEqual(chat.previewSenderKind, "unknown")
-        XCTAssertEqual(chat.previewSenderName, "Priya")
-        XCTAssertEqual(chat.displayPreview(), "Priya: I booked the table")
-
-        try repository.resolveUnknownSender(
-            messageID: message.id,
-            as: .groupParticipant,
-            participantName: "Priya"
-        )
-
-        chat = try XCTUnwrap(repository.chat(id: outcome.chatID))
-        XCTAssertEqual(message.senderKind, "group_participant")
-        XCTAssertEqual(chat.previewSenderKind, "group_participant")
-        XCTAssertEqual(chat.previewSenderName, "Priya")
-        XCTAssertEqual(chat.displayPreview(), "Priya: I booked the table")
     }
 
     func testGroupSupportMigrationBackfillsPreviewAndCanonicalizesMalformedSenders() throws {

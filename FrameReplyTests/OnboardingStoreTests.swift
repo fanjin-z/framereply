@@ -5,7 +5,7 @@ import XCTest
 
 final class OnboardingStoreTests: XCTestCase {
     @MainActor
-    func testFreshInstallationNormalizesMissingValueToPendingInitialOnboarding() {
+    func testInstallationStateNormalizesFreshInterruptedAndLegacyUsers() {
         withDefaults { defaults in
             let store = OnboardingStore(userDefaults: defaults)
 
@@ -17,10 +17,6 @@ final class OnboardingStoreTests: XCTestCase {
             )
             XCTAssertNotNil(defaults.object(forKey: OnboardingStore.storageKey))
         }
-    }
-
-    @MainActor
-    func testInterruptedFreshOnboardingRemainsPendingAfterInstallationMarkerAppears() {
         withDefaults { defaults in
             _ = OnboardingStore(userDefaults: defaults)
             defaults.set(true, forKey: ProviderStore.installationMarkerKey)
@@ -30,10 +26,6 @@ final class OnboardingStoreTests: XCTestCase {
             XCTAssertEqual(relaunchedStore.lastCompletedVersion, OnboardingVersion.none)
             XCTAssertEqual(relaunchedStore.presentation, .initial)
         }
-    }
-
-    @MainActor
-    func testLegacyInstallationNormalizesToCompletedInitialOnboarding() {
         withDefaults { defaults in
             defaults.set(true, forKey: ProviderStore.installationMarkerKey)
 
@@ -42,10 +34,16 @@ final class OnboardingStoreTests: XCTestCase {
             XCTAssertEqual(store.lastCompletedVersion, OnboardingVersion.initial)
             XCTAssertEqual(store.presentation, .none)
         }
+        withDefaults { defaults in
+            let store = OnboardingStore(userDefaults: defaults, currentVersion: 2)
+
+            XCTAssertEqual(store.lastCompletedVersion, OnboardingVersion.none)
+            XCTAssertEqual(store.presentation, .initial)
+        }
     }
 
     @MainActor
-    func testOlderCompletedVersionReceivesCurrentUpdateOnce() {
+    func testOlderCompletedVersionReceivesCurrentUpdateUntilCompleted() {
         withDefaults { defaults in
             defaults.set(OnboardingVersion.initial, forKey: OnboardingStore.storageKey)
             let store = OnboardingStore(userDefaults: defaults, currentVersion: 2)
@@ -57,16 +55,6 @@ final class OnboardingStoreTests: XCTestCase {
             XCTAssertEqual(store.lastCompletedVersion, 2)
             XCTAssertEqual(store.presentation, .none)
             XCTAssertEqual(defaults.integer(forKey: OnboardingStore.storageKey), 2)
-        }
-    }
-
-    @MainActor
-    func testFutureFreshInstallationStillReceivesInitialSetup() {
-        withDefaults { defaults in
-            let store = OnboardingStore(userDefaults: defaults, currentVersion: 2)
-
-            XCTAssertEqual(store.lastCompletedVersion, OnboardingVersion.none)
-            XCTAssertEqual(store.presentation, .initial)
         }
     }
 

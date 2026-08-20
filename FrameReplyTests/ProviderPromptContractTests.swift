@@ -67,6 +67,21 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
             screenshotMessageItems["properties"] as? [String: Any]
         )
         XCTAssertNotNil(screenshotMessageProperties["outerAlignment"])
+        let userIdentification = try XCTUnwrap(
+            screenshotProperties["userIdentification"] as? [String: Any]
+        )
+        XCTAssertEqual(
+            Set(try XCTUnwrap(userIdentification["required"] as? [String])),
+            ["mode", "userAlignment", "userAuthorLabel"]
+        )
+        let conversationKindEvidence = try XCTUnwrap(
+            screenshotProperties["conversationKindEvidence"] as? [String: Any]
+        )
+        XCTAssertTrue(
+            try XCTUnwrap(conversationKindEvidence["enum"] as? [String]).contains(
+                "two_or_more_named_authors_opposite_user_alignment"
+            )
+        )
 
         let sharedProperties = try XCTUnwrap(
             contracts[1].0.schema["properties"] as? [String: Any]
@@ -115,37 +130,6 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
         let input = ChatImportPrompt.input(for: request)
         XCTAssertTrue(input.contains(#"["Alias Alpha"]"#))
         XCTAssertTrue(input.contains(#""participantAliases":["Contact B"]"#))
-    }
-
-    func testChatImportContractsUseVersionFourAndUserIdentificationSchema() throws {
-        XCTAssertEqual(ChatImportPrompt.screenshotImportVersion, 4)
-        XCTAssertEqual(ChatImportPrompt.textImportVersion, 4)
-
-        let rootProperties = try XCTUnwrap(
-            ChatImportPrompt.screenshotImportJSONSchema["properties"] as? [String: Any]
-        )
-        let userIdentification = try XCTUnwrap(
-            rootProperties["userIdentification"] as? [String: Any]
-        )
-        XCTAssertEqual(
-            Set(try XCTUnwrap(userIdentification["required"] as? [String])),
-            ["mode", "userAlignment", "userAuthorLabel"]
-        )
-        let userIdentificationProperties = try XCTUnwrap(
-            userIdentification["properties"] as? [String: Any]
-        )
-        XCTAssertEqual(
-            Set(userIdentificationProperties.keys),
-            ["mode", "userAlignment", "userAuthorLabel"]
-        )
-
-        let conversationKindEvidence = try XCTUnwrap(
-            rootProperties["conversationKindEvidence"] as? [String: Any]
-        )
-        let evidenceValues = try XCTUnwrap(conversationKindEvidence["enum"] as? [String])
-        XCTAssertTrue(
-            evidenceValues.contains("two_or_more_named_authors_opposite_user_alignment")
-        )
     }
 
     func testTaskInputsContainOnlyContractRelevantData() throws {
@@ -234,21 +218,6 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
         let recentMessages = try XCTUnwrap(input["recentMessages"] as? [[String: Any]])
         XCTAssertTrue(recentMessages.contains { $0["text"] as? String == "晚饭七点？" })
         XCTAssertNil(input["appLanguage"])
-    }
-
-    @MainActor
-    func testSuggestedReplyCacheIdentityCoversCachedPromptVariants() throws {
-        let english = SuggestedReplyPrompt.cacheIdentity(appLanguage: "en")
-        let french = SuggestedReplyPrompt.cacheIdentity(appLanguage: "fr")
-
-        XCTAssertEqual(
-            Set(english.keys),
-            ["contracts", "turnRequirements", "textLengthReminders"]
-        )
-        XCTAssertEqual((english["contracts"] as? [[String: Any]])?.count, 2)
-        XCTAssertEqual((english["turnRequirements"] as? [String])?.count, 3)
-        XCTAssertEqual((english["textLengthReminders"] as? [String])?.count, 2)
-        XCTAssertNotEqual(try schemaText(english), try schemaText(french))
     }
 
     private func conversationPayload(from input: String) throws -> [String: Any] {

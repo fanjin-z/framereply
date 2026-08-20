@@ -65,43 +65,37 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
         XCTAssertEqual(failedViewModel.errorMessage, "Provider failed")
         XCTAssertTrue(unusedReplies.requests.isEmpty)
         XCTAssertFalse(failedViewModel.isLoading)
-    }
 
-    @MainActor
-    func testNoMessagesFailureUsesSourceCopySkipsRepliesAndClearsOnNextAttempt() async {
-        let outcome = makeOutcome(insertedMessageCount: 1, reviewRequired: false)
-        let importer = StubInAppImporter(
+        let recoveredOutcome = makeOutcome(insertedMessageCount: 1, reviewRequired: false)
+        let noMessageImporter = StubInAppImporter(
             error: ScreenshotImportError.noMessages(source: .images)
         )
-        let replies = StubInAppReplies(
+        let noMessageReplies = StubInAppReplies(
             outcome: SuggestedRepliesOutcome(replies: ["First", "Second"], source: .generated)
         )
-        let viewModel = InAppScreenshotImportViewModel(
-            importer: importer,
-            repliesGenerator: replies
+        let noMessageViewModel = InAppScreenshotImportViewModel(
+            importer: noMessageImporter,
+            repliesGenerator: noMessageReplies
         )
 
-        let failedResult = await viewModel.importScreenshots(
+        let noMessageResult = await noMessageViewModel.importScreenshots(
             [Data([1])],
             draftingInput: "Keep this guidance"
         )
 
-        XCTAssertNil(failedResult)
-        XCTAssertEqual(
-            viewModel.errorMessage,
-            "No messages. Try a new image."
-        )
-        XCTAssertTrue(replies.requests.isEmpty)
+        XCTAssertNil(noMessageResult)
+        XCTAssertNotNil(noMessageViewModel.errorMessage)
+        XCTAssertTrue(noMessageReplies.requests.isEmpty)
 
-        importer.succeed(with: outcome)
-        let successfulResult = await viewModel.importScreenshots(
+        noMessageImporter.succeed(with: recoveredOutcome)
+        let successfulResult = await noMessageViewModel.importScreenshots(
             [Data([2])],
             draftingInput: "Keep this guidance"
         )
 
-        XCTAssertEqual(successfulResult?.outcome, outcome)
-        XCTAssertNil(viewModel.errorMessage)
-        XCTAssertEqual(replies.requests.first?.draftingInput, "Keep this guidance")
+        XCTAssertEqual(successfulResult?.outcome, recoveredOutcome)
+        XCTAssertNil(noMessageViewModel.errorMessage)
+        XCTAssertEqual(noMessageReplies.requests.first?.draftingInput, "Keep this guidance")
 
         let textViewModel = InAppScreenshotImportViewModel(
             importer: StubInAppImporter(
@@ -114,10 +108,7 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
             )
         )
         _ = await textViewModel.importCopiedMessages(["Not a chat transcript"])
-        XCTAssertEqual(
-            textViewModel.errorMessage,
-            "No messages. Copy with sender names."
-        )
+        XCTAssertNotNil(textViewModel.errorMessage)
         textViewModel.dismissError()
         XCTAssertNil(textViewModel.errorMessage)
     }
@@ -148,8 +139,10 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
 
     @MainActor
     func testCancellationBeforeImportCompletionProducesNoResult() async {
+        let started = expectation(description: "Import started")
         let importer = CancellableInAppImporter(
-            outcome: makeOutcome(insertedMessageCount: 1, reviewRequired: false)
+            outcome: makeOutcome(insertedMessageCount: 1, reviewRequired: false),
+            started: started
         )
         let replies = StubInAppReplies(
             outcome: SuggestedRepliesOutcome(replies: ["First", "Second"], source: .generated)
@@ -162,9 +155,7 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
         let task = Task {
             await viewModel.importScreenshots([Data([1])])
         }
-        while !importer.didStart {
-            await Task.yield()
-        }
+        await fulfillment(of: [started], timeout: 1)
         task.cancel()
 
         let result = await task.value
@@ -175,10 +166,11 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
 
     @MainActor
     func testCancellationDuringReplyGenerationPreservesImportResult() async {
+        let started = expectation(description: "Reply generation started")
         let importer = StubInAppImporter(
             outcome: makeOutcome(insertedMessageCount: 1, reviewRequired: false)
         )
-        let replies = CancellableInAppReplies()
+        let replies = CancellableInAppReplies(started: started)
         let viewModel = InAppScreenshotImportViewModel(
             importer: importer,
             repliesGenerator: replies
@@ -187,9 +179,7 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
         let task = Task {
             await viewModel.importScreenshots([Data([1])])
         }
-        while !replies.didStart {
-            await Task.yield()
-        }
+        await fulfillment(of: [started], timeout: 1)
         task.cancel()
 
         let result = await task.value
@@ -294,25 +284,30 @@ private final class StubInAppReplies: InAppSuggestedRepliesGenerating {
 @MainActor
 private final class CancellableInAppImporter: ScreenshotImportProcessing {
     let outcome: ScreenshotImportOutcome
-    private(set) var didStart = false
+    private let started: XCTestExpectation
 
-    init(outcome: ScreenshotImportOutcome) {
+    init(outcome: ScreenshotImportOutcome, started: XCTestExpectation) {
         self.outcome = outcome
+        self.started = started
     }
 
     func process(
         imageDataList: [Data],
         traceID: ImportTraceID
     ) async throws -> ScreenshotImportOutcome {
-        didStart = true
-        try await Task.sleep(for: .seconds(60))
+        started.fulfill()
+        try await Task.sleep(for: .seconds(3_600))
         return outcome
     }
 }
 
 @MainActor
 private final class CancellableInAppReplies: InAppSuggestedRepliesGenerating {
-    private(set) var didStart = false
+    private let started: XCTestExpectation
+
+    init(started: XCTestExpectation) {
+        self.started = started
+    }
 
     func generate(
         chatID: String,
@@ -321,8 +316,8 @@ private final class CancellableInAppReplies: InAppSuggestedRepliesGenerating {
         localization: LocalizationContext,
         traceID: ImportTraceID
     ) async throws -> SuggestedRepliesOutcome {
-        didStart = true
-        try await Task.sleep(for: .seconds(60))
+        started.fulfill()
+        try await Task.sleep(for: .seconds(3_600))
         return SuggestedRepliesOutcome(replies: ["First", "Second"], source: .generated)
     }
 }

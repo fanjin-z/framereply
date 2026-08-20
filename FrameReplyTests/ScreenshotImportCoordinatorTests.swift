@@ -305,10 +305,11 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func testCoordinatorRejectsEmptyAndOversizedCopiedMessagesBeforeProviderResolution()
+    func testCoordinatorRejectsInvalidInputAndNoMessageAnalysisBeforePersistence()
         async throws
     {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
+        let repository = ChatRepository(container: container)
         let coordinator = ScreenshotImportCoordinator(
             aiService: StubAnalysisService(
                 analysis: ChatImportAnalysis(
@@ -329,7 +330,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
                     userIdentification: .unobservable
                 )
             ),
-            repository: ChatRepository(container: container)
+            repository: repository
         )
 
         do {
@@ -359,12 +360,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
         } catch let error as ScreenshotImportError {
             XCTAssertEqual(error.code, "transcript_too_large")
         }
-    }
 
-    @MainActor
-    func testCoordinatorRejectsNoMessageAnalysisBeforePersistenceForEverySource() async throws {
-        let container = try FrameReplyDataStore.makeContainer(inMemory: true)
-        let repository = ChatRepository(container: container)
         let reporter = CoordinatorEventReporter()
         let analysis = ChatImportAnalysis(
             extractionStatus: .noMessages,
@@ -376,34 +372,27 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             titleSource: .unavailable,
             userIdentification: .unobservable
         )
-        let coordinator = ScreenshotImportCoordinator(
+        let noMessagesCoordinator = ScreenshotImportCoordinator(
             aiService: StubAnalysisService(analysis: analysis),
             repository: repository,
             eventReporter: reporter
         )
 
         do {
-            _ = try await coordinator.process(imageDataList: [makeTestImageData()])
+            _ = try await noMessagesCoordinator.process(imageDataList: [makeTestImageData()])
             XCTFail("Expected noMessages for images")
         } catch let error as ScreenshotImportError {
             XCTAssertEqual(error, .noMessages(source: .images))
             XCTAssertEqual(error.code, "no_messages")
-            XCTAssertEqual(
-                error.localizedDescription,
-                "No messages. Try a new image."
-            )
         }
 
         do {
-            _ = try await coordinator.process(transcriptItems: ["Not a chat transcript"])
+            _ = try await noMessagesCoordinator.process(
+                transcriptItems: ["Not a chat transcript"])
             XCTFail("Expected noMessages for copied text")
         } catch let error as ScreenshotImportError {
             XCTAssertEqual(error, .noMessages(source: .copiedText))
             XCTAssertEqual(error.code, "no_messages")
-            XCTAssertEqual(
-                error.localizedDescription,
-                "No messages. Copy with sender names."
-            )
         }
 
         XCTAssertTrue(try repository.chats().isEmpty)

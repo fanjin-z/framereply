@@ -89,7 +89,8 @@ final class PrivacySecurityTests: XCTestCase {
         )
     }
 
-    func testImageNormalizerRejectsInvalidAndExcessInputs() throws {
+    @MainActor
+    func testImageNormalizerRejectsInvalidInputsAndProducesBoundedMetadataFreeOutput() throws {
         XCTAssertThrowsError(try ScreenshotImageNormalizer.normalize(Data([0x00, 0x01]))) {
             XCTAssertEqual(($0 as? ScreenshotImportError)?.code, "unsupported_image")
         }
@@ -101,10 +102,7 @@ final class PrivacySecurityTests: XCTestCase {
         ) {
             XCTAssertEqual(($0 as? ScreenshotImportError)?.code, "too_many_images")
         }
-    }
 
-    @MainActor
-    func testImageNormalizerBoundsDimensionsAndStripsMetadata() throws {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 4_000, height: 1_000))
         let source = renderer.jpegData(withCompressionQuality: 1) { context in
             UIColor.orange.setFill()
