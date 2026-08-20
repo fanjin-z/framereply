@@ -19,6 +19,7 @@ struct OnboardingFlowView: View {
     @State private var isConnectionInProgress = false
     @State private var isSkipSetupPresented = false
     @State private var isCreatePersonaPresented = false
+    @State private var isShortcutHowToPresented = false
     @State private var confirmedPersonaID: UUID?
     @State private var defaultPersonaError: String?
 
@@ -144,6 +145,11 @@ struct OnboardingFlowView: View {
             }
         }
         .tint(FrameReplyColor.primary)
+        .sheet(isPresented: $isShortcutHowToPresented) {
+            ShortcutHowToView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     private var onboardingTopBar: some View {
@@ -240,6 +246,17 @@ struct OnboardingFlowView: View {
                 Text("Import messages faster")
                     .font(.system(size: 15, weight: .medium, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+
+                Button {
+                    isShortcutHowToPresented = true
+                } label: {
+                    Label("See How It Works", systemImage: "play.circle")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(FrameReplyColor.primary)
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("onboarding-shortcut-how-to")
             }
 
             ShortcutSetupSection(showsHeader: false)

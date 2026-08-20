@@ -70,6 +70,36 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         )
     }
 
+    func testShortcutGuidesAreReachableFromSettings() {
+        let app = launchShowcase()
+
+        app.buttons["app-tab-settings"].tap()
+
+        let howTo = app.buttons["shortcut-how-to"]
+        XCTAssertTrue(scrollUntilHittable(howTo, swiping: app.swipeUp))
+        howTo.tap()
+
+        XCTAssertTrue(element("shortcut-how-to-screen", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Using Shortcuts"].exists)
+        let copiedText = app.segmentedControls.buttons["Copied Text"]
+        XCTAssertTrue(copiedText.waitForExistence(timeout: 3))
+        copiedText.tap()
+        XCTAssertTrue(
+            element("shortcut-text-sender-label-tip", in: app).waitForExistence(timeout: 3)
+        )
+        app.buttons["dismiss-shortcut-how-to"].tap()
+
+        let backTap = app.buttons["set-up-back-tap"]
+        XCTAssertTrue(scrollUntilHittable(backTap, swiping: app.swipeUp))
+        backTap.tap()
+
+        XCTAssertTrue(element("back-tap-guide-screen", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Set Up Back Tap"].exists)
+        XCTAssertTrue(element("back-tap-tutorial-video", in: app).exists)
+        XCTAssertTrue(app.buttons["add-image-shortcut-from-back-tap-guide"].exists)
+        app.buttons["dismiss-back-tap-guide"].tap()
+    }
+
     func testReplyGuidancePersistsIntoImport() {
         let app = launchShowcase()
         openMaya(in: app)

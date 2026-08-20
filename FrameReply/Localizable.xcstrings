@@ -133,6 +133,9 @@
     "%lld/10 messages" : {
 
     },
+    "Accessibility → Touch → Back Tap" : {
+
+    },
     "Add" : {
 
     },
@@ -140,6 +143,9 @@
 
     },
     "Add an observation" : {
+
+    },
+    "Add FrameReply Images" : {
 
     },
     "Add messages" : {
@@ -488,6 +494,12 @@
     "Copied text" : {
 
     },
+    "Copied Text" : {
+
+    },
+    "Copied-text walkthrough coming soon" : {
+
+    },
     "Copies this suggested reply" : {
 
     },
@@ -606,6 +618,9 @@
 
     },
     "Done" : {
+
+    },
+    "Choose **Double Tap** or **Triple Tap**, then select **FrameReply Images**." : {
 
     },
     "Double tap to edit, or swipe left to delete" : {
@@ -1272,6 +1287,9 @@
     "Finish Setup" : {
 
     },
+    "Follow the quick steps below for now." : {
+
+    },
     "Forget for this chat" : {
 
     },
@@ -1335,7 +1353,19 @@
     "Highest-quality interpretation and writing at the highest cost" : {
 
     },
+    "How to Use" : {
+
+    },
+    "If the messages don’t include sender names, use screenshots instead." : {
+
+    },
     "Image Shortcut" : {
+
+    },
+    "Image walkthrough coming soon" : {
+
+    },
+    "Images" : {
 
     },
     "Import copied messages" : {
@@ -1611,6 +1641,9 @@
     "Open Imported Chat" : {
 
     },
+    "Open iPhone **Settings**" : {
+
+    },
     "Opening FrameReply…" : {
 
     },
@@ -1627,6 +1660,9 @@
 
     },
     "Opens the photo library to select up to eight chat screenshots." : {
+
+    },
+    "Opens the shortcut installer" : {
 
     },
     "Optional: paste 3–10 messages you wrote, one per line." : {
@@ -2019,6 +2055,9 @@
     "Policies & Support" : {
 
     },
+    "Prevents it from covering screenshots." : {
+
+    },
     "Privacy & Data" : {
 
     },
@@ -2138,6 +2177,9 @@
           }
         }
       }
+    },
+    "Quick steps" : {
+
     },
     "Recent Chat" : {
 
@@ -2262,6 +2304,9 @@
     "Reply Number" : {
 
     },
+    "Required for Back Tap setup" : {
+
+    },
     "Reserved" : {
 
     },
@@ -2298,7 +2343,13 @@
     "Search chats..." : {
 
     },
+    "See How It Works" : {
+
+    },
     "Select Default Persona" : {
+
+    },
+    "Select messages." : {
 
     },
     "Select performance" : {
@@ -2343,13 +2394,22 @@
     "Set Up" : {
 
     },
+    "Set Up Back Tap" : {
+
+    },
     "Settings" : {
+
+    },
+    "Share" : {
 
     },
     "Shared or copied chat text with sender labels." : {
 
     },
     "Short" : {
+
+    },
+    "Shortcut guide" : {
 
     },
     "shortcut.error.with-reference" : {
@@ -2527,6 +2587,18 @@
     "Support" : {
 
     },
+    "Take screenshots of the conversation." : {
+
+    },
+    "Tap Copy. Go to the Home Screen, swipe down, then search FrameReply Text." : {
+
+    },
+    "Tap Share, then choose FrameReply Text." : {
+
+    },
+    "Tap the screenshot preview, tap Share, then choose FrameReply Images." : {
+
+    },
     "Teach It Your Voice" : {
 
     },
@@ -2587,6 +2659,9 @@
     "Try again." : {
 
     },
+    "Turn Off **Show Banner**" : {
+
+    },
     "Unavailable" : {
 
     },
@@ -2617,10 +2692,16 @@
     "Use Reply" : {
 
     },
+    "Use Reply copies it. Paste it in your chat." : {
+
+    },
     "Used as your name before" : {
 
     },
     "Uses this guidance once to create a new set of replies." : {
+
+    },
+    "Using Shortcuts" : {
 
     },
     "Very casual" : {

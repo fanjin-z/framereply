@@ -3,17 +3,32 @@ import SwiftUI
 struct ShortcutSetupSection: View {
     var showsHeader = true
 
-    @StateObject private var backTapTutorial = BackTapTutorialPlayerModel()
-    @State private var isBackTapTutorialRequested = false
+    @State private var isBackTapGuidePresented = false
+    @State private var isHowToUsePresented = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if showsHeader {
-                Text("Shortcuts")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                    .padding(.horizontal, 4)
-                    .frame(minHeight: 24)
+                HStack(spacing: 12) {
+                    Text("Shortcuts")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+
+                    Spacer()
+
+                    Button {
+                        isHowToUsePresented = true
+                    } label: {
+                        Label("How to Use", systemImage: "play.circle")
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(FrameReplyColor.primary)
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("shortcut-how-to")
+                }
+                .padding(.horizontal, 4)
+                .frame(minHeight: 24)
             }
 
             VStack(spacing: 0) {
@@ -36,7 +51,7 @@ struct ShortcutSetupSection: View {
                 divider
 
                 Button {
-                    startBackTapTutorial()
+                    isBackTapGuidePresented = true
                 } label: {
                     compactRow(
                         title: "Back Tap",
@@ -58,26 +73,14 @@ struct ShortcutSetupSection: View {
                     .fill(Color.white.opacity(0.46))
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .background {
-                if isBackTapTutorialRequested {
-                    BackTapTutorialSourceView(model: backTapTutorial)
-                        .opacity(0.001)
-                        .accessibilityHidden(true)
-                }
-            }
         }
-        .onDisappear {
-            backTapTutorial.stop()
+        .fullScreenCover(isPresented: $isBackTapGuidePresented) {
+            BackTapGuideView()
         }
-    }
-
-    private func startBackTapTutorial() {
-        isBackTapTutorialRequested = true
-        backTapTutorial.play()
-
-        Task { @MainActor in
-            await Task.yield()
-            await backTapTutorial.startPictureInPictureWhenPossible()
+        .sheet(isPresented: $isHowToUsePresented) {
+            ShortcutHowToView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
     }
 

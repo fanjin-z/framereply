@@ -31,6 +31,7 @@ final class BackTapTutorialPlayerModel: NSObject, ObservableObject {
     @Published private(set) var isPictureInPictureActive = false
 
     let player: AVQueuePlayer?
+    private(set) var allowsAutomaticPictureInPicture = true
     private var playerLooper: AVPlayerLooper?
     private var pictureInPictureController: AVPictureInPictureController?
 
@@ -59,7 +60,8 @@ final class BackTapTutorialPlayerModel: NSObject, ObservableObject {
         guard let controller = AVPictureInPictureController(playerLayer: playerLayer) else {
             return
         }
-        controller.canStartPictureInPictureAutomaticallyFromInline = true
+        controller.canStartPictureInPictureAutomaticallyFromInline =
+            allowsAutomaticPictureInPicture
         controller.delegate = self
         pictureInPictureController = controller
     }
@@ -70,33 +72,31 @@ final class BackTapTutorialPlayerModel: NSObject, ObservableObject {
         player.play()
     }
 
-    func startPictureInPictureWhenPossible() async {
-        for _ in 0..<10 {
-            guard Task.isCancelled == false else { return }
-            if pictureInPictureController?.isPictureInPicturePossible == true {
-                startPictureInPicture()
-                return
-            }
-            try? await Task.sleep(for: .milliseconds(200))
-        }
-    }
-
-    func startPictureInPicture() {
-        guard
-            let pictureInPictureController,
-            pictureInPictureController.isPictureInPicturePossible,
-            pictureInPictureController.isPictureInPictureActive == false
-        else {
-            return
-        }
-        pictureInPictureController.startPictureInPicture()
-    }
-
     func stop() {
         if pictureInPictureController?.isPictureInPictureActive == true {
             pictureInPictureController?.stopPictureInPicture()
         }
         player?.pause()
+        deactivateAudioSession()
+    }
+
+    func pauseForExternalNavigation() {
+        allowsAutomaticPictureInPicture = false
+        pictureInPictureController?.canStartPictureInPictureAutomaticallyFromInline = false
+        if pictureInPictureController?.isPictureInPictureActive == true {
+            pictureInPictureController?.stopPictureInPicture()
+        }
+        player?.pause()
+        deactivateAudioSession()
+    }
+
+    func resumeAfterExternalNavigation() {
+        allowsAutomaticPictureInPicture = true
+        pictureInPictureController?.canStartPictureInPictureAutomaticallyFromInline = true
+        play()
+    }
+
+    private func deactivateAudioSession() {
         try? AVAudioSession.sharedInstance().setActive(
             false,
             options: .notifyOthersOnDeactivation
