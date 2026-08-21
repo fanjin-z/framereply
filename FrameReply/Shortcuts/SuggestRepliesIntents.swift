@@ -408,7 +408,7 @@ struct SuggestRepliesFromChatImagesIntent: ShortcutReplyConfirmingIntent {
                 let add = IntentChoiceOption(title: AppStrings.Shortcut.addReplyGuidance)
                 let skip = IntentChoiceOption(title: AppStrings.Shortcut.skip)
                 let choice = try await requestChoice(
-                    between: [add, skip],
+                    between: [skip, add],
                     dialog: IntentDialog(AppStrings.Shortcut.replyGuidanceChoice)
                 )
                 if choice == add {
@@ -490,7 +490,7 @@ struct SuggestRepliesFromChatTextIntent:
                     let add = IntentChoiceOption(title: AppStrings.Shortcut.addReplyGuidance)
                     let skip = IntentChoiceOption(title: AppStrings.Shortcut.skip)
                     let choice = try await requestChoice(
-                        between: [add, skip],
+                        between: [skip, add],
                         dialog: IntentDialog(AppStrings.Shortcut.replyGuidanceChoice)
                     )
                     if choice == add {
