@@ -1,10 +1,12 @@
+
+
 # FrameReply
 
-> Stay in chat. Keep the thread
+![FrameReply — Stay in chat. Keep the thread.](docs/images/framereply-hero.png)
 
 **Join public beta:** [![Join on TestFlight](https://img.shields.io/badge/TestFlight-0D96F6?logo=appstore&logoColor=white)](https://testflight.apple.com/join/WhN35A6x)
 
-FrameReply is an open-source iPhone assistant that gives you two thoughtful reply ideas without pulling you out of the conversation. Run it through Shortcuts, carry forward chat history and person-specific context, and shape each draft around your goal and voice.
+FrameReply is an open-source iPhone chat assistant that delivers two context-aware reply ideas in an interactive Shortcuts snippet over your current messaging app. It remembers useful person-specific context, supports custom personas, and can learn your writing style from the messages you send.
 
 ## How it works
 
@@ -24,6 +26,8 @@ AI-generated suggestions are drafts. You stay in control of what gets sent.
 ### With shortcuts
 
 - **Add once:** In FrameReply, open **Settings → Shortcuts** and add **Image Shortcut** and **Text Shortcut**
+
+**Walkthrough videos:** [Image Shortcut](FrameReply/Resources/ShortcutImagesHowTo.mp4) · [Text Shortcut](FrameReply/Resources/ShortcutTextHowTo.mp4)
 
 #### Images
 
