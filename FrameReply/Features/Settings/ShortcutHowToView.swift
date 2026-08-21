@@ -33,13 +33,6 @@ enum ShortcutHowToKind: String, CaseIterable, Identifiable {
         }
     }
 
-    var placeholderTitle: LocalizedStringResource {
-        switch self {
-        case .images: "Image walkthrough coming soon"
-        case .text: "Copied-text walkthrough coming soon"
-        }
-    }
-
     var quickSteps: [LocalizedStringResource] {
         switch self {
         case .images:
@@ -286,66 +279,34 @@ struct ShortcutHowToView: View {
 private struct ShortcutHowToMediaView: View {
     let kind: ShortcutHowToKind
 
-    @State private var player: AVPlayer?
+    @State private var player: AVPlayer
 
     init(kind: ShortcutHowToKind) {
         self.kind = kind
-        let url = Bundle.main.url(
+        guard let url = Bundle.main.url(
             forResource: kind.mediaResourceName,
             withExtension: "mp4"
-        )
-        _player = State(initialValue: url.map(AVPlayer.init(url:)))
+        ) else {
+            preconditionFailure(
+                "Missing bundled shortcut walkthrough: \(kind.mediaResourceName).mp4"
+            )
+        }
+        _player = State(initialValue: AVPlayer(url: url))
     }
 
     var body: some View {
-        Group {
-            if let player {
-                VideoPlayer(player: player)
-                    .background(Color.black)
-            } else {
-                placeholder
+        VideoPlayer(player: player)
+            .background(Color.black)
+            .frame(width: 180, height: 370)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(FrameReplyColor.outlineVariant.opacity(0.45), lineWidth: 1)
             }
-        }
-        .frame(width: 180, height: 370)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(FrameReplyColor.outlineVariant.opacity(0.45), lineWidth: 1)
-        }
-        .frame(maxWidth: .infinity)
-        .accessibilityIdentifier("shortcut-how-to-media-\(kind.rawValue)")
-        .onDisappear {
-            player?.pause()
-        }
-    }
-
-    private var placeholder: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    FrameReplyColor.primaryFixed.opacity(0.86),
-                    FrameReplyColor.surfaceContainerHigh.opacity(0.9)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-
-            VStack(spacing: 12) {
-                Image(systemName: "video.badge.plus")
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundStyle(FrameReplyColor.primary)
-
-                Text(kind.placeholderTitle)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurface)
-
-                Text("Follow the quick steps below for now.")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+            .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("shortcut-how-to-media-\(kind.rawValue)")
+            .onDisappear {
+                player.pause()
             }
-            .multilineTextAlignment(.center)
-            .padding(24)
-        }
-        .accessibilityElement(children: .combine)
     }
 }
