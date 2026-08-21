@@ -1,4 +1,5 @@
 import AVKit
+import Combine
 import SwiftUI
 
 struct ShortcutHowToRoute: Identifiable {
@@ -277,25 +278,23 @@ struct ShortcutHowToView: View {
 }
 
 private struct ShortcutHowToMediaView: View {
+    @Environment(\.scenePhase) private var scenePhase
+
     let kind: ShortcutHowToKind
 
-    @State private var player: AVPlayer
+    @StateObject private var playerModel: ShortcutHowToMediaPlayerModel
 
     init(kind: ShortcutHowToKind) {
         self.kind = kind
-        guard let url = Bundle.main.url(
-            forResource: kind.mediaResourceName,
-            withExtension: "mp4"
-        ) else {
-            preconditionFailure(
-                "Missing bundled shortcut walkthrough: \(kind.mediaResourceName).mp4"
+        _playerModel = StateObject(
+            wrappedValue: ShortcutHowToMediaPlayerModel(
+                resourceName: kind.mediaResourceName
             )
-        }
-        _player = State(initialValue: AVPlayer(url: url))
+        )
     }
 
     var body: some View {
-        VideoPlayer(player: player)
+        VideoPlayer(player: playerModel.player)
             .background(Color.black)
             .frame(width: 180, height: 370)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -305,8 +304,47 @@ private struct ShortcutHowToMediaView: View {
             }
             .frame(maxWidth: .infinity)
             .accessibilityIdentifier("shortcut-how-to-media-\(kind.rawValue)")
-            .onDisappear {
-                player.pause()
+            .onAppear {
+                guard scenePhase == .active else { return }
+                playerModel.play()
             }
+            .onDisappear {
+                playerModel.pause()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active {
+                    playerModel.play()
+                } else {
+                    playerModel.pause()
+                }
+            }
+    }
+}
+
+@MainActor
+final class ShortcutHowToMediaPlayerModel: ObservableObject {
+    let player: AVQueuePlayer
+
+    private let playerLooper: AVPlayerLooper
+
+    init(resourceName: String, bundle: Bundle = .main) {
+        guard let url = bundle.url(forResource: resourceName, withExtension: "mp4") else {
+            preconditionFailure("Missing bundled shortcut walkthrough: \(resourceName).mp4")
+        }
+
+        let player = AVQueuePlayer()
+        self.player = player
+        playerLooper = AVPlayerLooper(
+            player: player,
+            templateItem: AVPlayerItem(url: url)
+        )
+    }
+
+    func play() {
+        player.play()
+    }
+
+    func pause() {
+        player.pause()
     }
 }
