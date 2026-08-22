@@ -57,16 +57,18 @@ struct MiniMaxClient: AIProviderAdapter {
     func validate(apiKey: String, model: ProviderModel) async throws {
         try requireSupported(model)
         var request = authorizedRequest(apiKey: apiKey)
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody(
-            model: model,
-            messages: [["role": "user", "content": "Reply exactly: OK."]],
-            maxCompletionTokens: ProviderRequestLimits.connectionCheckMaxToken
-        ))
+        request.httpBody = try JSONSerialization.data(
+            withJSONObject: requestBody(
+                model: model,
+                messages: [["role": "user", "content": "Reply exactly: OK."]],
+                maxCompletionTokens: ProviderRequestLimits.connectionCheckMaxToken
+            ))
 
         let (data, response) = try await perform(request)
         try validateHTTPResponse(response, data: data)
         let completion = try decodeResponse(data)
-        try validateProviderResponse(completion, httpStatus: (response as? HTTPURLResponse)?.statusCode)
+        try validateProviderResponse(
+            completion, httpStatus: (response as? HTTPURLResponse)?.statusCode)
         try validateReturnedModel(completion.model, requestedModel: model)
         try rejectFilteredCompletion(
             completion.choices?.first?.finishReason,
@@ -92,25 +94,27 @@ struct MiniMaxClient: AIProviderAdapter {
         let images = try analysisRequest.imageDataList.map(ScreenshotImagePayload.init(data:))
         let candidateIDs = Set(analysisRequest.candidates.map(\.id))
         let maxTokens = ProviderRequestLimits.chatImportMaxToken
-        let userContent: [[String: Any]] = images.map { image in
-            [
-                "type": "image_url",
-                "image_url": ["url": image.dataURL, "detail": "high"]
-            ]
-        } + [["type": "text", "text": ChatImportPrompt.input(for: analysisRequest)]]
+        let userContent: [[String: Any]] =
+            images.map { image in
+                [
+                    "type": "image_url",
+                    "image_url": ["url": image.dataURL, "detail": "high"]
+                ]
+            } + [["type": "text", "text": ChatImportPrompt.input(for: analysisRequest)]]
         let userMessageContent: Any =
             analysisRequest.sharedTranscript == nil
             ? userContent
             : ChatImportPrompt.input(for: analysisRequest)
         let attempt = 1
 
-        eventReporter.record(.providerAttempt(
-            traceID: analysisRequest.traceID,
-            provider: region.providerID,
-            model: model.rawValue,
-            attempt: attempt,
-            maxTokens: maxTokens
-        ))
+        eventReporter.record(
+            .providerAttempt(
+                traceID: analysisRequest.traceID,
+                provider: region.providerID,
+                model: model.rawValue,
+                attempt: attempt,
+                maxTokens: maxTokens
+            ))
 
         let body = requestBody(
             model: model,
@@ -214,18 +218,20 @@ struct MiniMaxClient: AIProviderAdapter {
                 content: choice?.message.content ?? String(data: data, encoding: .utf8),
                 includeRawContent: failure.kind == .schemaMismatch || failure.kind == .invalidJSON
             )
-            eventReporter.record(.structuredOutputFailure(
-                traceID: analysisRequest.traceID,
-                provider: region.providerID,
-                attempt: attempt,
-                kind: failure.kind,
-                codingPath: failure.codingPath
-            ))
-            throw ProviderConnectionError.structuredOutput(ProviderStructuredOutputError(
-                provider: region.providerID,
-                traceID: analysisRequest.traceID,
-                failure: failure
-            ))
+            eventReporter.record(
+                .structuredOutputFailure(
+                    traceID: analysisRequest.traceID,
+                    provider: region.providerID,
+                    attempt: attempt,
+                    kind: failure.kind,
+                    codingPath: failure.codingPath
+                ))
+            throw ProviderConnectionError.structuredOutput(
+                ProviderStructuredOutputError(
+                    provider: region.providerID,
+                    traceID: analysisRequest.traceID,
+                    failure: failure
+                ))
         }
     }
 
@@ -243,13 +249,14 @@ struct MiniMaxClient: AIProviderAdapter {
             for: generationRequest.task)
         let attempt = 1
 
-        eventReporter.record(.providerAttempt(
-            traceID: generationRequest.traceID,
-            provider: region.providerID,
-            model: model.rawValue,
-            attempt: attempt,
-            maxTokens: maxTokens
-        ))
+        eventReporter.record(
+            .providerAttempt(
+                traceID: generationRequest.traceID,
+                provider: region.providerID,
+                model: model.rawValue,
+                attempt: attempt,
+                maxTokens: maxTokens
+            ))
 
         let body = requestBody(
             model: model,
@@ -332,18 +339,20 @@ struct MiniMaxClient: AIProviderAdapter {
                 content: choice?.message.content ?? String(data: data, encoding: .utf8),
                 includeRawContent: failure.kind == .schemaMismatch || failure.kind == .invalidJSON
             )
-            eventReporter.record(.structuredOutputFailure(
-                traceID: generationRequest.traceID,
-                provider: region.providerID,
-                attempt: attempt,
-                kind: failure.kind,
-                codingPath: failure.codingPath
-            ))
-            throw ProviderConnectionError.structuredOutput(ProviderStructuredOutputError(
-                provider: region.providerID,
-                traceID: generationRequest.traceID,
-                failure: failure
-            ))
+            eventReporter.record(
+                .structuredOutputFailure(
+                    traceID: generationRequest.traceID,
+                    provider: region.providerID,
+                    attempt: attempt,
+                    kind: failure.kind,
+                    codingPath: failure.codingPath
+                ))
+            throw ProviderConnectionError.structuredOutput(
+                ProviderStructuredOutputError(
+                    provider: region.providerID,
+                    traceID: generationRequest.traceID,
+                    failure: failure
+                ))
         }
     }
 
@@ -429,12 +438,13 @@ struct MiniMaxClient: AIProviderAdapter {
         case 500..<600: throw ProviderConnectionError.providerUnavailable
         case 400, 404, 422:
             let error = try? JSONDecoder().decode(MiniMaxChatResponse.self, from: data)
-            throw ProviderConnectionError.invalidRequest(ProviderInvalidRequestError(
-                provider: region.providerID,
-                httpStatus: response.statusCode,
-                providerCode: error?.error?.code,
-                message: "\(region.platform.displayName) rejected an API parameter."
-            ))
+            throw ProviderConnectionError.invalidRequest(
+                ProviderInvalidRequestError(
+                    provider: region.providerID,
+                    httpStatus: response.statusCode,
+                    providerCode: error?.error?.code,
+                    message: "\(region.platform.displayName) rejected an API parameter."
+                ))
         default:
             throw ProviderConnectionError.invalidResponse(
                 "\(region.platform.displayName) returned HTTP \(response.statusCode).")
@@ -460,12 +470,13 @@ struct MiniMaxClient: AIProviderAdapter {
                 httpStatus: httpStatus ?? 200)
         }
         if response.inputSensitive == true || response.outputSensitive == true {
-            throw ProviderConnectionError.invalidRequest(ProviderInvalidRequestError(
-                provider: region.providerID,
-                httpStatus: httpStatus ?? 200,
-                providerCode: response.inputSensitive == true ? "1026" : "1027",
-                message: "\(region.platform.displayName) rejected sensitive content."
-            ))
+            throw ProviderConnectionError.invalidRequest(
+                ProviderInvalidRequestError(
+                    provider: region.providerID,
+                    httpStatus: httpStatus ?? 200,
+                    providerCode: response.inputSensitive == true ? "1026" : "1027",
+                    message: "\(region.platform.displayName) rejected sensitive content."
+                ))
         }
     }
 
@@ -481,12 +492,13 @@ struct MiniMaxClient: AIProviderAdapter {
 
     private func rejectFilteredCompletion(_ finishReason: String?, httpStatus: Int?) throws {
         guard finishReason == "content_filter" else { return }
-        throw ProviderConnectionError.invalidRequest(ProviderInvalidRequestError(
-            provider: region.providerID,
-            httpStatus: httpStatus ?? 200,
-            providerCode: "content_filter",
-            message: "\(region.platform.displayName) filtered the response."
-        ))
+        throw ProviderConnectionError.invalidRequest(
+            ProviderInvalidRequestError(
+                provider: region.providerID,
+                httpStatus: httpStatus ?? 200,
+                providerCode: "content_filter",
+                message: "\(region.platform.displayName) filtered the response."
+            ))
     }
 
     private func throwProviderStatus(
@@ -504,12 +516,13 @@ struct MiniMaxClient: AIProviderAdapter {
         case 1000, 1001, 1013, 1024, 1033:
             throw ProviderConnectionError.providerUnavailable
         case 1026, 1027, 1039, 2013:
-            throw ProviderConnectionError.invalidRequest(ProviderInvalidRequestError(
-                provider: region.providerID,
-                httpStatus: httpStatus,
-                providerCode: String(statusCode),
-                message: "\(region.platform.displayName) rejected the request."
-            ))
+            throw ProviderConnectionError.invalidRequest(
+                ProviderInvalidRequestError(
+                    provider: region.providerID,
+                    httpStatus: httpStatus,
+                    providerCode: String(statusCode),
+                    message: "\(region.platform.displayName) rejected the request."
+                ))
         default:
             throw ProviderConnectionError.invalidResponse(
                 message ?? "\(region.platform.displayName) returned provider error \(statusCode).")
@@ -522,14 +535,15 @@ struct MiniMaxClient: AIProviderAdapter {
         attempt: Int,
         category: String
     ) {
-        eventReporter.record(.contractValidation(
-            traceID: traceID,
-            provider: region.providerID,
-            contract: contract.name,
-            version: contract.version,
-            attempt: attempt,
-            category: category
-        ))
+        eventReporter.record(
+            .contractValidation(
+                traceID: traceID,
+                provider: region.providerID,
+                contract: contract.name,
+                version: contract.version,
+                attempt: attempt,
+                category: category
+            ))
     }
 
     private func recordResponse(
@@ -543,22 +557,23 @@ struct MiniMaxClient: AIProviderAdapter {
         byteCount: Int,
         usage: MiniMaxUsage?
     ) {
-        eventReporter.record(.providerResponse(
-            traceID: traceID,
-            provider: region.providerID,
-            model: model.rawValue,
-            attempt: attempt,
-            durationMilliseconds: duration,
-            httpStatus: response?.statusCode,
-            requestID: response?.value(forHTTPHeaderField: "x-request-id")
-                ?? response?.value(forHTTPHeaderField: "request-id")
-                ?? responseID,
-            finishReason: finishReason,
-            byteCount: byteCount,
-            inputTokens: usage?.promptTokens,
-            outputTokens: usage?.completionTokens,
-            cachedInputTokens: usage?.promptTokenDetails?.cachedTokens
-        ))
+        eventReporter.record(
+            .providerResponse(
+                traceID: traceID,
+                provider: region.providerID,
+                model: model.rawValue,
+                attempt: attempt,
+                durationMilliseconds: duration,
+                httpStatus: response?.statusCode,
+                requestID: response?.value(forHTTPHeaderField: "x-request-id")
+                    ?? response?.value(forHTTPHeaderField: "request-id")
+                    ?? responseID,
+                finishReason: finishReason,
+                byteCount: byteCount,
+                inputTokens: usage?.promptTokens,
+                outputTokens: usage?.completionTokens,
+                cachedInputTokens: usage?.promptTokenDetails?.cachedTokens
+            ))
     }
 }
 

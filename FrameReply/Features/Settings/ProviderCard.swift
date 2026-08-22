@@ -51,7 +51,8 @@ struct ProviderCard: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Use \(provider.name)")
                 .accessibilityValue(isActive ? "Selected" : "Not selected")
-                .accessibilityHint(isActive ? "Current model provider" : "Makes this provider active")
+                .accessibilityHint(
+                    isActive ? "Current model provider" : "Makes this provider active")
 
                 Menu {
                     Button(

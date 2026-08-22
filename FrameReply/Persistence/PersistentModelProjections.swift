@@ -18,7 +18,8 @@ extension ChatRecord {
         if let title {
             return title
         }
-        let fallback = conversationKind == .group
+        let fallback =
+            conversationKind == .group
             ? AppStrings.Chat.groupTitleFallback
             : AppStrings.Chat.titleFallback
         return AppStrings.resolve(fallback, locale: locale)

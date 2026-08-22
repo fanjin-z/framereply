@@ -57,7 +57,8 @@ nonisolated enum AppStrings {
             LocalizedStringResource(
                 "chat.preview.sender-message",
                 defaultValue: "\(sender): \(message)",
-                comment: "Group chat preview. First value is the sender label; second is the message."
+                comment:
+                    "Group chat preview. First value is the sender label; second is the message."
             )
         }
 
@@ -166,7 +167,8 @@ nonisolated enum AppStrings {
             static let incompatibleKinds = LocalizedStringResource(
                 "error.chat.incompatible-kinds",
                 defaultValue: "A group chat can’t be merged with a one-to-one chat.",
-                comment: "Shown when importing or merging chats with incompatible conversation types."
+                comment:
+                    "Shown when importing or merging chats with incompatible conversation types."
             )
             static let senderLabelUnavailable = LocalizedStringResource(
                 "error.chat.sender-label-unavailable",

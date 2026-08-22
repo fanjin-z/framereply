@@ -34,7 +34,8 @@ struct GlassPanel: ViewModifier {
                             )
                     }
                     .shadow(
-                        color: FrameReplyColor.primaryContainer.opacity(0.16), radius: 24, x: 0, y: 16)
+                        color: FrameReplyColor.primaryContainer.opacity(0.16), radius: 24, x: 0,
+                        y: 16)
             }
     }
 }

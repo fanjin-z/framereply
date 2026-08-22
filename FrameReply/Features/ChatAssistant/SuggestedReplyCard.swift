@@ -278,7 +278,7 @@ private final class TrailingCopyTextView: UIView {
                 attributes: [
                     .font: bodyFont,
                     .foregroundColor: UIColor(FrameReplyColor.onSurface),
-                    .paragraphStyle: paragraphStyle,
+                    .paragraphStyle: paragraphStyle
                 ]
             )
         )
@@ -314,7 +314,8 @@ private final class TrailingCopyTextView: UIView {
                 return transformed
             }
         copyButton.configuration = configuration
-        copyButton.accessibilityLabel = isCopied
+        copyButton.accessibilityLabel =
+            isCopied
             ? String(localized: "Copied")
             : String(localized: "Copy")
     }

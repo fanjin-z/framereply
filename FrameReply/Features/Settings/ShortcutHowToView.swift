@@ -62,7 +62,8 @@ enum ShortcutHowToKind: String, CaseIterable, Identifiable {
                 ShortcutHowToRoute(
                     id: .copy,
                     title: "Copy",
-                    instruction: "Tap Copy. Go to the Home Screen, swipe down, then search FrameReply Text.",
+                    instruction:
+                        "Tap Copy. Go to the Home Screen, swipe down, then search FrameReply Text.",
                     systemImage: "doc.on.clipboard"
                 )
             ]

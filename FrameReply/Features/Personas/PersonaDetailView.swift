@@ -178,7 +178,8 @@ struct PersonaDetailView: View {
             .padding(14)
             .background(
                 FrameReplyColor.secondaryContainer.opacity(0.2),
-                in: RoundedRectangle(cornerRadius: 18))
+                in: RoundedRectangle(cornerRadius: 18)
+            )
             .padding(.horizontal, 22)
             .padding(.bottom, 22)
 
@@ -214,7 +215,8 @@ struct PersonaDetailView: View {
                             observation, text: observationDraft)
                         editingID = nil
                     }.disabled(
-                        observationDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        observationDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    )
                     .frame(minWidth: 72, minHeight: 44)
                 }
                 .font(.system(size: 13, weight: .bold, design: .rounded))
@@ -241,51 +243,52 @@ struct PersonaDetailView: View {
                 actionSystemImage: "trash",
                 actionTint: .red,
                 actionAccessibilityIdentifier:
-                    "persona-observation-remove-\(observation.id.uuidString)"
-            ) {
-                VStack(alignment: .leading, spacing: 6) {
-                    observationMetadata(observation)
+                    "persona-observation-remove-\(observation.id.uuidString)",
+                content: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        observationMetadata(observation)
 
-                    Text(verbatim: observation.localizedText)
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
-                        .foregroundStyle(FrameReplyColor.onSurface)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .padding(.horizontal, 22)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    if revealedObservationID == observation.id {
-                        revealedObservationID = nil
-                    } else {
+                        Text(verbatim: observation.localizedText)
+                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                            .foregroundStyle(FrameReplyColor.onSurface)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if revealedObservationID == observation.id {
+                            revealedObservationID = nil
+                        } else {
+                            beginEditing(observation)
+                        }
+                    }
+                    .compactSwipeRowSurface(showsSeparator: showsSeparator)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityLabel("Observation: \(observation.localizedText)")
+                    .accessibilityHint("Double tap to edit, or swipe left to remove")
+                    .accessibilityIdentifier(
+                        "persona-observation-row-\(observation.id.uuidString)"
+                    )
+                    .accessibilityAction(named: "Edit") {
                         beginEditing(observation)
                     }
-                }
-                .compactSwipeRowSurface(showsSeparator: showsSeparator)
-                .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.isButton)
-                .accessibilityLabel("Observation: \(observation.localizedText)")
-                .accessibilityHint("Double tap to edit, or swipe left to remove")
-                .accessibilityIdentifier(
-                    "persona-observation-row-\(observation.id.uuidString)"
-                )
-                .accessibilityAction(named: "Edit") {
-                    beginEditing(observation)
-                }
-                .accessibilityAction(named: "Remove") {
-                    archive(observation)
-                }
-                .contextMenu {
-                    Button("Edit", systemImage: "pencil") {
-                        beginEditing(observation)
-                    }
-                    Button("Remove", systemImage: "trash", role: .destructive) {
+                    .accessibilityAction(named: "Remove") {
                         archive(observation)
                     }
+                    .contextMenu {
+                        Button("Edit", systemImage: "pencil") {
+                            beginEditing(observation)
+                        }
+                        Button("Remove", systemImage: "trash", role: .destructive) {
+                            archive(observation)
+                        }
+                    }
                 }
-            }
+            )
         }
     }
 

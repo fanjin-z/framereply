@@ -132,11 +132,11 @@ struct ChatsView: View {
                     message: importErrorMessage,
                     onDismiss: dismissImportError
                 )
-                    .listRowInsets(
-                        EdgeInsets(top: 6, leading: 24, bottom: 6, trailing: 24)
-                    )
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                .listRowInsets(
+                    EdgeInsets(top: 6, leading: 24, bottom: 6, trailing: 24)
+                )
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
 
             if importModel.isLoading {

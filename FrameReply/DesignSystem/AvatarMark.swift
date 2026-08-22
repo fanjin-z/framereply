@@ -24,7 +24,9 @@ struct AvatarMark: View {
                 .overlay {
                     Circle().stroke(Color.white.opacity(0.72), lineWidth: 2)
                 }
-                .shadow(color: FrameReplyColor.primaryContainer.opacity(0.22), radius: 14, x: 0, y: 8)
+                .shadow(
+                    color: FrameReplyColor.primaryContainer.opacity(0.22), radius: 14, x: 0, y: 8
+                )
                 .overlay {
                     if let symbolName {
                         Image(systemName: symbolName)
@@ -35,7 +37,8 @@ struct AvatarMark: View {
                             .font(.system(size: size * 0.28, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                             .shadow(
-                                color: FrameReplyColor.deepNavy.opacity(0.32), radius: 2, x: 0, y: 1)
+                                color: FrameReplyColor.deepNavy.opacity(0.32), radius: 2, x: 0, y: 1
+                            )
                     }
                 }
                 .frame(width: size, height: size)

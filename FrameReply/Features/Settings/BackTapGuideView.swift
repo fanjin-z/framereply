@@ -99,11 +99,13 @@ struct BackTapGuideView: View {
             Spacer(minLength: 8)
 
             Text(trailingTitle)
-                .font(.system(
-                    size: isAvailable ? 13 : 11,
-                    weight: isAvailable ? .bold : .semibold,
-                    design: .rounded
-                ))
+                .font(
+                    .system(
+                        size: isAvailable ? 13 : 11,
+                        weight: isAvailable ? .bold : .semibold,
+                        design: .rounded
+                    )
+                )
                 .foregroundStyle(
                     isAvailable ? FrameReplyColor.primary : FrameReplyColor.outline
                 )

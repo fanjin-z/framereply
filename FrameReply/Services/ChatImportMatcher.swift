@@ -33,7 +33,8 @@ enum ChatImportMatcher {
         let titleWasObserved =
             (analysis.titleSource == .header || analysis.titleSource == .participantLabel)
             && !normalizedTitle.isEmpty
-        let sameLabelCandidates = titleWasObserved
+        let sameLabelCandidates =
+            titleWasObserved
             ? candidates.filter { $0.identityLabelKeys.contains(normalizedTitle) }
             : []
 
@@ -68,7 +69,8 @@ enum ChatImportMatcher {
             titleWasObserved && candidate.identityLabelKeys.contains(normalizedTitle)
 
         if crossesKnownKinds {
-            let mayPromoteDirectCandidate = analysis.conversationKind != .group
+            let mayPromoteDirectCandidate =
+                analysis.conversationKind != .group
                 || candidate.conversationKind != .direct
                 || analysis.hasStrongGroupEvidence
             if analysis.matchConfidence >= automaticMatchThreshold,

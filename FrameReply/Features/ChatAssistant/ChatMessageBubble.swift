@@ -49,7 +49,8 @@ struct ChatMessageBubble: View {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(bubbleColor)
                     .shadow(
-                        color: FrameReplyColor.primaryContainer.opacity(0.08), radius: 14, x: 0, y: 8)
+                        color: FrameReplyColor.primaryContainer.opacity(0.08), radius: 14, x: 0,
+                        y: 8)
             }
 
             if !message.isFromUser || message.isSenderUnknown {

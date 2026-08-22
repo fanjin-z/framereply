@@ -55,7 +55,8 @@ struct ShortcutSetupSection: View {
                 } label: {
                     compactRow(
                         title: "Back Tap",
-                        subtitle: "Double- or triple-tap the back of your iPhone to import screenshots",
+                        subtitle:
+                            "Double- or triple-tap the back of your iPhone to import screenshots",
                         symbol: "hand.tap",
                         trailing: AnyView(
                             Text("Set Up")

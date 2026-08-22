@@ -1141,7 +1141,8 @@ final class ChatRepository {
             targetChat.conversationKind = resolvedKind
         }
 
-        var reviewState = targetChat.importReviewState
+        var reviewState =
+            targetChat.importReviewState
             ?? ChatImportReviewState(
                 identityStatus: matchedExisting ? .confirmed : .needsReview
             )
@@ -1826,7 +1827,8 @@ final class ChatRepository {
 
     private func makeProvisionalChat(from analysis: ChatImportAnalysis) -> ChatRecord {
         let observedTitle = IdentityLabelPolicy.displayLabel(analysis.conversationTitle)
-        let title = analysis.conversationKind == .group
+        let title =
+            analysis.conversationKind == .group
             ? (analysis.titleSource == .header ? observedTitle : nil)
             : observedTitle
         let participant =
@@ -1931,7 +1933,8 @@ final class ChatRepository {
                 message.senderName = cleanedName
             }
 
-            changed = changed
+            changed =
+                changed
                 || message.senderKind != previousKind
                 || message.senderName != previousName
         }
@@ -2052,7 +2055,8 @@ final class ChatRepository {
         let fallbackParticipantName =
             IdentityLabelPolicy.displayLabel(chat.title)
             ?? identityContext.participantAliases.first?.displayLabel
-        let knownParticipantNames = identityContext.participantAliases.map(\.displayLabel)
+        let knownParticipantNames =
+            identityContext.participantAliases.map(\.displayLabel)
             + messages.compactMap { message in
                 guard message.senderKind != "user" else { return nil }
                 return IdentityLabelPolicy.displayLabel(message.senderName)
@@ -2063,7 +2067,8 @@ final class ChatRepository {
             case "user":
                 message.senderName = nil
             case "other_participant", "group_participant":
-                let name = ParticipantLabelNormalizer.displayLabel(message.senderName)
+                let name =
+                    ParticipantLabelNormalizer.displayLabel(message.senderName)
                     ?? ParticipantLabelNormalizer.displayLabel(fallbackParticipantName)
                 message.senderKind = name == nil ? "unknown" : "group_participant"
                 message.senderName = name
