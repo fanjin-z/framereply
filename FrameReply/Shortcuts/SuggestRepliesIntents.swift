@@ -181,12 +181,23 @@ private nonisolated enum EndToEndShortcutSupport {
                 localization: localization
             )
         } catch let error as ProviderConnectionError {
+            try ShortcutErrorSupport.rethrowNetworkFailure(
+                error,
+                traceID: prepared.traceID,
+                stage: .replyGeneration
+            )
             return ShortcutResponseBuilder.success(
                 outcome,
                 replyErrorCode: error.shortcutErrorCode,
                 localization: localization
             )
         } catch {
+            ChatImportDebugLogger.caughtError(
+                error,
+                diagnosticID: prepared.traceID.diagnosticID,
+                stage: .replyGeneration,
+                context: "end_to_end_reply_generation"
+            )
             return ShortcutResponseBuilder.success(
                 outcome,
                 replyErrorCode: "reply_generation_failed",
@@ -200,6 +211,12 @@ private nonisolated enum EndToEndShortcutSupport {
             throw CancellationError()
         }
         if let appIntentError = error as? AppIntentError {
+            ChatImportDebugLogger.caughtError(
+                error,
+                diagnosticID: traceID.diagnosticID,
+                stage: .shortcut,
+                context: "end_to_end_app_intent"
+            )
             throw appIntentError
         }
         if let error = error as? ChatImageIntentInputError {
@@ -221,6 +238,11 @@ private nonisolated enum EndToEndShortcutSupport {
             )
         }
         if let error = error as? ProviderConnectionError {
+            try ShortcutErrorSupport.rethrowNetworkFailure(
+                error,
+                traceID: traceID,
+                stage: .provider
+            )
             throw ShortcutExecutionError(
                 message: error.localizedDescription,
                 diagnosticID: traceID.diagnosticID
@@ -229,6 +251,12 @@ private nonisolated enum EndToEndShortcutSupport {
         if let error = error as? ShortcutExecutionError {
             throw error
         }
+        ChatImportDebugLogger.caughtError(
+            error,
+            diagnosticID: traceID.diagnosticID,
+            stage: .shortcut,
+            context: "end_to_end_unhandled"
+        )
         throw ShortcutExecutionError(
             message: error.localizedDescription,
             diagnosticID: traceID.diagnosticID
@@ -352,6 +380,12 @@ extension ShortcutReplyConfirmingIntent {
             return .value(reply)
         } catch {
             ShortcutReplySelectionStore.shared.end(sessionID: sessionID)
+            ChatImportDebugLogger.caughtError(
+                error,
+                diagnosticID: response.payload.diagnosticID,
+                stage: .shortcut,
+                context: "reply_confirmation"
+            )
             throw error
         }
     }

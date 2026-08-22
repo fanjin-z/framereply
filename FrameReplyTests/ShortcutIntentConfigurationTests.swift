@@ -1,3 +1,4 @@
+import AppIntents
 import XCTest
 
 @testable import FrameReply
@@ -76,6 +77,35 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
                 errorCode
             )
         }
+    }
+
+    func testNetworkFailuresUseTheSystemAppIntentNetworkError() {
+        let traceID = ImportTraceID()
+
+        XCTAssertThrowsError(
+            try ShortcutErrorSupport.rethrowNetworkFailure(
+                .networkFailure("The network connection was lost."),
+                traceID: traceID,
+                stage: .provider
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? AppIntentError,
+                AppIntentError.Unrecoverable.networkFailure
+            )
+        }
+
+        XCTAssertNoThrow(
+            try ShortcutErrorSupport.rethrowNetworkFailure(
+                .providerUnavailable,
+                traceID: traceID,
+                stage: .provider
+            )
+        )
+        XCTAssertEqual(
+            ProviderConnectionError.networkFailure("offline").shortcutErrorCode,
+            "provider_network_failure"
+        )
     }
 
     @MainActor

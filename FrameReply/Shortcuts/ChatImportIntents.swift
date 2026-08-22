@@ -147,6 +147,12 @@ nonisolated enum ChatImportIntentSupport {
             throw CancellationError()
         }
         if let appIntentError = error as? AppIntentError {
+            ChatImportDebugLogger.caughtError(
+                error,
+                diagnosticID: traceID.diagnosticID,
+                stage: .shortcut,
+                context: "import_app_intent"
+            )
             lifecycleReporter.record(
                 .inputCancelled,
                 operationID: traceID.value,
@@ -164,6 +170,11 @@ nonisolated enum ChatImportIntentSupport {
             )
         }
         if let providerError = error as? ProviderConnectionError {
+            try ShortcutErrorSupport.rethrowNetworkFailure(
+                providerError,
+                traceID: traceID,
+                stage: .provider
+            )
             throw ShortcutExecutionError(
                 message: providerError.localizedDescription,
                 diagnosticID: traceID.diagnosticID
@@ -195,10 +206,33 @@ nonisolated enum ChatImportIntentSupport {
         eventReporter.record(
             .importFailed(traceID: traceID, stage: .persistence, errorCode: "import_failed")
         )
+        ChatImportDebugLogger.caughtError(
+            error,
+            diagnosticID: traceID.diagnosticID,
+            stage: .persistence,
+            context: "import_unhandled"
+        )
         throw ShortcutExecutionError(
             message: persistenceMessage,
             diagnosticID: traceID.diagnosticID
         )
+    }
+}
+
+nonisolated enum ShortcutErrorSupport {
+    static func rethrowNetworkFailure(
+        _ error: ProviderConnectionError,
+        traceID: ImportTraceID,
+        stage: ImportStage
+    ) throws {
+        guard case .networkFailure = error else { return }
+        ChatImportDebugLogger.caughtError(
+            error,
+            diagnosticID: traceID.diagnosticID,
+            stage: stage,
+            context: "provider_network"
+        )
+        throw AppIntentError.Unrecoverable.networkFailure
     }
 }
 

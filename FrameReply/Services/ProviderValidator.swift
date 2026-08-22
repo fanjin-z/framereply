@@ -84,6 +84,8 @@ nonisolated enum ProviderConnectionError: LocalizedError, Sendable {
         switch self {
         case .invalidRequest:
             "provider_invalid_request"
+        case .networkFailure:
+            "provider_network_failure"
         case .structuredOutput(let error):
             error.failure.kind.shortcutErrorCode
         default:

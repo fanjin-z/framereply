@@ -393,6 +393,11 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                 snippetIntent: EmptySnippetIntent()
             )
         } catch let error as ProviderConnectionError {
+            try ShortcutErrorSupport.rethrowNetworkFailure(
+                error,
+                traceID: traceID,
+                stage: .replyGeneration
+            )
             eventReporter.record(
                 .importFailed(
                     traceID: traceID, stage: .replyGeneration, errorCode: error.shortcutErrorCode))
@@ -407,6 +412,12 @@ struct GenerateSuggestedRepliesIntent: AppIntent {
                 snippetIntent: EmptySnippetIntent()
             )
         } catch {
+            ChatImportDebugLogger.caughtError(
+                error,
+                diagnosticID: traceID.diagnosticID,
+                stage: .replyGeneration,
+                context: "generate_replies_unhandled"
+            )
             eventReporter.record(
                 .importFailed(
                     traceID: traceID, stage: .replyGeneration, errorCode: "reply_generation_failed")

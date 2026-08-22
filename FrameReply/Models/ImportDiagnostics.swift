@@ -194,6 +194,28 @@ nonisolated struct ShortcutLifecycleReporter: Sendable {
 }
 
 nonisolated enum ChatImportDebugLogger {
+    static func caughtError(
+        _ error: Error,
+        diagnosticID: String,
+        stage: ImportStage,
+        context: String
+    ) {
+        #if DEBUG
+            let nsError = error as NSError
+            Swift.print(
+                "[FrameReply][caught-error] trace=\(diagnosticID) stage=\(stage.rawValue) context=\(context) type=\(String(reflecting: type(of: error))) domain=\(nsError.domain) code=\(nsError.code)"
+            )
+            Swift.print(
+                "[FrameReply][caught-error-detail] localized=\(nsError.localizedDescription) value=\(String(reflecting: error))"
+            )
+            if let underlyingError = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
+                Swift.print(
+                    "[FrameReply][caught-error-underlying] domain=\(underlyingError.domain) code=\(underlyingError.code) localized=\(underlyingError.localizedDescription)"
+                )
+            }
+        #endif
+    }
+
     static func structuredOutputRecovery(
         _ recoveries: [StructuredOutputFieldRecovery],
         traceID: ImportTraceID,
