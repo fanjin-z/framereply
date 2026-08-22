@@ -13,21 +13,51 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
         XCTAssertFalse(SuggestRepliesFromChatTextIntent.openAppWhenRun)
         XCTAssertFalse(ShortcutRepliesConfirmationSnippetIntent.isDiscoverable)
         XCTAssertFalse(ShortcutImportReviewSnippetIntent.isDiscoverable)
+        XCTAssertFalse(ShortcutNoReplySnippetIntent.isDiscoverable)
         XCTAssertFalse(SelectShortcutReplyIntent.isDiscoverable)
     }
 
-    func testReplyConfirmationStateRoutesChoicesWaitReviewAndFailures() throws {
+    func testReplyConfirmationStateRoutesChoicesNoReplyReviewAndFailures() throws {
         XCTAssertEqual(
             ShortcutReplyConfirmationState(
                 response: response(replies: ["First", "Second"], reviewRequired: true)
             ),
             .replyChoices(["First", "Second"])
         )
+        let generatedNoReplyResponse = response(
+            replies: [],
+            dialog: "Wait for their response."
+        )
+        let generatedNoReplyPresentation = ShortcutNoReplyPresentation(
+            response: generatedNoReplyResponse
+        )
+        XCTAssertEqual(
+            ShortcutReplyConfirmationState(response: generatedNoReplyResponse),
+            .noReply(generatedNoReplyPresentation)
+        )
+        XCTAssertEqual(generatedNoReplyPresentation.chatID, "chat-123")
+        XCTAssertFalse(generatedNoReplyPresentation.reviewRequired)
+
+        let cachedNoReplyResponse = response(
+            replies: [],
+            reviewRequired: true,
+            replyStatus: .cached
+        )
+        XCTAssertEqual(
+            ShortcutReplyConfirmationState(response: cachedNoReplyResponse),
+            .noReply(ShortcutNoReplyPresentation(response: cachedNoReplyResponse))
+        )
         XCTAssertEqual(
             ShortcutReplyConfirmationState(
-                response: response(replies: [], dialog: "Wait for their response.")
+                response: response(replies: [], replyStatus: .failed)
             ),
-            .waitRecommendation("Wait for their response.")
+            .unavailable
+        )
+        XCTAssertEqual(
+            ShortcutReplyConfirmationState(
+                response: response(replies: nil)
+            ),
+            .unavailable
         )
 
         let reviewResponse = response(
@@ -77,6 +107,27 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
                 errorCode
             )
         }
+    }
+
+    func testNoReplyResultUsesCompactNavigableCopyAndEmptyOutput() {
+        let message = ShortcutNoReplyResult.message(locale: Locale(identifier: "en"))
+        let snippet = ShortcutNoReplySnippet(
+            message: message,
+            chatID: "chat-123",
+            reviewRequired: false
+        )
+        let snippetWithoutChat = ShortcutNoReplySnippet(
+            message: message,
+            chatID: " \n",
+            reviewRequired: false
+        )
+
+        XCTAssertEqual(message, "No reply needed right now.")
+        XCTAssertEqual(snippet.accessibilityText, message)
+        XCTAssertTrue(snippet.showsOpenChatAction)
+        XCTAssertEqual(snippet.navigationAccessibilityText, "Open Chat")
+        XCTAssertFalse(snippetWithoutChat.showsOpenChatAction)
+        XCTAssertEqual(ShortcutNoReplyResult.output, "")
     }
 
     func testNetworkFailuresUseTheSystemAppIntentNetworkError() {
@@ -223,9 +274,12 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
         duplicate: Bool = false,
         message: String = "Imported",
         dialog: String = "Imported",
+        replyStatus: ShortcutReplyStatus? = nil,
         replyErrorCode: String? = nil
     ) -> ShortcutResponsePresentation {
-        ShortcutResponsePresentation(
+        let resolvedReplyStatus =
+            replyStatus ?? (replies == nil ? .failed : .generated)
+        return ShortcutResponsePresentation(
             payload: ShortcutResponsePayload(
                 status: .success,
                 message: message,
@@ -240,8 +294,8 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
                 insertedMessageCount: 9,
                 errorCode: nil,
                 suggestedReplies: replies,
-                replyStatus: replies == nil ? .failed : .generated,
-                replyErrorCode: replies == nil
+                replyStatus: resolvedReplyStatus,
+                replyErrorCode: resolvedReplyStatus == .failed
                     ? (replyErrorCode ?? "reply_generation_failed") : nil
             ),
             dialog: dialog

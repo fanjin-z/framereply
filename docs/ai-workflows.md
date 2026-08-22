@@ -115,7 +115,7 @@ flowchart LR
     Current{Inputs still current?}
     Evidence[Apply evidence gates]
     Durable[Persist safe durable state]
-    Replies[Return two replies]
+    Replies[Return two replies<br/>or a no-reply result]
 
     Grounding --> Fingerprint --> Cache
     Cache -->|Yes| Replies

@@ -33,10 +33,15 @@ sequenceDiagram
     end
     Action->>Store: Commit analyzed messages
     Action->>Provider: Generate replies with one-use context
-    Action-->>Shortcut: Branded reply confirmation
-    Shortcut-->>Action: Select reply and confirm Use Reply
-    Action-->>Shortcut: One complete reply string
-    Shortcut-->>Shortcut: Copy reply to Clipboard
+    alt Replies are ready
+        Action-->>Shortcut: Branded reply confirmation
+        Shortcut-->>Action: Select reply and confirm Use Reply
+        Action-->>Shortcut: One complete reply string
+        Shortcut-->>Shortcut: Copy reply to Clipboard
+    else No reply is needed
+        Action-->>Shortcut: No-reply result with Open Chat
+        Shortcut-->>Shortcut: Copy empty result
+    end
 ```
 
 The new actions pass context directly to reply generation. Context never becomes chat history, memory, or persona learning. Image analysis begins before the context choice is complete. Text analysis first verifies that every message has sender metadata, then offers the context choice. Canceling before persistence saves nothing.
@@ -44,6 +49,8 @@ The new actions pass context directly to reply generation. Context never becomes
 Import and reply generation are separate outcomes. A saved import remains successful when reply generation is unavailable or fails.
 
 The two published personal shortcuts use **Suggest Replies from Chat Images** and **Suggest Replies from Chat Text**. Each action displays a branded confirmation snippet without opening FrameReply. The first reply is initially selected; tapping either reply moves the checkmark and strengthens that card’s outline. **Use Reply** returns only that complete, untruncated reply to the shortcut. The next native **Copy to Clipboard** action copies it.
+
+When no reply is needed, the actions show **No reply needed right now.** and return an empty string, so no advisory text is copied. Preserving the existing clipboard requires guarding Copy in the published shortcuts.
 
 The snippet’s header action opens the imported chat. When the import needs review, it opens the Review Import flow; otherwise it opens the chat normally. Opening FrameReply intentionally leaves the current app and abandons that reply-selection confirmation. Normal selection and copying remain entirely in the Shortcuts overlay.
 
@@ -111,16 +118,15 @@ Automation builders can turn **Ask for Context** off or connect a fixed or varia
 
 1. Build or update both shortcuts on the team-controlled device.
 2. Confirm the image shortcut accepts Images only, handles shared and no-input runs, and preserves multiple selected images.
-3. Confirm both shortcuts show one branded confirmation snippet, update the selected card, return the complete reply after **Use Reply**, and copy it through the native clipboard action.
-4. Confirm normal reply selection never opens FrameReply and never shows a result snippet with a Done button.
-5. Confirm the header action opens the correct imported chat and uses Review Import routing when required.
-6. Confirm an unavailable reply result stops before **Copy to Clipboard** instead of clearing or replacing the clipboard.
-7. Confirm the text shortcut accepts Text only, imports labeled shared or copied text, and reads the clipboard on a normal launch.
-8. Confirm metadata-poor text shows the compact cancellation prompt, saves nothing, and stops before **Copy to Clipboard**. Verify WhatsApp and Telegram copied-message imports, and Telegram direct sharing, on a physical device.
-9. For each shortcut, open **Share**, tap **Copy iCloud Link**, then tap **Copy Link**. Confirm the URL has the form `https://www.icloud.com/shortcuts/<identifier>`.
-10. Install each link on a device where that shortcut is not already installed and run it end to end.
-11. Add only the two verified URLs to `ShortcutInstallationCatalog`: `images` for **FrameReply Images** and `text` for **FrameReply Text**.
-12. Export fresh recovery copies after any workflow change.
+3. Confirm generated replies can be selected, return complete text after **Use Reply**, and open the correct chat or Review Import flow from the header.
+4. Confirm no-reply results show **No reply needed right now.**, open the correct chat, copy no advisory text, and leave the clipboard empty.
+5. Confirm unavailable replies stop before **Copy to Clipboard**.
+6. Confirm the text shortcut accepts Text only, imports labeled shared or copied text, and reads the clipboard on a normal launch.
+7. Confirm metadata-poor text shows the cancellation prompt, saves nothing, and stops before **Copy to Clipboard**. Test WhatsApp and Telegram on a physical device.
+8. Copy and verify each shortcut's iCloud link.
+9. Install each link on a device where that shortcut is not already installed and run it end to end.
+10. Add only the verified `images` and `text` URLs to `ShortcutInstallationCatalog`.
+11. Export fresh recovery copies after any workflow change.
 
 Use **Stop Sharing** in Shortcuts to revoke a public installer. Deleting the local shortcut does not revoke its link.
 
@@ -154,7 +160,7 @@ If the Back Tap banner covers the conversation title before a screenshot is take
 - **Text shortcut does not appear when sharing:** confirm **Show in Share Sheet** is enabled, the accepted input type is **Text**, and the source app actually supplies plain text.
 - **A normal text-shortcut run has no input:** copy usable message text first and confirm the no-input behavior is **Get Clipboard**.
 - **Text was not imported because sender labels were not shared:** use **Share → Copy**, then run **FrameReply Text**. If the copied text still has no sender labels, use **FrameReply Images**.
-- **The shortcut shows a branded result with a Done button or copies JSON:** rebuild FrameReply and remove then re-add the Suggest Replies action so Shortcuts refreshes its App Intent metadata. The current action shows **Use Reply** and returns one reply string.
+- **A generated-reply run shows Done or copies JSON:** rebuild FrameReply and re-add the Suggest Replies action to refresh its metadata. Generated replies should show **Use Reply** and return one reply string.
 - **The selected card changes but nothing is copied:** tap **Use Reply**, then confirm native **Copy to Clipboard** immediately follows the Suggest Replies action and uses its output.
 - **Selecting Review opens FrameReply:** this is intentional. Use the reply cards and **Use Reply** to stay in the current app.
 - **WhatsApp direct sharing is unavailable:** select multiple messages, choose **Copy** or **Share → Copy**, then run **FrameReply Text**.

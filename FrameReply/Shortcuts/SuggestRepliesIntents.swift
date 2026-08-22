@@ -292,30 +292,54 @@ nonisolated struct ShortcutImportReviewPresentation: Equatable, Sendable {
     }
 }
 
+nonisolated struct ShortcutNoReplyPresentation: Equatable, Sendable {
+    let chatID: String
+    let reviewRequired: Bool
+
+    init(response: ShortcutResponsePresentation) {
+        chatID =
+            response.payload.chatID?.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            ) ?? ""
+        reviewRequired = response.payload.reviewRequired ?? false
+    }
+}
+
 nonisolated enum ShortcutReplyConfirmationState: Equatable, Sendable {
     case replyChoices([String])
-    case waitRecommendation(String)
+    case noReply(ShortcutNoReplyPresentation)
     case senderReviewRequired(ShortcutImportReviewPresentation)
     case unavailable
 
     init(response: ShortcutResponsePresentation) {
         let replies = ShortcutReplyChoiceBuilder.values(from: response)
+        let hasSuccessfulEmptyReplyResult =
+            response.payload.suggestedReplies?.isEmpty == true
+            && (response.payload.replyStatus == .generated
+                || response.payload.replyStatus == .cached)
         if !replies.isEmpty {
             self = .replyChoices(replies)
         } else if let presentation = ShortcutImportReviewPresentation(response: response) {
             self = .senderReviewRequired(presentation)
-        } else if response.payload.replyStatus != .failed,
-            response.payload.suggestedReplies?.isEmpty == true
-        {
-            self = .waitRecommendation(response.dialog)
+        } else if hasSuccessfulEmptyReplyResult {
+            self = .noReply(ShortcutNoReplyPresentation(response: response))
         } else {
             self = .unavailable
         }
     }
 }
 
+nonisolated enum ShortcutNoReplyResult {
+    static let output = ""
+
+    static func message(locale: Locale = .current) -> String {
+        AppStrings.resolve(AppStrings.Shortcut.noReplyNeeded, locale: locale)
+    }
+}
+
 nonisolated enum ShortcutReplyConfirmationOutcome: Equatable, Sendable {
     case value(String)
+    case noReply(ShortcutNoReplyPresentation)
     case senderReviewRequired(
         value: String,
         presentation: ShortcutImportReviewPresentation
@@ -332,8 +356,8 @@ extension ShortcutReplyConfirmingIntent {
         switch ShortcutReplyConfirmationState(response: response) {
         case .replyChoices(let values):
             replies = values
-        case .waitRecommendation(let recommendation):
-            return .value(recommendation)
+        case .noReply(let presentation):
+            return .noReply(presentation)
         case .senderReviewRequired(let presentation):
             return .senderReviewRequired(
                 value: response.dialog,
@@ -458,6 +482,13 @@ struct SuggestRepliesFromChatImagesIntent: ShortcutReplyConfirmingIntent {
         switch try await confirmReply(from: response) {
         case .value(let value):
             return .result(value: value, snippetIntent: EmptySnippetIntent())
+        case .noReply(let presentation):
+            return .result(
+                value: ShortcutNoReplyResult.output,
+                snippetIntent: ShortcutNoReplySnippetIntent(
+                    presentation: presentation
+                )
+            )
         case .senderReviewRequired(let value, let presentation):
             return .result(
                 value: value,
@@ -541,6 +572,13 @@ struct SuggestRepliesFromChatTextIntent:
         switch try await confirmReply(from: response) {
         case .value(let value):
             return .result(value: value, snippetIntent: EmptySnippetIntent())
+        case .noReply(let presentation):
+            return .result(
+                value: ShortcutNoReplyResult.output,
+                snippetIntent: ShortcutNoReplySnippetIntent(
+                    presentation: presentation
+                )
+            )
         case .senderReviewRequired(let value, let presentation):
             return .result(
                 value: value,
@@ -696,6 +734,118 @@ struct ShortcutImportReviewSnippetIntent: SnippetIntent {
                 duplicate: duplicate
             )
         )
+    }
+}
+
+struct ShortcutNoReplySnippetIntent: SnippetIntent {
+    static let title = LocalizedStringResource(
+        "shortcut.replies.no-reply-needed",
+        defaultValue: "No reply needed right now.",
+        comment:
+            "Successful Shortcut result when FrameReply recommends waiting instead of replying."
+    )
+    static let isDiscoverable = false
+
+    @Parameter(title: "Chat ID")
+    var chatID: String
+
+    @Parameter(title: "Review Import")
+    var reviewRequired: Bool
+
+    init() {}
+
+    init(presentation: ShortcutNoReplyPresentation) {
+        chatID = presentation.chatID
+        reviewRequired = presentation.reviewRequired
+    }
+
+    @MainActor
+    func perform() async throws
+        -> some IntentResult & ProvidesDialog & ShowsSnippetView
+    {
+        let message = ShortcutNoReplyResult.message()
+        return .result(
+            dialog: IntentDialog(
+                full: AppStrings.Shortcut.noReplyNeeded,
+                supporting: ""
+            ),
+            view: ShortcutNoReplySnippet(
+                message: message,
+                chatID: chatID,
+                reviewRequired: reviewRequired
+            )
+        )
+    }
+}
+
+struct ShortcutNoReplySnippet: View {
+    let message: String
+    let chatID: String
+    let reviewRequired: Bool
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var accessibilityText: String {
+        message
+    }
+
+    var showsOpenChatAction: Bool {
+        !chatID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var navigationAccessibilityText: String {
+        reviewRequired ? String(localized: "Review Import") : String(localized: "Open Chat")
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(verbatim: message)
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(.white)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 2)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel(Text(verbatim: accessibilityText))
+
+            if showsOpenChatAction {
+                Button(
+                    intent: OpenShortcutImportIntent(
+                        chatID: chatID,
+                        reviewRequired: reviewRequired
+                    )
+                ) {
+                    Image(
+                        systemName: reviewRequired
+                            ? "exclamationmark.bubble" : "arrow.up.forward.app"
+                    )
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(width: 44, height: 44)
+                    .foregroundStyle(.white)
+                    .background(.white.opacity(0.14), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .tint(.white)
+                .accessibilityLabel(Text(navigationAccessibilityText))
+                .accessibilityHint(Text("Opens FrameReply"))
+            }
+        }
+        .padding(dynamicTypeSize >= .xxLarge ? 8 : 12)
+        .background {
+            ContainerRelativeShape()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            FrameReplyColor.deepNavy,
+                            FrameReplyColor.primary
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
+        .containerShape(ContainerRelativeShape())
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("shortcut-no-reply-result")
     }
 }
 

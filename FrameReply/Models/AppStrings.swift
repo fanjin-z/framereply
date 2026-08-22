@@ -701,6 +701,13 @@ nonisolated enum AppStrings {
             )
         }
 
+        static let noReplyNeeded = LocalizedStringResource(
+            "shortcut.replies.no-reply-needed",
+            defaultValue: "No reply needed right now.",
+            comment:
+                "Successful Shortcut result when FrameReply recommends waiting instead of replying."
+        )
+
         static func repliesUnavailable(message: String) -> LocalizedStringResource {
             LocalizedStringResource(
                 "shortcut.replies.unavailable",

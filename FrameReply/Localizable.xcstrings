@@ -2473,6 +2473,18 @@
         }
       }
     },
+    "shortcut.replies.no-reply-needed" : {
+      "comment" : "Successful Shortcut result when FrameReply recommends waiting instead of replying.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No reply needed right now."
+          }
+        }
+      }
+    },
     "shortcut.replies.result" : {
       "comment" : "Shortcut result with two verbatim AI-generated reply bodies.",
       "extractionState" : "extracted_with_value",
