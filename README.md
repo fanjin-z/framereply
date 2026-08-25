@@ -4,64 +4,73 @@
 
 ![FrameReply — Stay in chat. Keep the thread.](docs/images/framereply-hero.png)
 
-**Join public beta:** [![Join on TestFlight](https://img.shields.io/badge/TestFlight-0D96F6?logo=appstore&logoColor=white)](https://testflight.apple.com/join/WhN35A6x)
+FrameReply is an open-source chat assistant that delivers two context-aware reply  ideas directly on your current messaging screen using Shortcuts and snippets. It remembers useful details about each person, supports custom  personas, and adapts to your writing style. 
 
-FrameReply is an open-source iPhone chat assistant that delivers two context-aware reply ideas in an interactive Shortcuts snippet over your current messaging app. It remembers useful person-specific context, supports custom personas, and can learn your writing style from the messages you send.
+**Join the public beta:** [![Join on TestFlight](https://img.shields.io/badge/TestFlight-0D96F6?logo=appstore&logoColor=white)](https://testflight.apple.com/join/WhN35A6x)
 
-## How it works
+## Features
 
-1. **Bring in the conversation.** Run FrameReply with Apple Shortcuts, share chat screenshots, or paste copied messages.
-2. **Keep the context.** FrameReply joins new messages to the thread and remembers the person-specific details you choose to keep.
-3. **Choose your reply.** Set a communication goal and persona, then review and copy one of two suggestions.
+### Stay in Chat
 
-AI-generated suggestions are drafts. You stay in control of what gets sent.
+- Get context-aware reply ideas in an interactive Shortcuts overlay without leaving your current messaging screen.
+- Bring in chat screenshots or copied messages via Share Sheet or Shortcuts. The image shortcut can also capture the current screen or launch with Back Tap.
+
+### Keep the thread
+
+- Automatically add new messages to an existing chat when there is a reliable match, or add them directly to one you already have open.
+- Memorize useful person-specific context, such as preferences, shared history, and recurring plans.
+- Set a Current Goal for the chat, or add one-time Reply Guidance for what you want to say next.
+
+### Make it sound like you
+
+- Choose a built-in persona or create your own. Personas can learn recurring patterns from messages you send.
+- Get Conversation Strategy and Strategy Rationale that explain why the replies were suggested.
+
+### Stay in control
+
+- AI suggestions are drafts. The app never sends messages for you; you choose what to copy and whether to edit or send it in your messaging app.
+- Delete a chat, remove a provider connection, or erase all local data from your device whenever you choose.
+
+## Before you start
+
+- An iPhone running iOS 26 or later.
+- Your own API key for OpenAI, OpenRouter, or MiniMax.
+- Provider usage may incur charges from that provider.
 
 ## How to use
 
 ### In-app
 
-- **On the Chats tab:** Tap the photo-and-text icon beside Search → choose **Chat screenshots** or **Copied text** (optionally add **Reply Guidance**). FrameReply automatically adds the messages to a matching chat or starts a new chat
-- **In an open chat:** Tap the photo-and-text icon at the bottom, beside **Reply Guidance** → choose **Chat screenshots** or **Copied text**. FrameReply adds the messages only to this open chat
+- **On the Chats tab:** Tap the photo-and-text icon beside Search → choose **Chat screenshots** or **Copied text** (optionally add **Reply Guidance**). The app automatically adds the messages to a matching chat or starts a new chat.
+- **In an open chat:** Tap the photo-and-text icon at the bottom, beside **Reply Guidance** → choose **Chat screenshots** or **Copied text**. Messages are added only to this open chat.
 
-### With shortcuts
+### With Shortcuts
 
-- **Add once:** In FrameReply, open **Settings → Shortcuts** and add **Image Shortcut** and **Text Shortcut**
+- **Add once:** In the app, open **Settings → Shortcuts** and add **Image Shortcut** and **Text Shortcut**.
 
 **Walkthrough videos:** [Image Shortcut](FrameReply/Resources/ShortcutImagesHowTo.mp4) · [Text Shortcut](FrameReply/Resources/ShortcutTextHowTo.mp4)
 
 #### Images
 
-- **Share a screenshot:** Take a screenshot → **Share** → **FrameReply Images**
-- **Capture the screen:** Keep the conversation visible → run **FrameReply Images**
-- **Set up Back Tap:** iPhone **Settings → Accessibility → Touch → Back Tap** → choose **Double Tap** or **Triple Tap** → **FrameReply Images**. Also, turn off **Show Banner** so it does not obscure part of the screenshot
+- **Share a screenshot:** Take a screenshot → **Share** → **FrameReply Images**.
+- **Capture the screen:** Keep the conversation visible → run **FrameReply Images**.
+- **Set up Back Tap:** iPhone **Settings → Accessibility → Touch → Back Tap** → choose **Double Tap** or **Triple Tap** → **FrameReply Images**. Also, turn off **Show Banner** so it does not obscure part of the screenshot.
 
 #### Text
 
-- **Share directly:** Select multiple messages → **Share** → **FrameReply Text** (e.g. Telegram)
-- **Copy, then run:** Select multiple messages → **Copy** (or **Share → Copy**) → run **FrameReply Text** (e.g. WhatsApp or Telegram)
+- **Share directly:** Select multiple messages → **Share** → **FrameReply Text** (e.g. Telegram).
+- **Copy, then run:** Select multiple messages → **Copy** (or **Share → Copy**) → run **FrameReply Text** (e.g. WhatsApp or Telegram).
 
-See [Shortcuts](docs/shortcuts.md) for detailed maintenance and troubleshooting information.
+Text imports require sender labels. If sharing or copying omits them, use screenshots instead.
 
-## Why FrameReply
+See [Shortcuts](docs/shortcuts.md) for maintenance and troubleshooting.
 
-- **Stay in the conversation.** Use Shortcuts to get reply suggestions without switching to the FrameReply app.
-- **Pick up where you left off.** Preserve chat history and add new screenshots or copied messages as the conversation continues.
-- **Remember the relationship.** Keep useful context—preferences, shared history, or recurring plans—with the relevant person.
-- **Make replies sound like you.** Choose or customize a persona, and let its writing style learn from the messages you send.
-- **Reply with intention.** Give FrameReply a goal and compare two alternatives before choosing what fits.
+## Privacy
 
-## Privacy and control
+- Chats, messages, personas, saved context, drafts, and replies are stored locally. API keys are protected in Keychain. There is no developer-operated proxy server, advertising, analytics, or tracking.
+- With your consent, selected content and relevant context are sent directly to the AI provider you choose. Provider policies and charges apply.
 
-Chats, extracted messages, personas, remembered context, drafts, and generated replies are stored in FrameReply's protected local database and excluded from device backups. API keys are stored in the device Keychain. FrameReply has no proxy server, advertising, analytics, or tracking.
-
-When you request analysis or suggestions, FrameReply asks for consent before sending selected screenshots or text, participant information, and relevant context directly to the provider endpoint you choose. MiniMax International and MiniMax (China) connect directly to separate regional endpoints. OpenRouter connections are forwarded by OpenRouter to Alibaba Cloud International for Qwen3.7 Plus. Source images are normalized and discarded after processing. Provider processing, retention, and charges remain governed by the involved providers.
-
-Read the [Privacy Policy](docs/privacy.md), [Terms](docs/terms.md), and [Age Suitability](docs/age-suitability.md) pages for the complete details.
-
-## Requirements
-
-- An iPhone running iOS 26 or later.
-- A user-owned API key for OpenAI, OpenRouter, or MiniMax. Provider usage may incur charges billed by that provider.
+Read the [Privacy Policy](docs/privacy.md) for complete details.
 
 ## Build and contribute
 
@@ -80,4 +89,4 @@ Report vulnerabilities privately according to [SECURITY.md](SECURITY.md). Use th
 
 ## License
 
-FrameReply is licensed under the [Apache License 2.0](LICENSE).
+Licensed under the [Apache License 2.0](LICENSE).
