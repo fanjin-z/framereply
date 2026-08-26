@@ -6,7 +6,7 @@
 
 FrameReply is an open-source chat assistant that delivers two context-aware reply  ideas directly on your current messaging screen using Shortcuts and snippets. It remembers useful details about each person, supports custom  personas, and adapts to your writing style. 
 
-**Join the public beta:** [![Join on TestFlight](https://img.shields.io/badge/TestFlight-0D96F6?logo=appstore&logoColor=white)](https://testflight.apple.com/join/WhN35A6x)
+**Download on:** [![Download on the App Store](https://img.shields.io/badge/App_Store-0D96F6?logo=appstore&logoColor=white)](https://apps.apple.com/us/app/framereply/id6794846730)
 
 ## Features
 
