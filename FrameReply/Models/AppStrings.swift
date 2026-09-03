@@ -406,6 +406,17 @@ nonisolated enum AppStrings {
         }
     }
 
+    enum PersonalInfo {
+        static func usageCount(_ count: Int) -> LocalizedStringResource {
+            LocalizedStringResource(
+                "personal-info.alias-usage-count",
+                defaultValue: "Used in \(count) chats",
+                comment:
+                    "Shown beneath one of the user's saved names. The catalog supplies singular and plural variants for the chat count."
+            )
+        }
+    }
+
     enum Persona {
         static func name(for id: BuiltInPersonaID) -> LocalizedStringResource {
             switch id {

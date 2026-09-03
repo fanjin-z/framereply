@@ -340,7 +340,7 @@ struct PersonaDetailView: View {
                 ForEach(inactiveObservations) { observation in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(verbatim: observation.localizedText)
-                        Text(observation.status.capitalized).font(.caption2).foregroundStyle(
+                        Text(statusLabel(for: observation)).font(.caption2).foregroundStyle(
                             FrameReplyColor.outline)
                     }.padding(.top, 10)
                 }
@@ -362,13 +362,24 @@ struct PersonaDetailView: View {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
     }
 
-    private func sourceLabel(_ observation: PersonaObservationRecord) -> String {
+    private func sourceLabel(_ observation: PersonaObservationRecord) -> LocalizedStringResource {
         if observation.isUserProtected { return "Your guidance" }
         switch PersonaObservationOrigin(rawValue: observation.origin) {
         case .seed: return "Seed"
         case .ai: return "Learned"
         case .user: return "Your guidance"
         case nil: return "Observation"
+        }
+    }
+
+    private func statusLabel(
+        for observation: PersonaObservationRecord
+    ) -> LocalizedStringResource {
+        switch PersonaObservationStatus(rawValue: observation.status) {
+        case .active: "Active"
+        case .superseded: "Superseded"
+        case .archived: "Archived"
+        case nil: "Observation"
         }
     }
 

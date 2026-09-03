@@ -110,8 +110,10 @@ struct PrivacyAndDataView: View {
             try ChatRepository(context: modelContext).seedIfNeeded()
             try PersonaRepository(context: modelContext).seedPersonasIfNeeded()
         } catch {
-            deleteAllError =
-                "Some local data could not be deleted. Restart FrameReply and try again before sharing the device."
+            deleteAllError = String(
+                localized:
+                    "Some local data could not be deleted. Restart FrameReply and try again before sharing the device."
+            )
         }
     }
 }

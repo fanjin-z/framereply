@@ -67,13 +67,19 @@ nonisolated enum PersonalInfoError: LocalizedError, Equatable, Sendable {
     var errorDescription: String? {
         switch self {
         case .emptyFact:
-            "Enter one short fact about yourself."
+            String(localized: "Enter one short fact about yourself.")
         case .factTooLong:
-            "Personal Info can be up to \(PersonalInfoLimits.maximumTextCodePoints) characters."
+            String(
+                localized:
+                    "Personal Info can be up to \(PersonalInfoLimits.maximumTextCodePoints) characters."
+            )
         case .activeFactLimitReached:
-            "You can keep up to \(PersonalInfoLimits.maximumActiveFacts) active items."
+            String(
+                localized:
+                    "You can keep up to \(PersonalInfoLimits.maximumActiveFacts) active items."
+            )
         case .duplicateFact:
-            "This item is already in Personal Info."
+            String(localized: "This item is already in Personal Info.")
         }
     }
 }

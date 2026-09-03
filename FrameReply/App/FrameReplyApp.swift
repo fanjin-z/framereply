@@ -70,7 +70,10 @@ final class AppStartupController: ObservableObject {
             state = .ready(try AppRuntime.live())
         } catch {
             state = .failed(
-                "FrameReply could not open its protected local database. You can retry or permanently reset local chats, personas, and drafts."
+                String(
+                    localized:
+                        "FrameReply could not open its protected local database. You can retry or permanently reset local chats, personas, and drafts."
+                )
             )
         }
     }
@@ -88,7 +91,11 @@ final class AppStartupController: ObservableObject {
             retry()
         } catch {
             state = .failed(
-                "FrameReply could not reset its local database. Restart the device and try again.")
+                String(
+                    localized:
+                        "FrameReply could not reset its local database. Restart the device and try again."
+                )
+            )
         }
     }
 }

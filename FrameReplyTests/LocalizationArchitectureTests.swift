@@ -30,6 +30,11 @@ final class LocalizationArchitectureTests: XCTestCase {
         XCTAssertEqual(record.builtInID, .professional)
         XCTAssertNil(record.nameOverride)
         XCTAssertEqual(record.resolvedName(locale: Locale(identifier: "en")), "Professional")
+        XCTAssertEqual(record.resolvedName(locale: Locale(identifier: "zh-Hans")), "专业")
+        XCTAssertEqual(
+            record.promptInstructions,
+            BuiltInPersonaDefinition.definition(for: .professional).canonicalInstructions
+        )
 
         record.name = "My Work Voice"
 
@@ -49,6 +54,43 @@ final class LocalizationArchitectureTests: XCTestCase {
         XCTAssertEqual(record.templateID, .concise)
         XCTAssertEqual(record.promptText, BuiltInObservationID.concise.canonicalPromptText)
         XCTAssertFalse(record.localizedText.isEmpty)
+        XCTAssertEqual(
+            record.templateID?.localizedText(locale: Locale(identifier: "zh-Hans")),
+            "回复简洁，省略不必要的细节。"
+        )
+    }
+
+    func testSupportedLanguageResolutionKeepsTraditionalChineseSeparate() {
+        let supported = ["en", "zh-Hans"]
+
+        XCTAssertEqual(
+            Bundle.preferredLocalizations(
+                from: supported,
+                forPreferences: ["zh-Hans", "en"]
+            ).first,
+            "zh-Hans"
+        )
+        XCTAssertEqual(
+            Bundle.preferredLocalizations(
+                from: supported,
+                forPreferences: ["zh-Hant", "en"]
+            ).first,
+            "en"
+        )
+        XCTAssertEqual(
+            Bundle.preferredLocalizations(
+                from: supported,
+                forPreferences: ["zh-TW", "en"]
+            ).first,
+            "en"
+        )
+        XCTAssertEqual(
+            Bundle.preferredLocalizations(
+                from: supported,
+                forPreferences: ["zh-Hant", "zh-Hans", "en"]
+            ).first,
+            "zh-Hans"
+        )
     }
 
     func testReplyCachesAreIsolatedByAppLanguage() throws {

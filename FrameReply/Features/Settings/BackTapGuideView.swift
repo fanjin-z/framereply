@@ -18,6 +18,7 @@ struct BackTapGuideView: View {
                         imageShortcutPrerequisite
                         setupSteps
                         inlineVideo
+                        tutorialLanguageNote
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
@@ -164,7 +165,7 @@ struct BackTapGuideView: View {
         detail: LocalizedStringResource? = nil
     ) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Text("\(number)")
+            Text(verbatim: "\(number)")
                 .font(.system(size: 12, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(width: 28, height: 28)
@@ -205,6 +206,14 @@ struct BackTapGuideView: View {
             .onAppear {
                 backTapTutorial.play()
             }
+    }
+
+    private var tutorialLanguageNote: some View {
+        Text("The demonstration uses an English system interface.")
+            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("back-tap-tutorial-language-note")
     }
 
     private func dismissGuide() {

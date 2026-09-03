@@ -154,14 +154,17 @@ struct ConversationUpdateComposer: View {
             )
 
             if DraftingInputLimits.shouldShowCounter(for: replyGuidance) {
-                Text("\(replyGuidance.count)/\(DraftingInputLimits.maximumCharacterCount)")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                    .monospacedDigit()
-                    .accessibilityLabel(
-                        "\(replyGuidance.count) of "
-                            + "\(DraftingInputLimits.maximumCharacterCount) characters"
-                    )
+                Text(
+                    verbatim:
+                        "\(replyGuidance.count)/\(DraftingInputLimits.maximumCharacterCount)"
+                )
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                .monospacedDigit()
+                .accessibilityLabel(
+                    "\(replyGuidance.count) of "
+                        + "\(DraftingInputLimits.maximumCharacterCount) characters"
+                )
             }
         }
         .frame(maxWidth: .infinity)

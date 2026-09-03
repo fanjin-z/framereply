@@ -156,10 +156,13 @@ struct PersonalInfoView: View {
                     .disabled(isAtFactCapacity || !isValidPersonalInfoText(newFact))
                     .accessibilityIdentifier("add-personal-info-fact")
             }
-            Text("\(newFact.unicodeScalars.count)/\(PersonalInfoLimits.maximumTextCodePoints)")
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+            Text(
+                verbatim:
+                    "\(newFact.unicodeScalars.count)/\(PersonalInfoLimits.maximumTextCodePoints)"
+            )
+            .font(.caption2.monospacedDigit())
+            .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 
@@ -195,7 +198,8 @@ struct PersonalInfoView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Text(
                     fact.origin == PersonalInfoFactOrigin.ai.rawValue
-                        ? "Learned from your messages" : "Added by you"
+                        ? LocalizedStringResource("Learned from your messages")
+                        : LocalizedStringResource("Added by you")
                 )
                 .font(.caption)
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
@@ -239,14 +243,14 @@ struct PersonalInfoView: View {
             && cleaned.unicodeScalars.count <= PersonalInfoLimits.maximumTextCodePoints
     }
 
-    private func usageDescription(for alias: SelfAliasRecord) -> String {
+    private func usageDescription(for alias: SelfAliasRecord) -> LocalizedStringResource {
         let count = chatContexts.count { context in
             context.selfAliases.contains { $0 === alias }
         }
-        return count == 1 ? "Used in 1 chat" : "Used in \(count) chats"
+        return AppStrings.PersonalInfo.usageCount(count)
     }
 
-    private var deleteNameTitle: String {
+    private var deleteNameTitle: LocalizedStringResource {
         guard let aliasPendingDeletion else { return "Delete name?" }
         return "Delete \(aliasPendingDeletion.displayLabel)?"
     }

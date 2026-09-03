@@ -318,9 +318,7 @@ struct ChatAssistantView: View {
             if importModel.isLoading {
                 ChatAssistantNoticeRow(
                     symbolName: "sparkles",
-                    message: importModel.importKind == .copiedMessages
-                        ? importProgressMessage(for: "chat text")
-                        : importProgressMessage(for: "selected screenshots"),
+                    message: importProgressMessage,
                     isLoading: true,
                     actionTitle: "Cancel",
                     onAction: cancelImport
@@ -580,8 +578,10 @@ struct ChatAssistantView: View {
         }
         if let result = importModel.result {
             if let replyErrorMessage = result.replyErrorMessage {
-                return "\(result.message) Suggested replies could not be generated: "
-                    + replyErrorMessage
+                return String(
+                    localized:
+                        "\(result.message) Suggested replies could not be generated: \(replyErrorMessage)"
+                )
             }
             return result.message
         }
@@ -616,12 +616,17 @@ struct ChatAssistantView: View {
         }
     }
 
-    private func importProgressMessage(for source: String) -> String {
+    private var importProgressMessage: String {
         switch importModel.phase {
         case .analyzing:
-            "Analyzing \(source)…"
+            switch importModel.importKind {
+            case .copiedMessages:
+                String(localized: "Analyzing chat text…")
+            case .screenshots:
+                String(localized: "Analyzing selected screenshots…")
+            }
         case .generatingReplies:
-            "Generating replies…"
+            String(localized: "Generating replies…")
         }
     }
 
@@ -1087,7 +1092,7 @@ private struct ChatImportReviewCard: View {
         .accessibilityIdentifier("assistant-import-review-notice")
     }
 
-    private var nudgeText: String {
+    private var nudgeText: LocalizedStringResource {
         if hasKindReview, conversationKind == .group {
             return "Converted to Group"
         }
@@ -1116,7 +1121,7 @@ private struct ChatImportReviewCard: View {
             ? "person.crop.circle.badge.questionmark" : "tray.and.arrow.down"
     }
 
-    private var primaryActionTitle: String {
+    private var primaryActionTitle: LocalizedStringResource {
         unknownSenderCount > 0 || hasKindReview || hasSuggestedMatch ? "Review" : "Keep"
     }
 

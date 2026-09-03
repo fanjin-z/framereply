@@ -12,11 +12,13 @@ struct SettingsView: View {
     let onPersonalInfoTap: () -> Void
     let onPrivacyAndDataTap: () -> Void
 
+    @Environment(\.openURL) private var openURL
     @State private var isAddProviderPresented = false
     @State private var isProviderConnectionInProgress = false
     @State private var isKeyboardPresented = false
     @State private var providerToRemove: ProviderConnection?
     @State private var providerRemovalError: String?
+    @State private var isLanguageSettingsErrorPresented = false
 
     var body: some View {
         ZStack {
@@ -69,6 +71,11 @@ struct SettingsView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(providerRemovalError ?? "")
+        }
+        .alert("Couldn’t Open Settings", isPresented: $isLanguageSettingsErrorPresented) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Open Settings > Apps > FrameReply > Language to choose the app language.")
         }
     }
 
@@ -224,16 +231,13 @@ struct SettingsView: View {
         }
     }
 
-    private var removeProviderTitle: String {
-        "Remove \(providerToRemove?.name ?? "provider")?"
+    private var removeProviderTitle: LocalizedStringResource {
+        let providerName = providerToRemove?.name ?? String(localized: "provider")
+        return "Remove \(providerName)?"
     }
 
-    private var removeProviderMessage: String {
-        guard providerToRemove != nil else {
-            return ""
-        }
-
-        return "FrameReply will remove the saved API key from this device."
+    private var removeProviderMessage: LocalizedStringResource {
+        "FrameReply will remove the saved API key from this device."
     }
 
     private func removeSelectedProvider() {
@@ -246,7 +250,9 @@ struct SettingsView: View {
                 try providerStore.remove(platform: providerToRemove.platform)
             }
         } catch {
-            providerRemovalError = "The saved API key couldn’t be deleted. Nothing was changed."
+            providerRemovalError = String(
+                localized: "The saved API key couldn’t be deleted. Nothing was changed."
+            )
         }
 
         self.providerToRemove = nil
@@ -254,9 +260,22 @@ struct SettingsView: View {
 
     private var privacyAndDataSection: some View {
         settingsSection {
-            sectionHeader("Privacy & Support")
+            sectionHeader("App & Support")
         } content: {
             settingsSurface {
+                Button(action: openLanguageSettings) {
+                    settingsNavigationLabel(
+                        title: "App Language",
+                        subtitle: effectiveAppLanguageName,
+                        symbol: "globe"
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens iPhone Settings to change the app language.")
+                .accessibilityIdentifier("app-language")
+
+                settingsDivider(leadingInset: 60)
+
                 Button(action: onPrivacyAndDataTap) {
                     settingsNavigationLabel(
                         title: "Privacy & Data",
@@ -289,8 +308,8 @@ struct SettingsView: View {
     }
 
     private func settingsNavigationLabel(
-        title: String,
-        subtitle: String,
+        title: LocalizedStringResource,
+        subtitle: LocalizedStringResource,
         symbol: String
     ) -> some View {
         HStack(spacing: 12) {
@@ -315,6 +334,26 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 16)
         .frame(minHeight: 64)
+    }
+
+    private var effectiveAppLanguageName: LocalizedStringResource {
+        if LocalizationContext.current.languageIdentifier.hasPrefix("zh-Hans") {
+            return "Simplified Chinese"
+        }
+        return "English"
+    }
+
+    private func openLanguageSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else {
+            isLanguageSettingsErrorPresented = true
+            return
+        }
+
+        openURL(url) { didOpen in
+            if didOpen == false {
+                isLanguageSettingsErrorPresented = true
+            }
+        }
     }
 
     private func settingsSection<Header: View, Content: View>(

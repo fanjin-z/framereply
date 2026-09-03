@@ -1,0 +1,52 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Suggest replies from chat images with ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Suggest replies from chat images with ${applicationName}",
+              "Reply to chat images with ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "用${applicationName}根据聊天截图生成回复",
+              "让${applicationName}根据聊天截图推荐回复"
+            ]
+          }
+        }
+      }
+    },
+    "Suggest replies from chat text with ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Suggest replies from chat text with ${applicationName}",
+              "Reply to chat text with ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "用${applicationName}根据聊天文字生成回复",
+              "让${applicationName}根据聊天文字推荐回复"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.1"
+}

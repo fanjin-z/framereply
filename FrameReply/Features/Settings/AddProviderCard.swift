@@ -18,14 +18,18 @@ enum AddProviderStatus {
         return false
     }
 
-    var inlineMessage: (symbolName: String, text: String, tint: Color)? {
+    var inlineMessage: (symbolName: String, text: Text, tint: Color)? {
         switch self {
         case .idle, .testing:
             nil
         case .connected:
-            ("checkmark.circle.fill", "Provider connected and saved.", FrameReplyColor.connected)
+            (
+                "checkmark.circle.fill",
+                Text("Provider connected and saved."),
+                FrameReplyColor.connected
+            )
         case .failed(let message):
-            ("exclamationmark.triangle.fill", message, FrameReplyColor.peach)
+            ("exclamationmark.triangle.fill", Text(verbatim: message), FrameReplyColor.peach)
         }
     }
 }
@@ -145,7 +149,7 @@ struct AddProviderCard: View {
                     HStack(spacing: 8) {
                         Image(systemName: inlineMessage.symbolName)
                             .font(.system(size: 13, weight: .bold))
-                        Text(inlineMessage.text)
+                        inlineMessage.text
                             .font(.system(size: 13, weight: .semibold, design: .rounded))
                             .lineSpacing(2)
                     }
@@ -310,8 +314,12 @@ struct AddProviderCard: View {
     }
 
     private var accessibilityTierValue: String {
-        guard let selectedPlatform, let selectedTier else { return "Not selected" }
-        return "\(selectedTier.displayName), \(selectedPlatform.modelSummary(for: selectedTier))"
+        guard let selectedPlatform, let selectedTier else {
+            return String(localized: "Not selected")
+        }
+        let tierName = String(localized: selectedTier.localizedDisplayName)
+        let modelName = selectedPlatform.modelSummary(for: selectedTier)
+        return String(localized: "\(tierName), \(modelName)")
     }
 
 }

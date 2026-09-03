@@ -275,7 +275,11 @@ struct ChatImportReviewSheet: View {
                     .frame(maxWidth: .infinity)
                 }
             }
-            .navigationTitle(chatID == nil ? "Review Imports" : "Review Import")
+            .navigationTitle(
+                chatID == nil
+                    ? LocalizedStringResource("Review Imports")
+                    : LocalizedStringResource("Review Import")
+            )
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
@@ -472,7 +476,7 @@ private struct ParticipantReviewGroup: Identifiable {
 }
 
 private struct ImportReviewSectionHeader: View {
-    let title: String
+    let title: LocalizedStringResource
 
     var body: some View {
         Text(title)
@@ -521,7 +525,9 @@ private struct UnknownSenderReviewCard: View {
                 }
 
                 if conversationKind != .direct {
-                    SenderChoiceChip(message.senderName ?? "Participant") {
+                    SenderChoiceChip(
+                        verbatim: message.senderName ?? String(localized: "Participant")
+                    ) {
                         onResolve(message.id, .groupParticipant, message.senderName)
                     }
                 }
@@ -765,16 +771,20 @@ private struct ConversationKindReviewCard: View {
     }
 
     private var wasApplied: Bool { chat.conversationKind == .group }
-    private var title: String {
+    private var title: LocalizedStringResource {
         wasApplied ? "Converted to Group" : "This may be a group chat"
     }
-    private var message: String {
+    private var message: LocalizedStringResource {
         wasApplied
             ? "FrameReply found structural evidence of multiple participants in \(chat.displayTitle())."
             : "The importer suspected multiple participants but did not find enough structural evidence to change this Direct chat automatically."
     }
-    private var primaryTitle: String { wasApplied ? "Keep Group" : "Convert" }
-    private var secondaryTitle: String { wasApplied ? "Change to Direct" : "Keep Direct" }
+    private var primaryTitle: LocalizedStringResource {
+        wasApplied ? "Keep Group" : "Convert"
+    }
+    private var secondaryTitle: LocalizedStringResource {
+        wasApplied ? "Change to Direct" : "Keep Direct"
+    }
 }
 
 private struct ImportReviewCard: View {
@@ -896,10 +906,10 @@ private struct ImportReviewCard: View {
     private func candidateLabel(_ candidate: ChatRecord) -> String {
         var label = mergeLabel(candidate)
         if candidate.id == chat.importReviewState?.suggestedMatchChatID {
-            label += " · Suggested"
+            label = String(localized: "\(label) · Suggested")
         }
         if !chat.conversationKind.isCompatible(with: candidate.conversationKind) {
-            label += " · Result: Group"
+            label = String(localized: "\(label) · Result: Group")
         }
         return label
     }
@@ -920,28 +930,35 @@ private struct ImportReviewCard: View {
         Button {
             onConfirm(chat.id, name)
         } label: {
-            Text(prominent ? "Keep" : "Keep Separate")
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(prominent ? Color.white : FrameReplyColor.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: 36)
-                .background {
-                    Capsule(style: .continuous)
-                        .fill(
-                            prominent
-                                ? FrameReplyColor.primary
-                                : FrameReplyColor.secondaryContainer.opacity(0.46)
-                        )
-                }
+            Text(
+                prominent
+                    ? LocalizedStringResource("Keep")
+                    : LocalizedStringResource("Keep Separate")
+            )
+            .font(.system(size: 13, weight: .bold, design: .rounded))
+            .foregroundStyle(prominent ? Color.white : FrameReplyColor.primary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.78)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 36)
+            .background {
+                Capsule(style: .continuous)
+                    .fill(
+                        prominent
+                            ? FrameReplyColor.primary
+                            : FrameReplyColor.secondaryContainer.opacity(0.46)
+                    )
+            }
         }
         .buttonStyle(SoftPressButtonStyle())
         .disabled(!canKeep)
         .opacity(canKeep ? 1 : 0.48)
     }
 
-    private func mergeMenu(candidates: [ChatRecord], title: String) -> some View {
+    private func mergeMenu(
+        candidates: [ChatRecord],
+        title: LocalizedStringResource
+    ) -> some View {
         Menu {
             ForEach(candidates) { candidate in
                 Button(candidateLabel(candidate)) {
@@ -966,17 +983,22 @@ private struct ImportReviewCard: View {
 }
 
 private struct SenderChoiceChip: View {
-    let title: String
+    let title: Text
     let action: () -> Void
 
-    init(_ title: String, action: @escaping () -> Void) {
-        self.title = title
+    init(_ title: LocalizedStringResource, action: @escaping () -> Void) {
+        self.title = Text(title)
+        self.action = action
+    }
+
+    init(verbatim title: String, action: @escaping () -> Void) {
+        self.title = Text(verbatim: title)
         self.action = action
     }
 
     var body: some View {
         Button(action: action) {
-            Text(title)
+            title
                 .font(.system(size: 13, weight: .bold, design: .rounded))
                 .foregroundStyle(FrameReplyColor.primary)
                 .lineLimit(1)

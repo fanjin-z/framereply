@@ -144,7 +144,7 @@ Provider-proposed learning is filtered locally:
 
 | Proposed change | Required evidence | Purpose |
 | --- | --- | --- |
-| Chat memory | Direct-counterpart messages, or named non-user Group-participant messages | Retain one readable, atomic fact or confirmed shared plan per item in the app language. When evidence supplies participant names, include the relevant names so the standalone context remains attributable. |
+| Chat memory | Direct-counterpart messages, or named non-user Group-participant messages | Retain one readable, atomic fact or confirmed shared plan per item in the language and script of the supporting conversation evidence. When evidence supplies participant names, include the relevant names so the standalone context remains attributable. |
 | Personal Info | Confirmed user-authored messages in the latest 20 | Retain one directly stated, durable detail about the user. Goals, one-off plans, sensitive identifiers, exact locations, and detailed health information are excluded. |
 | Persona observation | Two to ten recent user-authored messages | Learn reusable writing style rather than conversation facts. |
 

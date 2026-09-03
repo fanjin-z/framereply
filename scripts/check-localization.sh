@@ -5,6 +5,7 @@ set -eu
 repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 swift_source_root=${FRAME_REPLY_SWIFT_SOURCE_ROOT:-"$repository_root/FrameReply"}
 catalog=${FRAME_REPLY_LOCALIZATION_CATALOG:-"$swift_source_root/Localizable.xcstrings"}
+shortcut_catalog=${FRAME_REPLY_SHORTCUT_LOCALIZATION_CATALOG:-"$swift_source_root/AppShortcuts.xcstrings"}
 project=${FRAME_REPLY_LOCALIZATION_PROJECT:-"$repository_root/FrameReply.xcodeproj/project.pbxproj"}
 app_strings=${FRAME_REPLY_APP_STRINGS:-"$swift_source_root/Models/AppStrings.swift"}
 validator="$repository_root/scripts/validate-string-catalog.py"
@@ -17,8 +18,11 @@ if [ "${1:-}" = "--self-test" ]; then
 fi
 
 jq empty "$catalog"
+jq empty "$shortcut_catalog"
 xcrun xcstringstool print "$catalog" >/dev/null
+xcrun xcstringstool print "$shortcut_catalog" >/dev/null
 xcrun xcstringstool compile "$catalog" --output-directory "$compile_output" >/dev/null
+xcrun xcstringstool compile "$shortcut_catalog" --output-directory "$compile_output" >/dev/null
 
 if [ ! -f "$app_strings" ]; then
     echo "AppStrings.swift is required for semantic localization keys." >&2
@@ -33,7 +37,7 @@ fi
 
 if rg -n 'count[[:space:]]*==[[:space:]]*1.*(message|messages)|\?[[:space:]]*"message"[[:space:]]*:[[:space:]]*"messages"' \
     "$swift_source_root" --glob '*.swift' \
-    --glob '!**/Services/ChatScreenshotPrompt.swift'; then
+    --glob '!**/Services/ChatImportPrompt.swift'; then
     echo "User-facing counts must use String Catalog plural variants." >&2
     exit 1
 fi
@@ -56,6 +60,7 @@ fi
 
 supported_languages=$(printf '%s\n' "$project_languages" | paste -sd, -)
 python3 "$validator" --catalog "$catalog" --languages "$supported_languages"
+python3 "$validator" --catalog "$shortcut_catalog" --languages "$supported_languages"
 
 semantic_keys=$(
     jq -r '.strings | keys[] | select(test("^[A-Za-z0-9_-]+([.][A-Za-z0-9_-]+)+$"))' \
@@ -67,7 +72,8 @@ for key in $semantic_keys; do
         exit 1
     fi
     if rg -n -F "\"$key\"" "$swift_source_root" --glob '*.swift' \
-        --glob '!**/Models/AppStrings.swift'; then
+        --glob '!**/Models/AppStrings.swift' \
+        | rg -v 'Shortcuts/SuggestRepliesIntents.swift:.*"shortcut.replies.no-reply-needed"'; then
         echo "Raw semantic localization key must be referenced through AppStrings: $key" >&2
         exit 1
     fi

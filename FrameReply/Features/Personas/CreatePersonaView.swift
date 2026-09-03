@@ -237,7 +237,11 @@ struct CreatePersonaView: View {
         .allowsHitTesting(false)
     }
 
-    private func labeledField(_ label: String, placeholder: String, text: Binding<String>)
+    private func labeledField(
+        _ label: LocalizedStringResource,
+        placeholder: LocalizedStringResource,
+        text: Binding<String>
+    )
         -> some View
     {
         VStack(alignment: .leading, spacing: 8) {

@@ -28,6 +28,19 @@ def string_units(value, path=()):
             yield from string_units(child, path + (str(index),))
 
 
+def string_sets(value, path=()):
+    if isinstance(value, dict):
+        string_set = value.get("stringSet")
+        if isinstance(string_set, dict):
+            yield path, string_set
+        for key, child in value.items():
+            if key != "stringSet":
+                yield from string_sets(child, path + (key,))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            yield from string_sets(child, path + (str(index),))
+
+
 def placeholder_signature(value):
     return tuple(sorted(PLACEHOLDER_PATTERN.findall(value)))
 
@@ -37,14 +50,27 @@ def source_signatures(key, entry, source_language):
     if source is None:
         return {placeholder_signature(key)}
     units = list(string_units(source))
-    if not units:
-        raise CatalogValidationError(f"{key}: source localization has no string units")
+    sets = list(string_sets(source))
+    if not units and not sets:
+        raise CatalogValidationError(
+            f"{key}: source localization has no string units or string sets"
+        )
     signatures = set()
     for _, unit in units:
         value = unit.get("value")
         if not isinstance(value, str) or not value:
             raise CatalogValidationError(f"{key}: source localization contains an empty value")
         signatures.add(placeholder_signature(value))
+    for path, string_set in sets:
+        label = ".".join(path) or "stringSet"
+        values = string_set.get("values")
+        if not isinstance(values, list) or not values:
+            raise CatalogValidationError(f"{key}: source {label} has no phrases")
+        if any(not isinstance(value, str) or not value for value in values):
+            raise CatalogValidationError(f"{key}: source {label} contains an empty phrase")
+        if len(values) != len(set(values)):
+            raise CatalogValidationError(f"{key}: source {label} contains duplicate phrases")
+        signatures.update(placeholder_signature(value) for value in values)
     return signatures
 
 
@@ -69,9 +95,10 @@ def validate_catalog(catalog, supported_languages):
             if localization is None:
                 raise CatalogValidationError(f"{language}: missing translation for {key}")
             units = list(string_units(localization))
-            if not units:
+            sets = list(string_sets(localization))
+            if not units and not sets:
                 raise CatalogValidationError(
-                    f"{language}: {key} has no translated string or plural variants"
+                    f"{language}: {key} has no translated string, plural variants, or phrases"
                 )
             for path, unit in units:
                 label = ".".join(path) or "stringUnit"
@@ -91,12 +118,41 @@ def validate_catalog(catalog, supported_languages):
                         f"{language}: {key} ({label}) has placeholders {signature}, "
                         f"expected one of {sorted(signatures)}"
                     )
+            for path, string_set in sets:
+                label = ".".join(path) or "stringSet"
+                state = string_set.get("state")
+                if state != "translated":
+                    raise CatalogValidationError(
+                        f"{language}: {key} ({label}) has unapproved state {state!r}"
+                    )
+                values = string_set.get("values")
+                if not isinstance(values, list) or not values:
+                    raise CatalogValidationError(
+                        f"{language}: {key} ({label}) has no translated phrases"
+                    )
+                if any(not isinstance(value, str) or not value for value in values):
+                    raise CatalogValidationError(
+                        f"{language}: {key} ({label}) contains an empty phrase"
+                    )
+                if len(values) != len(set(values)):
+                    raise CatalogValidationError(
+                        f"{language}: {key} ({label}) contains duplicate phrases"
+                    )
+                for value in values:
+                    signature = placeholder_signature(value)
+                    if signature not in signatures:
+                        raise CatalogValidationError(
+                            f"{language}: {key} ({label}) has placeholders {signature}, "
+                            f"expected one of {sorted(signatures)}"
+                        )
 
 
 def translated_copy(value):
     result = copy.deepcopy(value)
     for _, unit in string_units(result):
         unit["state"] = "translated"
+    for _, string_set in string_sets(result):
+        string_set["state"] = "translated"
     return result
 
 
@@ -166,6 +222,47 @@ def run_self_tests(base_catalog):
     placeholder = copy.deepcopy(complete)
     first_unit(placeholder, "chat.merge.candidate.alias", "es")["value"] = "%1$@ only"
     expect_failure("placeholder mismatch", placeholder, ["en", "es"])
+
+    shortcut_catalog = {
+        "sourceLanguage": "en",
+        "strings": {
+            "Run ${applicationName}": {
+                "localizations": {
+                    "en": {
+                        "stringSet": {
+                            "state": "new",
+                            "values": ["Run ${applicationName}"],
+                        }
+                    },
+                    "es": {
+                        "stringSet": {
+                            "state": "translated",
+                            "values": ["Ejecutar ${applicationName}"],
+                        }
+                    },
+                }
+            }
+        },
+    }
+    validate_catalog(shortcut_catalog, ["en", "es"])
+
+    duplicate_phrase = copy.deepcopy(shortcut_catalog)
+    duplicate_phrase["strings"]["Run ${applicationName}"]["localizations"]["es"][
+        "stringSet"
+    ]["values"] *= 2
+    expect_failure("duplicate shortcut phrase", duplicate_phrase, ["en", "es"])
+
+    shortcut_placeholder = copy.deepcopy(shortcut_catalog)
+    shortcut_placeholder["strings"]["Run ${applicationName}"]["localizations"]["es"][
+        "stringSet"
+    ]["values"] = ["Ejecutar la aplicación"]
+    expect_failure("shortcut placeholder mismatch", shortcut_placeholder, ["en", "es"])
+
+    shortcut_state = copy.deepcopy(shortcut_catalog)
+    shortcut_state["strings"]["Run ${applicationName}"]["localizations"]["es"][
+        "stringSet"
+    ]["state"] = "needs_review"
+    expect_failure("shortcut state", shortcut_state, ["en", "es"])
 
     print("Localization validator self-tests passed.")
 

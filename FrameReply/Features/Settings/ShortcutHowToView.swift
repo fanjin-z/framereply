@@ -92,6 +92,7 @@ struct ShortcutHowToView: View {
                         guidePicker
                         ShortcutHowToMediaView(kind: selectedKind)
                             .id(selectedKind)
+                        tutorialLanguageNote
                         quickSteps
                         completionNote
 
@@ -127,6 +128,14 @@ struct ShortcutHowToView: View {
         }
         .pickerStyle(.segmented)
         .accessibilityIdentifier("shortcut-how-to-picker")
+    }
+
+    private var tutorialLanguageNote: some View {
+        Text("The demonstration uses an English system interface.")
+            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("shortcut-tutorial-language-note")
     }
 
     private var quickSteps: some View {
@@ -229,7 +238,7 @@ struct ShortcutHowToView: View {
     }
 
     private func stepBadge(_ number: Int) -> some View {
-        Text("\(number)")
+        Text(verbatim: "\(number)")
             .font(.system(size: 11, weight: .bold, design: .rounded))
             .foregroundStyle(FrameReplyColor.primary)
             .frame(width: 24, height: 24)

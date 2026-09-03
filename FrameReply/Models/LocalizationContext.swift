@@ -26,6 +26,11 @@ nonisolated struct LocalizationContext: Equatable, Sendable {
     }
 
     static var current: LocalizationContext {
-        LocalizationContext(locale: .current)
+        let bundle = Bundle.main
+        let identifier =
+            bundle.preferredLocalizations.first
+            ?? bundle.developmentLocalization
+            ?? "en"
+        return LocalizationContext(languageIdentifier: identifier)
     }
 }

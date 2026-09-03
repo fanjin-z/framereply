@@ -66,8 +66,13 @@ struct PersonasView: View {
         } message: {
             Text(
                 personaToDelete?.id == defaultPersonaID
-                    ? "Choose a new default. Chats using this persona will be reassigned."
-                    : "Chats using it will switch to your default persona.")
+                    ? LocalizedStringResource(
+                        "Choose a new default. Chats using this persona will be reassigned."
+                    )
+                    : LocalizedStringResource(
+                        "Chats using it will switch to your default persona."
+                    )
+            )
         }
         .alert(
             "Couldn’t Delete Persona",
@@ -92,7 +97,10 @@ struct PersonasView: View {
         }
     }
 
-    private var deleteTitle: String { "Delete \(personaToDelete?.name ?? "persona")?" }
+    private var deleteTitle: LocalizedStringResource {
+        let personaName = personaToDelete?.name ?? String(localized: "persona")
+        return "Delete \(personaName)?"
+    }
 
     private func personaCardIdentifier(_ record: PersonaRecord) -> String {
         if let builtInID = record.builtInID {

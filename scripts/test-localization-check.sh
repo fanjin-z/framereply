@@ -6,6 +6,7 @@ repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 checker="$repository_root/scripts/check-localization.sh"
 fixture_root="$repository_root/scripts/fixtures/localization"
 catalog="$repository_root/FrameReply/Localizable.xcstrings"
+shortcut_catalog="$repository_root/FrameReply/AppShortcuts.xcstrings"
 project="$repository_root/FrameReply.xcodeproj/project.pbxproj"
 app_strings="$repository_root/FrameReply/Models/AppStrings.swift"
 
@@ -13,6 +14,7 @@ app_strings="$repository_root/FrameReply/Models/AppStrings.swift"
 
 FRAME_REPLY_SWIFT_SOURCE_ROOT="$fixture_root/clean" \
     FRAME_REPLY_LOCALIZATION_CATALOG="$catalog" \
+    FRAME_REPLY_SHORTCUT_LOCALIZATION_CATALOG="$shortcut_catalog" \
     FRAME_REPLY_LOCALIZATION_PROJECT="$project" \
     FRAME_REPLY_APP_STRINGS="$app_strings" \
     "$checker" >/dev/null
@@ -21,6 +23,7 @@ expect_architecture_failure() {
     fixture=$1
     if FRAME_REPLY_SWIFT_SOURCE_ROOT="$fixture_root/$fixture" \
         FRAME_REPLY_LOCALIZATION_CATALOG="$catalog" \
+        FRAME_REPLY_SHORTCUT_LOCALIZATION_CATALOG="$shortcut_catalog" \
         FRAME_REPLY_LOCALIZATION_PROJECT="$project" \
         FRAME_REPLY_APP_STRINGS="$app_strings" \
         "$checker" >/dev/null 2>&1; then

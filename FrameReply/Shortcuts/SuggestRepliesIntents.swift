@@ -738,6 +738,7 @@ struct ShortcutImportReviewSnippetIntent: SnippetIntent {
 }
 
 struct ShortcutNoReplySnippetIntent: SnippetIntent {
+    // App Intents metadata extraction requires a literal initializer at this declaration.
     static let title = LocalizedStringResource(
         "shortcut.replies.no-reply-needed",
         defaultValue: "No reply needed right now.",
@@ -1235,7 +1236,7 @@ struct ShortcutRepliesSnippet: View {
                     Image(systemName: "checkmark")
                         .font(.caption.weight(.bold))
                 } else {
-                    Text("\(index + 1)")
+                    Text(verbatim: "\(index + 1)")
                         .font(.caption.weight(.bold))
                         .monospacedDigit()
                 }

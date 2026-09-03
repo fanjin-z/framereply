@@ -42,15 +42,17 @@ struct ChatMessage: Identifiable, Equatable {
         let senderDescription: String
         switch sender {
         case .user:
-            senderDescription = "You"
+            senderDescription = String(localized: "You")
         case .otherParticipant:
-            senderDescription = "Other participant"
+            senderDescription = String(localized: "Other participant")
         case .groupParticipant(let name):
-            senderDescription = "Sender \(name)"
+            senderDescription = String(localized: "Sender \(name)")
         case .unknown:
-            senderDescription = "Unknown sender"
+            senderDescription = String(localized: "Unknown sender")
         }
-        let timestamp = timeLabel.isEmpty ? "" : ", \(timeLabel)"
-        return "\(senderDescription): \(text)\(timestamp)"
+        if timeLabel.isEmpty {
+            return String(localized: "\(senderDescription): \(text)")
+        }
+        return String(localized: "\(senderDescription): \(text), \(timeLabel)")
     }
 }

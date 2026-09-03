@@ -143,8 +143,8 @@ struct ChatsView: View {
                 ScreenshotImportStatusCard(
                     symbolName: "sparkles",
                     message: importModel.phase == .analyzing
-                        ? "Analyzing messages…"
-                        : "Generating replies…",
+                        ? String(localized: "Analyzing messages…")
+                        : String(localized: "Generating replies…"),
                     isLoading: true,
                     onCancel: {
                         importTask?.cancel()
@@ -287,7 +287,7 @@ struct ChatsView: View {
         !unknownSenderMessages.isEmpty
     }
 
-    private var reviewNudgeText: String {
+    private var reviewNudgeText: LocalizedStringResource {
         hasUnknownSenderReview && !hasProvisionalImportReview ? "Review senders" : "Review imports"
     }
 
@@ -410,7 +410,7 @@ enum ChatsPresentation {
 }
 
 private struct ChatsImportReviewNudge: View {
-    let text: String
+    let text: LocalizedStringResource
     let iconName: String
     let count: Int
     let isAccented: Bool
@@ -429,7 +429,7 @@ private struct ChatsImportReviewNudge: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
 
-                Text("\(count)")
+                Text(verbatim: "\(count)")
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .foregroundStyle(FrameReplyColor.primary)
                     .frame(minWidth: 22, minHeight: 22)

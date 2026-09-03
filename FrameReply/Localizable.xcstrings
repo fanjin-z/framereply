@@ -2,10 +2,10 @@
   "sourceLanguage" : "en",
   "strings" : {
     "" : {
-
+      "shouldTranslate" : false
     },
     "%@" : {
-
+      "shouldTranslate" : false
     },
     "%@ · %@" : {
       "localizations" : {
@@ -13,6 +13,32 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ · %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@ · Result: Group" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 合并后为群聊"
+          }
+        }
+      }
+    },
+    "%@ · Suggested" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 推荐"
           }
         }
       }
@@ -24,6 +50,12 @@
             "state" : "translated",
             "value" : "%1$@ imported to %2$@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已将%1$@导入%2$@"
+          }
         }
       }
     },
@@ -33,6 +65,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ imported to %2$@ · Review required"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已将%1$@导入%2$@ · 需要确认"
+          }
+        }
+      }
+    },
+    "%@ Suggested replies could not be generated: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ Suggested replies could not be generated: %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 无法生成推荐回复：%2$@"
           }
         }
       }
@@ -44,14 +98,88 @@
             "state" : "new",
             "value" : "%1$@, %2$@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@，%2$@"
+          }
         }
       }
     },
-    "%lld" : {
-
+    "%@, %@. Reply style: %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$@. Reply style: %3$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@，%2$@。回复风格：%3$@。"
+          }
+        }
+      }
+    },
+    "%@, %@. Review import." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$@. Review import."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@，%2$@。请检查导入内容。"
+          }
+        }
+      }
+    },
+    "%@: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@：%2$@"
+          }
+        }
+      }
+    },
+    "%@: %@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@, %3$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@：%2$@，%3$@"
+          }
+        }
+      }
     },
     "%lld chats" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 个聊天"
+          }
+        }
+      }
     },
     "%lld messages" : {
       "localizations" : {
@@ -72,25 +200,20 @@
               }
             }
           }
-        }
-      }
-    },
-    "%lld replies are ready." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
+        },
+        "zh-Hans" : {
           "variations" : {
             "plural" : {
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld reply is ready."
+                  "value" : "%lld 条消息"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld replies are ready."
+                  "value" : "%lld 条消息"
                 }
               }
             }
@@ -117,180 +240,670 @@
               }
             }
           }
-        }
-      }
-    },
-    "%lld/%lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld/%2$lld"
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 条推荐回复已生成"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 条推荐回复已生成"
+                }
+              }
+            }
           }
         }
       }
     },
+    "%lld/%lld" : {
+      "shouldTranslate" : false
+    },
     "%lld/10 messages" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/10 条消息"
+          }
+        }
+      }
     },
     "Accessibility → Touch → Back Tap" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "辅助功能 → 触控 → 轻点背面"
+          }
+        }
+      }
+    },
+    "Active" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前使用"
+          }
+        }
+      }
     },
     "Add" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加"
+          }
+        }
+      }
     },
     "Add %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加%@"
+          }
+        }
+      }
     },
     "Add an observation" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加风格特点"
+          }
+        }
+      }
     },
     "Add FrameReply Images" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加 FrameReply Images"
+          }
+        }
+      }
     },
     "Add messages" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加消息"
+          }
+        }
+      }
     },
     "Add Messages" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加消息"
+          }
+        }
+      }
     },
     "Add model provider" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加模型服务商"
+          }
+        }
+      }
     },
     "Add one short fact about yourself" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加一条关于你的简短信息"
+          }
+        }
+      }
     },
     "Add Provider" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加服务商"
+          }
+        }
+      }
     },
     "Add reply guidance?" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要添加回复要求吗？"
+          }
+        }
+      }
     },
     "Add reply guidance…" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加回复要求…"
+          }
+        }
+      }
     },
     "Added by you" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你添加的"
+          }
+        }
+      }
     },
     "Advanced" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高级"
+          }
+        }
+      }
     },
     "Age Suitability" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年龄分级"
+          }
+        }
+      }
     },
     "All imports are reviewed." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有导入内容均已检查。"
+          }
+        }
+      }
     },
     "All non-user messages will be treated as coming from this one person. Original imported sender labels are retained for recovery." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有非本人消息都将视为由此人发送。原始发送者标签会保留，以便需要时恢复。"
+          }
+        }
+      }
     },
     "Allow & Connect" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许并连接"
+          }
+        }
+      }
     },
     "Also known as" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他名称"
+          }
+        }
+      }
     },
     "Analyze ${chatImages}" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分析${chatImages}"
+          }
+        }
+      }
     },
     "Analyze ${copiedMessages}" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分析${copiedMessages}"
+          }
+        }
+      }
     },
     "Analyze Chat Images" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分析聊天截图"
+          }
+        }
+      }
     },
     "Analyze Chat Text" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分析聊天文字"
+          }
+        }
+      }
+    },
+    "Analyze conversations and create suggested replies." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分析聊天内容并生成推荐回复。"
+          }
+        }
+      }
     },
     "Analyze Examples" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分析示例"
+          }
+        }
+      }
     },
     "Analyzed Chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已分析的聊天"
+          }
+        }
+      }
     },
     "Analyzed chat input" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已分析的聊天内容"
+          }
+        }
+      }
+    },
+    "Analyzing chat text…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在分析聊天文字…"
+          }
+        }
+      }
+    },
+    "Analyzing messages…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在分析消息…"
+          }
+        }
+      }
+    },
+    "Analyzing selected screenshots…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在分析所选截图…"
+          }
+        }
+      }
     },
     "Analyzing…" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在分析…"
+          }
+        }
+      }
     },
     "API Key" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API 密钥"
+          }
+        }
+      }
+    },
+    "App & Support" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App 与支持"
+          }
+        }
+      }
+    },
+    "App Language" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App 语言"
+          }
+        }
+      }
+    },
+    "Archived" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已归档"
+          }
+        }
+      }
     },
     "Are you %@?" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你是%@吗？"
+          }
+        }
+      }
     },
     "Ask for Reply Guidance" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "询问回复要求"
+          }
+        }
+      }
     },
     "Ask whether to add reply guidance when none is supplied." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未提供回复要求时，询问是否添加。"
+          }
+        }
+      }
+    },
+    "Assuming you are %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时将你识别为%@"
+          }
+        }
+      }
     },
     "Back" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回"
+          }
+        }
+      }
     },
     "Back Tap" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点背面"
+          }
+        }
+      }
     },
     "Back to chat assistant" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回聊天助手"
+          }
+        }
+      }
     },
     "Back to chats" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回聊天列表"
+          }
+        }
+      }
     },
     "Balanced" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "均衡"
+          }
+        }
+      }
     },
     "Basic" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基础"
+          }
+        }
+      }
     },
     "Basics" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基本信息"
+          }
+        }
+      }
     },
     "Best" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最佳"
+          }
+        }
+      }
     },
     "Blank persona" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "空白回复风格"
+          }
+        }
+      }
     },
     "Cancel" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
+          }
+        }
+      }
     },
     "Casual" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "随意"
+          }
+        }
+      }
+    },
+    "Change to Direct" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "改为单聊"
+          }
+        }
+      }
     },
     "Chat actions for %@" : {
-      "comment" : "Accessibility label for the chat management menu. The value is the user-defined chat name."
+      "comment" : "Accessibility label for the chat management menu. The value is the user-defined chat name.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@的聊天操作"
+          }
+        }
+      }
     },
     "Chat History" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聊天记录"
+          }
+        }
+      }
     },
     "Chat ID" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聊天 ID"
+          }
+        }
+      }
     },
     "Chat Image Replies" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聊天截图回复"
+          }
+        }
+      }
     },
     "Chat Images" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聊天截图"
+          }
+        }
+      }
     },
     "Chat name" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聊天名称"
+          }
+        }
+      }
     },
     "Chat screenshots" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聊天截图"
+          }
+        }
+      }
     },
     "Chat Text" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聊天文字"
+          }
+        }
+      }
     },
     "Chat Text Replies" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聊天文字回复"
+          }
+        }
+      }
     },
     "Chat Title" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聊天名称"
+          }
+        }
+      }
     },
     "Chat: %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聊天：%@"
+          }
+        }
+      }
     },
     "chat.fallback.group-title" : {
       "comment" : "Fallback title for an imported group chat whose title is unknown.",
@@ -300,6 +913,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Group Chat"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "群聊"
           }
         }
       }
@@ -313,6 +932,12 @@
             "state" : "new",
             "value" : "Imported Chat"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入的聊天"
+          }
         }
       }
     },
@@ -324,6 +949,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "No messages yet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无消息"
           }
         }
       }
@@ -337,6 +968,12 @@
             "state" : "new",
             "value" : "Imported Chat"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入的聊天"
+          }
         }
       }
     },
@@ -348,6 +985,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ — also %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@，也叫%2$@"
           }
         }
       }
@@ -361,6 +1004,12 @@
             "state" : "new",
             "value" : "%1$@: %2$@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@：%2$@"
+          }
         }
       }
     },
@@ -372,6 +1021,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Participant"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参与者"
           }
         }
       }
@@ -385,6 +1040,12 @@
             "state" : "new",
             "value" : "Unknown sender"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知发送者"
+          }
         }
       }
     },
@@ -397,17 +1058,54 @@
             "state" : "new",
             "value" : "You"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你"
+          }
         }
       }
     },
     "Chats" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聊天"
+          }
+        }
+      }
     },
     "Chats using it will switch to your default persona." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用此回复风格的聊天将改用默认回复风格。"
+          }
+        }
+      }
     },
     "Choose" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择"
+          }
+        }
+      }
+    },
+    "Choose **Double Tap** or **Triple Tap**, then select **FrameReply Images**." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择**轻点两下**或**轻点三下**，然后选择 **FrameReply Images**。"
+          }
+        }
+      }
     },
     "Choose %@ as me, %lld messages" : {
       "localizations" : {
@@ -428,245 +1126,947 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "选择%1$@作为我，共 %2$lld 条消息"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "选择%1$@作为我，共 %2$lld 条消息"
+                }
+              }
+            }
+          }
         }
       }
     },
     "Choose a clear name for this chat." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为这个聊天取一个清楚易认的名称。"
+          }
+        }
+      }
     },
     "Choose a new default. Chats using this persona will be reassigned." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请选择新的默认回复风格。使用此回复风格的聊天将改用新选择。"
+          }
+        }
+      }
     },
     "Choose a suggested reply." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择一条推荐回复。"
+          }
+        }
+      }
     },
     "Choose Counterpart" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择对方"
+          }
+        }
+      }
     },
     "Choose Screenshots" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择截图"
+          }
+        }
+      }
     },
     "Choose Suggested Reply" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择推荐回复"
+          }
+        }
+      }
     },
     "Choose which sender is you before keeping this chat." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留此聊天前，请先确认哪位发送者是你。"
+          }
+        }
+      }
     },
     "Chooses the persona for this chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择此聊天使用的回复风格"
+          }
+        }
+      }
     },
     "Clear search" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除搜索"
+          }
+        }
+      }
     },
     "Close" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭"
+          }
+        }
+      }
     },
     "Close chat history" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭聊天记录"
+          }
+        }
+      }
     },
     "Closes Add Messages." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭“添加消息”。"
+          }
+        }
+      }
+    },
+    "Complete the provider settings and retry." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请完成服务商设置后重试。"
+          }
+        }
+      }
     },
     "Confirm Identity" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确认身份"
+          }
+        }
+      }
     },
     "Connect" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接"
+          }
+        }
+      }
     },
     "Connect a Model Provider" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接模型服务商"
+          }
+        }
+      }
     },
     "Connect OpenAI or a supported vision provider." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接 OpenAI 或其他支持图片识别的服务商。"
+          }
+        }
+      }
     },
     "Connecting..." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在连接…"
+          }
+        }
+      }
     },
     "Continue" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续"
+          }
+        }
+      }
     },
     "Conversation Strategy" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接下来怎么聊"
+          }
+        }
+      }
+    },
+    "Conversation type" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聊天类型"
+          }
+        }
+      }
+    },
+    "Convert" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "转换"
+          }
+        }
+      }
+    },
+    "Converted to Group" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已转为群聊"
+          }
+        }
+      }
     },
     "Copied" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已复制"
+          }
+        }
+      }
     },
     "Copied text" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制的文字"
+          }
+        }
+      }
     },
     "Copied Text" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制的文字"
+          }
+        }
+      }
     },
     "Copies this suggested reply" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制这条推荐回复"
+          }
+        }
+      }
     },
     "Copy" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制"
+          }
+        }
+      }
     },
     "Could Not Delete Chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法删除聊天"
+          }
+        }
+      }
+    },
+    "Could not test the provider. Check your network and try again." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法测试服务商。请检查你的网络，然后重试。"
+          }
+        }
+      }
     },
     "Could Not Update Chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法更新聊天"
+          }
+        }
+      }
     },
     "Could Not Update Names" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法更新名称"
+          }
+        }
+      }
     },
     "Could Not Update Personal Info" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法更新个人信息"
+          }
+        }
+      }
     },
     "Couldn’t Delete All Data" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法删除所有数据"
+          }
+        }
+      }
     },
     "Couldn’t Delete Persona" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法删除回复风格"
+          }
+        }
+      }
+    },
+    "Couldn’t Open Settings" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开设置"
+          }
+        }
+      }
     },
     "Couldn’t Remove Provider" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法移除服务商"
+          }
+        }
+      }
     },
     "Couldn’t Save Remembered Context" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存聊天记忆"
+          }
+        }
+      }
     },
     "Couldn’t Set Default Persona" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法设置默认回复风格"
+          }
+        }
+      }
     },
     "Counterpart name" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对方名称"
+          }
+        }
+      }
     },
     "Create New Persona" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新建回复风格"
+          }
+        }
+      }
     },
     "Create Persona" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建回复风格"
+          }
+        }
+      }
     },
     "Creating replies from this conversation…" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在根据这段聊天生成回复…"
+          }
+        }
+      }
     },
     "Creating…" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在创建…"
+          }
+        }
+      }
     },
     "Current Goal" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前目标"
+          }
+        }
+      }
     },
     "Current Goal Editor" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前目标编辑器"
+          }
+        }
+      }
     },
     "Current Goal: %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前目标：%@"
+          }
+        }
+      }
     },
     "Current model provider" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前模型服务商"
+          }
+        }
+      }
     },
     "Current tab" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前标签页"
+          }
+        }
+      }
     },
     "Custom Name" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义名称"
+          }
+        }
+      }
+    },
+    "Data shared" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "共享的数据"
+          }
+        }
+      }
     },
     "Data Sharing" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据共享"
+          }
+        }
+      }
     },
     "Data Sharing Details" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据共享详情"
+          }
+        }
+      }
     },
     "Default" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认"
+          }
+        }
+      }
     },
     "Default persona" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认回复风格"
+          }
+        }
+      }
     },
     "Default Persona" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认回复风格"
+          }
+        }
+      }
     },
     "Delete" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除"
+          }
+        }
+      }
+    },
+    "Delete %@?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要删除%@吗？"
+          }
+        }
+      }
     },
     "Delete All Local Data" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除所有本地数据"
+          }
+        }
+      }
     },
     "Delete all local FrameReply data?" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要删除 FrameReply 的所有本地数据吗？"
+          }
+        }
+      }
     },
     "Delete Chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除聊天"
+          }
+        }
+      }
     },
     "Delete chat with %@?" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要删除与%@的聊天吗？"
+          }
+        }
+      }
     },
     "Delete Name" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除名称"
+          }
+        }
+      }
+    },
+    "Delete name?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要删除这个名称吗？"
+          }
+        }
+      }
     },
     "Delete Persona" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除回复风格"
+          }
+        }
+      }
+    },
+    "Description" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "说明"
+          }
+        }
+      }
+    },
+    "Destination" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据接收方"
+          }
+        }
+      }
     },
     "Detailed" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "详细"
+          }
+        }
+      }
     },
     "Detected Names" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "识别到的名称"
+          }
+        }
+      }
     },
     "Direct Chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "单聊"
+          }
+        }
+      }
     },
     "Dismiss" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭"
+          }
+        }
+      }
     },
     "Display name" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示名称"
+          }
+        }
+      }
     },
     "Done" : {
-
-    },
-    "Choose **Double Tap** or **Triple Tap**, then select **FrameReply Images**." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成"
+          }
+        }
+      }
     },
     "Double tap to edit, or swipe left to delete" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "双击编辑，或向左滑动删除"
+          }
+        }
+      }
     },
     "Double tap to edit, or swipe left to remove" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "双击编辑，或向左滑动删除"
+          }
+        }
+      }
     },
     "Double- or triple-tap the back of your iPhone to import screenshots" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点 iPhone 背面两下或三下即可导入截图"
+          }
+        }
+      }
     },
     "Duplicate" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重复"
+          }
+        }
+      }
     },
     "Duplicate Import" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重复导入"
+          }
+        }
+      }
     },
     "e.g. Agree on a time for dinner…" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "例如：确定一起吃晚饭的时间…"
+          }
+        }
+      }
     },
     "e.g. Concise, polished replies for work conversations." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "例如：为工作聊天提供简洁、得体的回复。"
+          }
+        }
+      }
     },
     "e.g. We met at university, they prefer vegetarian restaurants…" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "例如：我们在大学认识，对方更喜欢素食餐厅…"
+          }
+        }
+      }
     },
     "e.g. Work Mode" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "例如：工作模式"
+          }
+        }
+      }
     },
     "Edit" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑"
+          }
+        }
+      }
     },
     "Edit memory" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑记忆"
+          }
+        }
+      }
     },
     "Edit Names" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑名称"
+          }
+        }
+      }
     },
     "Edit names, change conversation type, or delete this chat" : {
-      "comment" : "Accessibility hint describing the actions available in the chat management menu."
+      "comment" : "Accessibility hint describing the actions available in the chat management menu.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑名称、更改聊天类型或删除此聊天"
+          }
+        }
+      }
     },
     "Edit Personal Info" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑个人信息"
+          }
+        }
+      }
     },
     "Emoji" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表情符号"
+          }
+        }
+      }
+    },
+    "English" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "English"
+          }
+        }
+      }
+    },
+    "Enter an API key before connecting." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接前请输入 API 密钥。"
+          }
+        }
+      }
     },
     "Enter API key" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入 API 密钥"
+          }
+        }
+      }
+    },
+    "Enter one short fact about yourself." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请输入一条关于你的简短信息。"
+          }
+        }
+      }
     },
     "error.ai.consent-required" : {
       "extractionState" : "extracted_with_value",
@@ -675,6 +2075,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Review and accept this provider's data-sharing disclosure in Settings first."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先在“设置”中查看并接受此服务商的数据共享说明。"
           }
         }
       }
@@ -687,6 +2093,12 @@
             "state" : "new",
             "value" : "The selected provider API key is unavailable. Reconnect it in Settings."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选服务商的 API 密钥不可用。请在“设置”中重新连接。"
+          }
         }
       }
     },
@@ -697,6 +2109,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Connect and select a model provider first."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先连接并选择模型服务商。"
           }
         }
       }
@@ -709,6 +2127,12 @@
             "state" : "new",
             "value" : "The selected provider does not support this AI task."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选服务商不支持此 AI 任务。"
+          }
         }
       }
     },
@@ -719,6 +2143,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "The selected provider is not available."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选服务商不可用。"
           }
         }
       }
@@ -731,6 +2161,12 @@
             "state" : "new",
             "value" : "Participant names are available for one-to-one chats only."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅单聊可以设置对方名称。"
+          }
         }
       }
     },
@@ -741,6 +2177,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Enter a display name for this chat."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请输入此聊天的显示名称。"
           }
         }
       }
@@ -754,6 +2196,12 @@
             "state" : "new",
             "value" : "A group chat can’t be merged with a one-to-one chat."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "群聊不能与单聊合并。"
+          }
         }
       }
     },
@@ -764,6 +2212,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "That sender label is no longer available. Reopen the review and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此发送者标签已不可用。请重新打开确认页面后重试。"
           }
         }
       }
@@ -776,6 +2230,12 @@
             "state" : "new",
             "value" : "That chat is no longer available."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此聊天已不可用。"
+          }
         }
       }
     },
@@ -786,6 +2246,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Delete and reconnect the provider in Settings → Model Providers."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在“设置”→“模型服务商”中删除并重新连接此服务商。"
           }
         }
       }
@@ -798,6 +2264,12 @@
             "state" : "new",
             "value" : "The selected images are too large to process safely. Choose fewer or smaller images."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选图片过大，无法安全处理。请减少图片数量或选择更小的图片。"
+          }
         }
       }
     },
@@ -808,6 +2280,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Select at least one screenshot to import."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请至少选择一张截图导入。"
           }
         }
       }
@@ -820,6 +2298,12 @@
             "state" : "new",
             "value" : "No messages. Copy with sender names."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有识别到消息。复制时请包含发送者名称。"
+          }
         }
       }
     },
@@ -830,6 +2314,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "No messages. Try a new image."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有识别到消息。请尝试其他图片。"
           }
         }
       }
@@ -842,6 +2332,12 @@
             "state" : "new",
             "value" : "Connect and select a model provider before importing messages."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入消息前，请先连接并选择模型服务商。"
+          }
         }
       }
     },
@@ -852,6 +2348,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Share or copy at least one text message before importing."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入前，请至少分享或复制一条文字消息。"
           }
         }
       }
@@ -864,6 +2366,12 @@
             "state" : "new",
             "value" : "Select no more than eight screenshots from one chat."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同一聊天最多选择 8 张截图。"
+          }
         }
       }
     },
@@ -874,6 +2382,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "The chat text is too large. Select fewer messages and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聊天文字过多。请减少所选消息后重试。"
           }
         }
       }
@@ -886,6 +2400,12 @@
             "state" : "new",
             "value" : "The selected screenshot could not be read. Choose a still PNG, JPEG, or HEIC image."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取所选截图。请选择静态 PNG、JPEG 或 HEIC 图片。"
+          }
         }
       }
     },
@@ -896,6 +2416,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "A selected image could not be processed safely. Use a still PNG, JPEG, or HEIC image."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法安全处理所选图片。请使用静态 PNG、JPEG 或 HEIC 图片。"
           }
         }
       }
@@ -908,6 +2434,12 @@
             "state" : "new",
             "value" : "The selected provider cannot analyze chat imports."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选服务商无法分析导入的聊天。"
+          }
         }
       }
     },
@@ -918,6 +2450,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Allow provider data sharing before connecting."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接前，请先允许与服务商共享数据。"
           }
         }
       }
@@ -930,6 +2468,12 @@
             "state" : "new",
             "value" : "The provider returned an empty response."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商返回了空内容。"
+          }
         }
       }
     },
@@ -940,6 +2484,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "The provider returned incomplete chat messages."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商返回的聊天消息不完整。"
           }
         }
       }
@@ -952,6 +2502,12 @@
             "state" : "new",
             "value" : "This account does not have enough available API credit or quota."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此账户的 API 余额或配额不足。"
+          }
         }
       }
     },
@@ -962,6 +2518,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "The provider selected an unknown chat."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商选择了未知聊天。"
           }
         }
       }
@@ -974,6 +2536,12 @@
             "state" : "new",
             "value" : "The provider returned malformed JSON."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商返回的 JSON 格式有误。"
+          }
         }
       }
     },
@@ -984,6 +2552,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "This provider rejected the API key. Check it and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务商拒绝了 API 密钥。请检查后重试。"
           }
         }
       }
@@ -996,6 +2570,12 @@
             "state" : "new",
             "value" : "The provider could not process this request. Check the configuration and try again."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商无法处理此请求。请检查配置后重试。"
+          }
         }
       }
     },
@@ -1006,6 +2586,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "The provider returned an unreadable response. Try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取服务商返回的内容。请重试。"
           }
         }
       }
@@ -1018,6 +2604,12 @@
             "state" : "new",
             "value" : "The API key was valid, but FrameReply could not save it securely."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API 密钥有效，但 FrameReply 无法安全保存。"
+          }
         }
       }
     },
@@ -1028,6 +2620,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Enter an API key before saving."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存前请输入 API 密钥。"
           }
         }
       }
@@ -1040,6 +2638,12 @@
             "state" : "new",
             "value" : "FrameReply could not reach the provider. Check your connection and try again."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply 无法连接服务商。请检查网络连接后重试。"
+          }
         }
       }
     },
@@ -1050,6 +2654,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "This provider is rate limiting the key. Wait a moment and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务商正在限制此密钥的请求频率。请稍后重试。"
           }
         }
       }
@@ -1062,6 +2672,12 @@
             "state" : "new",
             "value" : "The provider response did not match the chat format."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商返回的内容不符合聊天格式。"
+          }
         }
       }
     },
@@ -1072,6 +2688,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "The provider response was cut off before it finished."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商返回的内容不完整。"
           }
         }
       }
@@ -1084,6 +2706,12 @@
             "state" : "new",
             "value" : "This provider is temporarily unavailable. Try again shortly."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务商暂时不可用。请稍后重试。"
+          }
         }
       }
     },
@@ -1094,6 +2722,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "This provider is not available yet."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务商暂不可用。"
           }
         }
       }
@@ -1106,6 +2740,12 @@
             "state" : "new",
             "value" : "This chat is no longer available."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此聊天已不可用。"
+          }
         }
       }
     },
@@ -1116,6 +2756,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Delete and reconnect the provider in Settings → Model Providers."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在“设置”→“模型服务商”中删除并重新连接此服务商。"
           }
         }
       }
@@ -1128,6 +2774,12 @@
             "state" : "new",
             "value" : "The provider could not generate replies in the expected format. Try again."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商未按预期格式生成回复。请重试。"
+          }
         }
       }
     },
@@ -1138,6 +2790,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Import at least one chat message before generating replies."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生成回复前，请至少导入一条聊天消息。"
           }
         }
       }
@@ -1150,6 +2808,12 @@
             "state" : "new",
             "value" : "Connect and select a model provider to generate replies."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请连接并选择模型服务商以生成回复。"
+          }
         }
       }
     },
@@ -1160,6 +2824,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Review who sent the latest message before generating replies."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生成回复前，请先确认最新消息的发送者。"
           }
         }
       }
@@ -1172,6 +2842,12 @@
             "state" : "new",
             "value" : "The selected provider cannot generate suggested replies."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选服务商无法生成推荐回复。"
+          }
         }
       }
     },
@@ -1182,6 +2858,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "The analyzed chat has expired or is unavailable."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已分析的聊天已过期或不可用。"
           }
         }
       }
@@ -1194,6 +2876,12 @@
             "state" : "new",
             "value" : "The reply guidance for this analyzed chat is no longer available. Run an Analyze action again."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此聊天的回复要求已失效。请重新运行分析操作。"
+          }
         }
       }
     },
@@ -1204,6 +2892,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Image %lld is empty or is not a readable image."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 张图片为空或无法读取。"
           }
         }
       }
@@ -1216,6 +2910,12 @@
             "state" : "new",
             "value" : "No analyzed chat was provided."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未提供已分析的聊天。"
+          }
         }
       }
     },
@@ -1226,6 +2926,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "No chat images were provided."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未提供聊天图片。"
           }
         }
       }
@@ -1238,6 +2944,12 @@
             "state" : "new",
             "value" : "The analyzed chat is not ready yet. Run the Analyze action again."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已分析的聊天尚未就绪。请重新运行分析操作。"
+          }
         }
       }
     },
@@ -1248,6 +2960,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "The analyzed chat does not match this Shortcut run."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已分析的聊天与本次快捷指令运行不匹配。"
           }
         }
       }
@@ -1260,125 +2978,496 @@
             "state" : "new",
             "value" : "Choose no more than %lld images from the same chat."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同一聊天最多选择 %lld 张图片。"
+          }
         }
       }
     },
     "Example: For networking messages, mention the shared context, make one clear request, and give the other person an easy way to decline." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "示例：写人脉拓展消息时，先提及双方都了解的背景，再提出一个明确请求，并让对方可以轻松婉拒。"
+          }
+        }
+      }
     },
     "Expressive" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生动"
+          }
+        }
+      }
     },
     "Facts About You" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关于你的信息"
+          }
+        }
+      }
     },
     "Few emoji" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "少量表情符号"
+          }
+        }
+      }
     },
     "Fewer" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "较少"
+          }
+        }
+      }
     },
     "Fine-tune the voice." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "进一步调整表达方式。"
+          }
+        }
+      }
     },
     "Finish Setup" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成设置"
+          }
+        }
+      }
     },
     "Forget for this chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在此聊天中不再记住"
+          }
+        }
+      }
     },
     "Forget for This Chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在此聊天中不再记住"
+          }
+        }
+      }
     },
     "Forget these names for this chat?" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要让此聊天不再记住这些名称吗？"
+          }
+        }
+      }
     },
     "Formal" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正式"
+          }
+        }
+      }
     },
     "Formality" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正式程度"
+          }
+        }
+      }
+    },
+    "FrameReply" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply"
+          }
+        }
+      }
+    },
+    "FrameReply could not open its protected local database. You can retry or permanently reset local chats, personas, and drafts." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply 无法打开受保护的本地数据库。你可以重试，或永久重置本地聊天、回复风格和草稿。"
+          }
+        }
+      }
+    },
+    "FrameReply could not reset its local database. Restart the device and try again." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply 无法重置本地数据库。请重启设备后重试。"
+          }
+        }
+      }
+    },
+    "FrameReply found structural evidence of multiple participants in %@." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply 在%@中发现了存在多位参与者的明确迹象。"
+          }
+        }
+      }
     },
     "FrameReply Images" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply Images"
+          }
+        }
+      }
     },
     "FrameReply Text" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply Text"
+          }
+        }
+      }
     },
     "FrameReply uses these names to recognize this person in screenshots and pasted transcripts. Removing one may make a future import require review; existing messages won’t change." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply 使用这些名称在截图和粘贴的聊天文字中识别此人。移除名称后，今后导入时可能需要再次确认；现有消息不会改变。"
+          }
+        }
+      }
+    },
+    "FrameReply will remove the saved API key from this device." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply 将从此设备移除已保存的 API 密钥。"
+          }
+        }
+      }
     },
     "Frequent" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "经常使用"
+          }
+        }
+      }
     },
     "From conversation" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "来自聊天"
+          }
+        }
+      }
     },
     "Future imports into this chat may ask which sender is you again. Your saved names and existing messages won’t change." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今后向此聊天导入内容时，可能需要再次确认哪位发送者是你。已保存的名称和现有消息不会改变。"
+          }
+        }
+      }
     },
     "Future imports may ask which sender is you again. Existing messages won’t change." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今后导入内容时，可能需要再次确认哪位发送者是你。现有消息不会改变。"
+          }
+        }
+      }
     },
     "Generate Replies" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生成回复"
+          }
+        }
+      }
     },
     "Generate replies for ${analyzedChat}" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为${analyzedChat}生成回复"
+          }
+        }
+      }
     },
     "Generate replies when you’re ready." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "准备好后即可生成回复。"
+          }
+        }
+      }
     },
     "Generate Suggested Replies" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生成推荐回复"
+          }
+        }
+      }
     },
     "Generates two replies for a chat analyzed by FrameReply." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为 FrameReply 已分析的聊天生成两条回复。"
+          }
+        }
+      }
+    },
+    "Generating replies…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在生成回复…"
+          }
+        }
+      }
     },
     "Group Chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "群聊"
+          }
+        }
+      }
+    },
+    "Group chat. %@, %@. Reply style: %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Group chat. %1$@, %2$@. Reply style: %3$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "群聊。%1$@，%2$@。回复风格：%3$@。"
+          }
+        }
+      }
+    },
+    "Group chat. %@, %@. Review import." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Group chat. %1$@, %2$@. Review import."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "群聊。%1$@，%2$@。请检查导入内容。"
+          }
+        }
+      }
     },
     "Helps FrameReply recognize you in chats." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "帮助 FrameReply 在聊天中识别你。"
+          }
+        }
+      }
     },
     "Hide API key" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏 API 密钥"
+          }
+        }
+      }
     },
     "Highest-quality interpretation and writing at the highest cost" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "理解和写作质量最高，费用也最高"
+          }
+        }
+      }
     },
     "How to Use" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用方法"
+          }
+        }
+      }
     },
     "If the messages don’t include sender names, use screenshots instead." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果消息不含发送者名称，请改用截图。"
+          }
+        }
+      }
     },
     "Image Shortcut" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "截图快捷指令"
+          }
+        }
+      }
     },
     "Images" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图片"
+          }
+        }
+      }
     },
     "Import copied messages" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入复制的消息"
+          }
+        }
+      }
     },
     "Import messages faster" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更快导入消息"
+          }
+        }
+      }
     },
     "Import recent conversation messages." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入最近的聊天消息。"
+          }
+        }
+      }
     },
     "Import screenshots" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入截图"
+          }
+        }
+      }
     },
     "Import Status" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入状态"
+          }
+        }
+      }
     },
     "Import text from your clipboard" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从剪贴板导入文字"
+          }
+        }
+      }
     },
     "Import your first chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入第一个聊天"
+          }
+        }
+      }
     },
     "import.added-messages" : {
       "comment" : "Import result. The catalog supplies singular and plural variants for the message count.",
@@ -1400,6 +3489,24 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "已向%2$@添加 %1$lld 条消息。"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "已向%2$@添加 %1$lld 条消息。"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1410,6 +3517,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "No new messages found in %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有在%@中发现新消息。"
           }
         }
       }
@@ -1434,263 +3547,1038 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "已导入 %lld 条消息，可能需要确认发送者。"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "已导入 %lld 条消息，可能需要确认发送者。"
+                }
+              }
+            }
+          }
         }
       }
     },
     "Imported chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入的聊天"
+          }
+        }
+      }
+    },
+    "Imported chats" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入的聊天"
+          }
+        }
+      }
     },
     "Imported Message Count" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入的消息数量"
+          }
+        }
+      }
     },
     "Importing messages" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在导入消息"
+          }
+        }
+      }
     },
     "Importing Messages" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在导入消息"
+          }
+        }
+      }
     },
     "Importing messages…" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在导入消息…"
+          }
+        }
+      }
     },
     "Imports all compatible text items from the clipboard." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入剪贴板中所有兼容的文字内容。"
+          }
+        }
+      }
     },
     "Imports chat images, suggests replies, and returns the one you choose." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入聊天截图并生成推荐回复，然后返回你选择的回复。"
+          }
+        }
+      }
     },
     "Imports chat text with sender labels, suggests replies, and returns the one you choose." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入带有发送者标签的聊天文字并生成推荐回复，然后返回你选择的回复。"
+          }
+        }
+      }
     },
     "Imports one to eight images from the same chat while you optionally add reply guidance. The images aren't saved." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从同一聊天导入 1 至 8 张图片，并可选择添加回复要求。图片不会被保存。"
+          }
+        }
+      }
     },
     "Imports Reviewed" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已检查的导入内容"
+          }
+        }
+      }
     },
     "Imports shared or copied chat text with sender labels while you optionally add reply guidance. Imported messages are stored locally; the source transcript is not retained separately." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入分享或复制的聊天文字及发送者标签，并可选择添加回复要求。导入的消息会存储在本机，原始文字不会另外保留。"
+          }
+        }
+      }
     },
     "Instructions" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复要求"
+          }
+        }
+      }
     },
     "Keep" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留"
+          }
+        }
+      }
+    },
+    "Keep Direct" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保持单聊"
+          }
+        }
+      }
+    },
+    "Keep Group" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保持群聊"
+          }
+        }
+      }
     },
     "Keep reply guidance under 500 characters." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复要求不能超过 500 个字符。"
+          }
+        }
+      }
     },
     "Keep Separate" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "单独保留"
+          }
+        }
+      }
     },
     "Learn from my messages" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "学习我的表达方式"
+          }
+        }
+      }
+    },
+    "Learned" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "学习所得"
+          }
+        }
+      }
     },
     "Learned from your messages" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从你的消息中学习"
+          }
+        }
+      }
     },
     "Learning on %lld chats" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在从 %lld 个聊天中学习"
+          }
+        }
+      }
     },
     "Local Data" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本地数据"
+          }
+        }
+      }
     },
     "Local Data Unavailable" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本地数据不可用"
+          }
+        }
+      }
     },
     "Lowest cost; may be less reliable with subtle or complex context" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "费用最低，但处理细微或复杂语境时可能不够稳定"
+          }
+        }
+      }
     },
     "Makes this provider active" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将此服务商设为当前使用"
+          }
+        }
+      }
     },
     "Manage Personal Info" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理个人信息"
+          }
+        }
+      }
     },
     "Mark as Direct Chat" : {
-      "comment" : "Reclassifies how FrameReply interprets the conversation; it does not change participants in another messaging app."
+      "comment" : "Reclassifies how FrameReply interprets the conversation; it does not change participants in another messaging app.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标记为单聊"
+          }
+        }
+      }
     },
     "Mark as Group Chat" : {
-      "comment" : "Reclassifies how FrameReply interprets the conversation; it does not create a group in another messaging app."
+      "comment" : "Reclassifies how FrameReply interprets the conversation; it does not create a group in another messaging app.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标记为群聊"
+          }
+        }
+      }
+    },
+    "Me" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我"
+          }
+        }
+      }
     },
     "Memory: %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记忆：%@"
+          }
+        }
+      }
     },
     "Merge Imported Chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合并导入的聊天"
+          }
+        }
+      }
     },
     "Merge into %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合并到%@"
+          }
+        }
+      }
     },
     "Merge Into %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合并到%@"
+          }
+        }
+      }
     },
     "Merge into..." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合并到…"
+          }
+        }
+      }
+    },
+    "Messages without sender labels" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有发送者标签的消息"
+          }
+        }
+      }
     },
     "Model Providers" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模型服务商"
+          }
+        }
+      }
     },
     "More" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多"
+          }
+        }
+      }
     },
     "Move this imported chat into an existing chat. This can’t be undone." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将导入的聊天合并到现有聊天中。此操作无法撤销。"
+          }
+        }
+      }
     },
     "Name or username" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "姓名或用户名"
+          }
+        }
+      }
     },
     "Name, nickname, or username" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "姓名、昵称或用户名"
+          }
+        }
+      }
+    },
+    "Names and details that help personalize replies." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用于个性化回复的名称和个人信息。"
+          }
+        }
+      }
     },
     "New Persona" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新回复风格"
+          }
+        }
+      }
     },
     "New remembered context for %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为%@添加记忆"
+          }
+        }
+      }
     },
     "No archived observations." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有已归档的风格特点。"
+          }
+        }
+      }
     },
     "No chats found" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到聊天"
+          }
+        }
+      }
     },
     "No emoji" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不使用表情符号"
+          }
+        }
+      }
     },
     "No goal set" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未设置目标"
+          }
+        }
+      }
     },
     "No new messages added to %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有向%@添加新消息"
+          }
+        }
+      }
     },
     "No shared or copied message text was provided." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未提供分享或复制的消息文字。"
+          }
+        }
+      }
     },
     "No, This Is Me" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不是，我是这个"
+          }
+        }
+      }
     },
     "None of These" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "都不是"
+          }
+        }
+      }
     },
     "None of these names is me" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些名称都不是我"
+          }
+        }
+      }
     },
     "Not imported: sender labels weren’t shared. Use Share → Copy, then run FrameReply Text, or import screenshots with FrameReply Images." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未导入：分享的内容不含发送者标签。请使用“分享”→“复制”后运行 FrameReply Text，或通过 FrameReply Images 导入截图。"
+          }
+        }
+      }
     },
     "Not Now" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂不"
+          }
+        }
+      }
     },
     "Not selected" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未选择"
+          }
+        }
+      }
     },
     "Nothing saved yet. Add a detail you would like to remember." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂未保存任何信息。添加一条你希望 FrameReply 记住的内容。"
+          }
+        }
+      }
     },
     "Observation" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "风格特点"
+          }
+        }
+      }
     },
     "Observation History" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "风格特点记录"
+          }
+        }
+      }
     },
     "Observation: %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "风格特点：%@"
+          }
+        }
+      }
     },
     "Observations" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "风格特点"
+          }
+        }
+      }
     },
     "Occasional" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偶尔使用"
+          }
+        }
+      }
     },
     "OK" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确定"
+          }
+        }
+      }
     },
     "One short fact about yourself" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一条关于你的简短信息"
+          }
+        }
+      }
     },
     "One to eight images from the same chat." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同一聊天中的 1 至 8 张图片。"
+          }
+        }
+      }
     },
     "One-use context, direction, tone, or a rough draft for the next replies." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅用于本次回复的背景、方向、语气或草稿。"
+          }
+        }
+      }
     },
     "Only share content you have permission to use." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请仅分享你有权使用的内容。"
+          }
+        }
+      }
+    },
+    "Only the content you select: messages or screenshots, participant names, chat context, saved personal context, and drafts." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅限你选择的内容：消息或截图、参与者名称、聊天上下文、已保存的个人信息和草稿。"
+          }
+        }
+      }
     },
     "Open Chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开聊天"
+          }
+        }
+      }
     },
     "Open Chat Assistant for %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开%@的聊天助手"
+          }
+        }
+      }
     },
     "Open chat details for %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开%@的聊天详情"
+          }
+        }
+      }
     },
     "Open FrameReply to try again." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请打开 FrameReply 重试。"
+          }
+        }
+      }
     },
     "Open Imported Chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开导入的聊天"
+          }
+        }
+      }
     },
     "Open iPhone **Settings**" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 iPhone **设置**"
+          }
+        }
+      }
+    },
+    "Open Settings > Apps > FrameReply > Language to choose the app language." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请前往“设置”>“App”>“FrameReply”>“语言”，选择 App 语言。"
+          }
+        }
+      }
     },
     "Opening FrameReply…" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在打开 FrameReply…"
+          }
+        }
+      }
     },
     "Opens FrameReply" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 FrameReply"
+          }
+        }
+      }
     },
     "Opens full chat history" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开完整聊天记录"
+          }
+        }
+      }
+    },
+    "Opens iPhone Settings to change the app language." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 iPhone 设置以更改 App 语言。"
+          }
+        }
+      }
     },
     "Opens screenshot and pasted-text import options." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开截图和粘贴文字的导入选项。"
+          }
+        }
+      }
     },
     "Opens the current goal editor" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开当前目标编辑器"
+          }
+        }
+      }
     },
     "Opens the photo library to select up to eight chat screenshots." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开照片图库，最多选择 8 张聊天截图。"
+          }
+        }
+      }
     },
     "Opens the shortcut installer" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开快捷指令安装页面"
+          }
+        }
+      }
     },
     "Optional: paste 3–10 messages you wrote, one per line." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可选：粘贴 3 至 10 条你写过的消息，每行一条。"
+          }
+        }
+      }
     },
     "Options for %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@的选项"
+          }
+        }
+      }
     },
     "Options for personal info: %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "个人信息“%@”的选项"
+          }
+        }
+      }
+    },
+    "Other destinations..." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他目标…"
+          }
+        }
+      }
+    },
+    "Other participant" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对方"
+          }
+        }
+      }
+    },
+    "Other Participant" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对方"
+          }
+        }
+      }
+    },
+    "Participant" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参与者"
+          }
+        }
+      }
     },
     "Pass one to eight images from the same chat, such as shared photos or the output from Take Screenshot." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "传入同一聊天中的 1 至 8 张图片，例如分享的照片或“截屏”的结果。"
+          }
+        }
+      }
     },
     "Pass shared or copied chat text with sender labels." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "传入带有发送者标签的分享或复制文字。"
+          }
+        }
+      }
     },
     "Paste 3–10 messages you wrote, one per line." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粘贴 3 至 10 条你写过的消息，每行一条。"
+          }
+        }
+      }
     },
     "Paste Copied Text" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粘贴复制的文字"
+          }
+        }
+      }
     },
     "Performance" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "性能"
+          }
+        }
+      }
     },
     "Performance tier" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "性能档位"
+          }
+        }
+      }
     },
     "Permanently reset all local FrameReply data?" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "永久重置所有本地FrameReply数据？"
+          }
+        }
+      }
+    },
+    "persona" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复风格"
+          }
+        }
+      }
     },
     "Persona" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复风格"
+          }
+        }
+      }
+    },
+    "Persona name" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复风格名称"
+          }
+        }
+      }
     },
     "Persona: %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复风格：%@"
+          }
+        }
+      }
     },
     "persona.copy-name" : {
       "comment" : "Name assigned when duplicating a persona. The placeholder is the original persona name.",
@@ -1700,6 +4588,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%@ Copy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 副本"
           }
         }
       }
@@ -1712,6 +4606,12 @@
             "state" : "new",
             "value" : "Keeps wording casual and conversational."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "措辞随意、自然，像日常聊天。"
+          }
         }
       }
     },
@@ -1722,6 +4622,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "States the main point clearly and directly."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清楚、直接地表达重点。"
           }
         }
       }
@@ -1734,6 +4640,12 @@
             "state" : "new",
             "value" : "Keeps replies concise and omits nonessential detail."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复简洁，省略不必要的细节。"
+          }
         }
       }
     },
@@ -1744,6 +4656,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Writes detailed replies while avoiding repetition and filler."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复内容详细，同时避免重复和赘述。"
           }
         }
       }
@@ -1756,6 +4674,12 @@
             "state" : "new",
             "value" : "Uses expressive emoji naturally without cluttering the message."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自然地使用生动的表情符号，但不会让消息显得杂乱。"
+          }
         }
       }
     },
@@ -1766,6 +4690,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Uses emoji fairly often when they fit the conversation."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适合聊天语境时会较常使用表情符号。"
           }
         }
       }
@@ -1778,6 +4708,12 @@
             "state" : "new",
             "value" : "Usually gives fuller replies with useful context."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通常会给出较完整的回复，并提供有用背景。"
+          }
         }
       }
     },
@@ -1788,6 +4724,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Uses highly polished, formal phrasing and avoids slang."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "措辞非常正式、得体，并避免俚语。"
           }
         }
       }
@@ -1800,6 +4742,12 @@
             "state" : "new",
             "value" : "Allows light playfulness when it fits naturally."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适合时会自然地带一点俏皮感。"
+          }
         }
       }
     },
@@ -1810,6 +4758,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Shows limited warmth while staying courteous."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保持礼貌，但不过分热情。"
           }
         }
       }
@@ -1822,6 +4776,12 @@
             "state" : "new",
             "value" : "Uses the amount of detail naturally required by the message."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据消息内容自然地提供所需细节。"
+          }
         }
       }
     },
@@ -1832,6 +4792,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Does not use emoji."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不使用表情符号。"
           }
         }
       }
@@ -1844,6 +4810,12 @@
             "state" : "new",
             "value" : "Uses an occasional emoji only when it fits the conversation."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅在适合聊天语境时偶尔使用表情符号。"
+          }
         }
       }
     },
@@ -1854,6 +4826,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Usually replies in one very concise sentence."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通常只用一句非常简短的话回复。"
           }
         }
       }
@@ -1866,6 +4844,12 @@
             "state" : "new",
             "value" : "Writes with open warmth and empathy without inventing feelings."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表达热情和同理心，但不会虚构感受。"
+          }
         }
       }
     },
@@ -1876,6 +4860,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Uses polished, complete phrasing while remaining conversational."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "措辞完整、得体，同时保持自然的聊天感。"
           }
         }
       }
@@ -1888,6 +4878,12 @@
             "state" : "new",
             "value" : "Uses emoji rarely and only when it reads naturally."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "很少使用表情符号，仅在表达自然时使用。"
+          }
         }
       }
     },
@@ -1898,6 +4894,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Keeps emotional tone restrained and neutral."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "情绪表达克制、中立。"
           }
         }
       }
@@ -1910,6 +4912,12 @@
             "state" : "new",
             "value" : "Balances clarity with tact."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表达清楚，同时注意措辞。"
+          }
         }
       }
     },
@@ -1920,6 +4928,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Uses very relaxed, conversational wording and natural contractions."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "措辞非常轻松、口语化，并自然使用缩写。"
           }
         }
       }
@@ -1932,6 +4946,12 @@
             "state" : "new",
             "value" : "Shows clear warmth and considerate acknowledgment."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "明确表达热情，并体贴地回应对方。"
+          }
         }
       }
     },
@@ -1942,6 +4962,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Write clear, structured messages for professional and formal conversations. Be decisive and avoid filler."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在工作和正式聊天中，写出清晰、有条理的消息。表达果断，避免赘述。"
           }
         }
       }
@@ -1954,6 +4980,12 @@
             "state" : "new",
             "value" : "Professional"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "专业"
+          }
         }
       }
     },
@@ -1964,6 +4996,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Concise, polished replies for work and formal conversations."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为工作和正式聊天提供简洁、得体的回复。"
           }
         }
       }
@@ -1976,6 +5014,12 @@
             "state" : "new",
             "value" : "Write genuine dating messages that read the room. Match the other person's emotional intensity and never force flirtation or over-escalate."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写出真诚、能把握气氛的约会消息。与对方的情绪投入程度保持一致，不要刻意调情或推进过快。"
+          }
         }
       }
     },
@@ -1986,6 +5030,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Spark"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心动"
           }
         }
       }
@@ -1998,6 +5048,12 @@
             "state" : "new",
             "value" : "Playful, confident, genuine dating messages that read the room."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自然把握气氛，写出俏皮、自信又真诚的约会消息。"
+          }
         }
       }
     },
@@ -2008,6 +5064,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Write tactful messages for friends, family, and delicate moments. Acknowledge emotion without inventing feelings or becoming overly sentimental."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为朋友、家人和需要谨慎处理的时刻写出得体的消息。回应对方的情绪，但不要虚构感受或过度煽情。"
           }
         }
       }
@@ -2020,6 +5082,12 @@
             "state" : "new",
             "value" : "Thoughtful"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "体贴"
+          }
         }
       }
     },
@@ -2031,41 +5099,192 @@
             "state" : "new",
             "value" : "Warm, empathetic replies for friends, family, and delicate moments."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为朋友、家人和需要谨慎处理的时刻提供温暖、有同理心的回复。"
+          }
         }
       }
     },
     "Personal Info" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "个人信息"
+          }
+        }
+      }
+    },
+    "Personal Info can be up to %lld characters." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "个人信息最多可输入 %lld 个字符。"
+          }
+        }
+      }
+    },
+    "personal-info.alias-usage-count" : {
+      "comment" : "Shown beneath one of the user's saved names. The catalog supplies singular and plural variants for the chat count.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Used in %lld chats"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用于 %lld 个聊天"
+          }
+        }
+      }
     },
     "Personalization" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "个性化"
+          }
+        }
+      }
     },
     "Personas" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复风格"
+          }
+        }
+      }
     },
     "Policies & Support" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "政策与支持"
+          }
+        }
+      }
+    },
+    "Policies, support, and local data" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "政策、支持和本地数据"
+          }
+        }
+      }
+    },
+    "Possible matching chat" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可能匹配的聊天"
+          }
+        }
+      }
     },
     "Prevents it from covering screenshots." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "防止横幅遮挡截图。"
+          }
+        }
+      }
     },
     "Privacy & Data" : {
-
-    },
-    "Privacy & Support" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私与数据"
+          }
+        }
+      }
     },
     "Privacy Policy" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私政策"
+          }
+        }
+      }
+    },
+    "provider" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商"
+          }
+        }
+      }
     },
     "Provider" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商"
+          }
+        }
+      }
     },
     "Provider actions for %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@的服务商操作"
+          }
+        }
+      }
+    },
+    "Provider connected and saved." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商已连接并保存。"
+          }
+        }
+      }
+    },
+    "Provider handling" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商如何处理数据"
+          }
+        }
+      }
     },
     "Provider Privacy Policy" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商隐私政策"
+          }
+        }
+      }
     },
     "provider.consent.message" : {
       "comment" : "Privacy disclosure. The placeholder is the third-party provider brand.",
@@ -2075,6 +5294,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "FrameReply will send the messages, images, names, saved personal context, and drafts you select directly to %@, a third-party AI provider, to analyze chats and create replies."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply 会将你选择的消息、图片、名称、已保存的个人信息和草稿直接发送给第三方 AI 服务商%@，用于分析聊天并生成回复。"
           }
         }
       }
@@ -2088,6 +5313,12 @@
             "state" : "new",
             "value" : "FrameReply sends selected screenshots or message text, participant names, chat context, saved personal context, and drafts to %@ to analyze conversations and generate replies. Your provider may retain request data under its policy and may charge your provider account. FrameReply does not operate a proxy server."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply 会将你选择的截图或消息文字、参与者名称、聊天上下文、已保存的个人信息和草稿发送给%@，用于分析聊天并生成回复。服务商可能会根据其政策保留请求数据，并向你的服务商账户收费。FrameReply 不使用代理服务器。"
+          }
         }
       }
     },
@@ -2100,6 +5331,12 @@
             "state" : "new",
             "value" : "Share chat content with %@?"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要与%@共享聊天内容吗？"
+          }
         }
       }
     },
@@ -2110,6 +5347,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "MiniMax Open Platform in mainland China"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中国大陆的 MiniMax 开放平台"
           }
         }
       }
@@ -2122,6 +5365,12 @@
             "state" : "new",
             "value" : "MiniMax International, operated outside mainland China"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MiniMax International（在中国大陆以外运营）"
+          }
         }
       }
     },
@@ -2132,6 +5381,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "OpenAI in the United States or another region selected by OpenAI"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位于美国或由 OpenAI 选择的其他地区的 OpenAI"
           }
         }
       }
@@ -2144,6 +5399,12 @@
             "state" : "new",
             "value" : "OpenRouter, which currently forwards the request to Alibaba Cloud International for Qwen3.7 Plus"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenRouter，目前会将请求转发至阿里云国际版的 Qwen3.7 Plus"
+          }
         }
       }
     },
@@ -2154,6 +5415,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "MiniMax (China)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MiniMax（中国）"
           }
         }
       }
@@ -2166,50 +5433,174 @@
             "state" : "new",
             "value" : "MiniMax International"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MiniMax国际"
+          }
+        }
+      }
+    },
+    "Purpose" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用途"
+          }
         }
       }
     },
     "Quick steps" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快速步骤"
+          }
+        }
+      }
     },
     "Recent Chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近的聊天"
+          }
+        }
+      }
     },
     "Recommended for consistently strong results at moderate cost" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "费用适中，推荐用于获得稳定出色的结果"
+          }
+        }
+      }
     },
     "Refreshing replies…" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在刷新回复…"
+          }
+        }
+      }
     },
     "Remembered Context" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聊天记忆"
+          }
+        }
+      }
     },
     "Remove" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除"
+          }
+        }
+      }
+    },
+    "Remove %@?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要移除%@吗？"
+          }
+        }
+      }
     },
     "Remove Name" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除名称"
+          }
+        }
+      }
     },
     "Remove this fact?" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要移除这条信息吗？"
+          }
+        }
+      }
     },
     "Rename" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重命名"
+          }
+        }
+      }
     },
     "Rename Chat" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重命名聊天"
+          }
+        }
+      }
     },
     "Rename Name" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重命名名称"
+          }
+        }
+      }
     },
     "Replies" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复"
+          }
+        }
+      }
     },
     "Replies are unavailable. Open FrameReply to try again." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推荐回复不可用。请打开 FrameReply 重试。"
+          }
+        }
+      }
     },
     "Replies unavailable" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复不可用"
+          }
+        }
+      }
     },
     "replies.group-pause.rationale" : {
       "comment" : "Rationale for sitting out a group turn. The value explains the AI-generated evidence and uncertainty.",
@@ -2219,6 +5610,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "The latest group turn does not need your response. %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "群聊中的最新内容不需要你回复。%@"
           }
         }
       }
@@ -2232,6 +5629,12 @@
             "state" : "new",
             "value" : "No reply is needed right now. You can wait for a better opening in the group."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "现在不需要回复。可以等群聊中出现更合适的时机。"
+          }
         }
       }
     },
@@ -2243,6 +5646,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Wait for a better opening in the group. %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待群聊中出现更合适的时机。%@"
           }
         }
       }
@@ -2256,6 +5665,12 @@
             "state" : "new",
             "value" : "You sent the latest message, so another message now may be premature. %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最新一条消息是你发出的，现在继续发送可能还太早。%@"
+          }
         }
       }
     },
@@ -2267,6 +5682,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "You sent the latest message. No reply is needed yet."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最新一条消息是你发出的，目前无需继续回复。"
           }
         }
       }
@@ -2280,128 +5701,524 @@
             "state" : "new",
             "value" : "Wait for a response first. %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先等待对方回复。%@"
+          }
         }
       }
     },
     "Reply Brief" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复设置"
+          }
+        }
+      }
+    },
+    "Reply generation canceled." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已取消生成回复。"
+          }
+        }
+      }
     },
     "Reply Guidance" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复要求"
+          }
+        }
+      }
     },
     "Reply Length" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复长度"
+          }
+        }
+      }
     },
     "Reply Number" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复数量"
+          }
+        }
+      }
+    },
+    "Requests go directly from this device to the provider. FrameReply operates no proxy server, analytics, advertising, or tracking." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请求会从此设备直接发送给服务商。FrameReply 不使用代理服务器，也不提供分析、广告或跟踪服务。"
+          }
+        }
+      }
     },
     "Required for Back Tap setup" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置轻点背面前需要先添加"
+          }
+        }
+      }
     },
     "Reserved" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "克制"
+          }
+        }
+      }
     },
     "Reset Local Data" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置本地数据"
+          }
+        }
+      }
     },
     "Retry" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
+          }
+        }
+      }
     },
     "Review" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检查"
+          }
+        }
+      }
     },
     "Review Import" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检查导入内容"
+          }
+        }
+      }
+    },
+    "Review imported chat" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检查导入的聊天"
+          }
+        }
+      }
+    },
+    "Review imports" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检查导入内容"
+          }
+        }
+      }
     },
     "Review Imports" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检查导入内容"
+          }
+        }
+      }
     },
     "Review messages individually" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "逐条检查消息"
+          }
+        }
+      }
     },
     "Review Required" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要确认"
+          }
+        }
+      }
+    },
+    "Review senders" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确认发送者"
+          }
+        }
+      }
     },
     "Review Senders" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确认发送者"
+          }
+        }
+      }
     },
     "Save" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存"
+          }
+        }
+      }
     },
     "Saves this as a separate memory" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "另存为一条记忆"
+          }
+        }
+      }
     },
     "Search chats..." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索聊天…"
+          }
+        }
+      }
     },
     "See How It Works" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看使用方法"
+          }
+        }
+      }
+    },
+    "Seed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预设"
+          }
+        }
+      }
+    },
+    "Select a performance tier before connecting." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接前请选择性能档位。"
+          }
+        }
+      }
+    },
+    "Select a provider before connecting." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接前请选择服务商。"
+          }
+        }
+      }
     },
     "Select Default Persona" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择默认回复风格"
+          }
+        }
+      }
     },
     "Select messages." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择消息。"
+          }
+        }
+      }
     },
     "Select performance" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择性能档位"
+          }
+        }
+      }
     },
     "Select Persona" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择回复风格"
+          }
+        }
+      }
     },
     "Select provider" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择服务商"
+          }
+        }
+      }
     },
     "Select Suggested Reply" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择推荐回复"
+          }
+        }
+      }
+    },
+    "Select the provider again and retry." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请重新选择服务商后重试。"
+          }
+        }
+      }
     },
     "Select this reply" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择此回复"
+          }
+        }
+      }
     },
     "Select up to 8 images" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最多选择 8 张图片"
+          }
+        }
+      }
     },
     "Selected" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已选择"
+          }
+        }
+      }
     },
     "Selection Session ID" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择会话 ID"
+          }
+        }
+      }
+    },
+    "Sender %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送者 %@"
+          }
+        }
+      }
     },
     "Sender check needed" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要确认发送者"
+          }
+        }
+      }
     },
     "Sender Check Needed" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要确认发送者"
+          }
+        }
+      }
     },
     "Sender check needed for %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@需要确认发送者"
+          }
+        }
+      }
+    },
+    "Sender identities" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送者身份"
+          }
+        }
+      }
     },
     "Sender unknown" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送者未知"
+          }
+        }
+      }
     },
     "Set as Default" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设为默认"
+          }
+        }
+      }
     },
     "Set Up" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置"
+          }
+        }
+      }
     },
     "Set Up Back Tap" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置轻点背面"
+          }
+        }
+      }
     },
     "Settings" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置"
+          }
+        }
+      }
     },
     "Share" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分享"
+          }
+        }
+      }
     },
     "Shared or copied chat text with sender labels." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "带有发送者标签的分享或复制聊天文字。"
+          }
+        }
+      }
     },
     "Short" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "简短"
+          }
+        }
+      }
     },
     "Shortcut guide" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快捷指令指南"
+          }
+        }
+      }
     },
     "shortcut.error.with-reference" : {
       "comment" : "Shortcut error followed by a private diagnostic reference.",
@@ -2411,6 +6228,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ Reference %2$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 参考编号：%2$@。"
           }
         }
       }
@@ -2435,6 +6258,24 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "已向%2$@添加 %1$lld 条新消息。"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "已向%2$@添加 %1$lld 条新消息。"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -2446,6 +6287,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "No new messages found in %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有在%@中发现新消息。"
           }
         }
       }
@@ -2470,6 +6317,24 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "已将 %1$lld 条消息作为%2$@导入。请在 FrameReply 中检查。"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "已将 %1$lld 条消息作为%2$@导入。请在 FrameReply 中检查。"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -2481,6 +6346,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "No reply needed right now."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "现在不需要回复。"
           }
         }
       }
@@ -2494,6 +6365,12 @@
             "state" : "new",
             "value" : "%1$@\n\nSuggested replies:\n1. %2$@\n2. %3$@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@\n\n推荐回复：\n1. %2$@\n2. %3$@"
+          }
         }
       }
     },
@@ -2504,6 +6381,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%@ Suggested replies are unavailable; open FrameReply to retry."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 推荐回复不可用；请打开 FrameReply 重试。"
           }
         }
       }
@@ -2517,65 +6400,225 @@
             "state" : "new",
             "value" : "%1$@\n\nConversation strategy:\n%2$@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@\n\n接下来怎么聊：\n%2$@"
+          }
         }
       }
     },
     "Shortcuts" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快捷指令"
+          }
+        }
+      }
     },
     "Show API key" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示 API 密钥"
+          }
+        }
+      }
     },
     "Shows reply rationale and remembered context" : {
-      "comment" : "Accessibility hint for opening the content-only Chat Details screen."
+      "comment" : "Accessibility hint for opening the content-only Chat Details screen.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示推荐理由和聊天记忆"
+          }
+        }
+      }
+    },
+    "Simplified Chinese" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "简体中文"
+          }
+        }
+      }
     },
     "Skip" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳过"
+          }
+        }
+      }
     },
     "Skip Anyway" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仍要跳过"
+          }
+        }
+      }
     },
     "Skip Setup" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳过设置"
+          }
+        }
+      }
     },
     "Skip setup?" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要跳过设置吗？"
+          }
+        }
+      }
+    },
+    "Some local data could not be deleted. Restart FrameReply and try again before sharing the device." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分本地数据无法删除。分享此设备前，请重启 FrameReply 并重试。"
+          }
+        }
+      }
     },
     "Start from" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从以下方式开始"
+          }
+        }
+      }
     },
     "Step 1 of 3" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 1 步，共 3 步"
+          }
+        }
+      }
     },
     "Step 2 of 3" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 2 步，共 3 步"
+          }
+        }
+      }
     },
     "Step 3 of 3" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 3 步，共 3 步"
+          }
+        }
+      }
     },
     "Stops the current import or reply generation." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止当前的导入或回复生成。"
+          }
+        }
+      }
     },
     "Stored securely on this device." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全存储在此设备上。"
+          }
+        }
+      }
     },
     "Style" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "风格"
+          }
+        }
+      }
     },
     "Suggest replies from ${chatImages}" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据${chatImages}推荐回复"
+          }
+        }
+      }
     },
     "Suggest replies from ${chatText}" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据${chatText}推荐回复"
+          }
+        }
+      }
     },
     "Suggest Replies from Chat Images" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据聊天截图推荐回复"
+          }
+        }
+      }
     },
     "Suggest Replies from Chat Text" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据聊天文字推荐回复"
+          }
+        }
+      }
     },
     "Suggested Replies" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推荐回复"
+          }
+        }
+      }
     },
     "Suggested reply %lld: %@" : {
       "localizations" : {
@@ -2584,185 +6627,714 @@
             "state" : "new",
             "value" : "Suggested reply %1$lld: %2$@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %1$lld 条推荐回复：%2$@"
+          }
+        }
+      }
+    },
+    "Superseded" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已替代"
+          }
         }
       }
     },
     "Support" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持"
+          }
+        }
+      }
     },
     "Take screenshots of the conversation." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为聊天内容截图。"
+          }
+        }
+      }
     },
     "Tap Copy. Go to the Home Screen, swipe down, then search FrameReply Text." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点“复制”。返回主屏幕并向下轻扫，然后搜索 FrameReply Text。"
+          }
+        }
+      }
     },
     "Tap Share, then choose FrameReply Text." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点“分享”，然后选择 FrameReply Text。"
+          }
+        }
+      }
     },
     "Tap the screenshot preview, tap Share, then choose FrameReply Images." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点截图预览，再轻点“分享”，然后选择 FrameReply Images。"
+          }
+        }
+      }
     },
     "Teach It Your Voice" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "让它学会你的表达方式"
+          }
+        }
+      }
     },
     "Tell this persona how to respond." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "告诉此回复风格该如何表达。"
+          }
+        }
+      }
     },
     "Terms of Use" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用条款"
+          }
+        }
+      }
     },
     "Text Shortcut" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文字快捷指令"
+          }
+        }
+      }
     },
     "The chat history could not be saved." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存聊天记录。"
+          }
+        }
+      }
+    },
+    "The demonstration uses an English system interface." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "演示视频使用英文系统界面。"
+          }
+        }
+      }
     },
     "The imported chat text could not be saved." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存导入的聊天文字。"
+          }
+        }
+      }
+    },
+    "The importer suspected multiple participants but did not find enough structural evidence to change this Direct chat automatically." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入时发现可能有多位参与者，但依据不足，因此没有自动将此单聊改为群聊。"
+          }
+        }
+      }
     },
     "The optional input could not be synchronized with this chat import." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法将可选输入与本次聊天导入同步。"
+          }
+        }
+      }
     },
     "The optional input could not be synchronized with this image import." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法将可选输入与本次图片导入同步。"
+          }
+        }
+      }
     },
     "The output from Analyze Chat Images or Analyze Chat Text." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“分析聊天截图”或“分析聊天文字”的输出。"
+          }
+        }
+      }
+    },
+    "The provider may retain request data under its policy and may charge your provider account." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商可能会根据其政策保留请求数据，并向你的服务商账户收费。"
+          }
+        }
+      }
     },
     "The reply brief changed. Update when you’re ready." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复设置已更改，准备好后即可更新回复。"
+          }
+        }
+      }
+    },
+    "The saved API key couldn’t be deleted. Nothing was changed." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法删除已保存的 API 密钥，未进行任何更改。"
+          }
+        }
+      }
     },
     "The updated name will apply wherever this identity is remembered." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新后的名称会应用到所有记住此身份的位置。"
+          }
+        }
+      }
     },
     "These names help recognize you in this chat and may be suggested for other imports." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些名称有助于在此聊天中识别你，也可能在其他导入中作为建议显示。"
+          }
+        }
+      }
     },
     "This cannot be undone." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此操作无法撤销。"
+          }
+        }
+      }
     },
     "This Is Me" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这是我"
+          }
+        }
+      }
     },
     "This is the name shown throughout FrameReply." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这是 FrameReply 中各处显示的名称。"
+          }
+        }
+      }
+    },
+    "This item is already in Personal Info." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "个人信息中已存在此内容。"
+          }
+        }
+      }
+    },
+    "This may be a group chat" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这可能是群聊"
+          }
+        }
+      }
     },
     "This permanently deletes chats, messages, names, Personal Info, personas, drafts, provider settings, consent records, and API keys from this device." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这将从此设备永久删除聊天、消息、名称、个人信息、回复风格、草稿、服务商设置、授权记录和 API 密钥。"
+          }
+        }
+      }
     },
     "This permanently deletes this chat and its data. This can’t be undone." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这将永久删除此聊天及其数据。此操作无法撤销。"
+          }
+        }
+      }
     },
     "Touch and hold to copy the complete reply" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按住即可复制完整回复"
+          }
+        }
+      }
     },
     "Try Again" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
+          }
+        }
+      }
     },
     "Try again." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请重试。"
+          }
+        }
+      }
     },
     "Turn Off **Show Banner**" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭**显示横幅**"
+          }
+        }
+      }
     },
     "Unavailable" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不可用"
+          }
+        }
+      }
+    },
+    "Unknown sender" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知发送者"
+          }
+        }
+      }
     },
     "Update" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新"
+          }
+        }
+      }
     },
     "Update Replies" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新回复"
+          }
+        }
+      }
     },
     "Update replies with guidance" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按回复要求更新"
+          }
+        }
+      }
     },
     "Updating replies with guidance" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在按回复要求更新"
+          }
+        }
+      }
     },
     "Use %@" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用%@"
+          }
+        }
+      }
     },
     "Use %@ as Default" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将%@设为默认"
+          }
+        }
+      }
     },
     "Use as Display Name" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用作显示名称"
+          }
+        }
+      }
     },
     "Use Custom Name" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用自定义名称"
+          }
+        }
+      }
     },
     "Use Reply" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "采用回复"
+          }
+        }
+      }
     },
     "Use Reply copies it. Paste it in your chat." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点“采用回复”即可复制，然后粘贴到聊天中。"
+          }
+        }
+      }
     },
     "Used as your name before" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曾用作你的名称"
+          }
+        }
+      }
     },
     "Uses this guidance once to create a new set of replies." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此回复要求仅用于生成本次的新回复。"
+          }
+        }
+      }
     },
     "Using Shortcuts" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用快捷指令"
+          }
+        }
+      }
     },
     "Very casual" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "非常随意"
+          }
+        }
+      }
     },
     "Very detailed" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "非常详细"
+          }
+        }
+      }
     },
     "Very formal" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "非常正式"
+          }
+        }
+      }
     },
     "Very reserved" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "非常克制"
+          }
+        }
+      }
     },
     "Very short" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "非常简短"
+          }
+        }
+      }
     },
     "Very warm" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "非常热情"
+          }
+        }
+      }
     },
     "View All" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看全部"
+          }
+        }
+      }
     },
     "Warm" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "热情"
+          }
+        }
+      }
     },
     "Warmth" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "热情程度"
+          }
+        }
+      }
     },
     "What should replies consider?" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回复时需要考虑什么？"
+          }
+        }
+      }
     },
     "Which name is yours?" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你使用的是哪个名称？"
+          }
+        }
+      }
     },
     "Who sent this?" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这是谁发的？"
+          }
+        }
+      }
     },
     "Why These Replies" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推荐理由"
+          }
+        }
+      }
     },
     "Yes" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "是"
+          }
+        }
+      }
+    },
+    "You" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你"
+          }
+        }
+      }
     },
     "You appear as" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你显示为"
+          }
+        }
+      }
+    },
+    "You can keep up to %lld active items." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最多可保留 %lld 条有效信息。"
+          }
+        }
+      }
     },
     "You have 50 saved details. Remove one to add another." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已保存 50 条个人信息。请先移除一条，再添加新内容。"
+          }
+        }
+      }
     },
     "You need a provider before you can generate replies." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要先连接模型服务商才能生成回复。"
+          }
+        }
+      }
     },
     "Your edit will stay as written." : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的编辑会按原样保留。"
+          }
+        }
+      }
+    },
+    "Your guidance" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的要求"
+          }
+        }
+      }
     },
     "Your Names in Chats" : {
-
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你在聊天中的名称"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

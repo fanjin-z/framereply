@@ -67,17 +67,17 @@ struct ProviderConnectionView: View {
     private func requestProviderConnection() {
         KeyboardDismissal.dismiss()
         guard let selectedPlatform else {
-            status = .failed("Select a provider before connecting.")
+            status = .failed(String(localized: "Select a provider before connecting."))
             return
         }
 
         guard selectedTier != nil else {
-            status = .failed("Select a performance tier before connecting.")
+            status = .failed(String(localized: "Select a performance tier before connecting."))
             return
         }
 
         guard apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
-            status = .failed("Enter an API key before connecting.")
+            status = .failed(String(localized: "Enter an API key before connecting."))
             return
         }
 
@@ -91,7 +91,7 @@ struct ProviderConnectionView: View {
     private func authorizeAndConnectProvider() {
         guard let platform = providerAwaitingConsent, platform == selectedPlatform else {
             providerAwaitingConsent = nil
-            status = .failed("Select the provider again and retry.")
+            status = .failed(String(localized: "Select the provider again and retry."))
             return
         }
 
@@ -102,7 +102,7 @@ struct ProviderConnectionView: View {
 
     private func connectProvider() {
         guard let selectedPlatform, let selectedTier else {
-            status = .failed("Complete the provider settings and retry.")
+            status = .failed(String(localized: "Complete the provider settings and retry."))
             return
         }
 
@@ -134,7 +134,10 @@ struct ProviderConnectionView: View {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
                     isConnectionInProgress = false
                     status = .failed(
-                        "Could not test the provider. Check your network and try again."
+                        String(
+                            localized:
+                                "Could not test the provider. Check your network and try again."
+                        )
                     )
                 }
             }

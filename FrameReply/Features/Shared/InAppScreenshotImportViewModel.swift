@@ -198,7 +198,7 @@ final class InAppScreenshotImportViewModel: ObservableObject {
             let replyErrorMessage: String?
             if Task.isCancelled {
                 replies = nil
-                replyErrorMessage = "Reply generation canceled."
+                replyErrorMessage = String(localized: "Reply generation canceled.")
             } else {
                 do {
                     replies = try await repliesGenerator.generate(
@@ -211,7 +211,7 @@ final class InAppScreenshotImportViewModel: ObservableObject {
                     replyErrorMessage = nil
                 } catch is CancellationError {
                     replies = nil
-                    replyErrorMessage = "Reply generation canceled."
+                    replyErrorMessage = String(localized: "Reply generation canceled.")
                 } catch {
                     replies = nil
                     replyErrorMessage = error.localizedDescription

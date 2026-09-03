@@ -27,7 +27,7 @@ struct ProviderDataSharingDetailsView: View {
                         )
                         detailSection(
                             title: "Destination",
-                            text: disclosure.destinationDescription
+                            verbatimText: disclosure.destinationDescription
                         )
                         detailSection(
                             title: "Provider handling",
@@ -65,12 +65,30 @@ struct ProviderDataSharingDetailsView: View {
         }
     }
 
-    private func detailSection(title: String, text: String) -> some View {
+    private func detailSection(
+        title: LocalizedStringResource,
+        text: LocalizedStringResource
+    ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.system(size: 15, weight: .bold, design: .rounded))
                 .foregroundStyle(FrameReplyColor.onSurface)
             Text(text)
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func detailSection(
+        title: LocalizedStringResource,
+        verbatimText: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundStyle(FrameReplyColor.onSurface)
+            Text(verbatim: verbatimText)
                 .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 .fixedSize(horizontal: false, vertical: true)
