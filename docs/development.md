@@ -34,6 +34,8 @@ Provider keys are entered in the running app and stored in the device Keychain. 
 
 A simulator build does not require a signing identity. Shortcuts, App Intents, Keychain behavior, and release entitlements should also be verified on a physical device before release.
 
+Debug builds include a Sandbox subscription probe at the bottom of Settings. Set `SANDBOX_API_URL` and `SANDBOX_PRODUCT_ID` in an **unshared** scheme's Run environment. After the first configured run, these non-secret values persist locally for Home Screen launches; scheme values override them. The probe verifies purchases against the backend; it does not grant Cloud AI access. Account setup and credentials belong outside this repository.
+
 ## Command-line build
 
 Build the app for a generic iOS simulator without code signing:
