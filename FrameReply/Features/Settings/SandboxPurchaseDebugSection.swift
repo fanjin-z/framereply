@@ -7,31 +7,39 @@
 
         var body: some View {
             VStack(alignment: .leading, spacing: 8) {
-                Text(verbatim: "Sandbox Subscription · Debug")
+                Text(verbatim: "Sandbox Authentication & Subscription · Debug")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
                 VStack(alignment: .leading, spacing: 12) {
                     Text(
                         verbatim:
-                            "Tests Apple Sandbox and backend verification. Does not enable Cloud AI access."
+                            "Test app authentication without a purchase, then verify Apple Sandbox subscriptions. Does not enable AI access."
                     )
                     .font(.footnote)
 
                     if let configuration = probe.configuration {
                         Text(
                             verbatim:
-                                "\(configuration.productID)\n\(configuration.baseURL.absoluteString)"
+                                "\(configuration.baseURL.absoluteString)\nApp Attest: \(configuration.appAttestEnvironment)\nProduct: \(configuration.productID.isEmpty ? "Not configured" : configuration.productID)"
                         )
                         .font(.caption.monospaced())
                         .textSelection(.enabled)
                     }
 
+                    Button {
+                        Task { await probe.run(.authenticate) }
+                    } label: {
+                        Text(verbatim: "Test authentication")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(probe.isBusy || probe.configuration == nil)
+
                     ViewThatFits(in: .horizontal) {
                         HStack { controls }
                         VStack(alignment: .leading) { controls }
                     }
-                    .disabled(probe.isBusy || probe.configuration == nil)
+                    .disabled(probe.isBusy || probe.configuration?.productID.isEmpty != false)
 
                     if probe.isBusy {
                         ProgressView()
@@ -55,7 +63,7 @@
             } label: {
                 Text(verbatim: "Buy and verify")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
 
             Button {
                 Task { await probe.run(.recheck) }

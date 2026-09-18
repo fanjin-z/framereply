@@ -5,12 +5,12 @@
 
     @MainActor
     final class SandboxPurchaseProbe: ObservableObject {
-        enum Action { case buy, recheck }
+        enum Action { case authenticate, buy, recheck }
 
         let configuration: SandboxPurchaseConfiguration?
         @Published private(set) var isBusy = false
         @Published private(set) var result =
-            "Ready. Run on a device with StoreKit Configuration set to None."
+            "Start with Test authentication on a physical iPhone. Purchases also require StoreKit Configuration set to None."
 
         init() {
             do {
@@ -26,14 +26,30 @@
             guard !isBusy, let configuration else { return }
             isBusy = true
             result =
-                action == .buy
-                ? "Opening Apple Sandbox purchase…" : "Rechecking the latest purchase…"
+                action == .recheck ? "Rechecking the latest purchase…" : "Authenticating this app…"
             defer { isBusy = false }
 
             do {
+                let client = SandboxSubscriptionClient(configuration: configuration)
+                if action == .authenticate {
+                    try await client.checkAuthentication()
+                    result =
+                        "App Attest authenticated · \(configuration.appAttestEnvironment). No purchase was made and no AI access was granted."
+                    return
+                }
+                guard !configuration.productID.isEmpty else {
+                    throw SandboxPurchaseError(
+                        message:
+                            "Set SANDBOX_PRODUCT_ID in the unshared Run scheme to test purchases.")
+                }
                 let evidence: VerificationResult<StoreKit.Transaction>
                 switch action {
+                case .authenticate:
+                    return
                 case .buy:
+                    // Establish backend authentication before opening Apple's purchase sheet.
+                    try await client.checkAuthentication()
+                    result = "Opening Apple Sandbox purchase…"
                     let appEvidence: VerificationResult<AppTransaction>
                     if let cached = try? await AppTransaction.shared, case .verified = cached {
                         appEvidence = cached
@@ -94,12 +110,13 @@
                 }
                 try configuration.validate(
                     environment: transaction.environment, productID: transaction.productID)
-                let client = SandboxSubscriptionClient(configuration: configuration)
                 let entitlement = try await client.verify(
                     signedTransactionInfo: evidence.jwsRepresentation)
                 // Leave failed verifications unfinished so Recheck can retry without another purchase.
                 await transaction.finish()
                 result = entitlement.diagnosticSummary
+            } catch is CancellationError {
+                result = "Operation cancelled. Retry with Test authentication or Recheck purchase."
             } catch let error as SandboxPurchaseError {
                 result = error.message
             } catch {
@@ -114,6 +131,7 @@
     nonisolated struct SandboxPurchaseConfiguration {
         let baseURL: URL
         let productID: String
+        let appAttestEnvironment: String
 
         static func load(environment: [String: String], defaults: UserDefaults = .standard) throws
             -> Self
@@ -132,27 +150,39 @@
             return configuration
         }
 
-        init(environment: [String: String]) throws {
+        init(
+            environment: [String: String],
+            appAttestEnvironment: String = Bundle.main.object(
+                forInfoDictionaryKey: "AppAttestEnvironment") as? String ?? ""
+        ) throws {
+            guard ["development", "production"].contains(appAttestEnvironment) else {
+                throw SandboxPurchaseError(
+                    message:
+                        "App Attest build configuration is missing. Rebuild the app with Step 4B signing settings."
+                )
+            }
             guard let rawURL = environment["SANDBOX_API_URL"],
                 let url = URL(string: rawURL), url.scheme == "https",
                 let host = url.host, !host.isEmpty,
                 url.user == nil, url.password == nil, url.query == nil, url.fragment == nil,
                 url.port == nil || url.port == 443,
-                let product = environment["SANDBOX_PRODUCT_ID"]?.trimmingCharacters(
-                    in: .whitespacesAndNewlines),
-                !product.isEmpty
+                url.path.isEmpty || url.path == "/"
             else {
                 throw SandboxPurchaseError(
                     message:
-                        "Set SANDBOX_API_URL (HTTPS) and SANDBOX_PRODUCT_ID in an unshared Xcode Run scheme, then run again."
+                        "Set SANDBOX_API_URL (HTTPS) in an unshared Xcode Run scheme, then run again. Purchases also need SANDBOX_PRODUCT_ID."
                 )
             }
             baseURL = url
-            productID = product
+            productID =
+                environment["SANDBOX_PRODUCT_ID"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+                ?? ""
+            self.appAttestEnvironment = appAttestEnvironment
         }
 
         func validate(environment: AppStore.Environment, productID: String) throws {
-            guard environment == .sandbox, productID == self.productID else {
+            guard !self.productID.isEmpty, environment == .sandbox, productID == self.productID
+            else {
                 throw SandboxPurchaseError(
                     message:
                         "Only the configured product's Apple Sandbox transactions are accepted. Production and local .storekit transactions are blocked."
@@ -166,49 +196,39 @@
         var errorDescription: String? { message }
     }
 
-    nonisolated struct SandboxSubscriptionClient {
+    @MainActor
+    struct SandboxSubscriptionClient {
         let configuration: SandboxPurchaseConfiguration
-        private let session: URLSession
+        private let authentication: any AppAttestAuthenticating
 
         init(
             configuration: SandboxPurchaseConfiguration,
-            session: URLSession = ProviderNetworkSession.make()
+            authentication: (any AppAttestAuthenticating)? = nil
         ) {
             self.configuration = configuration
-            self.session = session
+            self.authentication =
+                authentication
+                ?? AppAttestClient.shared(
+                    baseURL: configuration.baseURL, environment: configuration.appAttestEnvironment)
+        }
+
+        func checkAuthentication() async throws {
+            let data = try await post(operation: .status, body: Data("{}".utf8))
+            struct Status: Decodable { let authenticated: Bool }
+            guard let status = try? JSONDecoder().decode(Status.self, from: data),
+                status.authenticated
+            else {
+                throw SandboxPurchaseError(
+                    message:
+                        "Backend authentication response is malformed. Retry Test authentication.")
+            }
         }
 
         func verify(signedTransactionInfo: String) async throws -> SandboxEntitlement {
             struct Body: Encodable { let signedTransactionInfo: String }
-            var request = URLRequest(
-                url: configuration.baseURL.appending(path: "v1/subscriptions/verify"))
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try JSONEncoder().encode(
-                Body(signedTransactionInfo: signedTransactionInfo))
-            let (data, response) = try await session.data(
-                for: request, delegate: RejectPurchaseRedirects())
-            guard let http = response as? HTTPURLResponse else {
-                throw SandboxPurchaseError(message: "Backend returned a non-HTTP response.")
-            }
-            guard http.statusCode == 200 else {
-                let hint: String
-                switch http.statusCode {
-                case 401:
-                    hint =
-                        "Apple transaction rejected. Check the backend's Sandbox product and bundle configuration."
-                case 404:
-                    hint =
-                        "Verification route missing. Deploy Step 3 to Sandbox and check the API URL."
-                case 503:
-                    hint =
-                        "Verification unavailable. Check the Sandbox Apple secret and backend logs."
-                default: hint = "Check the Sandbox deployment and backend logs."
-                }
-                // Do not display arbitrary response bodies, which could echo signed purchase evidence.
-                throw SandboxPurchaseError(
-                    message: "HTTP \(http.statusCode). \(hint) Retry with Recheck purchase.")
-            }
+            // Encode once: the authentication client signs and sends these exact bytes.
+            let body = try JSONEncoder().encode(Body(signedTransactionInfo: signedTransactionInfo))
+            let data = try await post(operation: .subscription, body: body)
             struct Response: Decodable { let entitlement: SandboxEntitlement }
             guard
                 let entitlement = try? JSONDecoder().decode(Response.self, from: data).entitlement,
@@ -221,6 +241,17 @@
                 )
             }
             return entitlement
+        }
+
+        private func post(operation: AppAttestOperation, body: Data) async throws -> Data {
+            do {
+                return try await authentication.post(operation: operation, body: body)
+            } catch let error as AppAttestClientError {
+                let retry =
+                    operation == .status
+                    ? "Retry Test authentication." : "Retry with Recheck purchase."
+                throw SandboxPurchaseError(message: "\(error.diagnosticSummary) \(retry)")
+            }
         }
     }
 
@@ -256,13 +287,4 @@
         }
     }
 
-    private nonisolated final class RejectPurchaseRedirects: NSObject, URLSessionTaskDelegate {
-        func urlSession(
-            _ session: URLSession, task: URLSessionTask,
-            willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest,
-            completionHandler: @escaping @Sendable (URLRequest?) -> Void
-        ) {
-            completionHandler(nil)
-        }
-    }
 #endif

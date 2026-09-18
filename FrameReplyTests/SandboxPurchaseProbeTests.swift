@@ -7,11 +7,6 @@
     final class SandboxPurchaseProbeTests: XCTestCase {
         private let productID = "test.subscription.monthly"
 
-        override func setUp() {
-            super.setUp()
-            AnalysisURLProtocolStub.reset()
-        }
-
         func testConfigurationPersistsForHomeScreenLaunchAndUsesNewSchemeOverrides() throws {
             let suite = "SandboxPurchaseProbeTests.\(UUID().uuidString)"
             let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
@@ -37,11 +32,21 @@
         func testConfigurationAndEvidenceRejectUnsafeOrNonSandboxInputs() throws {
             for url in [
                 "http://sandbox.example", "https://user:password@sandbox.example",
-                "https://sandbox.example?token=secret"
+                "https://sandbox.example?token=secret", "https://sandbox.example/unexpected-path"
             ] {
                 XCTAssertThrowsError(try configuration(url: url))
             }
             XCTAssertThrowsError(try SandboxPurchaseConfiguration(environment: [:]))
+            let authenticationOnly = try SandboxPurchaseConfiguration(
+                environment: ["SANDBOX_API_URL": "https://sandbox.example"],
+                appAttestEnvironment: "development")
+            XCTAssertTrue(authenticationOnly.productID.isEmpty)
+            XCTAssertThrowsError(
+                try authenticationOnly.validate(environment: .sandbox, productID: ""))
+            XCTAssertThrowsError(
+                try SandboxPurchaseConfiguration(
+                    environment: ["SANDBOX_API_URL": "https://sandbox.example"],
+                    appAttestEnvironment: "unknown"))
             let config = try configuration()
             XCTAssertNoThrow(try config.validate(environment: .sandbox, productID: productID))
             for environment: AppStore.Environment in [.production, .xcode] {
@@ -52,68 +57,87 @@
                 try config.validate(environment: .sandbox, productID: "other.product"))
         }
 
-        func testVerificationSendsOnlySignedEvidenceAndAcceptsExpiredEntitlement() async throws {
-            AnalysisURLProtocolStub.stub(statusCode: 200, body: response())
-            let session = makeSession()
-            defer { session.invalidateAndCancel() }
+        @MainActor
+        func testAuthenticationNeedsNoPurchaseAndRejectsUnconfirmedStatus() async throws {
+            let authentication = ProbeAuthenticationStub()
+            let config = try SandboxPurchaseConfiguration(
+                environment: ["SANDBOX_API_URL": "https://sandbox.example"],
+                appAttestEnvironment: "development")
             let client = SandboxSubscriptionClient(
-                configuration: try configuration(), session: session)
+                configuration: config, authentication: authentication)
+            authentication.response = Data("{\"authenticated\":true}".utf8)
+            try await client.checkAuthentication()
+            XCTAssertEqual(authentication.calls.count, 1)
+            XCTAssertEqual(authentication.calls[0].0, .status)
+            XCTAssertEqual(authentication.calls[0].1, Data("{}".utf8))
+            for body in ["{\"authenticated\":false}", "synthetic.signed.evidence"] {
+                authentication.response = Data(body.utf8)
+                do {
+                    try await client.checkAuthentication()
+                    XCTFail("Expected malformed status to fail")
+                } catch let error as SandboxPurchaseError {
+                    XCTAssertFalse(error.message.contains("synthetic.signed.evidence"))
+                }
+            }
+        }
+
+        @MainActor
+        func testVerificationSendsOnlySignedEvidenceAndAcceptsExpiredEntitlement() async throws {
+            let authentication = ProbeAuthenticationStub()
+            authentication.response = Data(response().utf8)
+            let client = SandboxSubscriptionClient(
+                configuration: try configuration(), authentication: authentication)
             let entitlement = try await client.verify(
                 signedTransactionInfo: "synthetic.signed.evidence")
 
             XCTAssertFalse(entitlement.active)
             XCTAssertEqual(entitlement.status, "expired")
             XCTAssertEqual(entitlement.period.id, "period-id")
-            let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
-            XCTAssertEqual(
-                request.url?.absoluteString, "https://sandbox.example/v1/subscriptions/verify")
-            XCTAssertEqual(request.httpMethod, "POST")
-            XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
+            XCTAssertEqual(authentication.calls.count, 1)
+            XCTAssertEqual(authentication.calls[0].0, .subscription)
             let body =
-                try JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody))
+                try JSONSerialization.jsonObject(with: authentication.calls[0].1)
                 as? [String: String]
             XCTAssertEqual(body, ["signedTransactionInfo": "synthetic.signed.evidence"])
         }
 
+        @MainActor
         func testVerificationRejectsMalformedOrMismatchedResponsesWithoutEchoingPayloads()
             async throws
         {
-            let session = makeSession()
-            defer { session.invalidateAndCancel() }
+            let authentication = ProbeAuthenticationStub()
             let client = SandboxSubscriptionClient(
-                configuration: try configuration(), session: session)
-            for (status, body) in [
-                (200, response(environment: "Production")),
-                (200, response(product: "other.product")),
-                (200, "synthetic.signed.evidence"),
-                (401, "synthetic.signed.evidence"),
-                (404, "synthetic.signed.evidence"),
-                (503, "synthetic.signed.evidence"),
-                (307, "synthetic.signed.evidence")
+                configuration: try configuration(), authentication: authentication)
+            for body in [
+                response(environment: "Production"),
+                response(product: "other.product"),
+                "synthetic.signed.evidence"
             ] {
-                AnalysisURLProtocolStub.stub(statusCode: status, body: body)
+                authentication.response = Data(body.utf8)
                 do {
                     _ = try await client.verify(signedTransactionInfo: "synthetic.signed.evidence")
-                    XCTFail("Expected rejection for HTTP \(status)")
+                    XCTFail("Expected response rejection")
                 } catch let error as SandboxPurchaseError {
                     XCTAssertFalse(error.message.contains("synthetic.signed.evidence"))
                     XCTAssertTrue(error.message.contains("Recheck purchase"))
                 }
+            }
+            authentication.error = .backend(status: 401, code: "UNAUTHENTICATED")
+            do {
+                _ = try await client.verify(signedTransactionInfo: "synthetic.signed.evidence")
+                XCTFail("Expected authentication rejection")
+            } catch let error as SandboxPurchaseError {
+                XCTAssertTrue(error.message.contains("Recheck purchase"))
             }
         }
 
         private func configuration(url: String = "https://sandbox.example") throws
             -> SandboxPurchaseConfiguration
         {
-            try SandboxPurchaseConfiguration(environment: [
-                "SANDBOX_API_URL": url, "SANDBOX_PRODUCT_ID": productID
-            ])
-        }
-
-        private func makeSession() -> URLSession {
-            let config = URLSessionConfiguration.ephemeral
-            config.protocolClasses = [AnalysisURLProtocolStub.self]
-            return URLSession(configuration: config)
+            try SandboxPurchaseConfiguration(
+                environment: [
+                    "SANDBOX_API_URL": url, "SANDBOX_PRODUCT_ID": productID
+                ], appAttestEnvironment: "development")
         }
 
         private func response(
@@ -129,6 +153,18 @@
               "verifiedAt": "2026-09-18T01:00:00.000Z"
             }}
             """
+        }
+    }
+    @MainActor
+    private final class ProbeAuthenticationStub: AppAttestAuthenticating {
+        var response = Data()
+        var error: AppAttestClientError?
+        var calls: [(AppAttestOperation, Data)] = []
+
+        func post(operation: AppAttestOperation, body: Data) async throws -> Data {
+            calls.append((operation, body))
+            if let error { throw error }
+            return response
         }
     }
 #endif
