@@ -99,6 +99,15 @@
                 try JSONSerialization.jsonObject(with: authentication.calls[0].1)
                 as? [String: String]
             XCTAssertEqual(body, ["signedTransactionInfo": "synthetic.signed.evidence"])
+            XCTAssertEqual(entitlement.serviceSubscriptionId, "subscription-id")
+
+            // The updated app also works before the backend identity rename is deployed.
+            authentication.response = Data(
+                response().replacingOccurrences(
+                    of: "serviceSubscriptionId", with: "subscriptionId"
+                ).utf8)
+            let legacy = try await client.verify(signedTransactionInfo: "synthetic.signed.evidence")
+            XCTAssertEqual(legacy.serviceSubscriptionId, entitlement.serviceSubscriptionId)
         }
 
         @MainActor
@@ -145,7 +154,7 @@
         ) -> String {
             """
             {"entitlement": {
-              "subscriptionId": "subscription-id", "environment": "\(environment)",
+              "serviceSubscriptionId": "subscription-id", "environment": "\(environment)",
               "productId": "\(product)", "active": false, "status": "expired",
               "accessUntil": "2026-09-18T00:00:00.000Z", "willRenew": false,
               "period": {"id": "period-id", "kind": "trial",

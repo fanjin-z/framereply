@@ -262,7 +262,7 @@
             let startsAt: String
             let expiresAt: String
         }
-        let subscriptionId: String
+        let serviceSubscriptionId: String
         let environment: String
         let productId: String
         let active: Bool
@@ -271,6 +271,26 @@
         let willRenew: Bool
         let period: Period
         let verifiedAt: String
+
+        private enum CodingKeys: String, CodingKey {
+            case serviceSubscriptionId, subscriptionId, environment, productId, active, status
+            case accessUntil, willRenew, period, verifiedAt
+        }
+
+        init(from decoder: Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            serviceSubscriptionId =
+                try values.decodeIfPresent(String.self, forKey: .serviceSubscriptionId)
+                ?? values.decode(String.self, forKey: .subscriptionId)
+            environment = try values.decode(String.self, forKey: .environment)
+            productId = try values.decode(String.self, forKey: .productId)
+            active = try values.decode(Bool.self, forKey: .active)
+            status = try values.decode(String.self, forKey: .status)
+            accessUntil = try values.decode(String.self, forKey: .accessUntil)
+            willRenew = try values.decode(Bool.self, forKey: .willRenew)
+            period = try values.decode(Period.self, forKey: .period)
+            verifiedAt = try values.decode(String.self, forKey: .verifiedAt)
+        }
 
         var diagnosticSummary: String {
             """
@@ -281,7 +301,7 @@
             Period start: \(period.startsAt)
             Period end: \(period.expiresAt)
             Verified at: \(verifiedAt)
-            Subscription ID: \(subscriptionId)
+            FrameReply subscription ID: \(serviceSubscriptionId)
             Period ID: \(period.id)
             """
         }
