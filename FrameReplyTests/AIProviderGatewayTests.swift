@@ -18,10 +18,10 @@ final class AIProviderGatewayTests: XCTestCase {
             selectedTier: .advanced,
             apiKey: "validation-key"
         )
-        XCTAssertEqual(adapter.validatedModels, [.gpt56Luna])
+        XCTAssertEqual(adapter.validatedModels, [.gpt6Luna])
 
         let analysisContext = try service.activeContext(requiring: .screenshotAnalysis)
-        XCTAssertEqual(analysisContext.effectiveModel, .gpt56Luna)
+        XCTAssertEqual(analysisContext.effectiveModel, .gpt6Luna)
         _ = try await service.analyzeChatScreenshot(
             ChatScreenshotAnalysisRequest(imageData: Data([1]), candidates: []),
             using: analysisContext
@@ -35,15 +35,15 @@ final class AIProviderGatewayTests: XCTestCase {
         )
 
         let replyContext = try service.activeContext(requiring: .suggestedReplies)
-        XCTAssertEqual(replyContext.effectiveModel, .gpt56Sol)
+        XCTAssertEqual(replyContext.effectiveModel, .gpt6Sol)
         let result = try await service.generateSuggestedReplies(
             makeReplyRequest(),
             using: replyContext
         )
 
         XCTAssertEqual(result.replies, ["First", "Second"])
-        XCTAssertEqual(adapter.analysisModels, [.gpt56Luna, .gpt56Terra])
-        XCTAssertEqual(adapter.replyModels, [.gpt56Sol])
+        XCTAssertEqual(adapter.analysisModels, [.gpt6Luna, .gpt56Terra])
+        XCTAssertEqual(adapter.replyModels, [.gpt6Sol])
         XCTAssertEqual(
             adapter.apiKeys, ["validation-key", "saved-key", "saved-key", "saved-key"])
     }
@@ -113,9 +113,9 @@ private final class RecordingProviderAdapter: @MainActor AIProviderAdapter {
     func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile? {
         guard selectedTier == .advanced else { return nil }
         return ProviderModelProfile(
-            screenshotAnalysisModel: .gpt56Luna,
+            screenshotAnalysisModel: .gpt6Luna,
             transcriptAnalysisModel: .gpt56Terra,
-            suggestedReplyModel: .gpt56Sol
+            suggestedReplyModel: .gpt6Sol
         )
     }
 

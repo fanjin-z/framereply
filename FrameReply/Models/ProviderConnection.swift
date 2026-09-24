@@ -49,16 +49,23 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
             ProviderTier.allCases
         }
     }
-    var defaultTier: ProviderTier { .advanced }
+    var defaultTier: ProviderTier {
+        switch self {
+        case .openAI:
+            .basic
+        case .openRouter, .miniMaxInternational, .miniMaxChina:
+            .advanced
+        }
+    }
 
     func models(for tier: ProviderTier) -> (analysis: ProviderModel, replies: ProviderModel) {
         switch (self, tier) {
         case (.openAI, .basic):
-            (.gpt56Luna, .gpt56Luna)
+            (.gpt6Luna, .gpt6Luna)
         case (.openAI, .advanced):
             (.gpt56Terra, .gpt56Terra)
         case (.openAI, .best):
-            (.gpt56Sol, .gpt56Sol)
+            (.gpt6Sol, .gpt6Sol)
         case (.openRouter, _):
             (.qwen37Plus, .qwen37Plus)
         case (.miniMaxInternational, _), (.miniMaxChina, _):
@@ -72,20 +79,20 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
 }
 
 enum ProviderModel: String, Codable {
-    case gpt56Luna = "gpt-5.6-luna"
+    case gpt6Luna = "gpt-6-luna"
     case gpt56Terra = "gpt-5.6-terra"
-    case gpt56Sol = "gpt-5.6-sol"
+    case gpt6Sol = "gpt-6-sol"
     case qwen37Plus = "qwen/qwen3.7-plus"
     case miniMaxM3 = "MiniMax-M3"
 
     nonisolated var displayName: String {
         switch self {
-        case .gpt56Luna:
-            "GPT-5.6 Luna"
+        case .gpt6Luna:
+            "GPT-6 Luna"
         case .gpt56Terra:
             "GPT-5.6 Terra"
-        case .gpt56Sol:
-            "GPT-5.6 Sol"
+        case .gpt6Sol:
+            "GPT-6 Sol"
         case .qwen37Plus:
             "Qwen3.7 Plus"
         case .miniMaxM3:
@@ -118,9 +125,9 @@ enum ProviderTier: String, Codable, CaseIterable, Identifiable, Sendable {
         case .basic:
             "Lowest cost; may be less reliable with subtle or complex context"
         case .advanced:
-            "Recommended for consistently strong results at moderate cost"
+            "Consistently strong results for complex context"
         case .best:
-            "Highest-quality interpretation and writing at the highest cost"
+            "Highest-quality interpretation and writing"
         }
     }
 

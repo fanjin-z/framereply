@@ -3349,12 +3349,12 @@
         }
       }
     },
-    "Highest-quality interpretation and writing at the highest cost" : {
+    "Highest-quality interpretation and writing" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "理解和写作质量最高，费用也最高"
+            "value" : "理解和写作质量最高"
           }
         }
       }
@@ -5472,12 +5472,12 @@
         }
       }
     },
-    "Recommended for consistently strong results at moderate cost" : {
+    "Consistently strong results for complex context" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "费用适中，推荐用于获得稳定出色的结果"
+            "value" : "处理复杂语境时表现稳定"
           }
         }
       }

@@ -475,7 +475,7 @@ struct OpenAIClient: AIProviderAdapter {
         }
     }
 
-    private static let supportedModels: Set<ProviderModel> = [.gpt56Luna, .gpt56Terra, .gpt56Sol]
+    private static let supportedModels: Set<ProviderModel> = [.gpt6Luna, .gpt56Terra, .gpt6Sol]
 
     private func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {
         try ProviderNetworkSession.validateHTTPS(request, allowedHost: "api.openai.com")

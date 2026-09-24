@@ -19,7 +19,7 @@ final class ProviderValidatorTests: XCTestCase {
 
         try await OpenAIClient(session: makeSession()).validate(
             apiKey: "open-key",
-            model: .gpt56Luna
+            model: .gpt6Luna
         )
 
         XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
@@ -31,7 +31,7 @@ final class ProviderValidatorTests: XCTestCase {
         )
 
         let openAIBody = try jsonBody(openAIRequest)
-        XCTAssertEqual(openAIBody["model"] as? String, "gpt-5.6-luna")
+        XCTAssertEqual(openAIBody["model"] as? String, "gpt-6-luna")
         XCTAssertEqual(openAIBody["input"] as? String, "Reply exactly: OK.")
         XCTAssertEqual(openAIBody["max_output_tokens"] as? Int, 16)
         XCTAssertEqual(
@@ -100,7 +100,7 @@ final class ProviderValidatorTests: XCTestCase {
     func testProvidersRejectMalformedResponses() async {
         await assertInvalidResponse(
             from: OpenAIClient(session: makeSession()),
-            model: .gpt56Luna,
+            model: .gpt6Luna,
             body:
                 #"{"id":"resp_1","status":"incomplete","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
         )
@@ -122,24 +122,24 @@ final class ProviderValidatorTests: XCTestCase {
     func testProvidersMapHTTPFailures() async {
         await assertHTTPError(
             .invalidKey, statusCode: 401, validator: OpenAIClient(session: makeSession()),
-            model: .gpt56Luna)
+            model: .gpt6Luna)
         await assertHTTPError(
             .insufficientBalance,
             statusCode: 429,
             body: #"{"error":{"code":"insufficient_quota","message":"No quota"}}"#,
             validator: OpenAIClient(session: makeSession()),
-            model: .gpt56Luna
+            model: .gpt6Luna
         )
         await assertHTTPError(
             .rateLimited,
             statusCode: 429,
             body: #"{"error":{"code":"rate_limit_exceeded","message":"Slow down"}}"#,
             validator: OpenAIClient(session: makeSession()),
-            model: .gpt56Luna
+            model: .gpt6Luna
         )
         await assertHTTPError(
             .providerUnavailable, statusCode: 500, validator: OpenAIClient(session: makeSession()),
-            model: .gpt56Luna)
+            model: .gpt6Luna)
         let openRouter = OpenRouterClient(session: makeSession())
         await assertHTTPError(
             .invalidKey, statusCode: 401, validator: openRouter, model: .qwen37Plus)

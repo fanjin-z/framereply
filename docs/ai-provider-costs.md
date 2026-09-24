@@ -6,7 +6,7 @@ permalink: /ai-provider-costs
 
 # AI Provider Costs and Model Choice
 
-_Prices verified August 20, 2026._
+_Prices verified September 23, 2026._
 
 FrameReply uses your provided API key, and the selected provider bills your account. Prices may change, check the provider before setting a budget.
 
@@ -16,9 +16,9 @@ Standard pay-as-you-go prices per one million tokens. OpenAI rows use standard s
 
 | Model | Input | Cached input | Output |
 | --- | ---: | ---: | ---: |
-| GPT-5.6 Luna | $0.20 | $0.02 | $1.20 |
+| GPT-6 Luna | $0.10 | $0.01 | $0.50 |
 | GPT-5.6 Terra | $2.00 | $0.20 | $12.00 |
-| GPT-5.6 Sol | $5.00 | $0.50 | $30.00 |
+| GPT-6 Sol | $2.00 | $0.20 | $10.00 |
 | OpenRouter — Qwen3.7 Plus | $0.32 | $0.064 | $1.28 |
 | MiniMax M3 (Intl.) | $0.30 | $0.06 | $1.20 |
 | MiniMax M3 (China) | ¥2.10 | ¥0.42 | ¥8.40 |
@@ -36,9 +36,9 @@ The estimates use uncached rates: `(input tokens × input rate + output tokens �
 
 | Model | Screenshot → replies | Pasted text → replies |
 | --- | ---: | ---: |
-| GPT-5.6 Luna | $0.0044 | $0.0042 |
+| GPT-6 Luna | $0.0020 | $0.0019 |
 | GPT-5.6 Terra | $0.0440 | $0.0420 |
-| GPT-5.6 Sol | $0.1100 | $0.1050 |
+| GPT-6 Sol | $0.0400 | $0.0380 |
 | OpenRouter — Qwen3.7 Plus | $0.0058 | $0.0054 |
 | MiniMax M3 (Intl.) | $0.0054 | $0.0051 |
 | MiniMax M3 (China) | ¥0.0378 | ¥0.0357 |
@@ -47,8 +47,8 @@ These are illustrative comparisons, not measured averages. Actual charges vary w
 
 ## Choosing a model
 
-- **GPT-5.6 Luna (Basic):** lowest-cost OpenAI option for routine use.
-- **GPT-5.6 Terra (Advanced):** FrameReply's recommended balance of quality and cost.
-- **GPT-5.6 Sol (Best):** quality-first option for subtle or complex conversations.
+- **GPT-6 Luna (Basic):** lowest-cost OpenAI option for routine use.
+- **GPT-5.6 Terra (Advanced):** the existing middle-tier option.
+- **GPT-6 Sol (Best):** quality-first option for subtle or complex conversations. At the listed short-context rates, it costs less than Terra for the same token counts.
 - **Qwen3.7 Plus:** low-cost option billed through OpenRouter.
 - **MiniMax M3:** low-cost direct option; choose International or China for the appropriate account region and currency.

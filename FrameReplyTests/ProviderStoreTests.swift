@@ -38,7 +38,7 @@ final class ProviderStoreTests: XCTestCase {
         let registry = AIProviderRegistry.live()
         XCTAssertEqual(
             registry.profile(for: .openAI, selectedTier: .basic)?.screenshotAnalysisModel,
-            .gpt56Luna
+            .gpt6Luna
         )
         XCTAssertEqual(
             registry.profile(for: .openAI, selectedTier: .advanced)?.suggestedReplyModel,
@@ -46,7 +46,7 @@ final class ProviderStoreTests: XCTestCase {
         )
         XCTAssertEqual(
             registry.profile(for: .openAI, selectedTier: .best)?.suggestedReplyModel,
-            .gpt56Sol
+            .gpt6Sol
         )
         XCTAssertEqual(
             registry.profile(for: .openRouter, selectedTier: .advanced),
@@ -89,15 +89,25 @@ final class ProviderStoreTests: XCTestCase {
             ProviderPlatform.miniMaxInternational.keychainAccount,
             ProviderPlatform.miniMaxChina.keychainAccount
         )
-        XCTAssertTrue(ProviderPlatform.allCases.allSatisfy { $0.defaultTier == .advanced })
+        XCTAssertEqual(ProviderPlatform.openAI.defaultTier, .basic)
+        XCTAssertTrue(
+            [ProviderPlatform.openRouter, .miniMaxInternational, .miniMaxChina]
+                .allSatisfy { $0.defaultTier == .advanced }
+        )
+        XCTAssertEqual(ProviderPlatform.openAI.modelSummary(for: .basic), "GPT-6 Luna")
         XCTAssertEqual(
             ProviderPlatform.openAI.modelSummary(for: .advanced),
             "GPT-5.6 Terra"
         )
+        XCTAssertEqual(ProviderPlatform.openAI.modelSummary(for: .best), "GPT-6 Sol")
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         try saveProviders(makeProviders(), to: defaults)
         let store = ProviderStore(userDefaults: defaults)
+        XCTAssertEqual(
+            store.providers.first(where: { $0.platform == .openAI })?.tier,
+            .basic
+        )
 
         store.setTier(.best, for: .openAI)
         XCTAssertEqual(
@@ -105,10 +115,9 @@ final class ProviderStoreTests: XCTestCase {
             .best
         )
 
-        let savedData = try XCTUnwrap(defaults.data(forKey: ProviderStoreTestKey.providers))
-        let savedProviders = try JSONDecoder().decode([ProviderConnection].self, from: savedData)
+        let reloadedStore = ProviderStore(userDefaults: defaults)
         XCTAssertEqual(
-            savedProviders.first(where: { $0.platform == .openAI })?.tier,
+            reloadedStore.providers.first(where: { $0.platform == .openAI })?.tier,
             .best
         )
     }

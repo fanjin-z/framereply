@@ -85,7 +85,7 @@ final class ScreenshotImportCoordinatorTests: XCTestCase {
             aiService.receivedImageDataList.allSatisfy {
                 $0.count <= ScreenshotImageNormalizer.maximumBytesPerImage
             })
-        XCTAssertEqual(aiService.receivedContext?.effectiveModel, .gpt56Luna)
+        XCTAssertEqual(aiService.receivedContext?.effectiveModel, .gpt6Luna)
         let messages = try repository.messages(chatID: "sarah-jenkins")
         XCTAssertTrue(
             messages.contains { $0.text == "A newly imported reply" && $0.senderKind == "user" })
@@ -452,7 +452,7 @@ private final class StubAnalysisService: AIServiceProviding {
     private let context = AIProviderExecutionContext(
         platform: .openAI,
         capability: .screenshotAnalysis,
-        effectiveModel: .gpt56Luna
+        effectiveModel: .gpt6Luna
     )
 
     init(analysis: ChatImportAnalysis) {
@@ -466,7 +466,7 @@ private final class StubAnalysisService: AIServiceProviding {
         else {
             throw AIServiceError.unsupportedCapability
         }
-        let model: ProviderModel = capability == .transcriptAnalysis ? .gpt56Terra : .gpt56Luna
+        let model: ProviderModel = capability == .transcriptAnalysis ? .gpt56Terra : .gpt6Luna
         return AIProviderExecutionContext(
             platform: context.platform,
             capability: capability,

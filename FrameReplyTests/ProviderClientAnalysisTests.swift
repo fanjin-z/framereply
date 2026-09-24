@@ -11,14 +11,15 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
         ]
 
         _ = try await OpenAIClient(session: makeSession()).analyzeChatScreenshot(
-            makeRequest(), apiKey: "key", model: .gpt56Sol
+            makeRequest(), apiKey: "key", model: .gpt6Sol
         )
 
         let screenshotBody = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
+        XCTAssertEqual(screenshotBody["model"] as? String, "gpt-6-sol")
         XCTAssertEqual(screenshotBody["store"] as? Bool, false)
         XCTAssertEqual(
             screenshotBody["prompt_cache_key"] as? String,
-            "screenshot_import-v\(ChatImportPrompt.screenshotImportVersion)-gpt-5.6-sol"
+            "screenshot_import-v\(ChatImportPrompt.screenshotImportVersion)-gpt-6-sol"
         )
         let screenshotFormat = try XCTUnwrap(
             (screenshotBody["text"] as? [String: Any])?["format"] as? [String: Any]
@@ -40,14 +41,15 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
         let result = try await OpenAIClient(
             session: makeSession(), eventReporter: reporter
         ).generateSuggestedReplies(
-            makeReplyRequest(task: .drafting), apiKey: "key", model: .gpt56Luna
+            makeReplyRequest(task: .drafting), apiKey: "key", model: .gpt6Luna
         )
 
         XCTAssertEqual(result.replies, ["First", "Second"])
         let replyBody = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
+        XCTAssertEqual(replyBody["model"] as? String, "gpt-6-luna")
         XCTAssertEqual(
             replyBody["prompt_cache_key"] as? String,
-            "suggested_reply_drafting-v\(SuggestedReplyPrompt.version)-gpt-5.6-luna-en"
+            "suggested_reply_drafting-v\(SuggestedReplyPrompt.version)-gpt-6-luna-en"
         )
         let replyFormat = try XCTUnwrap(
             (replyBody["text"] as? [String: Any])?["format"] as? [String: Any]
@@ -198,7 +200,7 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
         ]
         let recovered = try await OpenAIClient(
             session: makeSession(), eventReporter: recoveredReporter
-        ).analyzeChatScreenshot(makeRequest(), apiKey: "key", model: .gpt56Sol)
+        ).analyzeChatScreenshot(makeRequest(), apiKey: "key", model: .gpt6Sol)
 
         XCTAssertEqual(recovered.messages.first?.text, "Hello")
         XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
@@ -215,7 +217,7 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
                 _ = try await OpenAIClient(
                     session: self.makeSession(), eventReporter: fatalReporter
                 ).analyzeChatScreenshot(
-                    self.makeRequest(), apiKey: "key", model: .gpt56Sol
+                    self.makeRequest(), apiKey: "key", model: .gpt6Sol
                 )
             },
             errorHandler: {
