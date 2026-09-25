@@ -102,18 +102,7 @@
                     evidence = latest
                 }
 
-                guard case .verified(let transaction) = evidence else {
-                    throw SandboxPurchaseError(
-                        message:
-                            "StoreKit could not verify this transaction. Nothing was sent to the backend."
-                    )
-                }
-                try configuration.validate(
-                    environment: transaction.environment, productID: transaction.productID)
-                let entitlement = try await client.verify(
-                    signedTransactionInfo: evidence.jwsRepresentation)
-                // Leave failed verifications unfinished so Recheck can retry without another purchase.
-                await transaction.finish()
+                let entitlement = try await client.verifyAndFinish(evidence)
                 result = entitlement.diagnosticSummary
             } catch is CancellationError {
                 result = "Operation cancelled. Retry with Test authentication or Recheck purchase."
@@ -243,6 +232,24 @@
             return entitlement
         }
 
+        func verifyAndFinish(_ evidence: VerificationResult<StoreKit.Transaction>) async throws
+            -> SandboxEntitlement
+        {
+            guard case .verified(let transaction) = evidence else {
+                throw SandboxPurchaseError(
+                    message:
+                        "StoreKit could not verify this transaction. Nothing was sent to the backend."
+                )
+            }
+            try configuration.validate(
+                environment: transaction.environment, productID: transaction.productID)
+            let entitlement = try await verify(
+                signedTransactionInfo: evidence.jwsRepresentation)
+            // Leave failed verifications unfinished so StoreKit can deliver them again.
+            await transaction.finish()
+            return entitlement
+        }
+
         private func post(operation: AppAttestOperation, body: Data) async throws -> Data {
             do {
                 return try await authentication.post(operation: operation, body: body)
@@ -251,6 +258,44 @@
                     operation == .status
                     ? "Retry Test authentication." : "Retry with Recheck purchase."
                 throw SandboxPurchaseError(message: "\(error.diagnosticSummary) \(retry)")
+            }
+        }
+    }
+
+    @MainActor
+    final class SandboxTransactionObserver: ObservableObject {
+        static let shared = SandboxTransactionObserver()
+
+        @Published private(set) var lastResult: String?
+        private var updates: Task<Void, Never>?
+
+        func start() {
+            guard updates == nil else { return }
+            updates = Task {
+                for await evidence in StoreKit.Transaction.updates {
+                    await process(evidence)
+                }
+            }
+        }
+
+        private func process(_ evidence: VerificationResult<StoreKit.Transaction>) async {
+            guard case .verified(let transaction) = evidence else {
+                lastResult = "StoreKit delivered an unverified transaction. Use Recheck purchase."
+                return
+            }
+            guard
+                let configuration = try? SandboxPurchaseConfiguration.load(
+                    environment: ProcessInfo.processInfo.environment),
+                transaction.productID == configuration.productID
+            else { return }
+
+            do {
+                let client = SandboxSubscriptionClient(configuration: configuration)
+                let entitlement = try await client.verifyAndFinish(evidence)
+                lastResult = "Transaction update verified · \(entitlement.status)."
+            } catch {
+                // StoreKit will retain an unfinished transaction for retry; never log signed evidence.
+                lastResult = "Transaction update could not be verified. Use Recheck purchase."
             }
         }
     }
