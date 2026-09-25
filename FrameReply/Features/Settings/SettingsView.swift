@@ -11,6 +11,7 @@ struct SettingsView: View {
     let isActive: Bool
     let onPersonalInfoTap: () -> Void
     let onPrivacyAndDataTap: () -> Void
+    let onAIAccessTap: () -> Void
 
     @Environment(\.openURL) private var openURL
     @State private var isAddProviderPresented = false
@@ -83,6 +84,9 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 personalInfoSection
+                if (try? SubscriptionConfiguration.load()) != nil {
+                    aiAccessSection
+                }
                 providerSection
                 ShortcutSetupSection()
                 privacyAndDataSection
@@ -117,6 +121,24 @@ struct SettingsView: View {
             }
         } content: {
             providerContent
+        }
+    }
+
+    private var aiAccessSection: some View {
+        settingsSection {
+            sectionHeader("AI Access")
+        } content: {
+            settingsSurface {
+                Button(action: onAIAccessTap) {
+                    settingsNavigationLabel(
+                        title: "AI Access",
+                        subtitle: "Subscription, trial, and usage",
+                        symbol: "sparkles"
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("ai-access")
+            }
         }
     }
 

@@ -7,6 +7,12 @@
     final class SubscriptionClientTests: XCTestCase {
         private let productID = "test.subscription.monthly"
 
+        func testBackendMicrousdAllowanceDisplaysAsReadableDollars() {
+            let locale = Locale(identifier: "en_US")
+            XCTAssertEqual(AIAccessPresentation.usd(1_000_000, locale: locale), "$1.00")
+            XCTAssertEqual(AIAccessPresentation.usd(700_000, locale: locale), "$0.70")
+        }
+
         func testConfigurationAndEvidenceRejectUnsafeOrNonSandboxInputs() throws {
             for url in [
                 "http://sandbox.example", "https://user:password@sandbox.example",
