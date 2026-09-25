@@ -4,6 +4,12 @@
 <dict>
 	<key>AppAttestEnvironment</key>
 	<string>$(APP_ATTEST_ENVIRONMENT)</string>
+	<key>SubscriptionAPIURL</key>
+	<string>$(SUBSCRIPTION_API_URL)</string>
+	<key>SubscriptionProductID</key>
+	<string>$(SUBSCRIPTION_PRODUCT_ID)</string>
+	<key>SubscriptionStoreEnvironment</key>
+	<string>$(SUBSCRIPTION_STORE_ENVIRONMENT)</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

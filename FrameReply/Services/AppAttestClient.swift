@@ -4,12 +4,14 @@ import Foundation
 import Security
 
 nonisolated enum AppAttestOperation: String {
-    case status, subscription
+    case status, subscription, credential, usage
 
     var path: String {
         switch self {
         case .status: "/v1/auth/status"
         case .subscription: "/v1/subscriptions/verify"
+        case .credential: "/v1/ai/credential"
+        case .usage: "/v1/ai/usage"
         }
     }
 }

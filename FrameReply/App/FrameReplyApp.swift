@@ -7,9 +7,7 @@ struct FrameReplyApp: App {
     @StateObject private var startup: AppStartupController
 
     init() {
-        #if DEBUG
-            SandboxTransactionObserver.shared.start()
-        #endif
+        SubscriptionTransactionObserver.shared.start()
         let launchMode = AppLaunchMode.resolve()
         _startup = StateObject(
             wrappedValue: AppStartupController(launchMode: launchMode)

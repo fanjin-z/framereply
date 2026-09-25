@@ -4,30 +4,8 @@
 
     @testable import FrameReply
 
-    final class SandboxPurchaseProbeTests: XCTestCase {
+    final class SubscriptionClientTests: XCTestCase {
         private let productID = "test.subscription.monthly"
-
-        func testConfigurationPersistsForHomeScreenLaunchAndUsesNewSchemeOverrides() throws {
-            let suite = "SandboxPurchaseProbeTests.\(UUID().uuidString)"
-            let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-            defer { defaults.removePersistentDomain(forName: suite) }
-            XCTAssertThrowsError(
-                try SandboxPurchaseConfiguration.load(environment: [:], defaults: defaults))
-
-            let environment = [
-                "SANDBOX_API_URL": "https://sandbox.example", "SANDBOX_PRODUCT_ID": productID
-            ]
-            _ = try SandboxPurchaseConfiguration.load(environment: environment, defaults: defaults)
-            let reopened = try SandboxPurchaseConfiguration.load(
-                environment: [:], defaults: defaults)
-            XCTAssertEqual(reopened.baseURL.absoluteString, "https://sandbox.example")
-            XCTAssertEqual(reopened.productID, productID)
-
-            let changed = try SandboxPurchaseConfiguration.load(
-                environment: ["SANDBOX_API_URL": "https://new-sandbox.example"], defaults: defaults)
-            XCTAssertEqual(changed.baseURL.absoluteString, "https://new-sandbox.example")
-            XCTAssertEqual(changed.productID, productID)
-        }
 
         func testConfigurationAndEvidenceRejectUnsafeOrNonSandboxInputs() throws {
             for url in [
@@ -36,17 +14,22 @@
             ] {
                 XCTAssertThrowsError(try configuration(url: url))
             }
-            XCTAssertThrowsError(try SandboxPurchaseConfiguration(environment: [:]))
-            let authenticationOnly = try SandboxPurchaseConfiguration(
-                environment: ["SANDBOX_API_URL": "https://sandbox.example"],
-                appAttestEnvironment: "development")
-            XCTAssertTrue(authenticationOnly.productID.isEmpty)
             XCTAssertThrowsError(
-                try authenticationOnly.validate(environment: .sandbox, productID: ""))
+                try SubscriptionConfiguration(
+                    apiURL: "", productID: productID, appAttestEnvironment: "development"))
             XCTAssertThrowsError(
-                try SandboxPurchaseConfiguration(
-                    environment: ["SANDBOX_API_URL": "https://sandbox.example"],
-                    appAttestEnvironment: "unknown"))
+                try SubscriptionConfiguration(
+                    apiURL: "https://sandbox.example", productID: "",
+                    appAttestEnvironment: "development"))
+            let testFlight = try SubscriptionConfiguration(
+                apiURL: "https://sandbox.example", productID: productID,
+                appAttestEnvironment: "production", storeEnvironment: "Sandbox")
+            XCTAssertNoThrow(
+                try testFlight.validate(environment: .sandbox, productID: productID))
+            XCTAssertThrowsError(
+                try SubscriptionConfiguration(
+                    apiURL: "https://sandbox.example", productID: productID,
+                    appAttestEnvironment: "development", storeEnvironment: "Xcode"))
             let config = try configuration()
             XCTAssertNoThrow(try config.validate(environment: .sandbox, productID: productID))
             for environment: AppStore.Environment in [.production, .xcode] {
@@ -60,10 +43,8 @@
         @MainActor
         func testAuthenticationNeedsNoPurchaseAndRejectsUnconfirmedStatus() async throws {
             let authentication = ProbeAuthenticationStub()
-            let config = try SandboxPurchaseConfiguration(
-                environment: ["SANDBOX_API_URL": "https://sandbox.example"],
-                appAttestEnvironment: "development")
-            let client = SandboxSubscriptionClient(
+            let config = try configuration()
+            let client = SubscriptionClient(
                 configuration: config, authentication: authentication)
             authentication.response = Data("{\"authenticated\":true}".utf8)
             try await client.checkAuthentication()
@@ -75,7 +56,7 @@
                 do {
                     try await client.checkAuthentication()
                     XCTFail("Expected malformed status to fail")
-                } catch let error as SandboxPurchaseError {
+                } catch let error as SubscriptionClientError {
                     XCTAssertFalse(error.message.contains("synthetic.signed.evidence"))
                 }
             }
@@ -85,7 +66,7 @@
         func testVerificationSendsOnlySignedEvidenceAndAcceptsExpiredEntitlement() async throws {
             let authentication = ProbeAuthenticationStub()
             authentication.response = Data(response().utf8)
-            let client = SandboxSubscriptionClient(
+            let client = SubscriptionClient(
                 configuration: try configuration(), authentication: authentication)
             let entitlement = try await client.verify(
                 signedTransactionInfo: "synthetic.signed.evidence")
@@ -115,7 +96,7 @@
             async throws
         {
             let authentication = ProbeAuthenticationStub()
-            let client = SandboxSubscriptionClient(
+            let client = SubscriptionClient(
                 configuration: try configuration(), authentication: authentication)
             for body in [
                 response(environment: "Production"),
@@ -126,7 +107,7 @@
                 do {
                     _ = try await client.verify(signedTransactionInfo: "synthetic.signed.evidence")
                     XCTFail("Expected response rejection")
-                } catch let error as SandboxPurchaseError {
+                } catch let error as SubscriptionClientError {
                     XCTAssertFalse(error.message.contains("synthetic.signed.evidence"))
                     XCTAssertTrue(error.message.contains("Recheck purchase"))
                 }
@@ -135,18 +116,52 @@
             do {
                 _ = try await client.verify(signedTransactionInfo: "synthetic.signed.evidence")
                 XCTFail("Expected authentication rejection")
-            } catch let error as SandboxPurchaseError {
+            } catch let error as SubscriptionClientError {
                 XCTAssertTrue(error.message.contains("Recheck purchase"))
             }
         }
 
+        @MainActor
+        func testManagedCredentialAndUsageUseBoundSubscriptionAndRejectWrongUsage() async throws {
+            let authentication = ProbeAuthenticationStub()
+            let client = SubscriptionClient(
+                configuration: try configuration(), authentication: authentication)
+            authentication.response = Data(
+                """
+                {"aiProvider":"openrouter","model":"openai/gpt-5.6-luna",
+                "apiKey":"synthetic-secret","expiresAt":"2026-09-25T00:00:00.000Z"}
+                """.utf8)
+            let credential = try await client.credential(serviceSubscriptionId: "subscription-id")
+            XCTAssertEqual(credential.aiProvider, "openrouter")
+            XCTAssertEqual(credential.model, "openai/gpt-5.6-luna")
+            XCTAssertEqual(credential.apiKey, "synthetic-secret")
+
+            authentication.response = Data(usageResponse().utf8)
+            let usage = try await client.usage(serviceSubscriptionId: "subscription-id")
+            XCTAssertEqual(usage.remainingMicrousd, 700_000)
+            XCTAssertEqual(authentication.calls.map { $0.0 }, [.credential, .usage])
+            for (_, data) in authentication.calls {
+                let body = try JSONSerialization.jsonObject(with: data) as? [String: String]
+                XCTAssertEqual(body, ["serviceSubscriptionId": "subscription-id"])
+            }
+
+            authentication.response = Data(
+                usageResponse().replacingOccurrences(
+                    of: "subscription-id", with: "other-subscription"
+                ).utf8)
+            do {
+                _ = try await client.usage(serviceSubscriptionId: "subscription-id")
+                XCTFail("Expected a mismatched usage response to fail")
+            } catch is SubscriptionClientError {
+                // The wrong subscription must never be shown as this user's allowance.
+            }
+        }
+
         private func configuration(url: String = "https://sandbox.example") throws
-            -> SandboxPurchaseConfiguration
+            -> SubscriptionConfiguration
         {
-            try SandboxPurchaseConfiguration(
-                environment: [
-                    "SANDBOX_API_URL": url, "SANDBOX_PRODUCT_ID": productID
-                ], appAttestEnvironment: "development")
+            try SubscriptionConfiguration(
+                apiURL: url, productID: productID, appAttestEnvironment: "development")
         }
 
         private func response(
@@ -161,6 +176,16 @@
                 "startsAt": "2026-09-11T00:00:00.000Z", "expiresAt": "2026-09-18T00:00:00.000Z"},
               "verifiedAt": "2026-09-18T01:00:00.000Z"
             }}
+            """
+        }
+
+        private func usageResponse() -> String {
+            """
+            {"serviceSubscriptionId":"subscription-id","periodId":"period-id",
+            "kind":"trial","currency":"USD","budgetMicrousd":1000000,
+            "usedMicrousd":300000,"remainingMicrousd":700000,
+            "expiresAt":"2026-09-25T00:00:00.000Z","availability":"available",
+            "usageAsOf":"2026-09-24T00:00:00.000Z","stale":false}
             """
         }
     }

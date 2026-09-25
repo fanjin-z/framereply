@@ -53,6 +53,19 @@ final class AppAttestClientTests: XCTestCase {
         XCTAssertEqual(service.attestationHashes.count, 1)
         XCTAssertEqual(service.assertionHashes.count, 2)
         XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 6)
+
+        let serviceBody = Data("{\"serviceSubscriptionId\":\"test-id\"}".utf8)
+        queueProtected(response: "{\"model\":\"test\"}")
+        queueProtected(response: "{\"availability\":\"available\"}")
+        _ = try await reopened.post(operation: .credential, body: serviceBody)
+        _ = try await reopened.post(operation: .usage, body: serviceBody)
+        XCTAssertEqual(
+            AnalysisURLProtocolStub.requests.suffix(4).map { $0.url!.path },
+            ["/v1/auth/challenges", "/v1/ai/credential", "/v1/auth/challenges", "/v1/ai/usage"])
+        XCTAssertEqual(try jsonBody(AnalysisURLProtocolStub.requests[6])["operation"], "credential")
+        XCTAssertEqual(try jsonBody(AnalysisURLProtocolStub.requests[8])["operation"], "usage")
+        XCTAssertEqual(AnalysisURLProtocolStub.requests[7].httpBody, serviceBody)
+        XCTAssertEqual(AnalysisURLProtocolStub.requests[9].httpBody, serviceBody)
     }
 
     func testFullOperationsSerializeAndCancellingAWaiterDoesNotReleaseActiveCall() async throws {

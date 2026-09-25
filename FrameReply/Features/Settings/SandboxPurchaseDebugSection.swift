@@ -4,7 +4,7 @@
     /// Internal diagnostics; these strings are deliberately excluded from the app's catalog.
     struct SandboxPurchaseDebugSection: View {
         @StateObject private var probe = SandboxPurchaseProbe()
-        @ObservedObject private var transactionObserver = SandboxTransactionObserver.shared
+        @ObservedObject private var transactionObserver = SubscriptionTransactionObserver.shared
 
         var body: some View {
             VStack(alignment: .leading, spacing: 8) {
