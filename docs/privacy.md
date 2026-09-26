@@ -6,9 +6,9 @@ permalink: /privacy
 
 # FrameReply Privacy Policy
 
-Effective August 10, 2026
+Effective September 27, 2026
 
-FrameReply is an open-source iPhone app. The project maintainer is the data controller for the limited processing described here. An optional subscription service verifies purchases and issues capped AI credentials. FrameReply does not use advertising, analytics, or tracking SDKs.
+FrameReply is an open-source iPhone app, the data controller for the processing described here. FrameReply AI is an optional subscription service. FrameReply does not use advertising, analytics, or tracking SDKs.
 
 ## Data FrameReply handles
 
@@ -20,29 +20,37 @@ API keys are stored in Apple's Keychain using device-only protection. Extracted 
 
 After explicit provider-specific consent, FrameReply sends selected content and relevant saved Personal Info directly from the device to the active provider solely to analyze a conversation or generate replies. FrameReply does not receive a copy through a developer-operated server.
 
-- OpenAI requests use the Responses API with `store: false`. OpenAI may still retain request data for abuse monitoring or other purposes described in its [API data controls](https://developers.openai.com/api/docs/guides/your-data) and [privacy policy](https://openai.com/policies/privacy-policy/).
-- Bring-your-own-key OpenRouter requests use the fixed `qwen/qwen3.7-plus` model. They pass through OpenRouter and are forwarded to Alibaba Cloud International. FrameReply denies provider data collection in each request and disables fallback routing, but this endpoint may still retain request data under its policies. Review the [OpenRouter privacy policy](https://openrouter.ai/privacy), [provider logging information](https://openrouter.ai/docs/guides/privacy/provider-logging/), and [Alibaba Cloud privacy policy](https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-privacy-policy).
-- With AI Access, the app sends selected content directly to OpenRouter and its selected model provider using a capped credential. The FrameReply subscription service verifies Apple purchases, App Attest, and allowance usage and issues the credential; it does not receive the selected chat content. The credential is stored in the device Keychain. OpenRouter and the model provider may retain request data under their policies.
+- OpenAI receives content directly when you connect your own OpenAI account. Its [API data controls](https://developers.openai.com/api/docs/guides/your-data) and [privacy policy](https://openai.com/policies/privacy-policy/) explain retention, including abuse monitoring.
+- With your own OpenRouter key, OpenRouter and the provider serving your selected model receive the content. See the [OpenRouter privacy policy](https://openrouter.ai/privacy) and [provider retention information](https://openrouter.ai/docs/guides/privacy/provider-logging/).
+- FrameReply AI sends selected content through [OpenRouter](https://openrouter.ai/privacy) to [OpenAI](https://developers.openai.com/api/docs/guides/your-data). We disable optional training and content logging, but these services may retain data under their policies, including for abuse monitoring. We do not promise zero retention.
 - MiniMax International processing and retention are described in its [privacy policy](https://platform.minimax.io/protocol/privacy-policy).
 - MiniMax (China) processing and retention are described in its [privacy policy](https://platform.minimaxi.com/zh/protocol/privacy-policy).
 
-OpenRouter and Alibaba Cloud International are separate processors in the OpenRouter data path. MiniMax International and MiniMax (China) use separate API endpoints and billing accounts. FrameReply does not restrict these options by the user's location. Provider terms and practices can change; review the selected provider's policy before consenting.
+Provider availability and privacy practices vary by region and may change. Processing may occur outside your country; review the relevant policies before consenting.
 
-Bring-your-own-key usage can be linked to the provider account represented by the user's API key, which the provider may charge. AI Access usage is limited by the subscription allowance and the provider's capped credential.
+Bring-your-own-key usage can be linked to the provider account represented by the user's API key, which the provider may charge. FrameReply AI usage is linked to a managed credential and limited by the subscription allowance.
+
+## Subscription service data
+
+We use [Amazon Web Services](https://aws.amazon.com/privacy/) in the United States to store purchase and subscription records, app-verification data, device identifiers linked to subscriptions, and usage records. We use these to verify purchases, restore access, enforce limits, and prevent abuse. AI access keys are stored encrypted; key identifiers and usage-management requests are shared with OpenRouter. Our subscription servers do not receive your screenshots, conversations, prompts, or generated replies.
+
+[Apple](https://www.apple.com/legal/privacy/) handles purchases and payments. We do not receive your payment-card details or Apple Account password. Our servers log request identifiers, status, timing, and errors, excluding request contents and access keys. Services receiving requests also receive network information.
 
 ## Consent and lawful use
 
-The user must affirm that they consent to provider processing and have permission or another lawful basis to upload the selected conversation and participant information. Consent is stored locally by provider and policy version. To withdraw consent, choose **Delete** from the provider menu in **Settings → Model Providers**. This removes the locally stored API key and consent, including for AI Access.
+The user must affirm that they consent to provider processing and have permission or another lawful basis to upload selected conversation and participant information. Consent is stored locally by provider and policy version. For a personal-key provider, choose **Delete** from its menu in **Settings → AI Providers** to remove its key and consent. To stop sending content through FrameReply AI, select another provider or stop using AI features. To erase its locally saved key and consent, use **Settings → Privacy & Data → Delete All Local Data**; this also erases local conversations and other app data.
 
 ## Retention and deletion
 
 Local data remains until the user deletes an individual chat/provider or chooses **Delete All Local Data**. Personal Info remains account-wide if a source chat is deleted. Removing an item keeps a local record to prevent relearning; **Delete All Local Data** removes all Personal Info records along with chats, messages, personas, context, drafts, consent records, provider settings, and API keys for currently supported providers from the device. Reinstall detection purges orphaned keys for currently supported providers from the Keychain.
 
-Deleting a provider does not revoke the key or delete provider-held data. Use the provider's account and privacy controls for those actions.
+Deleting local data does not cancel an Apple subscription, erase server-side subscription records, or delete data held by AI providers. Deleting a personal-key provider does not revoke its key at the provider. Use Apple’s subscription controls and the relevant provider’s account/privacy controls separately.
+
+Server logs and failed Apple subscription updates are retained for up to 14 days. Subscription, linked-device, usage, and access-key records are not automatically deleted when a subscription ends; they support restoration, usage accounting, and abuse prevention. Contact us to request access, correction, or deletion. Records needed for legal obligations, fraud prevention, or disputes may be retained; backups expire under their retention schedule.
 
 ## Tracking and disclosure
 
-FrameReply does not track users, create advertising profiles, sell personal data, or share data with data brokers. Data is disclosed only to the provider selected by the user for app functionality, or when legally required.
+FrameReply does not track users, create advertising profiles, sell personal data, or share data with data brokers. Data is shared with Apple, AWS, OpenRouter, and the active model provider as described above to operate purchases, subscription access, and AI features, or when legally required. If you contact support, we also process the information you choose to send to resolve your request.
 
 ## Children
 

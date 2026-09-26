@@ -34,8 +34,7 @@ FrameReply is an open-source chat assistant that delivers two context-aware repl
 ## Before you start
 
 - An iPhone running iOS 26 or later.
-- Your own API key for OpenAI, OpenRouter, or MiniMax.
-- Provider usage may incur charges from that provider.
+- A FrameReply AI subscription where offered, or your own API key for OpenAI, OpenRouter, or MiniMax.
 
 ## How to use
 
@@ -67,8 +66,8 @@ See [Shortcuts](docs/shortcuts.md) for maintenance and troubleshooting.
 
 ## Privacy
 
-- Chats, messages, personas, saved context, drafts, and replies are stored locally. API keys are protected in Keychain. There is no developer-operated proxy server, advertising, analytics, or tracking.
-- With your consent, selected content and relevant context are sent directly to the AI provider you choose. Provider policies and charges apply.
+- Chats, messages, personas, saved context, drafts, and replies are stored locally. API keys are protected in Keychain. FrameReply uses no advertising, analytics, or tracking SDKs.
+- With your consent, selected content and context go directly to your chosen provider, or through OpenRouter for FrameReply AI. The subscription backend handles purchases, app verification, and allowances; it does not receive your chat content. Provider retention policies apply.
 
 Read the [Privacy Policy](docs/privacy.md) for complete details.
 
