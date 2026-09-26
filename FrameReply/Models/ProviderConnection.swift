@@ -10,8 +10,9 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
     case openRouter
     case miniMaxInternational
     case miniMaxChina
+    case frameReplyAI
 
-    static var availableCases: [ProviderPlatform] { allCases }
+    static var availableCases: [ProviderPlatform] { allCases.filter { $0 != .frameReplyAI } }
 
     var id: String { rawValue }
 
@@ -27,6 +28,8 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
             String(localized: AppStrings.Provider.miniMaxInternationalName)
         case .miniMaxChina:
             String(localized: AppStrings.Provider.miniMaxChinaName)
+        case .frameReplyAI:
+            String(localized: "FrameReply AI Access")
         }
     }
 
@@ -38,6 +41,8 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
             "network"
         case .miniMaxInternational, .miniMaxChina:
             "sparkles.rectangle.stack"
+        case .frameReplyAI:
+            "sparkles"
         }
     }
 
@@ -47,11 +52,15 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
             [.advanced]
         case .openAI:
             ProviderTier.allCases
+        case .frameReplyAI:
+            [.basic]
         }
     }
     var defaultTier: ProviderTier {
         switch self {
         case .openAI:
+            .basic
+        case .frameReplyAI:
             .basic
         case .openRouter, .miniMaxInternational, .miniMaxChina:
             .advanced
@@ -68,6 +77,8 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
             (.gpt6Sol, .gpt6Sol)
         case (.openRouter, _):
             (.qwen37Plus, .qwen37Plus)
+        case (.frameReplyAI, _):
+            (.managedGPT56Luna, .managedGPT56Luna)
         case (.miniMaxInternational, _), (.miniMaxChina, _):
             (.miniMaxM3, .miniMaxM3)
         }
@@ -84,6 +95,12 @@ enum ProviderModel: String, Codable {
     case gpt6Sol = "gpt-6-sol"
     case qwen37Plus = "qwen/qwen3.7-plus"
     case miniMaxM3 = "MiniMax-M3"
+    case managedGPT56Luna = "openai/gpt-5.6-luna-20260709"
+    case managedGPT6Luna = "openai/gpt-6-luna"
+
+    var isManagedOpenRouterModel: Bool {
+        self == .managedGPT56Luna || self == .managedGPT6Luna
+    }
 
     nonisolated var displayName: String {
         switch self {
@@ -97,6 +114,10 @@ enum ProviderModel: String, Codable {
             "Qwen3.7 Plus"
         case .miniMaxM3:
             "MiniMax M3"
+        case .managedGPT56Luna:
+            "GPT-5.6 Luna"
+        case .managedGPT6Luna:
+            "GPT-6 Luna"
         }
     }
 }
@@ -140,6 +161,19 @@ struct ProviderConnection: Identifiable, Codable {
     var id: UUID = UUID()
     let platform: ProviderPlatform
     var tier: ProviderTier
+    var managedModel: ProviderModel?
+    var managedExpiresAt: Date?
+
+    init(
+        id: UUID = UUID(), platform: ProviderPlatform, tier: ProviderTier,
+        managedModel: ProviderModel? = nil, managedExpiresAt: Date? = nil
+    ) {
+        self.id = id
+        self.platform = platform
+        self.tier = tier
+        self.managedModel = managedModel
+        self.managedExpiresAt = managedExpiresAt
+    }
 
     var name: String { platform.displayName }
     var symbolName: String { platform.symbolName }

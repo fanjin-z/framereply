@@ -97,6 +97,30 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
     }
 
     @MainActor
+    func testManagedOpenRouterUsesIssuedModelWithoutChangingBYOKModel() async throws {
+        AnalysisURLProtocolStub.responses = [
+            (
+                200,
+                openRouterResponse(
+                    content: validScreenshotAnalysisJSON(),
+                    model: ProviderModel.managedGPT56Luna.rawValue)
+            )
+        ]
+
+        _ = try await OpenRouterClient(
+            platform: .frameReplyAI, session: makeSession()
+        ).analyzeChatScreenshot(
+            makeRequest(), apiKey: "capped-key", model: .managedGPT56Luna)
+
+        let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
+        let body = try jsonBody(request)
+        XCTAssertEqual(body["model"] as? String, "openai/gpt-5.6-luna-20260709")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer capped-key")
+        XCTAssertEqual((body["provider"] as? [String: Any])?["data_collection"] as? String, "deny")
+        XCTAssertEqual(ProviderPlatform.openRouter.models(for: .advanced).analysis, .qwen37Plus)
+    }
+
+    @MainActor
     func testOpenRouterRecoversSupportedOutputsAndRejectsExtraFieldsWithoutRetry() async throws {
         let arrayReporter = SpyImportEventReporter()
         AnalysisURLProtocolStub.responses = [

@@ -7735,6 +7735,146 @@
           }
         }
       }
+    },
+    "FrameReply AI Access" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI 服务"
+          }
+        }
+      }
+    },
+    "OpenRouter and the model provider selected by FrameReply" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenRouter 及 FrameReply 选择的模型提供方"
+          }
+        }
+      }
+    },
+    "Selected messages, screenshots, names, context, and drafts go directly from this device to OpenRouter and its model provider. FrameReply's backend verifies your subscription and issues a capped AI key; it does not receive your AI content." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您选择的消息、截图、姓名、上下文和草稿会从此设备直接发送至 OpenRouter 及其模型提供方。FrameReply 后端只验证订阅并签发设有额度上限的 AI 密钥，不接收您的 AI 内容。"
+          }
+        }
+      }
+    },
+    "Selected AI content goes directly to OpenRouter and its model provider. FrameReply's backend handles subscription verification and key limits, without receiving your AI content. The provider may retain request data under its policy." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您选择的 AI 内容会直接发送至 OpenRouter 及其模型提供方。FrameReply 后端负责验证订阅和限制密钥额度，不接收您的 AI 内容。提供方可能依其政策保留请求数据。"
+          }
+        }
+      }
+    },
+    "Share chat content with AI providers?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与 AI 提供方分享聊天内容？"
+          }
+        }
+      }
+    },
+    "Sandbox testing only." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅供沙盒测试。"
+          }
+        }
+      }
+    },
+    "FrameReply AI Access is selected" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已选择 FrameReply AI 服务"
+          }
+        }
+      }
+    },
+    "Use FrameReply AI Access" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 FrameReply AI 服务"
+          }
+        }
+      }
+    },
+    "AI requests go directly to the model provider using a capped key." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 请求使用设有额度上限的密钥直接发送至模型提供方。"
+          }
+        }
+      }
+    },
+    "FrameReply AI Access is ready to use." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI 服务已可使用。"
+          }
+        }
+      }
+    },
+    "No Apple subscription was found. Open AI Access in Settings." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到 Apple 订阅。请在“设置”中打开“AI 服务”。"
+          }
+        }
+      }
+    },
+    "Your AI Access subscription is inactive." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您的 AI 服务订阅未生效。"
+          }
+        }
+      }
+    },
+    "AI allowance is unavailable or exhausted." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 使用额度不可用或已用完。"
+          }
+        }
+      }
+    },
+    "FrameReply returned an invalid AI credential." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply 返回的 AI 凭据无效。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

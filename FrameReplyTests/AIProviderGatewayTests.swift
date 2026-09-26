@@ -64,6 +64,24 @@ final class AIProviderGatewayTests: XCTestCase {
         XCTAssertTrue(adapter.analysisModels.isEmpty)
     }
 
+    @MainActor
+    func testManagedConnectionUsesBackendModelAndCappedKey() async throws {
+        let adapter = RecordingProviderAdapter(platform: .frameReplyAI)
+        let configuration = GatewayProviderConfiguration(
+            platform: .frameReplyAI, managedModel: .managedGPT6Luna)
+        let service = AIService(
+            providerConfiguration: configuration,
+            registry: AIProviderRegistry(adapters: [adapter]))
+
+        let context = try await service.prepareContext(requiring: .suggestedReplies)
+        XCTAssertEqual(context.platform, .frameReplyAI)
+        XCTAssertEqual(context.effectiveModel, .managedGPT6Luna)
+        _ = try await service.generateSuggestedReplies(makeReplyRequest(), using: context)
+
+        XCTAssertEqual(adapter.replyModels, [.managedGPT6Luna])
+        XCTAssertEqual(adapter.apiKeys, ["saved-key"])
+    }
+
     private func makeReplyRequest() -> SuggestedReplyGenerationRequest {
         SuggestedReplyGenerationRequest(
             task: .standard,
@@ -84,14 +102,18 @@ final class AIProviderGatewayTests: XCTestCase {
 
 @MainActor
 private final class GatewayProviderConfiguration: ProviderConfigurationProviding {
-    let activeProvider: ProviderConnection? = ProviderConnection(
-        platform: .openAI,
-        tier: .advanced
-    )
+    let activeProvider: ProviderConnection?
     private let hasConsent: Bool
 
-    init(hasConsent: Bool = true) {
+    init(
+        hasConsent: Bool = true, platform: ProviderPlatform = .openAI,
+        managedModel: ProviderModel? = nil
+    ) {
         self.hasConsent = hasConsent
+        activeProvider = ProviderConnection(
+            platform: platform,
+            tier: platform == .frameReplyAI ? .basic : .advanced,
+            managedModel: managedModel)
     }
 
     func savedAPIKey(for platform: ProviderPlatform) -> String? {
@@ -104,14 +126,20 @@ private final class GatewayProviderConfiguration: ProviderConfigurationProviding
 }
 
 private final class RecordingProviderAdapter: @MainActor AIProviderAdapter {
-    let platform = ProviderPlatform.openAI
+    let platform: ProviderPlatform
     private(set) var validatedModels: [ProviderModel] = []
     private(set) var analysisModels: [ProviderModel] = []
     private(set) var replyModels: [ProviderModel] = []
     private(set) var apiKeys: [String] = []
 
+    init(platform: ProviderPlatform = .openAI) {
+        self.platform = platform
+    }
+
     func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile? {
-        guard selectedTier == .advanced else { return nil }
+        guard selectedTier == (platform == .frameReplyAI ? .basic : .advanced) else {
+            return nil
+        }
         return ProviderModelProfile(
             screenshotAnalysisModel: .gpt6Luna,
             transcriptAnalysisModel: .gpt56Terra,

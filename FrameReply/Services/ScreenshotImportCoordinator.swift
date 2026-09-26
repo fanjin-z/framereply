@@ -234,7 +234,7 @@ final class ScreenshotImportCoordinator {
                 case .screenshots: .screenshotAnalysis
                 case .sharedTranscript: .transcriptAnalysis
                 }
-            providerContext = try aiService.activeContext(requiring: capability)
+            providerContext = try await aiService.prepareContext(requiring: capability)
         } catch let error as AIServiceError {
             let importError = ScreenshotImportError(error)
             eventReporter.record(
@@ -357,6 +357,11 @@ protocol ProviderConfigurationProviding: AnyObject {
     var activeProvider: ProviderConnection? { get }
     func savedAPIKey(for platform: ProviderPlatform) -> String?
     func hasValidDataConsent(for platform: ProviderPlatform) -> Bool
+    func prepareManagedAIIfNeeded() async throws
+}
+
+extension ProviderConfigurationProviding {
+    func prepareManagedAIIfNeeded() async throws {}
 }
 
 extension ProviderStore: ProviderConfigurationProviding {}

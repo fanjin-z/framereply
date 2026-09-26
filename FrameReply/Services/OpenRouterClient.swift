@@ -9,16 +9,18 @@ struct OpenRouterClient: AIProviderAdapter {
     private let baseURL = URL(string: "https://openrouter.ai/api/v1")!
     private let session: URLSession
     private let eventReporter: any ImportEventReporting
+    let platform: ProviderPlatform
 
     init(
+        platform: ProviderPlatform = .openRouter,
         session: URLSession = ProviderNetworkSession.make(),
         eventReporter: any ImportEventReporting = OSLogImportEventReporter()
     ) {
+        precondition(platform == .openRouter || platform == .frameReplyAI)
+        self.platform = platform
         self.session = session
         self.eventReporter = eventReporter
     }
-
-    var platform: ProviderPlatform { .openRouter }
 
     func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile? {
         guard platform.supportedTiers.contains(selectedTier) else { return nil }
@@ -317,6 +319,12 @@ struct OpenRouterClient: AIProviderAdapter {
     }
 
     private func requireSupported(_ model: ProviderModel) throws {
+        if platform == .frameReplyAI {
+            guard model.isManagedOpenRouterModel else {
+                throw ProviderConnectionError.unsupportedProvider
+            }
+            return
+        }
         let supportedModels = Set(
             platform.supportedTiers.flatMap { tier in
                 let models = platform.models(for: tier)

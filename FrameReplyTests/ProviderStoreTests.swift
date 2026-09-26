@@ -77,6 +77,10 @@ final class ProviderStoreTests: XCTestCase {
         }
         XCTAssertEqual(
             ProviderPlatform.allCases,
+            [.openAI, .openRouter, .miniMaxInternational, .miniMaxChina, .frameReplyAI]
+        )
+        XCTAssertEqual(
+            ProviderPlatform.availableCases,
             [.openAI, .openRouter, .miniMaxInternational, .miniMaxChina]
         )
         XCTAssertEqual(ProviderPlatform.openRouter.supportedTiers, [.advanced])
@@ -229,6 +233,30 @@ final class ProviderStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testManagedCredentialIsSeparateAndExpiresClosed() throws {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        try saveProviders(
+            [
+                ProviderConnection(
+                    platform: .frameReplyAI, tier: .basic,
+                    managedModel: .managedGPT56Luna,
+                    managedExpiresAt: Date().addingTimeInterval(3600))
+            ],
+            to: defaults)
+        defaults.set("frameReplyAI", forKey: ProviderStoreTestKey.activePlatform)
+        let keychain = TestKeychainStore()
+        try keychain.set("capped-key", for: ProviderPlatform.frameReplyAI.keychainAccount)
+        let store = ProviderStore(
+            userDefaults: defaults, registry: .live(), keychain: keychain)
+
+        XCTAssertEqual(store.savedAPIKey(for: .frameReplyAI), "capped-key")
+        XCTAssertNil(store.savedAPIKey(for: .openRouter))
+        store.providers[0].managedExpiresAt = Date().addingTimeInterval(-1)
+        XCTAssertNil(store.savedAPIKey(for: .frameReplyAI))
+    }
+
+    @MainActor
     private func assertRemovingActiveProviderSelectsFollowingProviderAndPersists() throws {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -286,7 +314,7 @@ final class ProviderStoreTests: XCTestCase {
         defaults.set(OnboardingVersion.initial, forKey: OnboardingStore.storageKey)
         ProviderDataConsentStore(userDefaults: defaults).grantConsent(for: .openAI)
         let keychain = TestKeychainStore()
-        for platform in ProviderPlatform.availableCases {
+        for platform in ProviderPlatform.allCases {
             try keychain.set("secret", for: platform.keychainAccount)
         }
         let store = ProviderStore(
@@ -305,7 +333,7 @@ final class ProviderStoreTests: XCTestCase {
             OnboardingVersion.initial
         )
         XCTAssertFalse(store.hasValidDataConsent(for: .openAI))
-        for platform in ProviderPlatform.availableCases {
+        for platform in ProviderPlatform.allCases {
             XCTAssertNil(try keychain.get(account: platform.keychainAccount))
         }
     }
@@ -315,7 +343,7 @@ final class ProviderStoreTests: XCTestCase {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let keychain = TestKeychainStore()
-        for platform in ProviderPlatform.availableCases {
+        for platform in ProviderPlatform.allCases {
             try keychain.set("orphan", for: platform.keychainAccount)
         }
 
@@ -326,7 +354,7 @@ final class ProviderStoreTests: XCTestCase {
             reconcileInstallation: true
         )
 
-        for platform in ProviderPlatform.availableCases {
+        for platform in ProviderPlatform.allCases {
             XCTAssertNil(try keychain.get(account: platform.keychainAccount))
         }
     }

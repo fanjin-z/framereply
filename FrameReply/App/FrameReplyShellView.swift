@@ -164,7 +164,7 @@ struct FrameReplyShellView: View {
                     PrivacyAndDataView(providerStore: providerStore)
                 case .aiAccess:
                     if let configuration = try? SubscriptionConfiguration.load() {
-                        AIAccessView(configuration: configuration)
+                        AIAccessView(configuration: configuration, providerStore: providerStore)
                     }
                 }
             }

@@ -116,6 +116,7 @@ struct AIProviderRegistry {
         let adapters: [any AIProviderAdapter] = [
             OpenAIClient(eventReporter: eventReporter),
             OpenRouterClient(eventReporter: eventReporter),
+            OpenRouterClient(platform: .frameReplyAI, eventReporter: eventReporter),
             MiniMaxClient(region: .international, eventReporter: eventReporter),
             MiniMaxClient(region: .china, eventReporter: eventReporter)
         ]
@@ -178,6 +179,10 @@ protocol AIServiceProviding: AnyObject {
         requiring capability: AIProviderCapability
     ) throws -> AIProviderExecutionContext
 
+    func prepareContext(
+        requiring capability: AIProviderCapability
+    ) async throws -> AIProviderExecutionContext
+
     func analyzeChatScreenshot(
         _ request: ChatScreenshotAnalysisRequest,
         using context: AIProviderExecutionContext
@@ -187,6 +192,14 @@ protocol AIServiceProviding: AnyObject {
         _ request: SuggestedReplyGenerationRequest,
         using context: AIProviderExecutionContext
     ) async throws -> SuggestedReplyGenerationResult
+}
+
+extension AIServiceProviding {
+    func prepareContext(
+        requiring capability: AIProviderCapability
+    ) async throws -> AIProviderExecutionContext {
+        try activeContext(requiring: capability)
+    }
 }
 
 @MainActor
@@ -239,7 +252,11 @@ final class AIService: AIServiceProviding {
         else {
             throw AIServiceError.unsupportedProvider
         }
-        guard let effectiveModel = profile.model(for: capability) else {
+        guard
+            let effectiveModel =
+                connection.platform == .frameReplyAI
+                ? connection.managedModel : profile.model(for: capability)
+        else {
             throw AIServiceError.unsupportedCapability
         }
         guard providerConfiguration.savedAPIKey(for: connection.platform)?.isEmpty == false
@@ -254,6 +271,13 @@ final class AIService: AIServiceProviding {
             capability: capability,
             effectiveModel: effectiveModel
         )
+    }
+
+    func prepareContext(
+        requiring capability: AIProviderCapability
+    ) async throws -> AIProviderExecutionContext {
+        try await providerConfiguration?.prepareManagedAIIfNeeded()
+        return try activeContext(requiring: capability)
     }
 
     func analyzeChatScreenshot(

@@ -221,7 +221,7 @@ final class SuggestedRepliesCoordinator: SuggestedRepliesCoordinating {
 
         let providerContext: AIProviderExecutionContext
         do {
-            providerContext = try aiService.activeContext(requiring: .suggestedReplies)
+            providerContext = try await aiService.prepareContext(requiring: .suggestedReplies)
         } catch let error as AIServiceError {
             throw SuggestedRepliesError(error)
         }

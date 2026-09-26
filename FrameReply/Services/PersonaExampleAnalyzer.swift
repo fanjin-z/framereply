@@ -33,7 +33,7 @@ final class PersonaExampleAnalyzer {
         examples: [String],
         localization: LocalizationContext = .current
     ) async throws -> (changes: [PersonaObservationChange], messageIDs: Set<UUID>) {
-        let provider = try aiService.activeContext(requiring: .suggestedReplies)
+        let provider = try await aiService.prepareContext(requiring: .suggestedReplies)
         let messages = examples.map {
             SuggestedReplyPromptMessage(
                 id: UUID(), sender: "user", senderName: nil, text: $0, timeLabel: ""

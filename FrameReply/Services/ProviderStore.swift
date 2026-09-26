@@ -5,6 +5,7 @@
 
 import Combine
 import Foundation
+import StoreKit
 
 @MainActor
 final class ProviderStore: ObservableObject {
@@ -27,6 +28,7 @@ final class ProviderStore: ObservableObject {
     private static let activePlatformKey = "framereply.activeProviderPlatform.v1"
     nonisolated static let installationMarkerKey = "framereply.installationMarker.v1"
     private var isResetting = false
+    private var managedRefresh: Task<Void, Error>?
 
     var activeProvider: ProviderConnection? {
         guard let activePlatform else {
@@ -90,6 +92,9 @@ final class ProviderStore: ObservableObject {
         tier: ProviderTier,
         apiKey: String
     ) async throws {
+        guard platform != .frameReplyAI else {
+            throw ProviderConnectionError.unsupportedProvider
+        }
         guard consentStore.hasValidConsent(for: platform) else {
             throw ProviderConnectionError.dataConsentRequired
         }
@@ -126,7 +131,106 @@ final class ProviderStore: ObservableObject {
     }
 
     func savedAPIKey(for platform: ProviderPlatform) -> String? {
-        try? keychain.get(account: keychainAccount(for: platform))
+        if platform == .frameReplyAI {
+            guard let connection = providers.first(where: { $0.platform == platform }),
+                connection.managedModel?.isManagedOpenRouterModel == true,
+                let expiry = connection.managedExpiresAt,
+                expiry > Date()
+            else { return nil }
+        }
+        return try? keychain.get(account: keychainAccount(for: platform))
+    }
+
+    func connectManagedAI() async throws {
+        guard consentStore.hasValidConsent(for: .frameReplyAI) else {
+            throw ProviderConnectionError.dataConsentRequired
+        }
+        try await refreshManagedAI(activate: true)
+    }
+
+    func prepareManagedAIIfNeeded() async throws {
+        guard activePlatform == .frameReplyAI else { return }
+        if let connection = activeProvider,
+            let expiry = connection.managedExpiresAt,
+            expiry > Date().addingTimeInterval(60),
+            savedAPIKey(for: .frameReplyAI) != nil
+        {
+            return
+        }
+        if let managedRefresh {
+            try await managedRefresh.value
+            return
+        }
+        let task = Task { try await refreshManagedAI(activate: false) }
+        managedRefresh = task
+        defer { managedRefresh = nil }
+        try await task.value
+    }
+
+    private func refreshManagedAI(activate: Bool) async throws {
+        guard consentStore.hasValidConsent(for: .frameReplyAI) else {
+            throw ProviderConnectionError.dataConsentRequired
+        }
+        let configuration = try SubscriptionConfiguration.load()
+        guard let evidence = await Transaction.latest(for: configuration.productID) else {
+            throw SubscriptionClientError(
+                message: String(
+                    localized:
+                        "No Apple subscription was found. Open AI Access in Settings."))
+        }
+        let client = SubscriptionClient(configuration: configuration)
+        let entitlement = try await client.verifyAndFinish(evidence)
+        guard entitlement.active else {
+            throw SubscriptionClientError(
+                message: String(
+                    localized:
+                        "Your AI Access subscription is inactive."))
+        }
+        let usage = try await client.usage(
+            serviceSubscriptionId: entitlement.serviceSubscriptionId)
+        guard usage.periodId == entitlement.period.id,
+            usage.kind == entitlement.period.kind,
+            !usage.stale, usage.remainingMicrousd.map({ $0 > 0 }) == true,
+            usage.availability == "available"
+        else {
+            throw SubscriptionClientError(
+                message: String(
+                    localized:
+                        "AI allowance is unavailable or exhausted."))
+        }
+        let credential = try await client.credential(
+            serviceSubscriptionId: entitlement.serviceSubscriptionId)
+        guard credential.aiProvider == "openrouter",
+            let model = ProviderModel(rawValue: credential.model),
+            model.isManagedOpenRouterModel,
+            credential.apiKey.hasPrefix("sk-or-v1-"),
+            let expiry = AIAccessPresentation.date(credential.expiresAt),
+            let accessEnd = AIAccessPresentation.date(entitlement.accessUntil),
+            expiry > Date().addingTimeInterval(60),
+            expiry <= accessEnd
+        else {
+            throw SubscriptionClientError(
+                message: String(
+                    localized:
+                        "FrameReply returned an invalid AI credential."))
+        }
+        guard !Task.isCancelled,
+            consentStore.hasValidConsent(for: .frameReplyAI),
+            activate || activePlatform == .frameReplyAI
+        else { throw CancellationError() }
+        try keychain.set(credential.apiKey, for: keychainAccount(for: .frameReplyAI))
+        if let index = providers.firstIndex(where: { $0.platform == .frameReplyAI }) {
+            var updated = providers[index]
+            updated.managedModel = model
+            updated.managedExpiresAt = expiry
+            providers[index] = updated
+        } else {
+            providers.append(
+                ProviderConnection(
+                    platform: .frameReplyAI, tier: .basic,
+                    managedModel: model, managedExpiresAt: expiry))
+        }
+        if activate { self.activate(platform: .frameReplyAI) }
     }
 
     func hasValidDataConsent(for platform: ProviderPlatform) -> Bool {
@@ -163,6 +267,8 @@ final class ProviderStore: ObservableObject {
             return
         }
 
+        if platform == .frameReplyAI { managedRefresh?.cancel() }
+
         try keychain.delete(account: keychainAccount(for: platform))
         consentStore.revokeConsent(for: platform)
 
@@ -178,7 +284,7 @@ final class ProviderStore: ObservableObject {
     }
 
     func deleteAllProviderData() throws {
-        for platform in ProviderPlatform.availableCases {
+        for platform in ProviderPlatform.allCases {
             try keychain.delete(account: keychainAccount(for: platform))
         }
 
@@ -238,6 +344,9 @@ final class ProviderStore: ObservableObject {
         }
         return providers.filter {
             registry.profile(for: $0.platform, selectedTier: $0.tier) != nil
+                && ($0.platform != .frameReplyAI
+                    || ($0.managedModel?.isManagedOpenRouterModel == true
+                        && $0.managedExpiresAt != nil))
         }
     }
 
@@ -272,7 +381,7 @@ final class ProviderStore: ObservableObject {
         guard userDefaults.bool(forKey: markerKey) == false else { return }
 
         do {
-            for platform in ProviderPlatform.availableCases {
+            for platform in ProviderPlatform.allCases {
                 try keychain.delete(account: platform.keychainAccount)
             }
             userDefaults.set(true, forKey: markerKey)

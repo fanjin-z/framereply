@@ -11,6 +11,8 @@ nonisolated struct ProviderDataConsentDisclosure: Equatable, Sendable {
             String(localized: AppStrings.Provider.openAIDestination)
         case .openRouter:
             String(localized: AppStrings.Provider.openRouterDestination)
+        case .frameReplyAI:
+            String(localized: "OpenRouter and the model provider selected by FrameReply")
         case .miniMaxInternational:
             String(localized: AppStrings.Provider.miniMaxInternationalDestination)
         case .miniMaxChina:
@@ -24,6 +26,8 @@ nonisolated struct ProviderDataConsentDisclosure: Equatable, Sendable {
             URL(string: "https://openai.com/policies/privacy-policy/")!
         case .openRouter:
             URL(string: "https://openrouter.ai/privacy")!
+        case .frameReplyAI:
+            URL(string: "https://openrouter.ai/privacy")!
         case .miniMaxInternational:
             URL(string: "https://platform.minimax.io/protocol/privacy-policy")!
         case .miniMaxChina:
@@ -36,11 +40,25 @@ nonisolated struct ProviderDataConsentDisclosure: Equatable, Sendable {
     }
 
     var permissionMessage: String {
-        String(localized: AppStrings.Provider.consentMessage(providerName: provider.displayName))
+        if provider == .frameReplyAI {
+            return String(
+                localized:
+                    "Selected messages, screenshots, names, context, and drafts go directly from this device to OpenRouter and its model provider. FrameReply's backend verifies your subscription and issues a capped AI key; it does not receive your AI content."
+            )
+        }
+        return String(
+            localized: AppStrings.Provider.consentMessage(providerName: provider.displayName))
     }
 
     var summary: String {
-        String(localized: AppStrings.Provider.consentSummary(destination: destinationDescription))
+        if provider == .frameReplyAI {
+            return String(
+                localized:
+                    "Selected AI content goes directly to OpenRouter and its model provider. FrameReply's backend handles subscription verification and key limits, without receiving your AI content. The provider may retain request data under its policy."
+            )
+        }
+        return String(
+            localized: AppStrings.Provider.consentSummary(destination: destinationDescription))
     }
 }
 
@@ -69,7 +87,7 @@ final class ProviderDataConsentStore {
     }
 
     func revokeAllConsent() {
-        for platform in ProviderPlatform.availableCases {
+        for platform in ProviderPlatform.allCases {
             revokeConsent(for: platform)
         }
     }

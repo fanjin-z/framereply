@@ -145,10 +145,10 @@ class ProviderAnalysisTestCase: XCTestCase {
         return jsonString(object)
     }
 
-    func openRouterResponse(content: String) -> String {
+    func openRouterResponse(content: String, model: String = "qwen/qwen3.7-plus") -> String {
         jsonString([
             "id": "gen_test",
-            "model": "qwen/qwen3.7-plus",
+            "model": model,
             "choices": [["message": ["content": content], "finish_reason": "stop"]]
         ])
     }

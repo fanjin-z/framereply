@@ -3,11 +3,16 @@ import SwiftUI
 
 struct AIAccessView: View {
     @StateObject private var access: AIAccessModel
+    @ObservedObject var providerStore: ProviderStore
     @ObservedObject private var transactionObserver = SubscriptionTransactionObserver.shared
     @State private var isManageSubscriptionsPresented = false
+    @State private var isConnectConsentPresented = false
+    @State private var isConnecting = false
+    @State private var connectionNotice: String?
 
-    init(configuration: SubscriptionConfiguration) {
+    init(configuration: SubscriptionConfiguration, providerStore: ProviderStore) {
         _access = StateObject(wrappedValue: AIAccessModel(configuration: configuration))
+        self.providerStore = providerStore
     }
 
     var body: some View {
@@ -41,6 +46,18 @@ struct AIAccessView: View {
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("ai-access-screen")
         .manageSubscriptionsSheet(isPresented: $isManageSubscriptionsPresented)
+        .alert(
+            "Share chat content with AI providers?",
+            isPresented: $isConnectConsentPresented
+        ) {
+            Button("Not Now", role: .cancel) {}
+            Button("Allow & Connect") {
+                providerStore.grantDataConsent(for: .frameReplyAI)
+                connectManagedAI()
+            }
+        } message: {
+            Text(ProviderDataConsentDisclosure(provider: .frameReplyAI).permissionMessage)
+        }
         .task { await access.load() }
         .onChange(of: transactionObserver.lastResult) { _, _ in
             Task { await access.refresh() }
@@ -80,11 +97,9 @@ struct AIAccessView: View {
             }
 
             #if DEBUG
-                Text(
-                    "Sandbox testing only. This build does not yet provide subscription AI access."
-                )
-                .font(.footnote)
-                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                Text("Sandbox testing only.")
+                    .font(.footnote)
+                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
             #endif
         }
     }
@@ -147,6 +162,26 @@ struct AIAccessView: View {
 
     private var actionCard: some View {
         card {
+            if access.entitlement?.active == true {
+                if providerStore.activePlatform == .frameReplyAI {
+                    Label("FrameReply AI Access is selected", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(FrameReplyColor.connected)
+                } else {
+                    Button("Use FrameReply AI Access") {
+                        if providerStore.hasValidDataConsent(for: .frameReplyAI) {
+                            connectManagedAI()
+                        } else {
+                            isConnectConsentPresented = true
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(access.isBusy || isConnecting)
+                    .accessibilityIdentifier("ai-access-connect")
+                }
+                Text("AI requests go directly to the model provider using a capped key.")
+                    .font(.footnote)
+                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+            }
             if access.entitlement?.active != true {
                 Button {
                     Task { await access.purchase() }
@@ -190,11 +225,32 @@ struct AIAccessView: View {
             }
             .font(.footnote)
 
-            if access.isBusy { ProgressView() }
+            if access.isBusy || isConnecting { ProgressView() }
+            if let connectionNotice {
+                Text(connectionNotice)
+                    .font(.footnote)
+                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+            }
             if let notice = access.notice {
                 Text(notice)
                     .font(.footnote)
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+            }
+        }
+    }
+
+    private func connectManagedAI() {
+        guard !isConnecting else { return }
+        isConnecting = true
+        connectionNotice = nil
+        Task {
+            defer { isConnecting = false }
+            do {
+                try await providerStore.connectManagedAI()
+                connectionNotice = String(localized: "FrameReply AI Access is ready to use.")
+                await access.refresh()
+            } catch {
+                connectionNotice = error.localizedDescription
             }
         }
     }
