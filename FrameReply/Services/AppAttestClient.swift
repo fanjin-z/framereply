@@ -55,9 +55,9 @@ nonisolated enum AppAttestClientError: Error, LocalizedError, Equatable {
         case .backend(let status, let code):
             switch code {
             case "INVALID_TRANSACTION":
-                "Apple transaction rejected (HTTP \(status)). Check the Sandbox product and bundle configuration, then use Recheck purchase."
+                "Apple transaction rejected (HTTP \(status)). Check the Sandbox product and bundle configuration, then use Restore Purchases."
             case "SUBSCRIPTION_UNAVAILABLE":
-                "Apple verification unavailable (HTTP \(status)). Check the Sandbox Apple secret and backend logs, then use Recheck purchase."
+                "Apple verification unavailable (HTTP \(status)). Check the Sandbox Apple secret and backend logs, then use Restore Purchases."
             case "NOT_FOUND":
                 "Backend route missing (HTTP \(status)). Deploy Step 4A and check the API URL."
             default:

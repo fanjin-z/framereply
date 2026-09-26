@@ -102,20 +102,6 @@ nonisolated struct SubscriptionEntitlement: Decodable {
         period = try values.decode(Period.self, forKey: .period)
         verifiedAt = try values.decode(String.self, forKey: .verifiedAt)
     }
-
-    var diagnosticSummary: String {
-        """
-        Backend verified · \(environment)
-        Status: \(status) · active: \(active)
-        Period: \(period.kind) · renews: \(willRenew)
-        Access until: \(accessUntil)
-        Period start: \(period.startsAt)
-        Period end: \(period.expiresAt)
-        Verified at: \(verifiedAt)
-        FrameReply subscription ID: \(serviceSubscriptionId)
-        Period ID: \(period.id)
-        """
-    }
 }
 
 nonisolated struct ManagedAICredential: Decodable {
@@ -177,7 +163,7 @@ struct SubscriptionClient {
         else {
             throw SubscriptionClientError(
                 message:
-                    "Backend subscription response is invalid. The purchase remains unfinished; use Recheck purchase."
+                    "Backend subscription response is invalid. The purchase remains unfinished; use Restore Purchases."
             )
         }
         return entitlement
@@ -233,7 +219,7 @@ struct SubscriptionClient {
         do {
             return try await authentication.post(operation: operation, body: body)
         } catch let error as AppAttestClientError {
-            let retry = operation == .subscription ? " Use Recheck purchase." : ""
+            let retry = operation == .subscription ? " Use Restore Purchases." : ""
             throw SubscriptionClientError(message: error.diagnosticSummary + retry)
         }
     }
@@ -261,7 +247,7 @@ final class SubscriptionTransactionObserver: ObservableObject {
 
     private func process(_ evidence: VerificationResult<Transaction>) async {
         guard case .verified(let transaction) = evidence else {
-            lastResult = "StoreKit delivered an unverified transaction. Recheck the purchase."
+            lastResult = "StoreKit delivered an unverified transaction. Use Restore Purchases."
             return
         }
         guard let configuration = try? SubscriptionConfiguration.load(),
@@ -278,7 +264,7 @@ final class SubscriptionTransactionObserver: ObservableObject {
             lastResult = "Transaction update verified · \(verified.status)."
         } catch {
             // StoreKit retains an unfinished transaction. Do not log its signed evidence.
-            lastResult = "Transaction update could not be verified. Recheck the purchase."
+            lastResult = "Transaction update could not be verified. Use Restore Purchases."
         }
     }
 }

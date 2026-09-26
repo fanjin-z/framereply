@@ -159,7 +159,7 @@
                     XCTFail("Expected response rejection")
                 } catch let error as SubscriptionClientError {
                     XCTAssertFalse(error.message.contains("synthetic.signed.evidence"))
-                    XCTAssertTrue(error.message.contains("Recheck purchase"))
+                    XCTAssertTrue(error.message.contains("Restore Purchases"))
                 }
             }
             authentication.error = .backend(status: 401, code: "UNAUTHENTICATED")
@@ -167,7 +167,7 @@
                 _ = try await client.verify(signedTransactionInfo: "synthetic.signed.evidence")
                 XCTFail("Expected authentication rejection")
             } catch let error as SubscriptionClientError {
-                XCTAssertTrue(error.message.contains("Recheck purchase"))
+                XCTAssertTrue(error.message.contains("Restore Purchases"))
             }
         }
 

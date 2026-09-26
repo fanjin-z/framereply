@@ -9,7 +9,7 @@ This guide contains the local setup and validation steps for contributors. Read 
 - Git and the Xcode command-line tools.
 - [pre-commit](https://pre-commit.com/) for the repository hooks.
 
-A user-owned supported provider API key is needed only to exercise live AI analysis and reply generation. Provider usage may incur charges billed by that provider.
+Live AI analysis and replies require either a supported provider API key or a FrameReply AI subscription. Provider usage may incur charges.
 
 ## Local configuration
 
@@ -34,7 +34,7 @@ Provider keys are entered in the running app and stored in the device Keychain. 
 
 A simulator build does not require a signing identity. Shortcuts, App Intents, Keychain behavior, and release entitlements should also be verified on a physical device before release.
 
-Debug builds include **Settings → AI Access** for Sandbox purchase, restore, allowance checks, and connecting managed AI. Their public backend URL and product ID are in the Debug build settings. Run on a physical iPhone with StoreKit Configuration set to None. The diagnostic probe at the bottom of Settings checks App Attest without a purchase.
+Test Sandbox purchases from **Settings → AI Providers → FrameReply AI** in a Debug build on a physical iPhone, with StoreKit Configuration set to None. Verified active purchases and restores connect FrameReply AI after any required data-sharing consent. Restore Purchases and Refresh Status are in the card’s menu; personal-key providers remain selectable. The backend URL and product ID are in the build settings.
 
 `APP_ATTEST_ENVIRONMENT` is a build setting shared by the entitlement and client configuration: `development` for Debug and `production` for Release. The backend must accept the same environment. TestFlight always uses production App Attest, independently of StoreKit Sandbox. No additional API key is needed. If device signing reports a missing App Attest entitlement, enable App Attest for the App ID and refresh its provisioning profile. See [Apple's environment documentation](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.devicecheck.appattest-environment). Account setup and credentials belong outside this repository.
 

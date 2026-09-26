@@ -86,9 +86,6 @@ struct SettingsView: View {
                 providerSection
                 ShortcutSetupSection()
                 privacyAndDataSection
-                #if DEBUG
-                    SandboxPurchaseDebugSection()
-                #endif
             }
             .padding(.top, 20)
             .padding(.horizontal, 16)

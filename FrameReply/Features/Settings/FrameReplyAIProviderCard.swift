@@ -67,11 +67,7 @@ struct FrameReplyAIProviderCard: View {
                         .foregroundStyle(FrameReplyColor.connected)
                 } else {
                     Button("Use FrameReply AI") {
-                        if providerStore.hasValidDataConsent(for: .frameReplyAI) {
-                            connectManagedAI()
-                        } else {
-                            isConnectConsentPresented = true
-                        }
+                        requestManagedAIConnection()
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(FrameReplyColor.primary)
@@ -152,7 +148,9 @@ struct FrameReplyAIProviderCard: View {
     private var subscribeButton: some View {
         Button("Subscribe") {
             connectionNotice = nil
-            Task { await access.purchase() }
+            Task {
+                if await access.purchase() { requestManagedAIConnection() }
+            }
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
@@ -226,7 +224,9 @@ struct FrameReplyAIProviderCard: View {
     @ViewBuilder private var supportActions: some View {
         Button("Restore Purchases") {
             connectionNotice = nil
-            Task { await access.restore() }
+            Task {
+                if await access.restore() { requestManagedAIConnection() }
+            }
         }
         .disabled(busy)
         .accessibilityIdentifier("ai-access-restore")
@@ -242,6 +242,15 @@ struct FrameReplyAIProviderCard: View {
         case .available: "Available"
         case .low: "Running low"
         case .exhausted: "Period limit reached"
+        }
+    }
+
+    private func requestManagedAIConnection() {
+        guard !busy else { return }
+        if providerStore.hasValidDataConsent(for: .frameReplyAI) {
+            connectManagedAI()
+        } else {
+            isConnectConsentPresented = true
         }
     }
 

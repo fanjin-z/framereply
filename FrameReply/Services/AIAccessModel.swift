@@ -151,8 +151,10 @@ final class AIAccessModel: ObservableObject {
         }
     }
 
-    func purchase() async {
-        guard !isBusy, let product else { return }
+    // True only when this explicit action verifies active access. An existing
+    // entitlement must not turn cancellation, pending, or failure into activation.
+    func purchase() async -> Bool {
+        guard !isBusy, let product else { return false }
         isBusy = true
         defer { isBusy = false }
         notice = nil
@@ -163,7 +165,7 @@ final class AIAccessModel: ObservableObject {
         } catch {
             notice = String(
                 localized: "AI Access is unavailable right now. No purchase was started.")
-            return
+            return false
         }
 
         do {
@@ -174,6 +176,7 @@ final class AIAccessModel: ObservableObject {
                 statusUnavailable = false
                 await loadUsage(for: verified)
                 notice = String(localized: "Subscription verified with FrameReply.")
+                return verified.active
             case .pending:
                 notice = String(localized: "Purchase pending. Refresh after Apple approves it.")
             case .userCancelled:
@@ -187,10 +190,11 @@ final class AIAccessModel: ObservableObject {
                     "Couldn’t verify the purchase. If Apple completed it, use Restore Purchases."
             )
         }
+        return false
     }
 
-    func restore() async {
-        guard !isBusy else { return }
+    func restore() async -> Bool {
+        guard !isBusy else { return false }
         isBusy = true
         defer { isBusy = false }
         notice = nil
@@ -203,9 +207,11 @@ final class AIAccessModel: ObservableObject {
                 entitlement?.active == true
                 ? String(localized: "Subscription restored.")
                 : String(localized: "No active subscription found for this Apple Account.")
+            return entitlement?.active == true
         } catch {
             notice = String(localized: "Couldn’t restore purchases. Try again later.")
         }
+        return false
     }
 
     private func refreshStatus() async throws {
