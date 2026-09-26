@@ -11,7 +11,6 @@ struct SettingsView: View {
     let isActive: Bool
     let onPersonalInfoTap: () -> Void
     let onPrivacyAndDataTap: () -> Void
-    let onAIAccessTap: () -> Void
 
     @Environment(\.openURL) private var openURL
     @State private var isAddProviderPresented = false
@@ -84,9 +83,6 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 personalInfoSection
-                if (try? SubscriptionConfiguration.load()) != nil {
-                    aiAccessSection
-                }
                 providerSection
                 ShortcutSetupSection()
                 privacyAndDataSection
@@ -106,7 +102,7 @@ struct SettingsView: View {
 
     private var providerSection: some View {
         settingsSection {
-            sectionHeader("Model Providers") {
+            sectionHeader("AI Providers") {
                 Button {
                     presentAddProvider()
                 } label: {
@@ -124,27 +120,18 @@ struct SettingsView: View {
         }
     }
 
-    private var aiAccessSection: some View {
-        settingsSection {
-            sectionHeader("AI Access")
-        } content: {
-            settingsSurface {
-                Button(action: onAIAccessTap) {
-                    settingsNavigationLabel(
-                        title: "AI Access",
-                        subtitle: "Subscription, trial, and usage",
-                        symbol: "sparkles"
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("ai-access")
-            }
-        }
+    private var personalKeyProviders: [ProviderConnection] {
+        providerStore.providers.filter { $0.platform != .frameReplyAI }
     }
 
     private var providerContent: some View {
         settingsSurface {
-            if providerStore.providers.isEmpty {
+            if let configuration = try? SubscriptionConfiguration.load() {
+                FrameReplyAIProviderCard(
+                    configuration: configuration, providerStore: providerStore, isActive: isActive)
+                settingsDivider(leadingInset: 16)
+            }
+            if personalKeyProviders.isEmpty {
                 Button {
                     presentAddProvider()
                 } label: {
@@ -177,7 +164,7 @@ struct SettingsView: View {
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("add-provider")
             } else {
-                ForEach(Array(providerStore.providers.enumerated()), id: \.element.id) { entry in
+                ForEach(Array(personalKeyProviders.enumerated()), id: \.element.id) { entry in
                     ProviderCard(
                         provider: entry.element,
                         isActive: providerStore.activePlatform == entry.element.platform,
@@ -194,7 +181,7 @@ struct SettingsView: View {
                         }
                     )
 
-                    if entry.offset < providerStore.providers.count - 1 {
+                    if entry.offset < personalKeyProviders.count - 1 {
                         settingsDivider(leadingInset: 60)
                     }
                 }

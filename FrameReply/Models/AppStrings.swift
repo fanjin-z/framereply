@@ -219,7 +219,7 @@ nonisolated enum AppStrings {
             static let consentRequired = LocalizedStringResource(
                 "error.import.consent-required",
                 defaultValue:
-                    "Delete and reconnect the provider in Settings → Model Providers."
+                    "Delete and reconnect the provider in Settings → AI Providers."
             )
             static let unsupportedProvider = LocalizedStringResource(
                 "error.import.unsupported-provider",
@@ -312,7 +312,7 @@ nonisolated enum AppStrings {
             static let consentRequired = LocalizedStringResource(
                 "error.replies.consent-required",
                 defaultValue:
-                    "Delete and reconnect the provider in Settings → Model Providers."
+                    "Delete and reconnect the provider in Settings → AI Providers."
             )
             static let noMessages = LocalizedStringResource(
                 "error.replies.no-messages",

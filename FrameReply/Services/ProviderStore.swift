@@ -176,7 +176,7 @@ final class ProviderStore: ObservableObject {
             throw SubscriptionClientError(
                 message: String(
                     localized:
-                        "No Apple subscription was found. Open AI Access in Settings."))
+                        "No Apple subscription was found. Open AI Providers in Settings."))
         }
         let client = SubscriptionClient(configuration: configuration)
         let entitlement = try await client.verifyAndFinish(evidence)

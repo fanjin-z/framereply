@@ -68,9 +68,6 @@ struct FrameReplyShellView: View {
                             },
                             onPrivacyAndDataTap: {
                                 navigationPath.append(.privacyAndData)
-                            },
-                            onAIAccessTap: {
-                                navigationPath.append(.aiAccess)
                             }
                         )
                     }
@@ -162,10 +159,6 @@ struct FrameReplyShellView: View {
                     PersonalInfoView(repository: chatRepository)
                 case .privacyAndData:
                     PrivacyAndDataView(providerStore: providerStore)
-                case .aiAccess:
-                    if let configuration = try? SubscriptionConfiguration.load() {
-                        AIAccessView(configuration: configuration, providerStore: providerStore)
-                    }
                 }
             }
         }

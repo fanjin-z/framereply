@@ -75,6 +75,16 @@
         }
       }
     },
+    "%@ per month." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每月 %@。"
+          }
+        }
+      }
+    },
     "%@ Suggested replies could not be generated: %@" : {
       "localizations" : {
         "en" : {
@@ -274,6 +284,26 @@
         }
       }
     },
+    "7 days free, then %@ per month." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "免费试用 7 天，之后每月 %@。"
+          }
+        }
+      }
+    },
+    "Access through %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可使用至 %@"
+          }
+        }
+      }
+    },
     "Accessibility → Touch → Back Tap" : {
       "localizations" : {
         "zh-Hans" : {
@@ -434,6 +464,99 @@
         }
       }
     },
+    "AI Access" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 服务"
+          }
+        }
+      }
+    },
+    "AI Access is unavailable right now. No purchase was started." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 服务暂不可用，尚未发起购买。"
+          }
+        }
+      }
+    },
+    "AI Access Monthly" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 服务月度订阅"
+          }
+        }
+      }
+    },
+    "AI allowance" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 用量额度"
+          }
+        }
+      }
+    },
+    "AI allowance is unavailable or exhausted." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 使用额度不可用或已用完。"
+          }
+        }
+      }
+    },
+    "AI allowance remaining" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剩余 AI 用量额度"
+          }
+        }
+      }
+    },
+    "AI Providers" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 服务商"
+          }
+        }
+      }
+    },
+    "AI replies without your own API key." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无需自备 API 密钥，即可获取 AI 回复建议。"
+          }
+        }
+      }
+    },
+    "AI requests go directly to the model provider using a capped key." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 请求使用设有额度上限的密钥直接发送至模型提供方。"
+          }
+        }
+      }
+    },
     "All imports are reviewed." : {
       "localizations" : {
         "zh-Hans" : {
@@ -470,6 +593,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "其他名称"
+          }
+        }
+      }
+    },
+    "An alternative to bringing your own AI provider key." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无需自备 AI 服务商密钥，即可使用 AI 服务。"
           }
         }
       }
@@ -624,6 +758,26 @@
         }
       }
     },
+    "Apple subscription is not available yet." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple 订阅暂不可用。"
+          }
+        }
+      }
+    },
+    "Apple subscription pricing is unavailable. Try again later." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时无法获取 Apple 订阅价格，请稍后重试。"
+          }
+        }
+      }
+    },
     "Archived" : {
       "localizations" : {
         "zh-Hans" : {
@@ -670,6 +824,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "暂时将你识别为%@"
+          }
+        }
+      }
+    },
+    "Automatic renewal is off." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动续订已关闭。"
+          }
+        }
+      }
+    },
+    "Available" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可用"
           }
         }
       }
@@ -1327,6 +1501,16 @@
         }
       }
     },
+    "Consistently strong results for complex context" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "处理复杂语境时表现稳定"
+          }
+        }
+      }
+    },
     "Continue" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1477,6 +1661,26 @@
         }
       }
     },
+    "Couldn’t check subscription status. Try again." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法查询订阅状态，请重试。"
+          }
+        }
+      }
+    },
+    "Couldn’t check subscription status. Try Refresh Status." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法查询订阅状态，请点按“刷新状态”。"
+          }
+        }
+      }
+    },
     "Couldn’t Delete All Data" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1493,6 +1697,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法删除回复风格"
+          }
+        }
+      }
+    },
+    "Couldn’t load your current AI allowance." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法获取当前 AI 用量额度。"
           }
         }
       }
@@ -1517,6 +1731,16 @@
         }
       }
     },
+    "Couldn’t restore purchases. Try again later." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法恢复购买项目，请稍后重试。"
+          }
+        }
+      }
+    },
     "Couldn’t Save Remembered Context" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1533,6 +1757,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法设置默认回复风格"
+          }
+        }
+      }
+    },
+    "Couldn’t verify the purchase. If Apple completed it, use Restore Purchases." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法验证购买。如果 Apple 已完成交易，请点按“恢复购买项目”。"
           }
         }
       }
@@ -1633,6 +1867,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "当前标签页"
+          }
+        }
+      }
+    },
+    "Current usage is temporarily unavailable." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前用量暂不可用。"
           }
         }
       }
@@ -2245,7 +2489,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Delete and reconnect the provider in Settings → Model Providers."
+            "value" : "Delete and reconnect the provider in Settings → AI Providers."
           }
         },
         "zh-Hans" : {
@@ -2755,7 +2999,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Delete and reconnect the provider in Settings → Model Providers."
+            "value" : "Delete and reconnect the provider in Settings → AI Providers."
           }
         },
         "zh-Hans" : {
@@ -3117,6 +3361,48 @@
         }
       }
     },
+    "FrameReply AI" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI"
+          }
+        }
+      }
+    },
+    "FrameReply AI Access" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI 服务"
+          }
+        }
+      }
+    },
+    "FrameReply AI Access is ready to use." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI 服务已可使用。"
+          }
+        }
+      }
+    },
+    "FrameReply AI Access is selected" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已选择 FrameReply AI 服务"
+          }
+        }
+      }
+    },
     "FrameReply could not open its protected local database. You can retry or permanently reset local chats, personas, and drafts." : {
       "localizations" : {
         "zh-Hans" : {
@@ -3157,6 +3443,16 @@
         }
       }
     },
+    "FrameReply returned an invalid AI credential." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply 返回的 AI 凭据无效。"
+          }
+        }
+      }
+    },
     "FrameReply Text" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3183,6 +3479,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "FrameReply 将从此设备移除已保存的 API 密钥。"
+          }
+        }
+      }
+    },
+    "Free trial active" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "免费试用中"
           }
         }
       }
@@ -3688,6 +3994,16 @@
         }
       }
     },
+    "Includes a limited AI allowance each subscription period. Trial usage is also limited." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每个订阅周期包含一定 AI 用量额度，试用期间同样有用量限制。"
+          }
+        }
+      }
+    },
     "Instructions" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3788,6 +4104,17 @@
         }
       }
     },
+    "Loading Apple subscription…" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载 Apple 订阅…"
+          }
+        }
+      }
+    },
     "Local Data" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3828,12 +4155,43 @@
         }
       }
     },
+    "Manage or cancel in Settings > Apple Account > Subscriptions." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可前往系统“设置”> Apple 账户 >“订阅”管理或取消订阅。"
+          }
+        }
+      }
+    },
     "Manage Personal Info" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "管理个人信息"
+          }
+        }
+      }
+    },
+    "Manage Subscription" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理订阅"
+          }
+        }
+      }
+    },
+    "Managed AI" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "托管 AI 服务"
           }
         }
       }
@@ -3931,6 +4289,7 @@
       }
     },
     "Model Providers" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -4010,6 +4369,58 @@
         }
       }
     },
+    "Next renewal: %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下次续订：%@"
+          }
+        }
+      }
+    },
+    "No active subscription" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有有效订阅"
+          }
+        }
+      }
+    },
+    "No active subscription found for this Apple Account." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Apple 账户没有有效订阅。"
+          }
+        }
+      }
+    },
+    "No Apple subscription was found. Open AI Access in Settings." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到 Apple 订阅。请在“设置”中打开“AI 服务”。"
+          }
+        }
+      }
+    },
+    "No Apple subscription was found. Open AI Providers in Settings." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到 Apple 订阅。请打开设置中的“AI 服务商”。"
+          }
+        }
+      }
+    },
     "No archived observations." : {
       "localizations" : {
         "zh-Hans" : {
@@ -4066,6 +4477,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未提供分享或复制的消息文字。"
+          }
+        }
+      }
+    },
+    "No subscription found for this Apple Account." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到此 Apple 账户的订阅。"
           }
         }
       }
@@ -4330,6 +4752,16 @@
         }
       }
     },
+    "OpenRouter and the model provider selected by FrameReply" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenRouter 及 FrameReply 选择的模型提供方"
+          }
+        }
+      }
+    },
     "Opens FrameReply" : {
       "localizations" : {
         "zh-Hans" : {
@@ -4526,6 +4958,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "性能档位"
+          }
+        }
+      }
+    },
+    "Period limit reached" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本期用量已用完"
           }
         }
       }
@@ -5442,6 +5884,26 @@
         }
       }
     },
+    "Purchase pending. Refresh after Apple approves it." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买正在等待处理。Apple 批准后请刷新状态。"
+          }
+        }
+      }
+    },
+    "Purchase status is unknown. Use Restore Purchases." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买状态未知，请点按“恢复购买项目”。"
+          }
+        }
+      }
+    },
     "Purpose" : {
       "localizations" : {
         "zh-Hans" : {
@@ -5472,12 +5934,12 @@
         }
       }
     },
-    "Consistently strong results for complex context" : {
+    "Refresh Status" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "处理复杂语境时表现稳定"
+            "value" : "刷新状态"
           }
         }
       }
@@ -5488,6 +5950,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在刷新回复…"
+          }
+        }
+      }
+    },
+    "Remaining: %@" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剩余额度：%@"
           }
         }
       }
@@ -5800,6 +6273,16 @@
         }
       }
     },
+    "Restore Purchases" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复购买项目"
+          }
+        }
+      }
+    },
     "Retry" : {
       "localizations" : {
         "zh-Hans" : {
@@ -5896,6 +6379,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "确认发送者"
+          }
+        }
+      }
+    },
+    "Running low" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剩余额度较少"
+          }
+        }
+      }
+    },
+    "Sandbox testing only." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅供沙盒测试。"
+          }
+        }
+      }
+    },
+    "Sandbox testing only. This build does not yet provide subscription AI access." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅供沙盒测试。此版本尚未提供订阅 AI 服务。"
           }
         }
       }
@@ -6070,6 +6585,26 @@
         }
       }
     },
+    "Selected AI content goes directly to OpenRouter and its model provider. FrameReply's backend handles subscription verification and key limits, without receiving your AI content. The provider may retain request data under its policy." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您选择的 AI 内容会直接发送至 OpenRouter 及其模型提供方。FrameReply 后端负责验证订阅和限制密钥额度，不接收您的 AI 内容。提供方可能依其政策保留请求数据。"
+          }
+        }
+      }
+    },
+    "Selected messages, screenshots, names, context, and drafts go directly from this device to OpenRouter and its model provider. FrameReply's backend verifies your subscription and issues a capped AI key; it does not receive your AI content." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您选择的消息、截图、姓名、上下文和草稿会从此设备直接发送至 OpenRouter 及其模型提供方。FrameReply 后端只验证订阅并签发设有额度上限的 AI 密钥，不接收您的 AI 内容。"
+          }
+        }
+      }
+    },
     "Selection Session ID" : {
       "localizations" : {
         "zh-Hans" : {
@@ -6186,6 +6721,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "分享"
+          }
+        }
+      }
+    },
+    "Share chat content with AI providers?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与 AI 提供方分享聊天内容？"
           }
         }
       }
@@ -6500,6 +7045,16 @@
         }
       }
     },
+    "Start Free Trial" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始免费试用"
+          }
+        }
+      }
+    },
     "Start from" : {
       "localizations" : {
         "zh-Hans" : {
@@ -6566,6 +7121,88 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "风格"
+          }
+        }
+      }
+    },
+    "Subscribe" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "订阅"
+          }
+        }
+      }
+    },
+    "Subscription active" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "订阅有效"
+          }
+        }
+      }
+    },
+    "Subscription renews automatically unless you cancel it in the App Store." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "除非你在 App Store 取消，否则订阅将自动续订。"
+          }
+        }
+      }
+    },
+    "Subscription restored." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "订阅已恢复。"
+          }
+        }
+      }
+    },
+    "Subscription status" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "订阅状态"
+          }
+        }
+      }
+    },
+    "Subscription status is temporarily unavailable." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "订阅状态暂不可用。"
+          }
+        }
+      }
+    },
+    "Subscription verified with FrameReply." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply 已验证订阅。"
+          }
+        }
+      }
+    },
+    "Subscription, trial, and usage" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "订阅、试用和用量"
           }
         }
       }
@@ -6926,12 +7563,33 @@
         }
       }
     },
+    "Total: %@" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "总额度：%@"
+          }
+        }
+      }
+    },
     "Touch and hold to copy the complete reply" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "按住即可复制完整回复"
+          }
+        }
+      }
+    },
+    "Trial AI allowance" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "试用期 AI 用量额度"
           }
         }
       }
@@ -7062,6 +7720,27 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用自定义名称"
+          }
+        }
+      }
+    },
+    "Use FrameReply AI" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 FrameReply AI"
+          }
+        }
+      }
+    },
+    "Use FrameReply AI Access" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 FrameReply AI 服务"
           }
         }
       }
@@ -7286,6 +7965,16 @@
         }
       }
     },
+    "You can switch to a provider using your own API key." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你可以切换至使用自备 API 密钥的服务商。"
+          }
+        }
+      }
+    },
     "You have 50 saved details. Remove one to add another." : {
       "localizations" : {
         "zh-Hans" : {
@@ -7302,6 +7991,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "需要先连接模型服务商才能生成回复。"
+          }
+        }
+      }
+    },
+    "Your AI Access subscription is inactive." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您的 AI 服务订阅未生效。"
           }
         }
       }
@@ -7332,556 +8031,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "你在聊天中的名称"
-          }
-        }
-      }
-    },
-    "%@ per month." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "每月 %@。"
-          }
-        }
-      }
-    },
-    "7 days free, then %@ per month." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "免费试用 7 天，之后每月 %@。"
-          }
-        }
-      }
-    },
-    "AI Access" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI 服务"
-          }
-        }
-      }
-    },
-    "AI Access Monthly" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI 服务月度订阅"
-          }
-        }
-      }
-    },
-    "AI allowance" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI 用量额度"
-          }
-        }
-      }
-    },
-    "Access through %@" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "可使用至 %@"
-          }
-        }
-      }
-    },
-    "An alternative to bringing your own AI provider key." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无需自备 AI 服务商密钥，即可使用 AI 服务。"
-          }
-        }
-      }
-    },
-    "Apple subscription is not available yet." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apple 订阅暂不可用。"
-          }
-        }
-      }
-    },
-    "Apple subscription pricing is unavailable. Try again later." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "暂时无法获取 Apple 订阅价格，请稍后重试。"
-          }
-        }
-      }
-    },
-    "Couldn’t check subscription status. Try Refresh Status." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法查询订阅状态，请点按“刷新状态”。"
-          }
-        }
-      }
-    },
-    "Couldn’t check subscription status. Try again." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法查询订阅状态，请重试。"
-          }
-        }
-      }
-    },
-    "Couldn’t load your current AI allowance." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法获取当前 AI 用量额度。"
-          }
-        }
-      }
-    },
-    "Couldn’t restore purchases. Try again later." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法恢复购买项目，请稍后重试。"
-          }
-        }
-      }
-    },
-    "Couldn’t verify the purchase. If Apple completed it, use Restore Purchases." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法验证购买。如果 Apple 已完成交易，请点按“恢复购买项目”。"
-          }
-        }
-      }
-    },
-    "Current usage is temporarily unavailable." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "当前用量暂不可用。"
-          }
-        }
-      }
-    },
-    "Free trial active" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "免费试用中"
-          }
-        }
-      }
-    },
-    "Loading Apple subscription…" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在加载 Apple 订阅…"
-          }
-        }
-      }
-    },
-    "Manage Subscription" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "管理订阅"
-          }
-        }
-      }
-    },
-    "No active subscription" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "没有有效订阅"
-          }
-        }
-      }
-    },
-    "No active subscription found for this Apple Account." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此 Apple 账户没有有效订阅。"
-          }
-        }
-      }
-    },
-    "No subscription found for this Apple Account." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未找到此 Apple 账户的订阅。"
-          }
-        }
-      }
-    },
-    "Purchase pending. Refresh after Apple approves it." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "购买正在等待处理。Apple 批准后请刷新状态。"
-          }
-        }
-      }
-    },
-    "Purchase status is unknown. Use Restore Purchases." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "购买状态未知，请点按“恢复购买项目”。"
-          }
-        }
-      }
-    },
-    "Refresh Status" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "刷新状态"
-          }
-        }
-      }
-    },
-    "Remaining: %@" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "剩余额度：%@"
-          }
-        }
-      }
-    },
-    "Restore Purchases" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "恢复购买项目"
-          }
-        }
-      }
-    },
-    "Sandbox testing only. This build does not yet provide subscription AI access." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "仅供沙盒测试。此版本尚未提供订阅 AI 服务。"
-          }
-        }
-      }
-    },
-    "Start Free Trial" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "开始免费试用"
-          }
-        }
-      }
-    },
-    "Subscribe" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "订阅"
-          }
-        }
-      }
-    },
-    "Subscription active" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "订阅有效"
-          }
-        }
-      }
-    },
-    "Subscription renews automatically unless you cancel it in the App Store." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "除非你在 App Store 取消，否则订阅将自动续订。"
-          }
-        }
-      }
-    },
-    "Subscription restored." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "订阅已恢复。"
-          }
-        }
-      }
-    },
-    "Subscription status" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "订阅状态"
-          }
-        }
-      }
-    },
-    "Subscription verified with FrameReply." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FrameReply 已验证订阅。"
-          }
-        }
-      }
-    },
-    "Subscription, trial, and usage" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "订阅、试用和用量"
-          }
-        }
-      }
-    },
-    "Total: %@" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "总额度：%@"
-          }
-        }
-      }
-    },
-    "Trial AI allowance" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "试用期 AI 用量额度"
-          }
-        }
-      }
-    },
-    "Automatic renewal is off." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自动续订已关闭。"
-          }
-        }
-      }
-    },
-    "Subscription status is temporarily unavailable." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "订阅状态暂不可用。"
-          }
-        }
-      }
-    },
-    "AI Access is unavailable right now. No purchase was started." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI 服务暂不可用，尚未发起购买。"
-          }
-        }
-      }
-    },
-    "Managed AI" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "托管 AI 服务"
-          }
-        }
-      }
-    },
-    "FrameReply AI Access" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FrameReply AI 服务"
-          }
-        }
-      }
-    },
-    "OpenRouter and the model provider selected by FrameReply" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OpenRouter 及 FrameReply 选择的模型提供方"
-          }
-        }
-      }
-    },
-    "Selected messages, screenshots, names, context, and drafts go directly from this device to OpenRouter and its model provider. FrameReply's backend verifies your subscription and issues a capped AI key; it does not receive your AI content." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "您选择的消息、截图、姓名、上下文和草稿会从此设备直接发送至 OpenRouter 及其模型提供方。FrameReply 后端只验证订阅并签发设有额度上限的 AI 密钥，不接收您的 AI 内容。"
-          }
-        }
-      }
-    },
-    "Selected AI content goes directly to OpenRouter and its model provider. FrameReply's backend handles subscription verification and key limits, without receiving your AI content. The provider may retain request data under its policy." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "您选择的 AI 内容会直接发送至 OpenRouter 及其模型提供方。FrameReply 后端负责验证订阅和限制密钥额度，不接收您的 AI 内容。提供方可能依其政策保留请求数据。"
-          }
-        }
-      }
-    },
-    "Share chat content with AI providers?" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "与 AI 提供方分享聊天内容？"
-          }
-        }
-      }
-    },
-    "Sandbox testing only." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "仅供沙盒测试。"
-          }
-        }
-      }
-    },
-    "FrameReply AI Access is selected" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已选择 FrameReply AI 服务"
-          }
-        }
-      }
-    },
-    "Use FrameReply AI Access" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用 FrameReply AI 服务"
-          }
-        }
-      }
-    },
-    "AI requests go directly to the model provider using a capped key." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI 请求使用设有额度上限的密钥直接发送至模型提供方。"
-          }
-        }
-      }
-    },
-    "FrameReply AI Access is ready to use." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FrameReply AI 服务已可使用。"
-          }
-        }
-      }
-    },
-    "No Apple subscription was found. Open AI Access in Settings." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未找到 Apple 订阅。请在“设置”中打开“AI 服务”。"
-          }
-        }
-      }
-    },
-    "Your AI Access subscription is inactive." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "您的 AI 服务订阅未生效。"
-          }
-        }
-      }
-    },
-    "AI allowance is unavailable or exhausted." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI 使用额度不可用或已用完。"
-          }
-        }
-      }
-    },
-    "FrameReply returned an invalid AI credential." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FrameReply 返回的 AI 凭据无效。"
           }
         }
       }

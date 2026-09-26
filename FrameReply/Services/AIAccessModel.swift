@@ -3,8 +3,21 @@ import Foundation
 import StoreKit
 
 nonisolated enum AIAccessPresentation {
-    static func usd(_ microusd: Int, locale: Locale = .current) -> String {
-        (Decimal(microusd) / 1_000_000).formatted(.currency(code: "USD").locale(locale))
+    enum UsageLevel: Equatable {
+        case available, low, exhausted
+    }
+
+    static func remainingFraction(_ usage: SubscriptionUsage) -> Double? {
+        guard !usage.stale, usage.budgetMicrousd > 0,
+            let remaining = usage.remainingMicrousd,
+            ["available", "exhausted"].contains(usage.availability)
+        else { return nil }
+        return min(1, max(0, Double(remaining) / Double(usage.budgetMicrousd)))
+    }
+
+    static func usageLevel(_ fraction: Double) -> UsageLevel {
+        if fraction <= 0 { return .exhausted }
+        return fraction <= 0.2 ? .low : .available
     }
 
     static func date(_ text: String) -> Date? {

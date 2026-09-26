@@ -7,10 +7,34 @@
     final class SubscriptionClientTests: XCTestCase {
         private let productID = "test.subscription.monthly"
 
-        func testBackendMicrousdAllowanceDisplaysAsReadableDollars() {
-            let locale = Locale(identifier: "en_US")
-            XCTAssertEqual(AIAccessPresentation.usd(1_000_000, locale: locale), "$1.00")
-            XCTAssertEqual(AIAccessPresentation.usd(700_000, locale: locale), "$0.70")
+        func testAllowancePresentationDistinguishesLowExhaustedAndUnavailableUsage() throws {
+            let decoder = JSONDecoder()
+            func usage(_ changes: [String: Any] = [:]) throws -> SubscriptionUsage {
+                var body = try XCTUnwrap(
+                    JSONSerialization.jsonObject(with: Data(usageResponse().utf8)) as? [String: Any]
+                )
+                body.merge(changes) { _, new in new }
+                return try decoder.decode(
+                    SubscriptionUsage.self, from: JSONSerialization.data(withJSONObject: body))
+            }
+            for (remaining, fraction, level): (Int, Double, AIAccessPresentation.UsageLevel) in [
+                (700_000, 0.7, .available), (200_000, 0.2, .low), (0, 0, .exhausted)
+            ] {
+                let value = try XCTUnwrap(
+                    AIAccessPresentation.remainingFraction(
+                        usage([
+                            "remainingMicrousd": remaining,
+                            "availability": remaining == 0 ? "exhausted" : "available"
+                        ])))
+                XCTAssertEqual(value, fraction, accuracy: 0.001)
+                XCTAssertEqual(AIAccessPresentation.usageLevel(value), level)
+            }
+            for changes: [String: Any] in [
+                ["stale": true], ["remainingMicrousd": NSNull()],
+                ["availability": "recovery_required"], ["budgetMicrousd": 0]
+            ] {
+                XCTAssertNil(AIAccessPresentation.remainingFraction(try usage(changes)))
+            }
         }
 
         func testConfigurationAndEvidenceRejectUnsafeOrNonSandboxInputs() throws {

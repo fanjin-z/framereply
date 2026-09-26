@@ -13,5 +13,4 @@ enum FrameReplyRoute: Hashable {
     case persona(UUID)
     case personalInfo
     case privacyAndData
-    case aiAccess
 }
