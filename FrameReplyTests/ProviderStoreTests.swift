@@ -233,7 +233,7 @@ final class ProviderStoreTests: XCTestCase {
     }
 
     @MainActor
-    func testManagedCredentialIsSeparateAndExpiresClosed() throws {
+    func testManagedCredentialIsSeparateAndExpiresClosed() async throws {
         let modelID = try XCTUnwrap(ManagedOpenRouterModelID(rawValue: "openai/future-model"))
         let model = ManagedOpenRouterModel(requestID: modelID, responseID: modelID)
         let (defaults, suiteName) = makeDefaults()
@@ -254,6 +254,15 @@ final class ProviderStoreTests: XCTestCase {
 
         XCTAssertEqual(store.savedAPIKey(for: .frameReplyAI), "capped-key")
         XCTAssertNil(store.savedAPIKey(for: .openRouter))
+        // A persisted, unexpired key cannot skip fresh-launch access checks.
+        do {
+            try await store.prepareManagedAIIfNeeded()
+            XCTFail("Expected consent verification before reusing the persisted key")
+        } catch let error as ProviderConnectionError {
+            guard case .dataConsentRequired = error else {
+                return XCTFail("Expected consentRequired, got \(error)")
+            }
+        }
         store.providers[0].managedExpiresAt = Date().addingTimeInterval(-1)
         XCTAssertNil(store.savedAPIKey(for: .frameReplyAI))
     }

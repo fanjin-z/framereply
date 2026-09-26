@@ -6,6 +6,8 @@
 	<string>$(APP_ATTEST_ENVIRONMENT)</string>
 	<key>SubscriptionAPIURL</key>
 	<string>$(SUBSCRIPTION_API_URL)</string>
+	<key>SubscriptionSandboxAPIURL</key>
+	<string>$(SUBSCRIPTION_SANDBOX_API_URL)</string>
 	<key>SubscriptionProductID</key>
 	<string>$(SUBSCRIPTION_PRODUCT_ID)</string>
 	<key>SubscriptionStoreEnvironment</key>

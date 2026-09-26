@@ -2,30 +2,70 @@ import Combine
 import Foundation
 import StoreKit
 
-/// These identifiers are public. Release intentionally has no endpoint until the
-/// customer-facing subscription flow and production configuration are ready.
+/// Public routing configuration. Release selects its backend from verified Apple evidence.
 nonisolated struct SubscriptionConfiguration {
     let baseURL: URL
     let productID: String
     let appAttestEnvironment: String
     let storeEnvironment: AppStore.Environment
 
-    static func load(bundle: Bundle = .main) throws -> Self {
-        try Self(
+    static func load(bundle: Bundle = .main, refreshAppTransaction: Bool = false) async throws
+        -> Self
+    {
+        let mode =
+            bundle.object(forInfoDictionaryKey: "SubscriptionStoreEnvironment") as? String ?? ""
+        var environment: AppStore.Environment?
+        if mode == "Automatic" {
+            // Refresh may prompt for Apple Account authentication; only a user tap enables it.
+            let evidence =
+                try await (refreshAppTransaction ? AppTransaction.refresh() : AppTransaction.shared)
+            guard case .verified(let transaction) = evidence else {
+                throw SubscriptionClientError(
+                    message: "Apple could not verify the app environment.")
+            }
+            environment = transaction.environment
+        }
+        return try Self(
             apiURL: bundle.object(forInfoDictionaryKey: "SubscriptionAPIURL") as? String ?? "",
+            sandboxAPIURL: bundle.object(forInfoDictionaryKey: "SubscriptionSandboxAPIURL")
+                as? String ?? "",
             productID: bundle.object(forInfoDictionaryKey: "SubscriptionProductID") as? String
                 ?? "",
             appAttestEnvironment: bundle.object(forInfoDictionaryKey: "AppAttestEnvironment")
                 as? String ?? "",
-            storeEnvironment: bundle.object(forInfoDictionaryKey: "SubscriptionStoreEnvironment")
-                as? String ?? ""
+            storeEnvironment: mode,
+            verifiedAppEnvironment: environment
         )
     }
 
     init(
-        apiURL: String, productID: String, appAttestEnvironment: String,
-        storeEnvironment: String = "Sandbox"
+        apiURL: String, sandboxAPIURL: String = "", productID: String, appAttestEnvironment: String,
+        storeEnvironment: String = "Sandbox", verifiedAppEnvironment: AppStore.Environment? = nil
     ) throws {
+        var apiURL = apiURL
+        var storeEnvironment = storeEnvironment
+        if storeEnvironment == "Automatic" {
+            // Never infer routing from a build flag, receipt filename, or an unverified JWS.
+            guard appAttestEnvironment == "production", let verifiedAppEnvironment,
+                verifiedAppEnvironment == .sandbox || verifiedAppEnvironment == .production
+            else {
+                throw SubscriptionClientError(
+                    message: "Apple subscription environment is unavailable.")
+            }
+            // Validate both routes even if only one will be used on this installation.
+            let sandbox = try Self(
+                apiURL: sandboxAPIURL, productID: productID,
+                appAttestEnvironment: appAttestEnvironment, storeEnvironment: "Sandbox")
+            let production = try Self(
+                apiURL: apiURL, productID: productID,
+                appAttestEnvironment: appAttestEnvironment, storeEnvironment: "Production")
+            guard sandbox.baseURL != production.baseURL else {
+                throw SubscriptionClientError(
+                    message: "Subscription environments must use separate backends.")
+            }
+            storeEnvironment = verifiedAppEnvironment == .sandbox ? "Sandbox" : "Production"
+            if verifiedAppEnvironment == .sandbox { apiURL = sandboxAPIURL }
+        }
         guard ["development", "production"].contains(appAttestEnvironment),
             ["Sandbox", "Production"].contains(storeEnvironment),
             let url = URL(string: apiURL), url.scheme == "https",
@@ -35,12 +75,12 @@ nonisolated struct SubscriptionConfiguration {
             url.path.isEmpty || url.path == "/"
         else {
             throw SubscriptionClientError(
-                message: "Sandbox subscription configuration is unavailable in this build.")
+                message: "Subscription configuration is unavailable in this build.")
         }
         let productID = productID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !productID.isEmpty else {
             throw SubscriptionClientError(
-                message: "Sandbox subscription product is not configured.")
+                message: "Subscription product is not configured.")
         }
         baseURL = url
         self.productID = productID
@@ -250,7 +290,7 @@ final class SubscriptionTransactionObserver: ObservableObject {
             lastResult = "StoreKit delivered an unverified transaction. Use Restore Purchases."
             return
         }
-        guard let configuration = try? SubscriptionConfiguration.load(),
+        guard let configuration = try? await SubscriptionConfiguration.load(),
             transaction.productID == configuration.productID,
             transaction.environment == configuration.storeEnvironment,
             processing.insert(transaction.id).inserted

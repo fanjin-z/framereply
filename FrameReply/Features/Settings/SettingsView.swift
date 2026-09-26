@@ -123,11 +123,8 @@ struct SettingsView: View {
 
     private var providerContent: some View {
         settingsSurface {
-            if let configuration = try? SubscriptionConfiguration.load() {
-                FrameReplyAIProviderCard(
-                    configuration: configuration, providerStore: providerStore, isActive: isActive)
-                settingsDivider(leadingInset: 16)
-            }
+            FrameReplyAIProviderSection(providerStore: providerStore, isActive: isActive)
+            settingsDivider(leadingInset: 16)
             if personalKeyProviders.isEmpty {
                 Button {
                     presentAddProvider()

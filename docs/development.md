@@ -38,6 +38,22 @@ Test Sandbox purchases from **Settings → AI Providers → FrameReply AI** in a
 
 `APP_ATTEST_ENVIRONMENT` is a build setting shared by the entitlement and client configuration: `development` for Debug and `production` for Release. The backend must accept the same environment. TestFlight always uses production App Attest, independently of StoreKit Sandbox. No additional API key is needed. If device signing reports a missing App Attest entitlement, enable App Attest for the App ID and refresh its provisioning profile. See [Apple's environment documentation](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.devicecheck.appattest-environment). Account setup and credentials belong outside this repository.
 
+## Subscription release checks
+
+The shared **FrameReply** scheme archives Release. The same archive supports TestFlight and the App Store; Release selects a backend using the verified `AppTransaction.environment`, without falling back if verification fails.
+
+| Installation | Backend / StoreKit | App Attest |
+| --- | --- | --- |
+| Xcode Debug | Sandbox | Development |
+| TestFlight / Sandbox review | Sandbox | Production |
+| App Store customer | Production | Production |
+
+- Before TestFlight or App Review, set the cloud repository’s local `APP_ATTEST_ENVIRONMENT=production` and run `npm run infra:deploy sandbox`. Sandbox still verifies Sandbox purchases. Its current verifier accepts one App Attest environment; development-attested Debug builds will stop authenticating until you switch it back and redeploy. For Xcode testing against that configuration, override the app’s `APP_ATTEST_ENVIRONMENT` build setting to `production` as well.
+- Check each cloud stage with `npm run infra:config check <stage>`. Confirm the deployed App ID matches the signing prefix and bundle ID, the product is allowed, and the OpenRouter workspace guardrail allows the backend-selected model. The app receives model IDs from issued credentials.
+- Build Release and inspect its processed Info.plist: `SubscriptionStoreEnvironment=Automatic`, distinct HTTPS production/Sandbox URLs, the intended product ID, and `AppAttestEnvironment=production`. Inspect the signed archive’s App Attest entitlement before upload. Never promote a build with test-only overrides.
+- On a physical TestFlight install, verify purchase/restore → automatic connection → replies → recorded usage; also check provider switching, renewal/expiry, and exhausted access. TestFlight purchases are [Sandbox transactions](https://developer.apple.com/documentation/storekit/testing-in-app-purchases-with-sandbox).
+- Production deployment, signing/upload, and App Store submission are separate manual actions. A successful local build does not prove the deployed production service is ready.
+
 ## Command-line build
 
 Build the app for a generic iOS simulator without code signing:

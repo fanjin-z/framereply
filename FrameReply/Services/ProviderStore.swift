@@ -29,6 +29,8 @@ final class ProviderStore: ObservableObject {
     nonisolated static let installationMarkerKey = "framereply.installationMarker.v1"
     private var isResetting = false
     private var managedRefresh: Task<Void, Error>?
+    // Reverify once per launch before reusing a persisted key across app distributions.
+    private var hasVerifiedManagedAccess = false
 
     var activeProvider: ProviderConnection? {
         guard let activePlatform else {
@@ -150,7 +152,7 @@ final class ProviderStore: ObservableObject {
 
     func prepareManagedAIIfNeeded() async throws {
         guard activePlatform == .frameReplyAI else { return }
-        if let connection = activeProvider,
+        if hasVerifiedManagedAccess, let connection = activeProvider,
             let expiry = connection.managedExpiresAt,
             expiry > Date().addingTimeInterval(60),
             savedAPIKey(for: .frameReplyAI) != nil
@@ -171,7 +173,7 @@ final class ProviderStore: ObservableObject {
         guard consentStore.hasValidConsent(for: .frameReplyAI) else {
             throw ProviderConnectionError.dataConsentRequired
         }
-        let configuration = try SubscriptionConfiguration.load()
+        let configuration = try await SubscriptionConfiguration.load()
         guard let evidence = await Transaction.latest(for: configuration.productID) else {
             throw SubscriptionClientError(
                 message: String(
@@ -231,6 +233,7 @@ final class ProviderStore: ObservableObject {
                     platform: .frameReplyAI, tier: .basic,
                     managedModel: model, managedExpiresAt: expiry))
         }
+        hasVerifiedManagedAccess = true
         if activate { self.activate(platform: .frameReplyAI) }
     }
 

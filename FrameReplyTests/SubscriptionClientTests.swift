@@ -57,7 +57,7 @@
 
         }
 
-        func testConfigurationAndEvidenceRejectUnsafeOrNonSandboxInputs() throws {
+        func testConfigurationRoutesVerifiedEnvironmentsAndRejectsUnsafeInputs() throws {
             for url in [
                 "http://sandbox.example", "https://user:password@sandbox.example",
                 "https://sandbox.example?token=secret", "https://sandbox.example/unexpected-path"
@@ -80,6 +80,42 @@
                 try SubscriptionConfiguration(
                     apiURL: "https://sandbox.example", productID: productID,
                     appAttestEnvironment: "development", storeEnvironment: "Xcode"))
+            for environment: AppStore.Environment in [.sandbox, .production] {
+                let automatic = try SubscriptionConfiguration(
+                    apiURL: "https://production.example", sandboxAPIURL: "https://sandbox.example",
+                    productID: productID, appAttestEnvironment: "production",
+                    storeEnvironment: "Automatic", verifiedAppEnvironment: environment)
+                XCTAssertEqual(
+                    automatic.baseURL.host,
+                    environment == .sandbox ? "sandbox.example" : "production.example")
+                XCTAssertEqual(automatic.appAttestEnvironment, "production")
+                XCTAssertNoThrow(
+                    try automatic.validate(environment: environment, productID: productID))
+                XCTAssertThrowsError(
+                    try automatic.validate(
+                        environment: environment == .sandbox ? .production : .sandbox,
+                        productID: productID))
+            }
+            for environment: AppStore.Environment? in [nil, .xcode] {
+                XCTAssertThrowsError(
+                    try SubscriptionConfiguration(
+                        apiURL: "https://production.example",
+                        sandboxAPIURL: "https://sandbox.example",
+                        productID: productID, appAttestEnvironment: "production",
+                        storeEnvironment: "Automatic", verifiedAppEnvironment: environment))
+            }
+            for sandboxURL in ["", "http://sandbox.example", "https://production.example"] {
+                XCTAssertThrowsError(
+                    try SubscriptionConfiguration(
+                        apiURL: "https://production.example", sandboxAPIURL: sandboxURL,
+                        productID: productID, appAttestEnvironment: "production",
+                        storeEnvironment: "Automatic", verifiedAppEnvironment: .production))
+            }
+            XCTAssertThrowsError(
+                try SubscriptionConfiguration(
+                    apiURL: "https://production.example", sandboxAPIURL: "https://sandbox.example",
+                    productID: productID, appAttestEnvironment: "development",
+                    storeEnvironment: "Automatic", verifiedAppEnvironment: .sandbox))
             let config = try configuration()
             XCTAssertNoThrow(try config.validate(environment: .sandbox, productID: productID))
             for environment: AppStore.Environment in [.production, .xcode] {
