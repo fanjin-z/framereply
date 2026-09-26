@@ -37,6 +37,26 @@
             }
         }
 
+        func testOfferDurationUsesStorePeriodAndCountInsteadOfSevenDayAssumption() {
+            let locale = Locale(identifier: "en_US")
+            XCTAssertEqual(
+                AIAccessPresentation.duration(value: 3, unit: .day, locale: locale), "3 days")
+            XCTAssertEqual(
+                AIAccessPresentation.duration(value: 1, unit: .week, locale: locale), "1 week")
+            XCTAssertEqual(
+                AIAccessPresentation.duration(value: 1, unit: .month, count: 2, locale: locale),
+                "2 months")
+            XCTAssertEqual(
+                AIAccessPresentation.duration(value: 1, unit: .year, locale: locale), "1 year")
+            XCTAssertNil(AIAccessPresentation.duration(value: 0, unit: .day, locale: locale))
+            XCTAssertEqual(
+                AIAccessPresentation.billingPeriod(value: 1, unit: .month, locale: locale), "month")
+            XCTAssertEqual(
+                AIAccessPresentation.billingPeriod(value: 3, unit: .month, locale: locale),
+                "3 months")
+
+        }
+
         func testConfigurationAndEvidenceRejectUnsafeOrNonSandboxInputs() throws {
             for url in [
                 "http://sandbox.example", "https://user:password@sandbox.example",

@@ -43,6 +43,27 @@
         }
       }
     },
+    "%@ / %@" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / %@"
+          }
+        }
+      }
+    },
+    "%@ free" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "免费试用%@"
+          }
+        }
+      }
+    },
     "%@ imported to %@" : {
       "localizations" : {
         "en" : {
@@ -76,6 +97,7 @@
       }
     },
     "%@ per month." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -177,6 +199,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@：%2$@，%3$@"
+          }
+        }
+      }
+    },
+    "%@/%@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@/%@"
           }
         }
       }
@@ -285,6 +317,7 @@
       }
     },
     "7 days free, then %@ per month." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -536,12 +569,12 @@
         }
       }
     },
-    "AI replies without your own API key." : {
+    "AI replies, ready to go." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "无需自备 API 密钥，即可获取 AI 回复建议。"
+            "value" : "AI 回复，即刻可用。"
           }
         }
       }
@@ -759,6 +792,7 @@
       }
     },
     "Apple subscription is not available yet." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -769,6 +803,7 @@
       }
     },
     "Apple subscription pricing is unavailable. Try again later." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1701,6 +1736,16 @@
         }
       }
     },
+    "Couldn’t load subscription. Try again." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载订阅，请重试。"
+          }
+        }
+      }
+    },
     "Couldn’t load your current AI allowance." : {
       "localizations" : {
         "zh-Hans" : {
@@ -1917,6 +1962,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "数据共享详情"
+          }
+        }
+      }
+    },
+    "day" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天"
           }
         }
       }
@@ -3403,6 +3458,16 @@
         }
       }
     },
+    "FrameReply AI options" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI 选项"
+          }
+        }
+      }
+    },
     "FrameReply could not open its protected local database. You can retry or permanently reset local chats, personas, and drafts." : {
       "localizations" : {
         "zh-Hans" : {
@@ -3995,6 +4060,7 @@
       }
     },
     "Includes a limited AI allowance each subscription period. Trial usage is also limited." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -4156,6 +4222,7 @@
       }
     },
     "Manage or cancel in Settings > Apple Account > Subscriptions." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -4295,6 +4362,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "模型服务商"
+          }
+        }
+      }
+    },
+    "month" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "月"
           }
         }
       }
@@ -7046,6 +7123,7 @@
       }
     },
     "Start Free Trial" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -7146,6 +7224,7 @@
       }
     },
     "Subscription renews automatically unless you cancel it in the App Store." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -7182,6 +7261,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "订阅状态暂不可用。"
+          }
+        }
+      }
+    },
+    "Subscription unavailable for this App Store account. You can use your own API key." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 App Store 账户暂无法订阅。你仍可使用自备 API 密钥。"
           }
         }
       }
@@ -7479,6 +7568,27 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "更新后的名称会应用到所有记住此身份的位置。"
+          }
+        }
+      }
+    },
+    "Then %@ / %@" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "之后 %@ / %@"
+          }
+        }
+      }
+    },
+    "Then %@/%@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "之后 %@/%@"
           }
         }
       }
@@ -7885,6 +7995,16 @@
         }
       }
     },
+    "week" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "周"
+          }
+        }
+      }
+    },
     "What should replies consider?" : {
       "localizations" : {
         "zh-Hans" : {
@@ -7921,6 +8041,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "推荐理由"
+          }
+        }
+      }
+    },
+    "year" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年"
           }
         }
       }

@@ -20,6 +20,53 @@ nonisolated enum AIAccessPresentation {
         return fraction <= 0.2 ? .low : .available
     }
 
+    static func duration(
+        value: Int, unit: Product.SubscriptionPeriod.Unit, count: Int = 1,
+        locale: Locale = LocalizationContext.current.locale
+    ) -> String? {
+        guard value > 0, count > 0 else { return nil }
+        let (total, overflow) = value.multipliedReportingOverflow(by: count)
+        guard !overflow else { return nil }
+        var components = DateComponents()
+        let allowed: NSCalendar.Unit
+        switch unit {
+        case .day:
+            components.day = total
+            allowed = .day
+        case .week:
+            components.weekOfMonth = total
+            allowed = .weekOfMonth
+        case .month:
+            components.month = total
+            allowed = .month
+        case .year:
+            components.year = total
+            allowed = .year
+        @unknown default: return nil
+        }
+        let formatter = DateComponentsFormatter()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = locale
+        formatter.calendar = calendar
+        formatter.allowedUnits = allowed
+        formatter.unitsStyle = .full
+        return formatter.string(from: components)
+    }
+
+    static func billingPeriod(
+        value: Int, unit: Product.SubscriptionPeriod.Unit,
+        locale: Locale = LocalizationContext.current.locale
+    ) -> String? {
+        guard value == 1 else { return duration(value: value, unit: unit, locale: locale) }
+        switch unit {
+        case .day: return String(localized: "day", locale: locale)
+        case .week: return String(localized: "week", locale: locale)
+        case .month: return String(localized: "month", locale: locale)
+        case .year: return String(localized: "year", locale: locale)
+        @unknown default: return nil
+        }
+    }
+
     static func date(_ text: String) -> Date? {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -32,7 +79,17 @@ nonisolated enum AIAccessPresentation {
 @MainActor
 final class AIAccessModel: ObservableObject {
     @Published private(set) var product: Product?
-    @Published private(set) var hasSevenDayTrial = false
+    enum ProductAvailability {
+        case loading, available, notOffered, failed
+    }
+
+    @Published private(set) var productAvailability: ProductAvailability = .loading
+    @Published private(set) var trialDuration: String?
+
+    var billingPeriod: String? {
+        guard let period = product?.subscription?.subscriptionPeriod else { return nil }
+        return AIAccessPresentation.billingPeriod(value: period.value, unit: period.unit)
+    }
     @Published private(set) var entitlement: SubscriptionEntitlement?
     @Published private(set) var usage: SubscriptionUsage?
     @Published private(set) var usageIssue: String?
@@ -53,32 +110,30 @@ final class AIAccessModel: ObservableObject {
         isBusy = true
         defer { isBusy = false }
 
+        notice = nil
+        product = nil
+        trialDuration = nil
+        productAvailability = .loading
         do {
             let fetched = try await Product.products(for: [configuration.productID]).first
-            if let fetched,
-                fetched.type == .autoRenewable,
-                let subscription = fetched.subscription,
-                subscription.subscriptionPeriod.unit == .month,
-                subscription.subscriptionPeriod.value == 1
+            if let fetched, fetched.type == .autoRenewable,
+                let subscription = fetched.subscription
             {
                 product = fetched
                 if let offer = subscription.introductoryOffer,
                     offer.paymentMode == .freeTrial,
-                    (offer.period.unit == .week && offer.period.value == 1)
-                        || (offer.period.unit == .day && offer.period.value == 7)
+                    await subscription.isEligibleForIntroOffer
                 {
-                    hasSevenDayTrial = await subscription.isEligibleForIntroOffer
-                } else {
-                    hasSevenDayTrial = false
+                    trialDuration = AIAccessPresentation.duration(
+                        value: offer.period.value, unit: offer.period.unit, count: offer.periodCount
+                    )
                 }
+                productAvailability = .available
             } else {
-                product = nil
-                notice = String(localized: "Apple subscription is not available yet.")
-                hasSevenDayTrial = false
+                productAvailability = .notOffered
             }
         } catch {
-            product = nil
-            notice = String(localized: "Apple subscription is not available yet.")
+            productAvailability = .failed
         }
 
         do { try await refreshStatus() } catch {

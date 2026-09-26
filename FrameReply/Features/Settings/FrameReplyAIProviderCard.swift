@@ -30,7 +30,7 @@ struct FrameReplyAIProviderCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("FrameReply AI")
                         .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    Text("AI replies without your own API key.")
+                    Text("AI replies, ready to go.")
                         .font(.footnote)
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 }
@@ -40,6 +40,15 @@ struct FrameReplyAIProviderCard: View {
                         .foregroundStyle(FrameReplyColor.connected)
                         .accessibilityLabel("Selected")
                 }
+                Menu {
+                    supportActions
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .foregroundStyle(FrameReplyColor.outline)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("FrameReply AI options")
             }
 
             if access.statusUnavailable {
@@ -48,7 +57,7 @@ struct FrameReplyAIProviderCard: View {
             } else if subscribed {
                 subscriberDetails
             } else {
-                purchaseDetails
+                purchaseRow
             }
 
             if subscribed {
@@ -65,26 +74,12 @@ struct FrameReplyAIProviderCard: View {
                         }
                     }
                     .buttonStyle(.borderedProminent)
+                    .tint(FrameReplyColor.primary)
+                    .foregroundStyle(.white)
                     .disabled(busy)
                     .accessibilityIdentifier("ai-access-connect")
                 }
             }
-
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 16) { supportActions }
-                VStack(alignment: .leading, spacing: 12) { supportActions }
-            }
-            .font(.footnote)
-            if subscribed {
-                Text("Manage or cancel in Settings > Apple Account > Subscriptions.")
-                    .font(.caption)
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-            }
-            HStack(spacing: 20) {
-                Link("Terms of Use", destination: AppLegalLinks.url(for: .terms))
-                Link("Privacy Policy", destination: AppLegalLinks.url(for: .privacy))
-            }
-            .font(.caption)
 
             if busy { ProgressView() }
             if let notice = connectionNotice ?? access.notice {
@@ -92,11 +87,6 @@ struct FrameReplyAIProviderCard: View {
                     .font(.footnote)
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
             }
-            #if DEBUG
-                Text("Sandbox testing only.")
-                    .font(.caption)
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-            #endif
         }
         .foregroundStyle(FrameReplyColor.onSurface)
         .padding(16)
@@ -111,14 +101,83 @@ struct FrameReplyAIProviderCard: View {
             Text(ProviderDataConsentDisclosure(provider: .frameReplyAI).permissionMessage)
         }
         .task(id: isActive) {
-            if isActive { await access.load() }
+            guard isActive else { return }
+            await access.load()
+            for await _ in Storefront.updates {
+                guard !Task.isCancelled else { return }
+                await access.load()
+            }
         }
         .onChange(of: transactionObserver.lastResult) { _, _ in
             if isActive { Task { await access.refresh() } }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active && isActive { Task { await access.refresh() } }
+            if phase == .active && isActive { Task { await access.load() } }
         }
+    }
+
+    @ViewBuilder private var purchaseRow: some View {
+        switch access.productAvailability {
+        case .loading:
+            EmptyView()
+        case .available:
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 16) {
+                    offerSummary.fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 12)
+                    subscribeButton
+                }
+                VStack(alignment: .leading, spacing: 12) {
+                    offerSummary
+                    subscribeButton.frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+            .padding(.leading, 44)
+        case .notOffered:
+            Text(
+                "Subscription unavailable for this App Store account. You can use your own API key."
+            )
+            .font(.footnote)
+            .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+        case .failed:
+            HStack {
+                Text("Couldn’t load subscription. Try again.")
+                    .font(.footnote)
+                Button("Retry") { Task { await access.load() } }
+                    .disabled(busy)
+            }
+        }
+    }
+
+    private var subscribeButton: some View {
+        Button("Subscribe") {
+            connectionNotice = nil
+            Task { await access.purchase() }
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .font(.subheadline.weight(.semibold))
+        .frame(minHeight: 44)
+        .tint(FrameReplyColor.primary)
+        .foregroundStyle(.white)
+        .disabled(busy || access.product == nil)
+        .accessibilityIdentifier("ai-access-purchase")
+    }
+
+    private var offerSummary: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            if let product = access.product, let period = access.billingPeriod {
+                if let trial = access.trialDuration {
+                    Text("\(trial) free")
+                        .fontWeight(.medium)
+                    Text("Then \(product.displayPrice)/\(period)")
+                } else {
+                    Text("\(product.displayPrice)/\(period)")
+                }
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(FrameReplyColor.onSurfaceVariant)
     }
 
     private var subscriberDetails: some View {
@@ -162,38 +221,6 @@ struct FrameReplyAIProviderCard: View {
             }
         }
         .font(.footnote)
-    }
-
-    private var purchaseDetails: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let product = access.product {
-                if access.hasSevenDayTrial {
-                    Text("7 days free, then \(product.displayPrice) per month.")
-                        .font(.headline)
-                } else {
-                    Text("\(product.displayPrice) per month.")
-                        .font(.headline)
-                }
-                Text(
-                    "Includes a limited AI allowance each subscription period. Trial usage is also limited."
-                )
-                .font(.footnote)
-                Text("Subscription renews automatically unless you cancel it in the App Store.")
-                    .font(.footnote)
-                Button {
-                    connectionNotice = nil
-                    Task { await access.purchase() }
-                } label: {
-                    Text(access.hasSevenDayTrial ? "Start Free Trial" : "Subscribe")
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(busy)
-                .accessibilityIdentifier("ai-access-purchase")
-            } else {
-                Text("Apple subscription pricing is unavailable. Try again later.")
-                    .font(.footnote)
-            }
-        }
     }
 
     @ViewBuilder private var supportActions: some View {
