@@ -24,7 +24,14 @@ struct OpenRouterClient: AIProviderAdapter {
 
     func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile? {
         guard platform.supportedTiers.contains(selectedTier) else { return nil }
-        let models = platform.models(for: selectedTier)
+        if platform == .frameReplyAI {
+            return ProviderModelProfile(
+                screenshotAnalysisModel: nil,
+                transcriptAnalysisModel: nil,
+                suggestedReplyModel: nil
+            )
+        }
+        guard let models = platform.models(for: selectedTier) else { return nil }
         return ProviderModelProfile(
             screenshotAnalysisModel: models.analysis,
             transcriptAnalysisModel: models.replies,
@@ -327,7 +334,9 @@ struct OpenRouterClient: AIProviderAdapter {
         }
         let supportedModels = Set(
             platform.supportedTiers.flatMap { tier in
-                let models = platform.models(for: tier)
+                guard let models = platform.models(for: tier) else {
+                    return [ProviderModel]()
+                }
                 return [models.analysis, models.replies]
             }
         )
@@ -402,7 +411,7 @@ struct OpenRouterClient: AIProviderAdapter {
                 "OpenRouter returned an unexpected response.")
         }
         guard completion.id.isEmpty == false,
-            completion.model == expectedModel.rawValue
+            expectedModel.acceptsResponseID(completion.model)
         else {
             throw ProviderConnectionError.invalidResponse(
                 "OpenRouter returned a response from an unexpected model.")

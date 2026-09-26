@@ -121,6 +121,7 @@ nonisolated struct SubscriptionEntitlement: Decodable {
 nonisolated struct ManagedAICredential: Decodable {
     let aiProvider: String
     let model: String
+    let responseModel: String
     let apiKey: String
     let expiresAt: String
 }

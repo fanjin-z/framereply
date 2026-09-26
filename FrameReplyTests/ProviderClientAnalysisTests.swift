@@ -98,26 +98,56 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
 
     @MainActor
     func testManagedOpenRouterUsesIssuedModelWithoutChangingBYOKModel() async throws {
+        let modelID = try XCTUnwrap(ManagedOpenRouterModelID(rawValue: "openai/future-model"))
+        let responseID = try XCTUnwrap(
+            ManagedOpenRouterModelID(rawValue: "openai/future-model-20260922"))
+        let model = ManagedOpenRouterModel(requestID: modelID, responseID: responseID)
         AnalysisURLProtocolStub.responses = [
             (
                 200,
                 openRouterResponse(
                     content: validScreenshotAnalysisJSON(),
-                    model: ProviderModel.managedGPT56Luna.rawValue)
+                    model: responseID.rawValue)
             )
         ]
 
         _ = try await OpenRouterClient(
             platform: .frameReplyAI, session: makeSession()
         ).analyzeChatScreenshot(
-            makeRequest(), apiKey: "capped-key", model: .managedGPT56Luna)
+            makeRequest(), apiKey: "capped-key", model: .managedOpenRouter(model))
 
         let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
         let body = try jsonBody(request)
-        XCTAssertEqual(body["model"] as? String, "openai/gpt-5.6-luna-20260709")
+        XCTAssertEqual(body["model"] as? String, modelID.rawValue)
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer capped-key")
         XCTAssertEqual((body["provider"] as? [String: Any])?["data_collection"] as? String, "deny")
-        XCTAssertEqual(ProviderPlatform.openRouter.models(for: .advanced).analysis, .qwen37Plus)
+        XCTAssertEqual(ProviderPlatform.openRouter.models(for: .advanced)?.analysis, .qwen37Plus)
+        XCTAssertNil(ManagedOpenRouterModelID(rawValue: "https://example.com/model"))
+        XCTAssertNil(ManagedOpenRouterModelID(rawValue: "openai/model/other"))
+        XCTAssertNil(ManagedOpenRouterModelID(rawValue: "openai/model\n"))
+
+        AnalysisURLProtocolStub.reset()
+        AnalysisURLProtocolStub.responses = [
+            (
+                200,
+                openRouterResponse(content: validScreenshotAnalysisJSON(), model: modelID.rawValue)
+            )
+        ]
+        _ = try await OpenRouterClient(
+            platform: .frameReplyAI, session: makeSession()
+        ).analyzeChatScreenshot(
+            makeRequest(), apiKey: "capped-key", model: .managedOpenRouter(model))
+
+        AnalysisURLProtocolStub.reset()
+        AnalysisURLProtocolStub.responses = [
+            (200, openRouterResponse(content: validScreenshotAnalysisJSON(), model: "openai/other"))
+        ]
+        await assertThrowsErrorAsync {
+            _ = try await OpenRouterClient(
+                platform: .frameReplyAI, session: self.makeSession()
+            ).analyzeChatScreenshot(
+                self.makeRequest(), apiKey: "capped-key", model: .managedOpenRouter(model))
+        }
     }
 
     @MainActor

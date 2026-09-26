@@ -67,7 +67,7 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
         }
     }
 
-    func models(for tier: ProviderTier) -> (analysis: ProviderModel, replies: ProviderModel) {
+    func models(for tier: ProviderTier) -> (analysis: ProviderModel, replies: ProviderModel)? {
         switch (self, tier) {
         case (.openAI, .basic):
             (.gpt6Luna, .gpt6Luna)
@@ -78,28 +78,112 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
         case (.openRouter, _):
             (.qwen37Plus, .qwen37Plus)
         case (.frameReplyAI, _):
-            (.managedGPT56Luna, .managedGPT56Luna)
+            nil
         case (.miniMaxInternational, _), (.miniMaxChina, _):
             (.miniMaxM3, .miniMaxM3)
         }
     }
 
     func modelSummary(for tier: ProviderTier) -> String {
-        models(for: tier).analysis.displayName
+        models(for: tier)?.analysis.displayName ?? String(localized: "Managed AI")
     }
 }
 
-enum ProviderModel: String, Codable {
-    case gpt6Luna = "gpt-6-luna"
-    case gpt56Terra = "gpt-5.6-terra"
-    case gpt6Sol = "gpt-6-sol"
-    case qwen37Plus = "qwen/qwen3.7-plus"
-    case miniMaxM3 = "MiniMax-M3"
-    case managedGPT56Luna = "openai/gpt-5.6-luna-20260709"
-    case managedGPT6Luna = "openai/gpt-6-luna"
+nonisolated struct ManagedOpenRouterModelID: RawRepresentable, Hashable, Codable, Sendable {
+    let rawValue: String
+
+    init?(rawValue: String) {
+        guard
+            rawValue.range(
+                of: #"\A[a-z0-9][a-z0-9._-]{0,63}/[a-z0-9][a-z0-9._:-]{0,127}\z"#,
+                options: .regularExpression
+            ) != nil
+        else { return nil }
+        self.rawValue = rawValue
+    }
+
+    init(from decoder: Decoder) throws {
+        let rawValue = try decoder.singleValueContainer().decode(String.self)
+        guard let model = Self(rawValue: rawValue) else {
+            throw DecodingError.dataCorruptedError(
+                in: try decoder.singleValueContainer(),
+                debugDescription: "Invalid managed OpenRouter model ID"
+            )
+        }
+        self = model
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+}
+
+nonisolated struct ManagedOpenRouterModel: Hashable, Codable, Sendable {
+    let requestID: ManagedOpenRouterModelID
+    let responseID: ManagedOpenRouterModelID
+}
+
+nonisolated enum ProviderModel: Hashable, Codable, Sendable {
+    case gpt6Luna
+    case gpt56Terra
+    case gpt6Sol
+    case qwen37Plus
+    case miniMaxM3
+    case managedOpenRouter(ManagedOpenRouterModel)
+
+    var rawValue: String {
+        switch self {
+        case .gpt6Luna: "gpt-6-luna"
+        case .gpt56Terra: "gpt-5.6-terra"
+        case .gpt6Sol: "gpt-6-sol"
+        case .qwen37Plus: "qwen/qwen3.7-plus"
+        case .miniMaxM3: "MiniMax-M3"
+        case .managedOpenRouter(let model): model.requestID.rawValue
+        }
+    }
+
+    func acceptsResponseID(_ responseID: String) -> Bool {
+        if case .managedOpenRouter(let model) = self {
+            return responseID == model.requestID.rawValue
+                || responseID == model.responseID.rawValue
+        }
+        return responseID == rawValue
+    }
 
     var isManagedOpenRouterModel: Bool {
-        self == .managedGPT56Luna || self == .managedGPT6Luna
+        if case .managedOpenRouter = self { return true }
+        return false
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let model = try? container.decode(ManagedOpenRouterModel.self) {
+            self = .managedOpenRouter(model)
+            return
+        }
+        let rawValue = try container.decode(String.self)
+        switch rawValue {
+        case "gpt-6-luna": self = .gpt6Luna
+        case "gpt-5.6-terra": self = .gpt56Terra
+        case "gpt-6-sol": self = .gpt6Sol
+        case "qwen/qwen3.7-plus": self = .qwen37Plus
+        case "MiniMax-M3": self = .miniMaxM3
+        default:
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Invalid provider model ID"
+            )
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        if case .managedOpenRouter(let model) = self {
+            try container.encode(model)
+        } else {
+            try container.encode(rawValue)
+        }
     }
 
     nonisolated var displayName: String {
@@ -114,10 +198,8 @@ enum ProviderModel: String, Codable {
             "Qwen3.7 Plus"
         case .miniMaxM3:
             "MiniMax M3"
-        case .managedGPT56Luna:
-            "GPT-5.6 Luna"
-        case .managedGPT6Luna:
-            "GPT-6 Luna"
+        case .managedOpenRouter:
+            String(localized: "Managed AI")
         }
     }
 }
@@ -161,12 +243,12 @@ struct ProviderConnection: Identifiable, Codable {
     var id: UUID = UUID()
     let platform: ProviderPlatform
     var tier: ProviderTier
-    var managedModel: ProviderModel?
+    var managedModel: ManagedOpenRouterModel?
     var managedExpiresAt: Date?
 
     init(
         id: UUID = UUID(), platform: ProviderPlatform, tier: ProviderTier,
-        managedModel: ProviderModel? = nil, managedExpiresAt: Date? = nil
+        managedModel: ManagedOpenRouterModel? = nil, managedExpiresAt: Date? = nil
     ) {
         self.id = id
         self.platform = platform

@@ -252,11 +252,13 @@ final class AIService: AIServiceProviding {
         else {
             throw AIServiceError.unsupportedProvider
         }
-        guard
-            let effectiveModel =
-                connection.platform == .frameReplyAI
-                ? connection.managedModel : profile.model(for: capability)
-        else {
+        let effectiveModel: ProviderModel?
+        if connection.platform == .frameReplyAI {
+            effectiveModel = connection.managedModel.map(ProviderModel.managedOpenRouter)
+        } else {
+            effectiveModel = profile.model(for: capability)
+        }
+        guard let effectiveModel else {
             throw AIServiceError.unsupportedCapability
         }
         guard providerConfiguration.savedAPIKey(for: connection.platform)?.isEmpty == false

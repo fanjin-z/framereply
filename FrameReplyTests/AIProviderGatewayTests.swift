@@ -67,18 +67,20 @@ final class AIProviderGatewayTests: XCTestCase {
     @MainActor
     func testManagedConnectionUsesBackendModelAndCappedKey() async throws {
         let adapter = RecordingProviderAdapter(platform: .frameReplyAI)
+        let modelID = try XCTUnwrap(ManagedOpenRouterModelID(rawValue: "openai/future-model"))
+        let model = ManagedOpenRouterModel(requestID: modelID, responseID: modelID)
         let configuration = GatewayProviderConfiguration(
-            platform: .frameReplyAI, managedModel: .managedGPT6Luna)
+            platform: .frameReplyAI, managedModel: model)
         let service = AIService(
             providerConfiguration: configuration,
             registry: AIProviderRegistry(adapters: [adapter]))
 
         let context = try await service.prepareContext(requiring: .suggestedReplies)
         XCTAssertEqual(context.platform, .frameReplyAI)
-        XCTAssertEqual(context.effectiveModel, .managedGPT6Luna)
+        XCTAssertEqual(context.effectiveModel, .managedOpenRouter(model))
         _ = try await service.generateSuggestedReplies(makeReplyRequest(), using: context)
 
-        XCTAssertEqual(adapter.replyModels, [.managedGPT6Luna])
+        XCTAssertEqual(adapter.replyModels, [.managedOpenRouter(model)])
         XCTAssertEqual(adapter.apiKeys, ["saved-key"])
     }
 
@@ -107,7 +109,7 @@ private final class GatewayProviderConfiguration: ProviderConfigurationProviding
 
     init(
         hasConsent: Bool = true, platform: ProviderPlatform = .openAI,
-        managedModel: ProviderModel? = nil
+        managedModel: ManagedOpenRouterModel? = nil
     ) {
         self.hasConsent = hasConsent
         activeProvider = ProviderConnection(

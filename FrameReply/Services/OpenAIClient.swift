@@ -21,7 +21,7 @@ struct OpenAIClient: AIProviderAdapter {
     var platform: ProviderPlatform { .openAI }
 
     func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile? {
-        let models = platform.models(for: selectedTier)
+        guard let models = platform.models(for: selectedTier) else { return nil }
         return ProviderModelProfile(
             screenshotAnalysisModel: models.analysis,
             transcriptAnalysisModel: models.replies,

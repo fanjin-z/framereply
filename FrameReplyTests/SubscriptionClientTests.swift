@@ -134,12 +134,14 @@
                 configuration: try configuration(), authentication: authentication)
             authentication.response = Data(
                 """
-                {"aiProvider":"openrouter","model":"openai/gpt-5.6-luna",
+                {"aiProvider":"openrouter","model":"openai/gpt-6-luna",
+                "responseModel":"openai/gpt-6-luna-20260922",
                 "apiKey":"synthetic-secret","expiresAt":"2026-09-25T00:00:00.000Z"}
                 """.utf8)
             let credential = try await client.credential(serviceSubscriptionId: "subscription-id")
             XCTAssertEqual(credential.aiProvider, "openrouter")
-            XCTAssertEqual(credential.model, "openai/gpt-5.6-luna")
+            XCTAssertEqual(credential.model, "openai/gpt-6-luna")
+            XCTAssertEqual(credential.responseModel, "openai/gpt-6-luna-20260922")
             XCTAssertEqual(credential.apiKey, "synthetic-secret")
 
             authentication.response = Data(usageResponse().utf8)

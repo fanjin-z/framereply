@@ -7736,6 +7736,16 @@
         }
       }
     },
+    "Managed AI" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "托管 AI 服务"
+          }
+        }
+      }
+    },
     "FrameReply AI Access" : {
       "localizations" : {
         "zh-Hans" : {

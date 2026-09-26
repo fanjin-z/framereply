@@ -234,13 +234,15 @@ final class ProviderStoreTests: XCTestCase {
 
     @MainActor
     func testManagedCredentialIsSeparateAndExpiresClosed() throws {
+        let modelID = try XCTUnwrap(ManagedOpenRouterModelID(rawValue: "openai/future-model"))
+        let model = ManagedOpenRouterModel(requestID: modelID, responseID: modelID)
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         try saveProviders(
             [
                 ProviderConnection(
                     platform: .frameReplyAI, tier: .basic,
-                    managedModel: .managedGPT56Luna,
+                    managedModel: model,
                     managedExpiresAt: Date().addingTimeInterval(3600))
             ],
             to: defaults)

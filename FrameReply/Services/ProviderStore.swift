@@ -133,7 +133,7 @@ final class ProviderStore: ObservableObject {
     func savedAPIKey(for platform: ProviderPlatform) -> String? {
         if platform == .frameReplyAI {
             guard let connection = providers.first(where: { $0.platform == platform }),
-                connection.managedModel?.isManagedOpenRouterModel == true,
+                connection.managedModel != nil,
                 let expiry = connection.managedExpiresAt,
                 expiry > Date()
             else { return nil }
@@ -201,8 +201,8 @@ final class ProviderStore: ObservableObject {
         let credential = try await client.credential(
             serviceSubscriptionId: entitlement.serviceSubscriptionId)
         guard credential.aiProvider == "openrouter",
-            let model = ProviderModel(rawValue: credential.model),
-            model.isManagedOpenRouterModel,
+            let requestID = ManagedOpenRouterModelID(rawValue: credential.model),
+            let responseID = ManagedOpenRouterModelID(rawValue: credential.responseModel),
             credential.apiKey.hasPrefix("sk-or-v1-"),
             let expiry = AIAccessPresentation.date(credential.expiresAt),
             let accessEnd = AIAccessPresentation.date(entitlement.accessUntil),
@@ -214,6 +214,7 @@ final class ProviderStore: ObservableObject {
                     localized:
                         "FrameReply returned an invalid AI credential."))
         }
+        let model = ManagedOpenRouterModel(requestID: requestID, responseID: responseID)
         guard !Task.isCancelled,
             consentStore.hasValidConsent(for: .frameReplyAI),
             activate || activePlatform == .frameReplyAI
@@ -345,7 +346,7 @@ final class ProviderStore: ObservableObject {
         return providers.filter {
             registry.profile(for: $0.platform, selectedTier: $0.tier) != nil
                 && ($0.platform != .frameReplyAI
-                    || ($0.managedModel?.isManagedOpenRouterModel == true
+                    || ($0.managedModel != nil
                         && $0.managedExpiresAt != nil))
         }
     }

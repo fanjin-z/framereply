@@ -36,13 +36,10 @@ struct ProviderCard: View {
                                 .foregroundStyle(FrameReplyColor.onSurface)
                                 .lineLimit(2)
 
-                            Text(
-                                provider.managedModel?.displayName
-                                    ?? provider.platform.modelSummary(for: provider.tier)
-                            )
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                            .lineLimit(1)
+                            Text(provider.platform.modelSummary(for: provider.tier))
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                                .lineLimit(1)
                         }
 
                         Spacer(minLength: 8)
