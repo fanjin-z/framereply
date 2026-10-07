@@ -28,7 +28,7 @@ struct SectionHeader<Trailing: View>: View {
                 .frame(width: 18)
 
             Text(title)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
                 .foregroundStyle(FrameReplyColor.primary)
                 .fixedSize(horizontal: false, vertical: true)
 

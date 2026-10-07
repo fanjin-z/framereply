@@ -11,7 +11,7 @@ struct ShortcutSetupSection: View {
             if showsHeader {
                 HStack(spacing: 12) {
                     Text("Shortcuts")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
                     Spacer()
@@ -20,7 +20,7 @@ struct ShortcutSetupSection: View {
                         isHowToUsePresented = true
                     } label: {
                         Label("How to Use", systemImage: "play.circle")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .font(.system(.footnote, design: .rounded, weight: .semibold))
                             .foregroundStyle(FrameReplyColor.primary)
                             .frame(minHeight: 44)
                     }
@@ -60,7 +60,7 @@ struct ShortcutSetupSection: View {
                         symbol: "hand.tap",
                         trailing: AnyView(
                             Text("Set Up")
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .font(.system(.footnote, design: .rounded, weight: .bold))
                                 .foregroundStyle(FrameReplyColor.primary)
                         )
                     )
@@ -71,7 +71,7 @@ struct ShortcutSetupSection: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color.white.opacity(0.46))
+                    .fill(FrameReplyColor.fieldSurface)
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
@@ -100,7 +100,7 @@ struct ShortcutSetupSection: View {
                     symbol: symbol,
                     trailing: AnyView(
                         Text("Add")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .font(.system(.footnote, design: .rounded, weight: .bold))
                             .foregroundStyle(FrameReplyColor.primary)
                     )
                 )
@@ -114,7 +114,7 @@ struct ShortcutSetupSection: View {
                 symbol: symbol,
                 trailing: AnyView(
                     Text("Unavailable")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .font(.system(.caption2, design: .rounded, weight: .semibold))
                         .foregroundStyle(FrameReplyColor.outline)
                 )
             )
@@ -135,10 +135,10 @@ struct ShortcutSetupSection: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
                     .foregroundStyle(FrameReplyColor.onSurface)
                 Text(subtitle)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(.system(.caption, design: .rounded, weight: .medium))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
             }
 

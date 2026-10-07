@@ -95,7 +95,7 @@ struct ConversationUpdateComposer: View {
                         ? LocalizedStringResource("Importing messages…")
                         : LocalizedStringResource("Add Messages")
                 )
-                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
             }
             .foregroundStyle(FrameReplyColor.primary)
             .padding(.horizontal, 16)
@@ -120,7 +120,7 @@ struct ConversationUpdateComposer: View {
                     text: limitedGuidance,
                     axis: .vertical
                 )
-                .font(.system(size: 15, weight: .regular, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .regular))
                 .foregroundStyle(FrameReplyColor.onSurface)
                 .lineLimit(1...3)
                 .submitLabel(.return)
@@ -158,7 +158,7 @@ struct ConversationUpdateComposer: View {
                     verbatim:
                         "\(replyGuidance.count)/\(DraftingInputLimits.maximumCharacterCount)"
                 )
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(.system(.caption2, design: .rounded, weight: .semibold))
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 .monospacedDigit()
                 .accessibilityLabel(
@@ -175,7 +175,7 @@ struct ConversationUpdateComposer: View {
             if isUpdatingReplies && hasGuidance {
                 ProgressView()
                     .tint(.white)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
                     .background {
                         Circle().fill(FrameReplyColor.deepNavy)
                     }
@@ -185,7 +185,7 @@ struct ConversationUpdateComposer: View {
                     Image(systemName: "sparkles")
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 44, height: 44)
                         .background {
                             Circle().fill(FrameReplyColor.deepNavy)
                         }
@@ -199,7 +199,7 @@ struct ConversationUpdateComposer: View {
                 Color.clear
             }
         }
-        .frame(width: 36, height: 36)
+        .frame(width: 44, height: 44)
         .allowsHitTesting(hasGuidance && !isUpdatingReplies)
         .contentTransition(.opacity)
         .scaleEffect(hasGuidance ? 1 : 0.82)

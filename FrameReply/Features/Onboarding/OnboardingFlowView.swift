@@ -169,7 +169,7 @@ struct OnboardingFlowView: View {
                 Button("Skip Setup") {
                     isSkipSetupPresented = true
                 }
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(.system(.caption, design: .rounded, weight: .semibold))
                 .foregroundStyle(.red)
                 .buttonStyle(.plain)
                 .frame(minHeight: 44)
@@ -192,7 +192,7 @@ struct OnboardingFlowView: View {
     private var providerStep: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Connect a Model Provider")
-                .font(.system(size: 30, weight: .bold, design: .rounded))
+                .font(.system(.title, design: .rounded, weight: .bold))
                 .foregroundStyle(FrameReplyColor.onSurface)
                 .accessibilityIdentifier("onboarding-provider-step")
 
@@ -209,7 +209,7 @@ struct OnboardingFlowView: View {
     private var personaStep: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Select Default Persona")
-                .font(.system(size: 30, weight: .bold, design: .rounded))
+                .font(.system(.title, design: .rounded, weight: .bold))
                 .foregroundStyle(FrameReplyColor.onSurface)
                 .accessibilityIdentifier("onboarding-persona-step")
 
@@ -231,27 +231,33 @@ struct OnboardingFlowView: View {
     }
 
     private var floatingCreatePersonaButton: some View {
-        CreatePersonaFloatingButton(accessibilityIdentifier: "onboarding-create-persona") {
+        Button {
             isCreatePersonaPresented = true
+        } label: {
+            Label("Create New Persona", systemImage: "plus")
+                .labelStyle(.iconOnly)
+                .frame(minWidth: 44, minHeight: 44)
         }
+        .buttonStyle(.glassProminent)
+        .accessibilityIdentifier("onboarding-create-persona")
     }
 
     private var shortcutsStep: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 7) {
                 Text("Shortcuts")
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .font(.system(.title, design: .rounded, weight: .bold))
                     .foregroundStyle(FrameReplyColor.onSurface)
                     .accessibilityIdentifier("onboarding-shortcuts-step")
                 Text("Import messages faster")
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .medium))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
                 Button {
                     isShortcutHowToPresented = true
                 } label: {
                     Label("See How It Works", systemImage: "play.circle")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .font(.system(.footnote, design: .rounded, weight: .semibold))
                         .foregroundStyle(FrameReplyColor.primary)
                         .frame(minHeight: 44)
                 }
@@ -266,13 +272,13 @@ struct OnboardingFlowView: View {
     private var continueToShortcutsButton: some View {
         Button(action: advanceToShortcuts) {
             Text("Continue")
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(.system(.body, design: .rounded, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 50)
                 .background {
                     Capsule(style: .continuous)
-                        .fill(FrameReplyColor.primary)
+                        .fill(FrameReplyColor.actionFill)
                         .opacity(confirmedPersonaID == nil ? 0.45 : 1)
                 }
         }
@@ -286,12 +292,12 @@ struct OnboardingFlowView: View {
             onComplete(providerStore.providers.isEmpty ? .settings : .chats)
         } label: {
             Text("Finish Setup")
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(.system(.body, design: .rounded, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 50)
                 .background {
-                    Capsule(style: .continuous).fill(FrameReplyColor.primary)
+                    Capsule(style: .continuous).fill(FrameReplyColor.actionFill)
                 }
         }
         .buttonStyle(SoftPressButtonStyle())

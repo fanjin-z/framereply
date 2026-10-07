@@ -31,66 +31,61 @@ struct FrameReplyShellView: View {
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            ZStack(alignment: .bottom) {
-                EtherealBackground()
-
-                EdgeSwipeTabPager(
-                    selectedTab: $selectedTab,
-                    isSwipeEnabled: navigationPath.isEmpty
-                ) { tab, isActive in
-                    switch tab {
-                    case .chats:
-                        ChatsView(
-                            isActive: isActive,
-                            providerStore: providerStore,
-                            chatRepository: chatRepository,
-                            personaRepository: personaRepository,
-                            onChatTap: { chat in
-                                navigationPath.append(.chatAssistant(chat.id))
-                            },
-                            onImportCompleted: { chatID in
-                                navigationPath.append(.chatAssistant(chatID))
-                            }
-                        )
-                    case .personas:
-                        PersonasView(
-                            repository: personaRepository,
-                            onPersonaTap: { personaID in
-                                navigationPath.append(.persona(personaID))
-                            }
-                        )
-                    case .settings:
-                        SettingsView(
-                            providerStore: providerStore,
-                            isActive: isActive,
-                            onPersonalInfoTap: {
-                                navigationPath.append(.personalInfo)
-                            },
-                            onPrivacyAndDataTap: {
-                                navigationPath.append(.privacyAndData)
-                            }
-                        )
-                    }
-                }
-                .ignoresSafeArea(.container, edges: .bottom)
-
-                VStack(spacing: 20) {
-                    if selectedTab == .personas {
-                        HStack {
-                            Spacer()
-                            floatingCreatePersonaButton
+            TabView(selection: $selectedTab) {
+                Tab(value: AppTab.chats) {
+                    ChatsView(
+                        isActive: selectedTab == .chats,
+                        providerStore: providerStore,
+                        chatRepository: chatRepository,
+                        personaRepository: personaRepository,
+                        onChatTap: { chat in
+                            navigationPath.append(.chatAssistant(chat.id))
+                        },
+                        onImportCompleted: { chatID in
+                            navigationPath.append(.chatAssistant(chatID))
                         }
-                        .padding(.horizontal, 24)
-                        .frame(maxWidth: 720)
-                        .frame(maxWidth: .infinity)
-                    }
-
-                    FloatingBottomNavigation(selectedTab: $selectedTab)
-                        .padding(.horizontal, 22)
+                    )
+                    .background { EtherealBackground() }
+                } label: {
+                    Label("Chats", systemImage: "bubble.left.and.bubble.right")
                 }
-                .padding(.bottom, 12)
+                .accessibilityIdentifier("app-tab-chats")
+
+                Tab(value: AppTab.personas) {
+                    PersonasView(
+                        repository: personaRepository,
+                        onCreate: {
+                            navigationPath.append(.newPersona)
+                        },
+                        onPersonaTap: { personaID in
+                            navigationPath.append(.persona(personaID))
+                        }
+                    )
+                    .background { EtherealBackground() }
+                } label: {
+                    Label("Personas", systemImage: "face.smiling")
+                }
+                .accessibilityIdentifier("app-tab-personas")
+
+                Tab(value: AppTab.settings) {
+                    SettingsView(
+                        providerStore: providerStore,
+                        isActive: selectedTab == .settings,
+                        onPersonalInfoTap: {
+                            navigationPath.append(.personalInfo)
+                        },
+                        onPrivacyAndDataTap: {
+                            navigationPath.append(.privacyAndData)
+                        }
+                    )
+                    .background { EtherealBackground() }
+                } label: {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .accessibilityIdentifier("app-tab-settings")
             }
-            .ignoresSafeArea(.keyboard, edges: .bottom)
+            .tabBarMinimizeBehavior(.never)
+            .toolbar(navigationPath.isEmpty ? .hidden : .visible, for: .navigationBar)
             .navigationDestination(for: FrameReplyRoute.self) { route in
                 switch route {
                 case .chatDetails(let chatID):
@@ -186,12 +181,6 @@ struct FrameReplyShellView: View {
             {
                 selectedTab = .settings
             }
-        }
-    }
-
-    private var floatingCreatePersonaButton: some View {
-        CreatePersonaFloatingButton {
-            navigationPath.append(.newPersona)
         }
     }
 

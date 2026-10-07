@@ -9,6 +9,11 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         XCTAssertTrue(continueButton.waitForExistence(timeout: 3))
         XCTAssertFalse(continueButton.isEnabled)
 
+        app.buttons["onboarding-create-persona"].tap()
+        XCTAssertTrue(app.navigationBars["New Persona"].waitForExistence(timeout: 3))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(element("onboarding-persona-step", in: app).waitForExistence(timeout: 3))
+
         let spark = element("onboarding-persona-card-spark", in: app)
         XCTAssertTrue(spark.waitForExistence(timeout: 3))
         spark.tap()
@@ -19,7 +24,7 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         app.buttons["finish-onboarding"].tap()
         XCTAssertTrue(element("chats-screen", in: app).waitForExistence(timeout: 5))
 
-        app.buttons["app-tab-personas"].tap()
+        app.tabBars.buttons["Personas"].tap()
         let persistedSpark = element("persona-card-spark", in: app)
         XCTAssertTrue(persistedSpark.waitForExistence(timeout: 3))
         XCTAssertEqual(persistedSpark.value as? String, "Default persona")
@@ -44,9 +49,9 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
 
     func testCriticalNavigationAndPrivacyControlsAreReachable() {
         let app = launchStandard()
-        let chats = app.buttons["app-tab-chats"]
-        let personas = app.buttons["app-tab-personas"]
-        let settings = app.buttons["app-tab-settings"]
+        let chats = app.tabBars.buttons["Chats"]
+        let personas = app.tabBars.buttons["Personas"]
+        let settings = app.tabBars.buttons["Settings"]
         XCTAssertTrue(chats.waitForExistence(timeout: 8))
 
         personas.tap()
@@ -57,6 +62,14 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         XCTAssertTrue(app.buttons["add-messages"].waitForExistence(timeout: 3))
 
         settings.tap()
+        app.buttons["add-provider-header"].tap()
+        XCTAssertTrue(app.secureTextFields["provider-api-key"].waitForExistence(timeout: 3))
+        app.secureTextFields["provider-api-key"].tap()
+        app.secureTextFields["provider-api-key"].typeText("synthetic-unsaved-key")
+        app.buttons["close-add-provider"].tap()
+        XCTAssertTrue(element("settings-screen", in: app).waitForExistence(timeout: 3))
+        XCTAssertFalse(app.secureTextFields["provider-api-key"].exists)
+
         let privacyAndData = app.buttons["privacy-and-data"]
         XCTAssertTrue(scrollUntilHittable(privacyAndData, swiping: app.swipeUp))
         privacyAndData.tap()
@@ -73,7 +86,7 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
     func testShortcutGuidesAreReachableFromSettings() {
         let app = launchShowcase()
 
-        app.buttons["app-tab-settings"].tap()
+        app.tabBars.buttons["Settings"].tap()
 
         let howTo = app.buttons["shortcut-how-to"]
         XCTAssertTrue(scrollUntilHittable(howTo, swiping: app.swipeUp))

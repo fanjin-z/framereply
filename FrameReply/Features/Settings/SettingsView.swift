@@ -15,68 +15,70 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @State private var isAddProviderPresented = false
     @State private var isProviderConnectionInProgress = false
-    @State private var isKeyboardPresented = false
     @State private var providerToRemove: ProviderConnection?
     @State private var providerRemovalError: String?
     @State private var isLanguageSettingsErrorPresented = false
 
     var body: some View {
-        ZStack {
-            providerList
-
-            if isAddProviderPresented {
-                addProviderPopup
+        providerList
+            .sheet(isPresented: $isAddProviderPresented) {
+                NavigationStack {
+                    ScrollView {
+                        ProviderConnectionView(
+                            providerStore: providerStore,
+                            isConnectionInProgress: $isProviderConnectionInProgress,
+                            title: nil,
+                            onConnected: dismissAddProviderAfterConnection,
+                            onCancel: nil
+                        )
+                        .padding(16)
+                        .frame(maxWidth: 560)
+                        .frame(maxWidth: .infinity)
+                    }
+                    .background(FrameReplyColor.surface)
+                    .navigationTitle("Add Provider")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel", action: dismissAddProvider)
+                                .disabled(isProviderConnectionInProgress)
+                                .accessibilityIdentifier("close-add-provider")
+                        }
+                    }
+                }
+                .presentationDetents([.large])
+                .interactiveDismissDisabled(isProviderConnectionInProgress)
             }
-        }
-        .onChange(of: isActive) { _, isActive in
-            if isActive == false {
-                dismissAddProviderForTabChange()
+            .confirmationDialog(
+                removeProviderTitle,
+                isPresented: Binding(
+                    get: { providerToRemove != nil },
+                    set: { if $0 == false { providerToRemove = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    removeSelectedProvider()
+                }
+            } message: {
+                Text(removeProviderMessage)
             }
-        }
-        .onReceive(
-            NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
-        ) { _ in
-            withAnimation(.easeOut(duration: 0.25)) {
-                isKeyboardPresented = true
+            .alert(
+                "Couldn’t Remove Provider",
+                isPresented: Binding(
+                    get: { providerRemovalError != nil },
+                    set: { if $0 == false { providerRemovalError = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(providerRemovalError ?? "")
             }
-        }
-        .onReceive(
-            NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
-        ) { _ in
-            withAnimation(.easeOut(duration: 0.25)) {
-                isKeyboardPresented = false
+            .alert("Couldn’t Open Settings", isPresented: $isLanguageSettingsErrorPresented) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Open Settings > Apps > FrameReply > Language to choose the app language.")
             }
-        }
-        .confirmationDialog(
-            removeProviderTitle,
-            isPresented: Binding(
-                get: { providerToRemove != nil },
-                set: { if $0 == false { providerToRemove = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Delete", role: .destructive) {
-                removeSelectedProvider()
-            }
-        } message: {
-            Text(removeProviderMessage)
-        }
-        .alert(
-            "Couldn’t Remove Provider",
-            isPresented: Binding(
-                get: { providerRemovalError != nil },
-                set: { if $0 == false { providerRemovalError = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(providerRemovalError ?? "")
-        }
-        .alert("Couldn’t Open Settings", isPresented: $isLanguageSettingsErrorPresented) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Open Settings > Apps > FrameReply > Language to choose the app language.")
-        }
     }
 
     private var providerList: some View {
@@ -89,7 +91,7 @@ struct SettingsView: View {
             }
             .padding(.top, 20)
             .padding(.horizontal, 16)
-            .padding(.bottom, 110)
+            .padding(.bottom, 24)
             .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
@@ -104,7 +106,7 @@ struct SettingsView: View {
                     presentAddProvider()
                 } label: {
                     Label("Add", systemImage: "plus")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         .foregroundStyle(FrameReplyColor.primary)
                         .frame(minHeight: 44)
                 }
@@ -137,11 +139,11 @@ struct SettingsView: View {
 
                         VStack(alignment: .leading, spacing: 5) {
                             Text("Add model provider")
-                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .font(.system(.subheadline, design: .rounded, weight: .semibold))
                                 .foregroundStyle(FrameReplyColor.onSurface)
 
                             Text("Connect OpenAI or a supported vision provider.")
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .font(.system(.caption, design: .rounded, weight: .medium))
                                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                         }
 
@@ -183,58 +185,18 @@ struct SettingsView: View {
         }
     }
 
-    private var addProviderPopup: some View {
-        ZStack(alignment: isKeyboardPresented ? .top : .center) {
-            Color.black.opacity(0.24)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    dismissAddProvider()
-                }
-
-            ProviderConnectionView(
-                providerStore: providerStore,
-                isConnectionInProgress: $isProviderConnectionInProgress,
-                title: "Add Provider",
-                onConnected: dismissAddProviderAfterConnection,
-                onCancel: dismissAddProvider
-            )
-            .frame(maxWidth: 560)
-            .padding(.horizontal, 24)
-            .padding(.top, isKeyboardPresented ? 12 : 0)
-            .transition(.scale(scale: 0.96).combined(with: .opacity))
-        }
-        .zIndex(10)
-    }
-
     private func presentAddProvider() {
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-            isAddProviderPresented = true
-        }
+        isAddProviderPresented = true
     }
 
     private func dismissAddProvider() {
-        guard isProviderConnectionInProgress == false else {
-            return
-        }
-
+        guard !isProviderConnectionInProgress else { return }
         KeyboardDismissal.dismiss()
-        withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
-            isAddProviderPresented = false
-        }
-    }
-
-    private func dismissAddProviderForTabChange() {
-        guard isAddProviderPresented else {
-            return
-        }
-
         isAddProviderPresented = false
     }
 
     private func dismissAddProviderAfterConnection() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
-            isAddProviderPresented = false
-        }
+        isAddProviderPresented = false
     }
 
     private var removeProviderTitle: LocalizedStringResource {
@@ -326,10 +288,10 @@ struct SettingsView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
                     .foregroundStyle(FrameReplyColor.onSurface)
                 Text(subtitle)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(.system(.caption, design: .rounded, weight: .medium))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
             }
 
@@ -378,7 +340,7 @@ struct SettingsView: View {
     ) -> some View {
         HStack(spacing: 12) {
             Text(title)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .semibold))
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
             Spacer()
@@ -403,7 +365,7 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.white.opacity(0.46))
+                .fill(FrameReplyColor.fieldSurface)
         }
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }

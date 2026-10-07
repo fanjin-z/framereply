@@ -54,60 +54,47 @@ struct ChatHistorySheet: View {
     }
 
     var body: some View {
-        ZStack {
-            EtherealBackground()
+        NavigationStack {
+            ZStack {
+                EtherealBackground()
 
-            VStack(alignment: .leading, spacing: 18) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Chat History")
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundStyle(FrameReplyColor.onSurface)
+                VStack(alignment: .leading, spacing: 18) {
+                    Text(chat.name)
+                        .font(.subheadline)
+                        .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
-                        Text(chat.name)
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                    SearchField(text: $searchText)
+
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            ForEach(filteredMessages) { message in
+                                ChatMessageBubble(message: message)
+                            }
+
+                            if filteredMessages.isEmpty {
+                                EmptySearchState()
+                            }
+                        }
+                        .padding(.vertical, 4)
                     }
-
-                    Spacer()
-
-                    Button {
+                    .defaultScrollAnchor(.bottom, for: .initialOffset)
+                    .scrollIndicators(.hidden)
+                }
+                .padding(24)
+                .frame(maxWidth: 720, alignment: .leading)
+                .frame(maxWidth: .infinity)
+            }
+            .navigationTitle("Chat History")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close chat history", systemImage: "xmark") {
                         KeyboardDismissal.dismiss()
                         dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(FrameReplyColor.primary)
-                            .frame(width: 38, height: 38)
-                            .background {
-                                Circle()
-                                    .fill(Color.white.opacity(0.72))
-                            }
                     }
-                    .buttonStyle(SoftPressButtonStyle())
-                    .accessibilityLabel("Close chat history")
+                    .accessibilityIdentifier("close-chat-history")
                 }
-
-                SearchField(text: $searchText)
-
-                ScrollView {
-                    VStack(spacing: 12) {
-                        ForEach(filteredMessages) { message in
-                            ChatMessageBubble(message: message)
-                        }
-
-                        if filteredMessages.isEmpty {
-                            EmptySearchState()
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-                .defaultScrollAnchor(.bottom, for: .initialOffset)
-                .scrollIndicators(.hidden)
             }
-            .padding(24)
-            .frame(maxWidth: 720, alignment: .leading)
-            .frame(maxWidth: .infinity)
         }
         .presentationDetents([.medium, .large], selection: $selectedDetent)
         .presentationDragIndicator(.visible)

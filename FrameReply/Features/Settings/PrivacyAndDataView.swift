@@ -71,7 +71,7 @@ struct PrivacyAndDataView: View {
                 isDeleteAllConfirmationPresented = true
             }
             .accessibilityIdentifier("delete-all-local-data")
-            .font(.system(size: 14, weight: .bold, design: .rounded))
+            .font(.system(.subheadline, design: .rounded, weight: .bold))
         }
     }
 
@@ -84,7 +84,7 @@ struct PrivacyAndDataView: View {
                     .font(.system(size: 11, weight: .bold))
             }
         }
-        .font(.system(size: 13, weight: .bold, design: .rounded))
+        .font(.system(.footnote, design: .rounded, weight: .bold))
     }
 
     private func settingsPanel<Content: View>(
@@ -94,13 +94,13 @@ struct PrivacyAndDataView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Label(title, systemImage: symbol)
-                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .font(.system(.body, design: .rounded, weight: .bold))
                 .foregroundStyle(FrameReplyColor.primary)
             content()
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.42))
+        .background(FrameReplyColor.fieldSurface)
     }
 
     private func deleteAllLocalData() {

@@ -884,6 +884,7 @@
       }
     },
     "Back" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -904,6 +905,7 @@
       }
     },
     "Back to chat assistant" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -914,6 +916,7 @@
       }
     },
     "Back to chats" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1877,6 +1880,7 @@
       }
     },
     "Current Goal Editor" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1907,6 +1911,7 @@
       }
     },
     "Current tab" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -5065,6 +5070,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "回复风格"
+          }
+        }
+      }
+    },
+    "Persona actions for %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 的人设操作"
           }
         }
       }

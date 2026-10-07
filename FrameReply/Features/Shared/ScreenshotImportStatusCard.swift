@@ -18,7 +18,7 @@ struct ScreenshotImportStatusCard: View {
             }
 
             Text(message)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.system(.footnote, design: .rounded, weight: .semibold))
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -26,7 +26,7 @@ struct ScreenshotImportStatusCard: View {
 
             if let onCancel {
                 Button("Cancel", role: .cancel, action: onCancel)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.system(.footnote, design: .rounded, weight: .bold))
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.capsule)
                     .accessibilityHint(

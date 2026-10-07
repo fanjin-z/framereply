@@ -83,15 +83,15 @@ struct BackTapGuideView: View {
                 .frame(width: 36, height: 36)
                 .background {
                     RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .fill(Color.white.opacity(0.56))
+                        .fill(FrameReplyColor.fieldSurface)
                 }
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("FrameReply Images")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
                     .foregroundStyle(FrameReplyColor.onSurface)
                 Text("Required for Back Tap setup")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(.system(.caption, design: .rounded, weight: .medium))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
@@ -153,7 +153,7 @@ struct BackTapGuideView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.white.opacity(0.46))
+                .fill(FrameReplyColor.fieldSurface)
         }
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
@@ -166,11 +166,11 @@ struct BackTapGuideView: View {
     ) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Text(verbatim: "\(number)")
-                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .font(.system(.caption, design: .rounded, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(width: 28, height: 28)
                 .background {
-                    Circle().fill(FrameReplyColor.primary)
+                    Circle().fill(FrameReplyColor.actionFill)
                 }
 
             VStack(alignment: .leading, spacing: 3) {
@@ -180,7 +180,7 @@ struct BackTapGuideView: View {
 
                 if let detail {
                     Text(detail)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .font(.system(.caption, design: .rounded, weight: .medium))
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -210,7 +210,7 @@ struct BackTapGuideView: View {
 
     private var tutorialLanguageNote: some View {
         Text("The demonstration uses an English system interface.")
-            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .font(.system(.caption2, design: .rounded, weight: .medium))
             .foregroundStyle(FrameReplyColor.onSurfaceVariant)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("back-tap-tutorial-language-note")

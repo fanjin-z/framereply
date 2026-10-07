@@ -105,9 +105,9 @@ private final class TrailingCopyTextView: UIView {
         textView.backgroundColor = .clear
         textView.textContainerInset = .zero
         textView.isEditable = false
-        textView.isSelectable = false
+        textView.isSelectable = true
         textView.isScrollEnabled = false
-        textView.isUserInteractionEnabled = false
+        textView.isUserInteractionEnabled = true
         textView.isAccessibilityElement = true
         textView.accessibilityTraits = .staticText
 

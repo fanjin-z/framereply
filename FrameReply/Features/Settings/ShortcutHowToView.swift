@@ -132,7 +132,7 @@ struct ShortcutHowToView: View {
 
     private var tutorialLanguageNote: some View {
         Text("The demonstration uses an English system interface.")
-            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .font(.system(.caption2, design: .rounded, weight: .medium))
             .foregroundStyle(FrameReplyColor.onSurfaceVariant)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("shortcut-tutorial-language-note")
@@ -141,7 +141,7 @@ struct ShortcutHowToView: View {
     private var quickSteps: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Quick steps")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
                 .foregroundStyle(FrameReplyColor.onSurface)
 
             VStack(spacing: 0) {
@@ -162,7 +162,7 @@ struct ShortcutHowToView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color.white.opacity(0.46))
+                    .fill(FrameReplyColor.fieldSurface)
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .accessibilityIdentifier("shortcut-how-to-steps")
@@ -177,7 +177,7 @@ struct ShortcutHowToView: View {
             stepBadge(number)
 
             Text(text)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.system(.footnote, design: .rounded, weight: .semibold))
                 .foregroundStyle(FrameReplyColor.onSurface)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -223,10 +223,10 @@ struct ShortcutHowToView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(route.title)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(.caption, design: .rounded, weight: .bold))
 
                 Text(route.instruction)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(.system(.caption, design: .rounded, weight: .medium))
                     .fixedSize(horizontal: false, vertical: true)
             }
             .foregroundStyle(FrameReplyColor.onSurface)
@@ -239,7 +239,7 @@ struct ShortcutHowToView: View {
 
     private func stepBadge(_ number: Int) -> some View {
         Text(verbatim: "\(number)")
-            .font(.system(size: 11, weight: .bold, design: .rounded))
+            .font(.system(.caption2, design: .rounded, weight: .bold))
             .foregroundStyle(FrameReplyColor.primary)
             .frame(width: 24, height: 24)
             .background {
@@ -259,7 +259,7 @@ struct ShortcutHowToView: View {
                 .font(.system(size: 13, weight: .semibold))
 
             Text(text)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(.system(.caption, design: .rounded, weight: .semibold))
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: 0)
@@ -280,7 +280,7 @@ struct ShortcutHowToView: View {
             "Use Reply copies it. Paste it in your chat.",
             systemImage: "doc.on.doc"
         )
-        .font(.system(size: 12, weight: .semibold, design: .rounded))
+        .font(.system(.caption, design: .rounded, weight: .semibold))
         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
         .fixedSize(horizontal: false, vertical: true)
         .accessibilityIdentifier("shortcut-use-reply-note")

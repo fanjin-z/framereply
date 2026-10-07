@@ -41,14 +41,14 @@ struct ProviderDataSharingDetailsView: View {
                         )
 
                         Text("Only share content you have permission to use.")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .font(.system(.footnote, design: .rounded, weight: .semibold))
                             .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
                         Link(
                             "Provider Privacy Policy",
                             destination: disclosure.privacyPolicyURL
                         )
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
                     }
                     .padding(24)
                     .frame(maxWidth: 640, alignment: .leading)
@@ -71,10 +71,10 @@ struct ProviderDataSharingDetailsView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
                 .foregroundStyle(FrameReplyColor.onSurface)
             Text(text)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(.system(.footnote, design: .rounded, weight: .medium))
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -86,10 +86,10 @@ struct ProviderDataSharingDetailsView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
                 .foregroundStyle(FrameReplyColor.onSurface)
             Text(verbatim: verbatimText)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(.system(.footnote, design: .rounded, weight: .medium))
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 .fixedSize(horizontal: false, vertical: true)
         }

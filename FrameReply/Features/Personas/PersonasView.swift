@@ -3,6 +3,7 @@ import SwiftUI
 
 struct PersonasView: View {
     private let repository: PersonaRepository
+    let onCreate: () -> Void
     let onPersonaTap: (UUID) -> Void
     @Query(sort: \PersonaRecord.createdAt) private var records: [PersonaRecord]
     @State private var personaToDelete: PersonaRecord?
@@ -12,15 +13,26 @@ struct PersonasView: View {
 
     init(
         repository: PersonaRepository,
+        onCreate: @escaping () -> Void,
         onPersonaTap: @escaping (UUID) -> Void
     ) {
         self.repository = repository
+        self.onCreate = onCreate
         self.onPersonaTap = onPersonaTap
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Spacer()
+                    Button("Create New Persona", systemImage: "plus", action: onCreate)
+                        .buttonStyle(.glass)
+                        .controlSize(.large)
+                        .accessibilityIdentifier("create-persona")
+                }
+                .padding(.top, 14)
+
                 VStack(spacing: 16) {
                     ForEach(records) { record in
                         PersonaCard(
@@ -36,10 +48,9 @@ struct PersonasView: View {
                         .accessibilityIdentifier(personaCardIdentifier(record))
                     }
                 }
-                .padding(.top, 14)
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 162)
+            .padding(.bottom, 24)
             .frame(maxWidth: 720, alignment: .leading).frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
@@ -126,40 +137,5 @@ struct PersonasView: View {
         } catch {
             defaultPersonaError = error.localizedDescription
         }
-    }
-}
-
-struct CreatePersonaFloatingButton: View {
-    let accessibilityIdentifier: String
-    let action: () -> Void
-
-    init(
-        accessibilityIdentifier: String = "Create New Persona",
-        action: @escaping () -> Void
-    ) {
-        self.accessibilityIdentifier = accessibilityIdentifier
-        self.action = action
-    }
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "plus")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 48, height: 48)
-                .background {
-                    Circle()
-                        .fill(FrameReplyColor.primary)
-                        .shadow(
-                            color: FrameReplyColor.primaryContainer.opacity(0.18),
-                            radius: 10,
-                            x: 0,
-                            y: 6
-                        )
-                }
-        }
-        .buttonStyle(SoftPressButtonStyle())
-        .accessibilityLabel("Create New Persona")
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }

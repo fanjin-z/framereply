@@ -22,7 +22,7 @@ struct ProviderCard: View {
                 } label: {
                     HStack(spacing: 12) {
                         Circle()
-                            .fill(Color.white.opacity(0.72))
+                            .fill(FrameReplyColor.fieldSurface)
                             .frame(width: 32, height: 32)
                             .overlay {
                                 Image(systemName: provider.symbolName)
@@ -32,12 +32,12 @@ struct ProviderCard: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(provider.name)
-                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                .font(.system(.body, design: .rounded, weight: .semibold))
                                 .foregroundStyle(FrameReplyColor.onSurface)
                                 .lineLimit(2)
 
                             Text(provider.platform.modelSummary(for: provider.tier))
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .font(.system(.caption, design: .rounded, weight: .medium))
                                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                                 .lineLimit(1)
                         }

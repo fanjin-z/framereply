@@ -13,14 +13,14 @@ struct ChatContextField: View {
         ZStack(alignment: .leading) {
             if text.isEmpty {
                 Text(placeholder)
-                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                    .font(.system(.body, design: .rounded, weight: .regular))
                     .foregroundStyle(FrameReplyColor.outline)
                     .padding(.horizontal, 16)
                     .allowsHitTesting(false)
             }
 
             TextField("", text: $text)
-                .font(.system(size: 16, weight: .regular, design: .rounded))
+                .font(.system(.body, design: .rounded, weight: .regular))
                 .foregroundStyle(FrameReplyColor.onSurface)
                 .lineLimit(1)
                 .submitLabel(.done)
@@ -34,7 +34,7 @@ struct ChatContextField: View {
                 .fill(FrameReplyColor.secondaryContainer.opacity(0.28))
                 .overlay {
                     Capsule(style: .continuous)
-                        .stroke(Color.white.opacity(0.36), lineWidth: 1)
+                        .stroke(FrameReplyColor.outlineVariant, lineWidth: 1)
                 }
         }
     }

@@ -46,10 +46,10 @@ struct RecentChatSection: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color.white.opacity(0.48))
+                        .fill(FrameReplyColor.fieldSurface)
                         .overlay {
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                                .stroke(FrameReplyColor.fieldSurface, lineWidth: 1)
                         }
                 }
                 .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -124,7 +124,7 @@ private struct CompactChatMessageBubble: View {
             return FrameReplyColor.surfaceVariant.opacity(0.9)
         }
         return message.isFromUser
-            ? FrameReplyColor.primaryFixed.opacity(0.72) : Color.white.opacity(0.82)
+            ? FrameReplyColor.primaryFixed.opacity(0.72) : FrameReplyColor.fieldSurface
     }
 }
 

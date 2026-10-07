@@ -13,7 +13,7 @@ struct PickerField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             Text(title)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
                 .foregroundStyle(FrameReplyColor.onSurface)
 
             Menu {
@@ -25,7 +25,7 @@ struct PickerField: View {
             } label: {
                 HStack {
                     Text(verbatim: selection)
-                        .font(.system(size: 16, weight: .regular, design: .rounded))
+                        .font(.system(.body, design: .rounded, weight: .regular))
                         .foregroundStyle(FrameReplyColor.onSurface)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -39,8 +39,8 @@ struct PickerField: View {
                 .padding(.horizontal, 18)
                 .frame(minHeight: 50)
                 .background {
-                    RoundedRectangle(cornerRadius: 0)
-                        .fill(Color.white.opacity(0.56))
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(FrameReplyColor.fieldSurface)
                 }
             }
             .buttonStyle(.plain)

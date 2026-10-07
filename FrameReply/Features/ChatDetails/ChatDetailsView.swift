@@ -10,7 +10,6 @@ struct ChatDetailsView: View {
     let chat: Chat
     private let repository: ChatRepository
 
-    @Environment(\.dismiss) private var dismiss
     @Query private var chatRecords: [ChatRecord]
     @Query private var chatContextRecords: [ChatContextRecord]
     @Query private var memoryRecords: [ChatMemoryRecord]
@@ -88,14 +87,11 @@ struct ChatDetailsView: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
+            .coordinatedSwipeActions()
             .accessibilityIdentifier("chat-details-screen")
         }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            backControl
-        }
-        .interactiveSwipeBackEnabled()
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle(Text(verbatim: displayedChat.name))
+        .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(
             "Forget these names for this chat?",
             isPresented: $isForgetIdentityConfirmationPresented,
@@ -113,24 +109,6 @@ struct ChatDetailsView: View {
         } message: {
             Text(verbatim: errorMessage ?? String(localized: AppStrings.Common.tryAgain))
         }
-    }
-
-    private var backControl: some View {
-        HStack {
-            FrameReplyTopBarBackButton(
-                accessibilityLabel: "Back to chat assistant"
-            ) {
-                KeyboardDismissal.dismiss()
-                dismiss()
-            }
-            .accessibilityIdentifier("chat-details-back")
-
-            Spacer()
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 2)
-        .frame(maxWidth: 720)
-        .frame(maxWidth: .infinity)
     }
 
     private var selfAliasesSection: some View {

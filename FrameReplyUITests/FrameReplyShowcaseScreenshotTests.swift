@@ -38,16 +38,45 @@ final class FrameReplyShowcaseScreenshotTests: FrameReplyUITestCase {
     }
 
     func test03ReplyBrief() {
-        let app = launchShowcase()
+        let app = launchShowcase(contentSizeCategory: "UICTContentSizeCategoryAccessibilityXXXL")
         openMaya(in: app)
         let replyBrief = element("reply-brief-summary", in: app)
         XCTAssertTrue(replyBrief.waitForExistence(timeout: 5))
         let goal = app.buttons["reply-brief-goal"]
-        XCTAssertTrue(goal.waitForExistence(timeout: 3))
-        goal.tap()
-        XCTAssertTrue(element("reply-goal-dialog", in: app).waitForExistence(timeout: 3))
-        XCTAssertTrue(element("reply-brief-goal-input", in: app).waitForExistence(timeout: 3))
+        let input = element("reply-brief-goal-input", in: app)
+        func openGoalEditor() {
+            // System hit testing can include content under a floating bar on iOS 26.
+            let content = element("chat-assistant-screen", in: app)
+            let composer = app.buttons["assistant-add-messages"]
+            for _ in 0..<5 {
+                let top = app.navigationBars.firstMatch.frame.maxY
+                let bottom = composer.frame.minY
+                if goal.frame.minY >= top && goal.frame.maxY < bottom { break }
+                let moveUp = goal.frame.maxY >= bottom
+                content.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: moveUp ? 0.5 : 0.2))
+                    .press(
+                        forDuration: 0.05,
+                        thenDragTo: content.coordinate(
+                            withNormalizedOffset: CGVector(dx: 0.5, dy: moveUp ? 0.15 : 0.5)))
+            }
+            XCTAssertTrue(goal.isHittable)
+            goal.tap()
+            XCTAssertTrue(input.waitForExistence(timeout: 3))
+        }
+        openGoalEditor()
+        let originalGoal = input.value as? String ?? ""
+        input.tap()
+        input.typeText(" Draft")
         capture("03-reply-brief")
+        app.buttons["reply-goal-cancel"].tap()
+        openGoalEditor()
+        XCTAssertEqual(input.value as? String, originalGoal)
+        input.tap()
+        input.typeText(" Saved")
+        let savedGoal = input.value as? String
+        app.buttons["reply-goal-save"].tap()
+        openGoalEditor()
+        XCTAssertEqual(input.value as? String, savedGoal)
     }
 
     func test04Chats() {
@@ -59,7 +88,7 @@ final class FrameReplyShowcaseScreenshotTests: FrameReplyUITestCase {
 
     func test05Personas() {
         let app = launchShowcase()
-        let personasTab = app.buttons["app-tab-personas"]
+        let personasTab = app.tabBars.buttons["Personas"]
         XCTAssertTrue(personasTab.waitForExistence(timeout: 5))
         personasTab.tap()
 
@@ -80,6 +109,20 @@ final class FrameReplyShowcaseScreenshotTests: FrameReplyUITestCase {
         XCTAssertTrue(element("strategy-rationale-card", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("chat-memory-card", in: app).waitForExistence(timeout: 3))
         capture("06-context-and-rationale")
+
+        let memoryID = "20000000-0000-4000-8000-000000000001"
+        let memory = element("chat-memory-row-\(memoryID)", in: app)
+        XCTAssertTrue(scrollUntilHittable(memory, swiping: app.swipeUp))
+        memory.swipeLeft()
+        let deleteMemory = app.buttons["chat-memory-delete-\(memoryID)"]
+        XCTAssertTrue(deleteMemory.waitForExistence(timeout: 3))
+        deleteMemory.tap()
+        XCTAssertTrue(element("chat-memory-empty-state", in: app).waitForExistence(timeout: 3))
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(element("chat-assistant-screen", in: app).waitForExistence(timeout: 3))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(element("chats-screen", in: app).waitForExistence(timeout: 3))
     }
 
     private func capture(_ name: String) {

@@ -17,7 +17,7 @@ struct EmptySearchState: View {
             Image(systemName: systemImage)
                 .font(.system(size: 30, weight: .light))
             Text(title)
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .font(.system(.body, design: .rounded, weight: .semibold))
 
             if let actionTitle, let onAction {
                 Button(action: onAction) {
@@ -26,7 +26,7 @@ struct EmptySearchState: View {
                     } icon: {
                         Image(systemName: "photo.on.rectangle.angled")
                     }
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isLoading)

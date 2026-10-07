@@ -15,10 +15,10 @@ struct SearchField: View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(FrameReplyColor.outlineVariant)
+                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
             TextField("Search chats...", text: $text)
-                .font(.system(size: 17, weight: .regular, design: .rounded))
+                .font(.system(.body, design: .rounded, weight: .regular))
                 .foregroundStyle(FrameReplyColor.onSurface)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -33,7 +33,7 @@ struct SearchField: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(FrameReplyColor.outlineVariant)
+                        .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
@@ -48,11 +48,7 @@ struct SearchField: View {
         .frame(minHeight: 46)
         .background {
             Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay {
-                    Capsule(style: .continuous)
-                        .fill(Color.white.opacity(0.46))
-                }
+                .fill(FrameReplyColor.fieldSurface)
                 .overlay {
                     Capsule(style: .continuous)
                         .stroke(
@@ -60,12 +56,6 @@ struct SearchField: View {
                             lineWidth: 1
                         )
                 }
-                .shadow(
-                    color: FrameReplyColor.primaryContainer.opacity(0.08),
-                    radius: 12,
-                    x: 0,
-                    y: 6
-                )
         }
         .onChange(of: isActive) { _, isActive in
             if isActive == false {

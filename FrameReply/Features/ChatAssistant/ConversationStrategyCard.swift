@@ -13,7 +13,7 @@ struct ConversationStrategyCard: View {
             SectionHeader(symbolName: "wand.and.stars", title: "Conversation Strategy")
 
             Text(conversationStrategy)
-                .font(.system(size: 15, weight: .regular, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .regular))
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)

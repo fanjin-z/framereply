@@ -60,7 +60,7 @@ struct AddProviderCard: View {
                 HStack(alignment: .top, spacing: 16) {
                     if let title {
                         Text(title)
-                            .font(.system(size: 21, weight: .bold, design: .rounded))
+                            .font(.system(.title3, design: .rounded, weight: .bold))
                             .foregroundStyle(FrameReplyColor.onSurface)
                     }
 
@@ -71,10 +71,10 @@ struct AddProviderCard: View {
                             Image(systemName: "xmark")
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                                .frame(width: 34, height: 34)
+                                .frame(width: 44, height: 44)
                                 .background {
                                     Circle()
-                                        .fill(Color.white.opacity(0.58))
+                                        .fill(FrameReplyColor.fieldSurface)
                                 }
                         }
                         .buttonStyle(.plain)
@@ -91,7 +91,7 @@ struct AddProviderCard: View {
 
                 VStack(alignment: .leading, spacing: 7) {
                     Text("API Key")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .font(.system(.subheadline, design: .rounded, weight: .medium))
                         .foregroundStyle(FrameReplyColor.onSurface)
 
                     HStack {
@@ -102,7 +102,7 @@ struct AddProviderCard: View {
                                 SecureField("Enter API key", text: $apiKey)
                             }
                         }
-                        .font(.system(size: 16, weight: .regular, design: .monospaced))
+                        .font(.system(.body, design: .monospaced, weight: .regular))
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .textContentType(.password)
@@ -116,7 +116,7 @@ struct AddProviderCard: View {
                             Image(systemName: isAPIKeyVisible ? "eye.slash" : "eye")
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                                .frame(width: 30, height: 30)
+                                .frame(width: 44, height: 44)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(
@@ -128,12 +128,12 @@ struct AddProviderCard: View {
                     .padding(.horizontal, 18)
                     .frame(minHeight: 46)
                     .background {
-                        RoundedRectangle(cornerRadius: 0)
-                            .fill(Color.white.opacity(0.56))
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(FrameReplyColor.fieldSurface)
                     }
 
                     Label("Stored securely on this device.", systemImage: "lock.fill")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .font(.system(.caption2, design: .rounded, weight: .medium))
                         .foregroundStyle(FrameReplyColor.outline)
                 }
 
@@ -141,7 +141,7 @@ struct AddProviderCard: View {
                     Button("Data Sharing Details", systemImage: "info.circle") {
                         onShowDataSharingDetails()
                     }
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(.caption, design: .rounded, weight: .bold))
                     .accessibilityIdentifier("provider-data-sharing-details")
                 }
 
@@ -150,7 +150,7 @@ struct AddProviderCard: View {
                         Image(systemName: inlineMessage.symbolName)
                             .font(.system(size: 13, weight: .bold))
                         inlineMessage.text
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .font(.system(.footnote, design: .rounded, weight: .semibold))
                             .lineSpacing(2)
                     }
                     .foregroundStyle(inlineMessage.tint)
@@ -174,13 +174,13 @@ struct AddProviderCard: View {
                                 : LocalizedStringResource("Connect")
                         )
                     }
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 28)
                     .frame(minHeight: 44)
                     .background {
                         Capsule(style: .continuous)
-                            .fill(FrameReplyColor.primary)
+                            .fill(FrameReplyColor.actionFill)
                     }
                 }
                 .buttonStyle(SoftPressButtonStyle())
@@ -197,7 +197,7 @@ struct AddProviderCard: View {
     private var providerMenu: some View {
         VStack(alignment: .leading, spacing: 7) {
             Text("Provider")
-                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
                 .foregroundStyle(FrameReplyColor.onSurface)
 
             Menu {
@@ -223,7 +223,7 @@ struct AddProviderCard: View {
                             Text("Select provider")
                         }
                     }
-                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                    .font(.system(.body, design: .rounded, weight: .regular))
                     .foregroundStyle(
                         selectedPlatform == nil
                             ? FrameReplyColor.outline : FrameReplyColor.onSurface)
@@ -237,8 +237,8 @@ struct AddProviderCard: View {
                 .padding(.horizontal, 18)
                 .frame(minHeight: 46)
                 .background {
-                    RoundedRectangle(cornerRadius: 0)
-                        .fill(Color.white.opacity(0.56))
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(FrameReplyColor.fieldSurface)
                 }
             }
             .buttonStyle(.plain)
@@ -251,7 +251,7 @@ struct AddProviderCard: View {
 
         return VStack(alignment: .leading, spacing: 7) {
             Text("Performance")
-                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
                 .foregroundStyle(FrameReplyColor.onSurface)
 
             Menu {
@@ -279,14 +279,14 @@ struct AddProviderCard: View {
                                 Text("Select performance")
                             }
                         }
-                        .font(.system(size: 16, weight: .regular, design: .rounded))
+                        .font(.system(.body, design: .rounded, weight: .regular))
                         .foregroundStyle(
                             selectedTier == nil
                                 ? FrameReplyColor.outline : FrameReplyColor.onSurface)
 
                         if let selectedPlatform, let selectedTier {
                             Text(selectedPlatform.modelSummary(for: selectedTier))
-                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                .font(.system(.caption2, design: .monospaced, weight: .semibold))
                                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                                 .lineLimit(1)
                         }
@@ -301,8 +301,9 @@ struct AddProviderCard: View {
                 .padding(.horizontal, 18)
                 .frame(minHeight: 50)
                 .background {
-                    RoundedRectangle(cornerRadius: 0)
-                        .fill(Color.white.opacity(selectedPlatform == nil ? 0.34 : 0.56))
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(
+                            FrameReplyColor.fieldSurface.opacity(selectedPlatform == nil ? 0.6 : 1))
                 }
             }
             .buttonStyle(.plain)

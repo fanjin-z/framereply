@@ -44,7 +44,7 @@ struct PersonaCard: View {
                     }
 
                 Text(persona.name)
-                    .font(.system(size: 21, weight: .bold, design: .rounded))
+                    .font(.system(.title3, design: .rounded, weight: .bold))
                     .foregroundStyle(FrameReplyColor.onSurface)
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
@@ -77,21 +77,22 @@ struct PersonaCard: View {
                             .font(.system(size: 20, weight: .bold))
                             .rotationEffect(.degrees(90))
                             .foregroundStyle(FrameReplyColor.outline)
-                            .frame(width: 36, height: 36)
+                            .frame(width: 44, height: 44)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Persona actions for \(persona.name)")
                 }
             }
 
             Text(persona.summary)
-                .font(.system(size: 15, weight: .regular, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .regular))
                 .lineSpacing(2)
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant.opacity(0.86))
                 .lineLimit(2)
 
             if persona.learningEnabled {
                 Label("Learning on \(usageCount) chats", systemImage: "sparkles")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
                     .foregroundStyle(FrameReplyColor.outline)
             }
         }

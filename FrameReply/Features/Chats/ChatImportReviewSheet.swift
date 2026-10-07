@@ -480,7 +480,7 @@ private struct ImportReviewSectionHeader: View {
 
     var body: some View {
         Text(title)
-            .font(.system(size: 13, weight: .bold, design: .rounded))
+            .font(.system(.footnote, design: .rounded, weight: .bold))
             .foregroundStyle(FrameReplyColor.onSurfaceVariant)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -496,20 +496,20 @@ private struct UnknownSenderReviewCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Who sent this?")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
                     .foregroundStyle(FrameReplyColor.onSurface)
 
                 Spacer(minLength: 8)
 
                 Text(chatName)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
             }
 
             Text(message.text)
-                .font(.system(size: 14, design: .rounded))
+                .font(.system(.subheadline, design: .rounded))
                 .foregroundStyle(FrameReplyColor.onSurface)
                 .lineLimit(2)
 
@@ -548,14 +548,14 @@ private struct ParticipantIdentityReviewCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(question)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
                     .foregroundStyle(FrameReplyColor.onSurface)
                     .lineLimit(2)
 
                 Spacer(minLength: 8)
 
                 Text("Chat: \(reviewGroup.chatName)")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
@@ -606,7 +606,7 @@ private struct ParticipantIdentityReviewCard: View {
             }
 
             Button("Review messages individually", action: onReviewIndividually)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(.system(.caption, design: .rounded, weight: .semibold))
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 44)
@@ -653,20 +653,20 @@ private struct IdentityChoiceRow: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 title
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
                     .foregroundStyle(titleColor)
                     .lineLimit(1)
 
                 if isRememberedAlias {
                     Text("Used as your name before")
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .font(.system(.caption2, design: .rounded, weight: .semibold))
                         .foregroundStyle(FrameReplyColor.primary)
                         .lineLimit(1)
                 }
 
                 if let sampleMessage {
                     Text(sampleMessage)
-                        .font(.system(size: 12, design: .rounded))
+                        .font(.system(.caption, design: .rounded))
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                         .lineLimit(1)
                 }
@@ -676,14 +676,14 @@ private struct IdentityChoiceRow: View {
             VStack(alignment: .trailing, spacing: 5) {
                 if let messageCount {
                     Text(messageCountText(messageCount))
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .font(.system(.caption2, design: .rounded, weight: .semibold))
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                         .lineLimit(1)
                 }
 
                 if let actionTitle {
                     Label(actionTitle, systemImage: systemImage)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(.caption, design: .rounded, weight: .bold))
                         .foregroundStyle(FrameReplyColor.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.76)
@@ -752,11 +752,11 @@ private struct ConversationKindReviewCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title, systemImage: "person.2.fill")
-                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
                 .foregroundStyle(FrameReplyColor.onSurface)
 
             Text(message)
-                .font(.system(size: 13, design: .rounded))
+                .font(.system(.footnote, design: .rounded))
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
             HStack(spacing: 10) {
@@ -845,11 +845,11 @@ private struct ImportReviewCard: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Imported chat")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .font(.system(.footnote, design: .rounded, weight: .bold))
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
                     TextField("Chat name", text: $name)
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         .foregroundStyle(FrameReplyColor.onSurface)
                         .submitLabel(.done)
                         .onSubmit { KeyboardDismissal.dismiss() }
@@ -857,7 +857,7 @@ private struct ImportReviewCard: View {
             }
 
             Text(verbatim: chat.displayPreview())
-                .font(.system(size: 14, design: .rounded))
+                .font(.system(.subheadline, design: .rounded))
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 .lineLimit(1)
 
@@ -867,7 +867,7 @@ private struct ImportReviewCard: View {
                         onMerge(chat.id, suggestedCandidate.id)
                     } label: {
                         Text("Merge into \(mergeLabel(suggestedCandidate))")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .font(.system(.footnote, design: .rounded, weight: .bold))
                             .foregroundStyle(.white)
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
@@ -875,7 +875,7 @@ private struct ImportReviewCard: View {
                             .frame(minHeight: 36)
                             .background {
                                 Capsule(style: .continuous)
-                                    .fill(FrameReplyColor.primary)
+                                    .fill(FrameReplyColor.actionFill)
                             }
                     }
                     .buttonStyle(SoftPressButtonStyle())
@@ -935,7 +935,7 @@ private struct ImportReviewCard: View {
                     ? LocalizedStringResource("Keep")
                     : LocalizedStringResource("Keep Separate")
             )
-            .font(.system(size: 13, weight: .bold, design: .rounded))
+            .font(.system(.footnote, design: .rounded, weight: .bold))
             .foregroundStyle(prominent ? Color.white : FrameReplyColor.primary)
             .lineLimit(1)
             .minimumScaleFactor(0.78)
@@ -945,7 +945,7 @@ private struct ImportReviewCard: View {
                 Capsule(style: .continuous)
                     .fill(
                         prominent
-                            ? FrameReplyColor.primary
+                            ? FrameReplyColor.actionFill
                             : FrameReplyColor.secondaryContainer.opacity(0.46)
                     )
             }
@@ -967,7 +967,7 @@ private struct ImportReviewCard: View {
             }
         } label: {
             Text(title)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(.footnote, design: .rounded, weight: .bold))
                 .foregroundStyle(FrameReplyColor.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
@@ -999,7 +999,7 @@ private struct SenderChoiceChip: View {
     var body: some View {
         Button(action: action) {
             title
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(.footnote, design: .rounded, weight: .bold))
                 .foregroundStyle(FrameReplyColor.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)

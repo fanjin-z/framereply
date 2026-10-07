@@ -6,10 +6,12 @@
 import SwiftUI
 
 struct SoftPressButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
             .animation(
-                .spring(response: 0.22, dampingFraction: 0.78), value: configuration.isPressed)
+                reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.78),
+                value: configuration.isPressed)
     }
 }

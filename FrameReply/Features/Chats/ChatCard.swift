@@ -64,7 +64,7 @@ struct ChatCard: View {
 
     private var activityLabel: some View {
         Text(activityText)
-            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .font(.system(.caption, design: .rounded, weight: .semibold))
             .foregroundStyle(FrameReplyColor.outline)
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)

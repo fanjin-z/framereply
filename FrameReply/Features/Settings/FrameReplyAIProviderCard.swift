@@ -29,7 +29,7 @@ struct FrameReplyAIProviderCard: View {
                     .frame(width: 32)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("FrameReply AI")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .font(.system(.body, design: .rounded, weight: .semibold))
                     Text("AI replies, ready to go.")
                         .font(.footnote)
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant)

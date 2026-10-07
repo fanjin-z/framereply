@@ -54,7 +54,7 @@ struct ReplyBriefSummaryCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color.white.opacity(0.46))
+                    .fill(FrameReplyColor.fieldSurface)
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .accessibilityElement(children: .contain)
@@ -117,11 +117,11 @@ struct ReplyBriefSummaryCard: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .font(.system(.caption2, design: .rounded, weight: .semibold))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
                 Text(value)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
                     .foregroundStyle(FrameReplyColor.onSurface)
                     .lineLimit(1)
             }
@@ -139,98 +139,44 @@ struct ReplyBriefSummaryCard: View {
 
 }
 
-struct ReplyGoalDialog: View {
+struct ReplyGoalSheet: View {
     @Binding var goalDraft: String
     let onCancel: () -> Void
     let onSave: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @FocusState private var isGoalFocused: Bool
 
     var body: some View {
-        ZStack {
-            Color.black.opacity(0.24)
-                .ignoresSafeArea()
-                .onTapGesture(perform: onCancel)
-
-            Color.clear
-                .frame(width: 1, height: 1)
-                .accessibilityElement()
-                .accessibilityLabel("Current Goal Editor")
-                .accessibilityIdentifier("reply-goal-dialog")
-
-            VStack {
-                Spacer(minLength: 20)
-                dialogCard
-                    .frame(maxWidth: 560)
-                Spacer(minLength: 20)
+        NavigationStack {
+            Form {
+                TextField(
+                    "e.g. Agree on a time for dinner…",
+                    text: limitedGoal,
+                    axis: .vertical
+                )
+                .font(.body)
+                .lineLimit(3...8)
+                .focused($isGoalFocused)
+                .accessibilityLabel("Current Goal")
+                .accessibilityIdentifier("reply-brief-goal-input")
             }
-            .padding(.horizontal, 20)
+            .navigationTitle("Current Goal")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
+                        .accessibilityIdentifier("reply-goal-cancel")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: onSave)
+                        .accessibilityIdentifier("reply-goal-save")
+                }
+            }
+            .accessibilityIdentifier("reply-goal-dialog")
         }
-        .accessibilityAddTraits(.isModal)
-        .onAppear {
-            Task { @MainActor in
-                isGoalFocused = true
-            }
-        }
-    }
-
-    private var dialogCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Label("Current Goal", systemImage: "target")
-                .font(.system(.title3, design: .rounded, weight: .bold))
-                .foregroundStyle(FrameReplyColor.onSurface)
-
-            TextField(
-                "e.g. Agree on a time for dinner…",
-                text: limitedGoal,
-                axis: .vertical
-            )
-            .font(.system(size: 17, weight: .regular, design: .rounded))
-            .foregroundStyle(FrameReplyColor.onSurface)
-            .lineLimit(3...5)
-            .submitLabel(.done)
-            .focused($isGoalFocused)
-            .onSubmit(onSave)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
-            .background {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(FrameReplyColor.secondaryContainer.opacity(0.28))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Color.white.opacity(0.46), lineWidth: 1)
-                    }
-            }
-            .accessibilityLabel("Current Goal")
-            .accessibilityIdentifier("reply-brief-goal-input")
-
-            HStack(spacing: 10) {
-                Button("Cancel", action: onCancel)
-                    .font(.system(.subheadline, design: .rounded, weight: .bold))
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background {
-                        Capsule(style: .continuous)
-                            .fill(FrameReplyColor.secondaryContainer.opacity(0.38))
-                    }
-                    .buttonStyle(SoftPressButtonStyle())
-                    .accessibilityIdentifier("reply-goal-cancel")
-
-                Button("Save", action: onSave)
-                    .font(.system(.subheadline, design: .rounded, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background {
-                        Capsule(style: .continuous)
-                            .fill(FrameReplyColor.primary)
-                    }
-                    .buttonStyle(SoftPressButtonStyle())
-                    .accessibilityIdentifier("reply-goal-save")
-            }
-        }
-        .padding(20)
-        .glassPanel(cornerRadius: 24)
+        .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.medium, .large])
+        .task { isGoalFocused = true }
     }
 
     private var limitedGoal: Binding<String> {

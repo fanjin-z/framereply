@@ -424,14 +424,13 @@ struct ChatAssistantView: View {
                     .zIndex(1)
             }
         }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            ChatAssistantTopBar(
+        .navigationTitle(Text(verbatim: displayedChat.name))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ChatAssistantToolbar(
                 chat: displayedChat,
                 isDirectChat: isDirectChat,
                 isManagementDisabled: isManagementDisabled,
-                onBackTap: {
-                    dismiss()
-                },
                 onDetailsTap: onDetailsTap,
                 onEditNamesTap: presentNameEditor,
                 onConversationTypeTap: updateConversationType,
@@ -439,33 +438,24 @@ struct ChatAssistantView: View {
             )
         }
         .safeAreaBar(edge: .bottom, spacing: 0) {
-            if !isGoalEditorPresented {
-                ConversationUpdateComposer(
-                    replyGuidance: $replyGuidance,
-                    isGuidanceFocused: $isReplyGuidanceFocused,
-                    isImporting: importModel.isLoading,
-                    isUpdatingReplies: suggestedRepliesModel.isLoading,
-                    onAddMessagesTap: {
-                        isImportSourcePresented = true
-                    },
-                    onSubmitGuidance: submitReplyGuidance
-                )
-            }
+            ConversationUpdateComposer(
+                replyGuidance: $replyGuidance,
+                isGuidanceFocused: $isReplyGuidanceFocused,
+                isImporting: importModel.isLoading,
+                isUpdatingReplies: suggestedRepliesModel.isLoading,
+                onAddMessagesTap: {
+                    isImportSourcePresented = true
+                },
+                onSubmitGuidance: submitReplyGuidance
+            )
         }
-        .overlay {
-            if isGoalEditorPresented {
-                ReplyGoalDialog(
-                    goalDraft: $goalEditorDraft,
-                    onCancel: dismissGoalEditor,
-                    onSave: saveGoalEditor
-                )
-                .transition(.opacity.combined(with: .scale(scale: 0.98)))
-                .zIndex(10)
-            }
+        .sheet(isPresented: $isGoalEditorPresented) {
+            ReplyGoalSheet(
+                goalDraft: $goalEditorDraft,
+                onCancel: dismissGoalEditor,
+                onSave: saveGoalEditor
+            )
         }
-        .interactiveSwipeBackEnabled()
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $isHistoryPresented) {
             ChatHistorySheet(
                 chat: displayedChat,
@@ -876,17 +866,13 @@ struct ChatAssistantView: View {
     private func presentGoalEditor() {
         goalEditorDraft = goalDraft
         isReplyGuidanceFocused = false
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
-            isGoalEditorPresented = true
-        }
+        isGoalEditorPresented = true
     }
 
     private func dismissGoalEditor() {
         KeyboardDismissal.dismiss()
         goalEditorDraft = goalDraft
-        withAnimation(.spring(response: 0.26, dampingFraction: 0.9)) {
-            isGoalEditorPresented = false
-        }
+        isGoalEditorPresented = false
     }
 
     private func saveGoalEditor() {
@@ -902,9 +888,7 @@ struct ChatAssistantView: View {
                 )
             }
             KeyboardDismissal.dismiss()
-            withAnimation(.spring(response: 0.26, dampingFraction: 0.9)) {
-                isGoalEditorPresented = false
-            }
+            isGoalEditorPresented = false
         } catch {
             actionErrorMessage = error.localizedDescription
         }
@@ -1000,14 +984,14 @@ private struct ChatAssistantNoticeRow: View {
             .frame(width: 20)
 
             Text(message)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.system(.footnote, design: .rounded, weight: .semibold))
                 .foregroundStyle(FrameReplyColor.onSurface)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             if let actionTitle, let onAction {
                 Button(actionTitle, action: onAction)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.system(.footnote, design: .rounded, weight: .bold))
                     .foregroundStyle(FrameReplyColor.primary)
                     .frame(minHeight: 44)
                     .buttonStyle(.plain)
@@ -1052,7 +1036,7 @@ private struct ChatImportReviewCard: View {
                 .foregroundStyle(FrameReplyColor.primary.opacity(0.88))
 
             Text(nudgeText)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .semibold))
                 .foregroundStyle(FrameReplyColor.onSurface)
                 .lineLimit(1)
                 .minimumScaleFactor(0.82)
@@ -1060,7 +1044,7 @@ private struct ChatImportReviewCard: View {
             Spacer(minLength: 6)
 
             Button(primaryActionTitle, action: primaryAction)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(.footnote, design: .rounded, weight: .bold))
                 .foregroundStyle(FrameReplyColor.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.82)

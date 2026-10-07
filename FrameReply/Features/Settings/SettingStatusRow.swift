@@ -12,13 +12,13 @@ struct SettingStatusRow<Value: View>: View {
     var body: some View {
         HStack {
             Text(title)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
             Spacer()
 
             value
-                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
                 .foregroundStyle(FrameReplyColor.primary)
         }
     }

@@ -162,7 +162,7 @@ private struct BackTapTutorialFallbackView: View {
                     Image(systemName: step.0)
                         .font(.system(size: 18, weight: .semibold))
                     Text(step.1)
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(.caption2, design: .rounded, weight: .bold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 }

@@ -45,7 +45,7 @@ struct SuggestedRepliesSection: View {
                                 : (replies.isEmpty ? "Generate Replies" : "Update Replies"),
                             systemImage: "sparkles"
                         )
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .font(.system(.footnote, design: .rounded, weight: .bold))
                         .foregroundStyle(FrameReplyColor.primary)
                     }
                     .buttonStyle(.plain)
@@ -57,7 +57,7 @@ struct SuggestedRepliesSection: View {
                 HStack(spacing: 12) {
                     ProgressView()
                     Text("Creating replies from this conversation…")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 }
                 .padding(14)
@@ -66,11 +66,11 @@ struct SuggestedRepliesSection: View {
             } else if let errorMessage, replies.isEmpty && !hasNoReplyRecommendation {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(errorMessage)
-                        .font(.system(size: 15, weight: .regular, design: .rounded))
+                        .font(.system(.subheadline, design: .rounded, weight: .regular))
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
 
                     Button("Try Again", action: onRetry)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
                         .buttonStyle(.borderedProminent)
                 }
                 .padding(14)
@@ -78,7 +78,7 @@ struct SuggestedRepliesSection: View {
                 .glassPanel(cornerRadius: 18)
             } else if let noReplyState {
                 Text(noReplyState.sectionMessage)
-                    .font(.system(size: 15, weight: .regular, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .regular))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -86,15 +86,15 @@ struct SuggestedRepliesSection: View {
 
                 if isLoading {
                     ProgressView("Refreshing replies…")
-                        .font(.system(size: 13, design: .rounded))
+                        .font(.system(.footnote, design: .rounded))
                 } else if let errorMessage {
                     Text(errorMessage)
-                        .font(.system(size: 13, design: .rounded))
+                        .font(.system(.footnote, design: .rounded))
                         .foregroundStyle(FrameReplyColor.peach)
                 }
             } else if replies.isEmpty {
                 Text("Generate replies when you’re ready.")
-                    .font(.system(size: 15, weight: .regular, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .regular))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -115,10 +115,10 @@ struct SuggestedRepliesSection: View {
 
                 if isLoading {
                     ProgressView("Refreshing replies…")
-                        .font(.system(size: 13, design: .rounded))
+                        .font(.system(.footnote, design: .rounded))
                 } else if let errorMessage {
                     Text(errorMessage)
-                        .font(.system(size: 13, design: .rounded))
+                        .font(.system(.footnote, design: .rounded))
                         .foregroundStyle(FrameReplyColor.peach)
                 }
             }

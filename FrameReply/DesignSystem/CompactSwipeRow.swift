@@ -39,14 +39,34 @@ struct CompactSwipeRow<Content: View>: View {
         self.content = content()
     }
 
+    @ViewBuilder
     var body: some View {
+        if #available(iOS 27, *) {
+            content
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive, action: onAction) {
+                        Label(actionTitle, systemImage: actionSystemImage)
+                    }
+                    .tint(actionTint)
+                    .accessibilityIdentifier(actionAccessibilityIdentifier)
+                } onPresentationChanged: { isPresented in
+                    if isPresented { onReveal() } else { onClose() }
+                }
+        } else {
+            legacyRow
+        }
+    }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var legacyRow: some View {
         ZStack(alignment: .trailing) {
             Button(role: .destructive, action: onAction) {
                 VStack(spacing: 3) {
                     Image(systemName: actionSystemImage)
                         .font(.system(size: 16, weight: .semibold))
                     Text(actionTitle)
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .font(.system(.caption2, design: .rounded, weight: .semibold))
                 }
                 .foregroundStyle(.white)
                 .frame(width: actionWidth)
@@ -78,7 +98,7 @@ struct CompactSwipeRow<Content: View>: View {
         }
         .background(FrameReplyColor.surfaceContainerLow)
         .contentShape(Rectangle())
-        .animation(.snappy(duration: 0.2), value: isRevealed)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: isRevealed)
     }
 
     private var isActionVisible: Bool {
@@ -108,6 +128,15 @@ struct CompactSwipeRow<Content: View>: View {
 }
 
 extension View {
+    @ViewBuilder
+    func coordinatedSwipeActions() -> some View {
+        if #available(iOS 27, *) {
+            swipeActionsContainer()
+        } else {
+            self
+        }
+    }
+
     func compactSwipeRowSurface(showsSeparator: Bool) -> some View {
         background(FrameReplyColor.surfaceContainerLow)
             .overlay(alignment: .bottom) {

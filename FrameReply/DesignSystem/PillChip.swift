@@ -17,7 +17,7 @@ struct PillChip: View {
                     .font(.system(size: 10, weight: .semibold))
             }
             Text(title)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(.system(.caption2, design: .rounded, weight: .semibold))
                 .tracking(0.3)
                 .fixedSize(horizontal: false, vertical: true)
         }

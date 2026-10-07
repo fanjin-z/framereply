@@ -6,7 +6,6 @@ struct PersonaDetailView: View {
     @ObservedObject var providerStore: ProviderStore
     private let chatRepository: ChatRepository
     private let personaRepository: PersonaRepository
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var personas: [PersonaRecord]
     @Query private var observations: [PersonaObservationRecord]
@@ -55,37 +54,26 @@ struct PersonaDetailView: View {
                     .frame(maxWidth: 720).frame(maxWidth: .infinity)
                 }
                 .scrollIndicators(.hidden)
+                .coordinatedSwipeActions()
                 .accessibilityIdentifier("persona-detail-screen")
             }
         }
-        .safeAreaInset(edge: .top, spacing: 0) { topBar }
+        .navigationTitle(Text(verbatim: personas.first?.name ?? ""))
+        .navigationBarTitleDisplayMode(.inline)
         .task { defaultPersonaID = try? personaRepository.defaultPersonaID() }
-        .interactiveSwipeBackEnabled().navigationBarBackButtonHidden(true).toolbar(
-            .hidden, for: .navigationBar)
-    }
-
-    private var topBar: some View {
-        FrameReplyTopBar {
-            HStack(spacing: 12) {
-                FrameReplyTopBarBackButton(accessibilityLabel: "Back") {
-                    KeyboardDismissal.dismiss()
-                    dismiss()
-                }
-
-                Spacer()
-
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
                 if defaultPersonaID == personaID {
                     Label("Default", systemImage: "checkmark.circle.fill")
-                        .font(.caption.bold())
+                        .font(.subheadline)
+                        .foregroundStyle(FrameReplyColor.primary)
                 } else {
                     Button("Set as Default") {
                         try? personaRepository.setDefaultPersona(id: personaID)
                         defaultPersonaID = personaID
                     }
-                    .font(.caption.bold())
                 }
             }
-            .foregroundStyle(FrameReplyColor.primary)
         }
     }
 
@@ -97,13 +85,13 @@ struct PersonaDetailView: View {
                         persona.value.accent))
             VStack(alignment: .leading, spacing: 8) {
                 TextField("e.g. Work Mode", text: binding(persona, \.name))
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(.system(.title2, design: .rounded, weight: .bold))
                 TextField(
                     "e.g. Concise, polished replies for work conversations.",
                     text: binding(persona, \.summary), axis: .vertical
                 )
                 Label("\(assignments.count) chats", systemImage: "message")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(
+                    .font(.system(.caption, design: .rounded, weight: .semibold)).foregroundStyle(
                         FrameReplyColor.outline)
             }
         }.padding(22).frame(maxWidth: .infinity, alignment: .leading).glassPanel(cornerRadius: 28)
@@ -197,7 +185,7 @@ struct PersonaDetailView: View {
                 observationMetadata(observation)
 
                 TextField("Observation", text: $observationDraft, axis: .vertical)
-                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .regular))
                     .foregroundStyle(FrameReplyColor.onSurface)
                     .accessibilityIdentifier(
                         "persona-observation-editor-\(observation.id.uuidString)"
@@ -219,7 +207,7 @@ struct PersonaDetailView: View {
                     )
                     .frame(minWidth: 72, minHeight: 44)
                 }
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(.footnote, design: .rounded, weight: .bold))
             }
             .padding(.horizontal, 22)
             .padding(.vertical, 10)
@@ -249,7 +237,7 @@ struct PersonaDetailView: View {
                         observationMetadata(observation)
 
                         Text(verbatim: observation.localizedText)
-                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                            .font(.system(.subheadline, design: .rounded, weight: .regular))
                             .foregroundStyle(FrameReplyColor.onSurface)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
@@ -298,13 +286,13 @@ struct PersonaDetailView: View {
                 sourceLabel(observation),
                 systemImage: observation.isUserProtected ? "lock.fill" : "sparkles"
             )
-            .font(.system(size: 10, weight: .semibold, design: .rounded))
+            .font(.system(.caption2, design: .rounded, weight: .semibold))
             .foregroundStyle(FrameReplyColor.outline)
 
             Spacer()
 
             Text(observation.updatedAt, style: .date)
-                .font(.system(size: 10, weight: .regular, design: .rounded))
+                .font(.system(.caption2, design: .rounded, weight: .regular))
                 .foregroundStyle(FrameReplyColor.outline)
         }
     }

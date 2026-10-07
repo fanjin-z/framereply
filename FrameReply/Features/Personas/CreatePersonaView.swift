@@ -7,7 +7,6 @@ struct CreatePersonaView: View {
     private let personaRepository: PersonaRepository
     let onCreated: (PersonaRecord) -> Void
 
-    @Environment(\.dismiss) private var dismiss
     @Query(sort: \PersonaRecord.createdAt) private var personas: [PersonaRecord]
     @Query private var storedObservations: [PersonaObservationRecord]
     @State private var name = ""
@@ -51,28 +50,10 @@ struct CreatePersonaView: View {
             }
             .scrollIndicators(.hidden)
         }
-        .safeAreaInset(edge: .top, spacing: 0) { topBar }
-        .safeAreaInset(edge: .bottom, spacing: 0) { creationBar }
-        .interactiveSwipeBackEnabled()
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
-    }
-
-    private var topBar: some View {
-        FrameReplyTopBar {
-            HStack(spacing: 12) {
-                FrameReplyTopBarBackButton(accessibilityLabel: "Back") {
-                    KeyboardDismissal.dismiss()
-                    dismiss()
-                }
-
-                Text("New Persona")
-                    .font(.system(size: 19, weight: .semibold, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurface)
-
-                Spacer()
-            }
-        }
+        .safeAreaBar(edge: .bottom, spacing: 0) { creationBar }
+        .navigationTitle("New Persona")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
     }
 
     private var basicsSection: some View {
@@ -207,20 +188,18 @@ struct CreatePersonaView: View {
                             : LocalizedStringResource("Create Persona")
                     )
                 }
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .font(.system(.body, design: .rounded, weight: .bold))
                 .frame(maxWidth: .infinity)
-                .frame(minHeight: 52)
-                .background(Capsule().fill(FrameReplyColor.primary))
+                .padding(.vertical, 8)
             }
-            .buttonStyle(SoftPressButtonStyle())
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
+            .tint(FrameReplyColor.actionFill)
             .disabled(trimmedName.isEmpty || isCreating || hasInvalidExampleCount)
         }
         .padding(.horizontal, 24)
         .padding(.top, 12)
         .padding(.bottom, 10)
-        .background(.ultraThinMaterial)
-        .overlay(alignment: .top) { Divider().opacity(0.35) }
     }
 
     private var fieldBackground: some ShapeStyle {

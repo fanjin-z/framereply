@@ -10,73 +10,86 @@ struct ChatImportSourceSheet: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        ZStack {
-            EtherealBackground()
+        NavigationStack {
+            ZStack {
+                EtherealBackground()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    header
-                    draftingInputEditor
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 22) {
+                        Text("Import recent conversation messages.")
+                            .font(.subheadline)
+                            .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                        draftingInputEditor
 
-                    VStack(spacing: 0) {
-                        ImportSourceRow(
-                            title: "Chat screenshots",
-                            detail: "Select up to 8 images",
-                            symbolName: "photo.on.rectangle.angled"
-                        ) {
-                            PhotosPicker(
-                                selection: $screenshotSelection,
-                                maxSelectionCount: 8,
-                                matching: .images
+                        VStack(spacing: 0) {
+                            ImportSourceRow(
+                                title: "Chat screenshots",
+                                detail: "Select up to 8 images",
+                                symbolName: "photo.on.rectangle.angled"
                             ) {
-                                Label("Choose", systemImage: "photo")
+                                PhotosPicker(
+                                    selection: $screenshotSelection,
+                                    maxSelectionCount: 8,
+                                    matching: .images
+                                ) {
+                                    Label("Choose", systemImage: "photo")
+                                }
+                                .buttonStyle(.bordered)
+                                .buttonSizing(.flexible)
+                                .buttonBorderShape(.capsule)
+                                .controlSize(.large)
+                                .tint(FrameReplyColor.primary)
+                                .frame(minHeight: 44)
+                                .accessibilityLabel("Choose Screenshots")
+                                .accessibilityHint(
+                                    "Opens the photo library to select up to eight chat screenshots."
+                                )
+                                .accessibilityIdentifier("choose-screenshots")
                             }
-                            .buttonStyle(.bordered)
-                            .buttonSizing(.flexible)
-                            .buttonBorderShape(.capsule)
-                            .controlSize(.large)
-                            .tint(FrameReplyColor.primary)
-                            .frame(height: 44)
-                            .accessibilityLabel("Choose Screenshots")
-                            .accessibilityHint(
-                                "Opens the photo library to select up to eight chat screenshots."
-                            )
-                            .accessibilityIdentifier("choose-screenshots")
-                        }
 
-                        Divider()
-                            .overlay(FrameReplyColor.outlineVariant.opacity(0.42))
-                            .padding(.leading, 74)
+                            Divider()
+                                .overlay(FrameReplyColor.outlineVariant.opacity(0.42))
+                                .padding(.leading, 74)
 
-                        ImportSourceRow(
-                            title: "Copied text",
-                            detail: "Import text from your clipboard",
-                            symbolName: "doc.on.clipboard"
-                        ) {
-                            PasteButton(payloadType: String.self) { items in
-                                dismiss()
-                                onPaste(items)
+                            ImportSourceRow(
+                                title: "Copied text",
+                                detail: "Import text from your clipboard",
+                                symbolName: "doc.on.clipboard"
+                            ) {
+                                PasteButton(payloadType: String.self) { items in
+                                    dismiss()
+                                    onPaste(items)
+                                }
+                                .buttonStyle(.bordered)
+                                .buttonSizing(.flexible)
+                                .buttonBorderShape(.capsule)
+                                .controlSize(.large)
+                                .tint(FrameReplyColor.primary)
+                                .frame(minHeight: 44)
+                                .accessibilityLabel("Paste Copied Text")
+                                .accessibilityHint(
+                                    "Imports all compatible text items from the clipboard."
+                                )
+                                .accessibilityIdentifier("paste-copied-messages")
                             }
-                            .buttonStyle(.bordered)
-                            .buttonSizing(.flexible)
-                            .buttonBorderShape(.capsule)
-                            .controlSize(.large)
-                            .tint(FrameReplyColor.primary)
-                            .frame(height: 44)
-                            .accessibilityLabel("Paste Copied Text")
-                            .accessibilityHint(
-                                "Imports all compatible text items from the clipboard."
-                            )
-                            .accessibilityIdentifier("paste-copied-messages")
                         }
+                        .glassPanel(cornerRadius: 22)
                     }
-                    .glassPanel(cornerRadius: 22)
+                    .padding(24)
+                    .frame(maxWidth: 720, alignment: .leading)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(24)
-                .frame(maxWidth: 720, alignment: .leading)
-                .frame(maxWidth: .infinity)
+                .scrollIndicators(.hidden)
             }
-            .scrollIndicators(.hidden)
+            .navigationTitle("Add Messages")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close", systemImage: "xmark") { dismiss() }
+                        .accessibilityHint("Closes Add Messages.")
+                        .accessibilityIdentifier("close-add-messages")
+                }
+            }
         }
         .accessibilityIdentifier("add-messages-screen")
         .presentationDetents(sheetDetents)
@@ -85,7 +98,7 @@ struct ChatImportSourceSheet: View {
 
     private var sheetDetents: Set<PresentationDetent> {
         if dynamicTypeSize.isAccessibilitySize {
-            return [.medium, .large]
+            return [.large]
         }
         return [.medium, .large]
     }
@@ -94,7 +107,7 @@ struct ChatImportSourceSheet: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Reply Guidance")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
                     .foregroundStyle(FrameReplyColor.onSurface)
 
                 Spacer(minLength: 12)
@@ -103,7 +116,7 @@ struct ChatImportSourceSheet: View {
                     Text(
                         "\(draftingInput.count)/\(DraftingInputLimits.maximumCharacterCount)"
                     )
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                     .monospacedDigit()
                     .accessibilityLabel(
@@ -116,7 +129,7 @@ struct ChatImportSourceSheet: View {
             ZStack(alignment: .topLeading) {
                 if draftingInput.isEmpty {
                     Text("Add reply guidance…")
-                        .font(.system(size: 15, design: .rounded))
+                        .font(.system(.subheadline, design: .rounded))
                         .foregroundStyle(FrameReplyColor.onSurfaceVariant.opacity(0.72))
                         .padding(.horizontal, 5)
                         .padding(.vertical, 8)
@@ -124,10 +137,10 @@ struct ChatImportSourceSheet: View {
                 }
 
                 TextEditor(text: limitedDraftingInput)
-                    .font(.system(size: 15, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurface)
                     .scrollContentBackground(.hidden)
-                    .frame(minHeight: 84, maxHeight: 112)
+                    .frame(minHeight: dynamicTypeSize.isAccessibilitySize ? 160 : 84)
                     .accessibilityLabel("Reply Guidance")
                     .accessibilityHint(
                         "One-use context, direction, tone, or a rough draft for the next replies."
@@ -137,7 +150,7 @@ struct ChatImportSourceSheet: View {
             .padding(10)
             .background {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color.white.opacity(0.58))
+                    .fill(FrameReplyColor.fieldSurface)
                     .overlay {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .stroke(
@@ -163,39 +176,6 @@ struct ChatImportSourceSheet: View {
         )
     }
 
-    private var header: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Add Messages")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurface)
-
-                Text("Import recent conversation messages.")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 8)
-
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(FrameReplyColor.primary)
-                    .frame(width: 38, height: 38)
-                    .background {
-                        Circle()
-                            .fill(Color.white.opacity(0.72))
-                    }
-            }
-            .buttonStyle(SoftPressButtonStyle())
-            .accessibilityLabel("Close")
-            .accessibilityHint("Closes Add Messages.")
-            .accessibilityIdentifier("close-add-messages")
-        }
-    }
 }
 
 private struct ImportSourceRow<Action: View>: View {
@@ -203,6 +183,7 @@ private struct ImportSourceRow<Action: View>: View {
     let detail: LocalizedStringResource
     let symbolName: String
     private let action: Action
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     init(
         title: LocalizedStringResource,
@@ -217,7 +198,11 @@ private struct ImportSourceRow<Action: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 14) {
+        let layout =
+            dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(spacing: 14))
+        layout {
             ZStack {
                 Circle()
                     .fill(FrameReplyColor.secondaryContainer.opacity(0.58))
@@ -230,17 +215,19 @@ private struct ImportSourceRow<Action: View>: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
                     .foregroundStyle(FrameReplyColor.onSurface)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
-                    .font(.system(size: 12, design: .rounded))
+                    .font(.system(.caption, design: .rounded))
                     .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .layoutPriority(1)
 
-            Spacer(minLength: 6)
+            if !dynamicTypeSize.isAccessibilitySize {
+                Spacer(minLength: 6)
+            }
 
             action
                 .fixedSize(horizontal: true, vertical: false)

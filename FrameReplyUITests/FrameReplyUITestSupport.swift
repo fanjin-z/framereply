@@ -12,6 +12,8 @@ class FrameReplyUITestCase: XCTestCase {
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += [
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US",
             "-framereply.lastCompletedOnboardingVersion", "\(onboardingVersion)",
             "-framereply.installationMarker.v1", "YES"
         ]

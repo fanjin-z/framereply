@@ -1,41 +1,24 @@
-//
-//  GlassPanel.swift
-//  FrameReply
-//
-
 import SwiftUI
 
+/// Quiet content surfaces sit beneath the system's Liquid Glass controls.
 struct GlassPanel: ViewModifier {
     var cornerRadius: CGFloat = 32
     var padding: CGFloat = 0
+    @Environment(\.colorSchemeContrast) private var contrast
 
     func body(content: Content) -> some View {
         content
             .padding(padding)
             .background {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(FrameReplyColor.cardSurface)
                     .overlay {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(Color.white.opacity(0.48))
-                    }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(0.78),
-                                        Color.white.opacity(0.16)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
+                            .strokeBorder(
+                                FrameReplyColor.outlineVariant,
+                                lineWidth: contrast == .increased ? 1.5 : 0.5
                             )
                     }
-                    .shadow(
-                        color: FrameReplyColor.primaryContainer.opacity(0.16), radius: 24, x: 0,
-                        y: 16)
             }
     }
 }

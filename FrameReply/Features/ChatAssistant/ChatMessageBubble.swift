@@ -17,26 +17,26 @@ struct ChatMessageBubble: View {
             VStack(alignment: contentAlignment, spacing: 6) {
                 if message.isSenderUnknown {
                     Label("Sender unknown", systemImage: "questionmark.circle.fill")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(.caption2, design: .rounded, weight: .bold))
                         .foregroundStyle(FrameReplyColor.primary)
                 }
 
                 if let participantName = message.groupParticipantName {
                     Text(participantName)
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .font(.system(.caption2, design: .rounded, weight: .bold))
                         .foregroundStyle(FrameReplyColor.primary)
                         .lineLimit(1)
                 }
 
                 Text(message.text)
-                    .font(.system(size: 15, weight: .regular, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .regular))
                     .foregroundStyle(FrameReplyColor.onSurface)
                     .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if !message.timeLabel.isEmpty {
                     Text(message.timeLabel)
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .font(.system(.caption2, design: .rounded, weight: .medium))
                         .foregroundStyle(FrameReplyColor.outline)
                 }
             }
@@ -72,6 +72,6 @@ struct ChatMessageBubble: View {
             return FrameReplyColor.surfaceVariant.opacity(0.9)
         }
         return message.isFromUser
-            ? FrameReplyColor.primaryFixed.opacity(0.72) : Color.white.opacity(0.82)
+            ? FrameReplyColor.primaryFixed.opacity(0.72) : FrameReplyColor.fieldSurface
     }
 }

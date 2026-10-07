@@ -209,11 +209,6 @@ struct ChatsView: View {
                 }
             }
 
-            Color.clear
-                .frame(height: 94)
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
         }
         .listStyle(.plain)
         .listRowSpacing(0)
@@ -269,8 +264,7 @@ struct ChatsView: View {
 
     private var chatListRowBackground: some View {
         Rectangle()
-            .fill(.ultraThinMaterial)
-            .overlay(Color.white.opacity(0.48))
+            .fill(FrameReplyColor.cardSurface)
     }
 
     private var reviewCount: Int {
@@ -424,13 +418,13 @@ private struct ChatsImportReviewNudge: View {
                     .foregroundStyle(FrameReplyColor.primary.opacity(0.88))
 
                 Text(text)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
                     .foregroundStyle(FrameReplyColor.onSurface)
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
 
                 Text(verbatim: "\(count)")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(.caption2, design: .rounded, weight: .bold))
                     .foregroundStyle(FrameReplyColor.primary)
                     .frame(minWidth: 22, minHeight: 22)
                     .background {
@@ -441,7 +435,7 @@ private struct ChatsImportReviewNudge: View {
                 Spacer(minLength: 6)
 
                 Text("Review")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.system(.footnote, design: .rounded, weight: .bold))
                     .foregroundStyle(.white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
@@ -449,7 +443,7 @@ private struct ChatsImportReviewNudge: View {
                     .frame(minHeight: 34)
                     .background {
                         Capsule(style: .continuous)
-                            .fill(FrameReplyColor.primary)
+                            .fill(FrameReplyColor.actionFill)
                     }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -494,7 +488,7 @@ private struct ChatsSearchImportRow: View {
             Button(action: onImportTap) {
                 ZStack {
                     Circle()
-                        .fill(FrameReplyColor.primary)
+                        .fill(FrameReplyColor.actionFill)
                         .shadow(
                             color: FrameReplyColor.primaryContainer.opacity(0.18),
                             radius: 10,
@@ -532,7 +526,7 @@ private struct EmptyImportPrompt: View {
                 .foregroundStyle(FrameReplyColor.outline)
 
             Text("Import your first chat")
-                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .font(.system(.body, design: .rounded, weight: .bold))
                 .foregroundStyle(FrameReplyColor.onSurface)
 
             Button(action: onImportTap) {
@@ -550,7 +544,7 @@ private struct EmptyImportPrompt: View {
                             ? LocalizedStringResource("Importing Messages")
                             : LocalizedStringResource("Add Messages")
                     )
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                 }
@@ -559,7 +553,7 @@ private struct EmptyImportPrompt: View {
                 .frame(minHeight: 46)
                 .background {
                     Capsule(style: .continuous)
-                        .fill(FrameReplyColor.primary)
+                        .fill(FrameReplyColor.actionFill)
                         .shadow(
                             color: FrameReplyColor.primaryContainer.opacity(0.28),
                             radius: 16,
@@ -589,7 +583,7 @@ private struct ChatsImportErrorMessage: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(FrameReplyColor.peach)
             Text(message)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.system(.footnote, design: .rounded, weight: .semibold))
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
