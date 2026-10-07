@@ -29,6 +29,7 @@ AI output is always a **proposal**. Local code validates identity, evidence, fre
 | SwiftUI and Shortcuts | Collect input, display persisted state, and start workflows. |
 | Workflow coordination | Assemble context and sequence provider, validation, and persistence work. |
 | Provider gateway | Select a capable model and enforce credential and consent requirements. |
+| Subscription service | Verify Apple purchases and App Attest, enforce allowances, and issue managed AI credentials. |
 | External provider | Extract a transcript or propose replies and learned changes in a structured format. |
 | Deterministic rules | Validate provider output, reject stale or unsafe changes, match chats, and reconcile history. |
 | Local persistence | Commit related changes together and provide the observable source of truth. |
@@ -44,18 +45,29 @@ flowchart LR
     Keychain[(Keychain)]
     Defaults[(UserDefaults)]
     Provider[Selected AI provider]
+    Subscription[FrameReply subscription service]
 
     App <-->|Chats, messages, Personal Info,<br/>personas, memory, summaries, and reply cache| SwiftData
     App <-->|API keys| Keychain
     App <-->|Provider selection and consent| Defaults
     App -->|Selected screenshots or text,<br/>relevant local context, and task instructions| Provider
     Provider -->|Structured task result| App
+    App -->|Signed Apple purchase and App Attest proof| Subscription
+    Subscription -->|Entitlement, allowance, model IDs, and capped credential| App
 ```
 
 - Chats and generated state stay in the protected local database and are excluded from device backups.
 - API keys are device-only Keychain items. Provider selection and versioned consent contain no conversation content.
-- FrameReply has no proxy server. Approved task input goes directly to the selected provider.
+- Approved task input goes directly to the selected provider. FrameReply AI uses OpenRouter; the subscription service never receives screenshots, conversations, prompts, or replies.
 - Screenshot images are normalized before upload and are not retained after processing. Extracted messages may be stored locally.
+
+## Subscription access
+
+Apple is the billing source of truth. The app observes transaction updates from launch and finishes verified transactions only after backend verification. Explicit purchase and restore actions connect FrameReply AI after any required consent; background updates preserve the user's provider selection.
+
+The private service verifies purchase and device evidence, shares allowances across devices and restores, and issues capped, expiring provider keys. The app stores those keys in Keychain and uses the model IDs returned with them, so supported model changes do not require an app update. Personal-key providers remain independently selectable.
+
+Backend URLs, product IDs, and App IDs are public configuration, not credentials. App Attest and server-side authorization protect service access. Release routes verified Apple Sandbox and production transactions to separate backends; see [release checks](development.md#subscription-release-checks).
 
 ## Core workflows
 

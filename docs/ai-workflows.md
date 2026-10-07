@@ -16,12 +16,12 @@ Chat import and reply generation share this execution model. They share provider
 
 ## Shared execution model
 
-1. The gateway selects a model that supports the requested capability.
+1. The gateway prepares the selected provider and resolves a model for the requested capability. FrameReply AI revalidates persisted access on first use after launch and refreshes expiring credentials; its model IDs come from the backend. Personal-key providers use their selected tier.
 2. Work stops before any provider request if the API key, consent, provider, or capability is unavailable.
 3. Conversation content is enclosed as untrusted data; it cannot redefine the task instructions.
 4. The provider is asked to return the task's closed structured-output contract.
 5. Local code conservatively unwraps valid JSON and validates domain rules. Core output remains mandatory; invalid secondary fields degrade to safe unknown or empty values.
-6. Each AI operation makes one provider request. There are no automatic repair turns or structured-output retries.
+6. Each AI operation makes one inference request. Subscription verification and credential refresh are separate requests without conversation content. There are no automatic repair turns or structured-output retries.
 7. Reply results are discarded if their grounding inputs or provider selection changed during generation.
 8. Only locally approved changes are committed.
 

@@ -6,7 +6,7 @@ permalink: /roadmap
 
 # FrameReply Roadmap
 
-_Last reviewed: July 2026_
+_Last reviewed: October 2026_
 
 Priorities may change as the product and community develop. Planned work is not a
 commitment to a particular feature, release, or delivery date.
@@ -20,12 +20,13 @@ commitment to a particular feature, release, or delivery date.
 - Store data locally and connect directly to OpenAI, OpenRouter, or MiniMax
   with user-owned credentials and explicit consent.
 
-## Now — Public beta and App Store review
+## Now — FrameReply AI release preparation
 
-
-- Turn public beta feedback into prioritized fixes and resolve release blockers.
-- Respond to App Review feedback.
-- Ship and support the first public version.
+- Validate the optional AI subscription through TestFlight, including purchases,
+  restores, renewals, usage limits, and switching to personal-key providers.
+- Complete production readiness and App Review for the subscription release.
+- Keep setup simple and subscription pricing and trial eligibility accurate for
+  each App Store account.
 
 ## Next — Early post-launch improvements
 

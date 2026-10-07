@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are made on the latest `main` branch until the first stable release. After release, this file will list supported App Store versions.
+Security fixes target the latest `main` branch and the latest published App Store version. Older versions are not maintained separately; update to the latest available version.
 
 ## Private reporting
 

@@ -8,7 +8,7 @@ permalink: /ai-provider-costs
 
 _Prices verified September 23, 2026._
 
-FrameReply uses your provided API key, and the selected provider bills your account. Prices may change, check the provider before setting a budget.
+These prices apply when you use your own API key and the selected provider bills your account. Prices may change; check the provider before setting a budget. FrameReply AI is a separate subscription with an included allowance; the App Store shows its regional price and eligible trial. See the [Terms](terms.md).
 
 ## Supported model prices
 

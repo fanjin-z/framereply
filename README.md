@@ -40,6 +40,7 @@ FrameReply is an open-source chat assistant that delivers two context-aware repl
 
 ### In-app
 
+- **In Settings → AI Providers:** Subscribe to FrameReply AI or connect your own provider. Purchase and restore connect FrameReply AI after any required consent; you can switch providers at any time. Restore Purchases is in the FrameReply AI menu.
 - **On the Chats tab:** Tap the photo-and-text icon beside Search → choose **Chat screenshots** or **Copied text** (optionally add **Reply Guidance**). The app automatically adds the messages to a matching chat or starts a new chat.
 - **In an open chat:** Tap the photo-and-text icon at the bottom, beside **Reply Guidance** → choose **Chat screenshots** or **Copied text**. Messages are added only to this open chat.
 

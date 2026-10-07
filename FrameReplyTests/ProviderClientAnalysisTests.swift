@@ -305,7 +305,7 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
             XCTAssertEqual(request.url?.path, "/v1/chat/completions")
             let body = try jsonBody(request)
             XCTAssertEqual(body["model"] as? String, "MiniMax-M3")
-            XCTAssertEqual(body["max_completion_tokens"] as? Int, 4_000)
+            XCTAssertEqual(body["max_completion_tokens"] as? Int, 8_000)
             XCTAssertNil(body["response_format"])
             let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
             XCTAssertEqual(messages.first?["role"] as? String, "system")

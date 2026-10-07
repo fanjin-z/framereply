@@ -6,9 +6,9 @@ permalink: /privacy
 
 # FrameReply Privacy Policy
 
-Effective September 27, 2026
+Effective October 7, 2026
 
-FrameReply is an open-source iPhone app, the data controller for the processing described here. FrameReply AI is an optional subscription service. FrameReply does not use advertising, analytics, or tracking SDKs.
+FrameReply is an open-source iPhone app with an optional FrameReply AI subscription. 京跃（广州）科技有限公司 (GigaBeyond) provides the app and service and is the data controller for the processing described here. FrameReply does not use advertising, analytics, or tracking SDKs.
 
 ## Data FrameReply handles
 
