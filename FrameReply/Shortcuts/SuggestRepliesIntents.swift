@@ -433,7 +433,7 @@ struct SuggestRepliesFromChatImagesIntent: ShortcutReplyConfirmingIntent {
     @Parameter(
         title: "Reply Guidance",
         description: "One-use context, direction, tone, or a rough draft for the next replies.",
-        inputOptions: String.IntentInputOptions(multiline: true)
+        inputOptions: String.IntentInputOptions(keyboardType: .default, multiline: true)
     )
     var draftingInput: String?
 
@@ -519,7 +519,7 @@ struct SuggestRepliesFromChatTextIntent:
     @Parameter(
         title: "Reply Guidance",
         description: "One-use context, direction, tone, or a rough draft for the next replies.",
-        inputOptions: String.IntentInputOptions(multiline: true)
+        inputOptions: String.IntentInputOptions(keyboardType: .default, multiline: true)
     )
     var draftingInput: String?
 
