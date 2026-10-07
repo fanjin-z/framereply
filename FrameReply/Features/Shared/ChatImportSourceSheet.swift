@@ -17,10 +17,11 @@ struct ChatImportSourceSheet: View {
                 EtherealBackground()
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 14) {
                         Text("Import recent conversation messages.")
                             .font(.subheadline)
                             .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+
                         draftingInputEditor
 
                         VStack(spacing: 0) {
@@ -39,7 +40,7 @@ struct ChatImportSourceSheet: View {
                                 .buttonStyle(.bordered)
                                 .buttonSizing(.flexible)
                                 .buttonBorderShape(.capsule)
-                                .controlSize(.large)
+                                .controlSize(.regular)
                                 .tint(FrameReplyColor.primary)
                                 .frame(minHeight: 44)
                                 .accessibilityLabel("Choose Screenshots")
@@ -51,7 +52,7 @@ struct ChatImportSourceSheet: View {
 
                             Divider()
                                 .overlay(FrameReplyColor.outlineVariant.opacity(0.42))
-                                .padding(.leading, 74)
+                                .padding(.leading, 60)
 
                             ImportSourceRow(
                                 title: "Copied text",
@@ -65,7 +66,7 @@ struct ChatImportSourceSheet: View {
                                 .buttonStyle(.bordered)
                                 .buttonSizing(.flexible)
                                 .buttonBorderShape(.capsule)
-                                .controlSize(.large)
+                                .controlSize(.regular)
                                 .tint(FrameReplyColor.primary)
                                 .frame(minHeight: 44)
                                 .accessibilityLabel("Paste Copied Text")
@@ -79,11 +80,14 @@ struct ChatImportSourceSheet: View {
                         .disabled(
                             dictation.isActive || !DraftingInputLimits.canAccept(draftingInput))
                     }
-                    .padding(24)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
                     .frame(maxWidth: 720, alignment: .leading)
                     .frame(maxWidth: .infinity)
                 }
                 .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollDismissesKeyboard(.interactively)
             }
             .navigationTitle("Add Messages")
             .navigationBarTitleDisplayMode(.inline)
@@ -97,14 +101,14 @@ struct ChatImportSourceSheet: View {
         }
         .accessibilityIdentifier("add-messages-screen")
         .presentationDetents(sheetDetents)
-        .presentationDragIndicator(.visible)
+        .presentationDragIndicator(.hidden)
     }
 
     private var sheetDetents: Set<PresentationDetent> {
         if dynamicTypeSize.isAccessibilitySize {
             return [.large]
         }
-        return [.medium, .large]
+        return [.medium]
     }
 
     private var draftingInputEditor: some View {
@@ -134,10 +138,10 @@ struct ChatImportSourceSheet: View {
                 text: $draftingInput,
                 isFocused: $isGuidanceFocused,
                 dictation: dictation,
-                isMultiline: true,
                 identifier: "import-reply-guidance"
             )
-            .padding(10)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 2)
             .background {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(FrameReplyColor.fieldSurface)
@@ -154,7 +158,7 @@ struct ChatImportSourceSheet: View {
                 dictation: dictation, text: draftingInput
             )
         }
-        .padding(16)
+        .padding(12)
         .glassPanel(cornerRadius: 22)
     }
 
@@ -183,7 +187,7 @@ private struct ImportSourceRow<Action: View>: View {
         let layout =
             dynamicTypeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-            : AnyLayout(HStackLayout(spacing: 14))
+            : AnyLayout(HStackLayout(spacing: 12))
         layout {
             ZStack {
                 Circle()
@@ -193,7 +197,7 @@ private struct ImportSourceRow<Action: View>: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(FrameReplyColor.primary)
             }
-            .frame(width: 44, height: 44)
+            .frame(width: 36, height: 36)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
@@ -214,8 +218,8 @@ private struct ImportSourceRow<Action: View>: View {
             action
                 .fixedSize(horizontal: true, vertical: false)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 12)
         .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, minHeight: 80, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
     }
 }

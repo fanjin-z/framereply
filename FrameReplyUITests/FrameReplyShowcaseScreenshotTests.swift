@@ -31,10 +31,22 @@ final class FrameReplyShowcaseScreenshotTests: FrameReplyUITestCase {
 
         let sheet = element("add-messages-screen", in: app)
         XCTAssertTrue(sheet.waitForExistence(timeout: 3))
-        sheet.swipeUp()
-        XCTAssertTrue(app.buttons["choose-screenshots"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["paste-copied-messages"].waitForExistence(timeout: 3))
+        let chooseScreenshots = app.buttons["choose-screenshots"]
+        let pasteMessages = app.buttons["paste-copied-messages"]
+        XCTAssertTrue(chooseScreenshots.waitForExistence(timeout: 3))
+        XCTAssertTrue(pasteMessages.waitForExistence(timeout: 3))
+        let screen = app.frame
+        let navigationBar = app.navigationBars["Add Messages"]
+        let sheetTop = navigationBar.frame.maxY
+        for option in [chooseScreenshots, pasteMessages] {
+            XCTAssertGreaterThanOrEqual(option.frame.minY, sheetTop)
+            XCTAssertLessThanOrEqual(option.frame.maxY, screen.maxY)
+        }
+        XCTAssertTrue(chooseScreenshots.isHittable)
         capture("02-add-messages")
+
+        sheet.swipeUp()
+        XCTAssertEqual(navigationBar.frame.maxY, sheetTop, accuracy: 1)
     }
 
     func test03ReplyBrief() {
