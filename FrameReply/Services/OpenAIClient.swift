@@ -42,7 +42,7 @@ struct OpenAIClient: AIProviderAdapter {
                 model: model.rawValue,
                 input: "Reply exactly: OK.",
                 maxOutputTokens: ProviderRequestLimits.openAIConnectionCheckMaxToken,
-                reasoning: OpenAIReasoning(effort: "none")
+                reasoning: OpenAIReasoning(effort: Self.reasoningEffort(for: model))
             )
         )
 
@@ -115,7 +115,7 @@ struct OpenAIClient: AIProviderAdapter {
                     ]
                 ],
                 "max_output_tokens": maxTokens,
-                "reasoning": ["effort": "none"],
+                "reasoning": ["effort": Self.reasoningEffort(for: model)],
                 "store": false,
                 "prompt_cache_key": "\(contract.name)-v\(contract.version)-\(model.rawValue)",
                 "text": [
@@ -339,7 +339,7 @@ struct OpenAIClient: AIProviderAdapter {
                 ]
             ],
             "max_output_tokens": maxTokens,
-            "reasoning": ["effort": "none"],
+            "reasoning": ["effort": Self.reasoningEffort(for: model)],
             "store": false,
             "prompt_cache_key":
                 "\(contract.name)-v\(contract.version)-\(model.rawValue)-\(generationRequest.appLanguage)",
@@ -475,7 +475,12 @@ struct OpenAIClient: AIProviderAdapter {
         }
     }
 
-    private static let supportedModels: Set<ProviderModel> = [.gpt6Luna, .gpt56Terra, .gpt6Sol]
+    private static let supportedModels: Set<ProviderModel> = [.gpt6Luna, .gpt56Terra, .gpt61Sol]
+
+    private static func reasoningEffort(for model: ProviderModel) -> String {
+        // GPT-6.1 Sol requires reasoning; use its lowest supported effort for interactive requests.
+        model == .gpt61Sol ? "low" : "none"
+    }
 
     private func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {
         try ProviderNetworkSession.validateHTTPS(request, allowedHost: "api.openai.com")

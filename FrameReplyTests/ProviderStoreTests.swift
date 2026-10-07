@@ -46,7 +46,7 @@ final class ProviderStoreTests: XCTestCase {
         )
         XCTAssertEqual(
             registry.profile(for: .openAI, selectedTier: .best)?.suggestedReplyModel,
-            .gpt6Sol
+            .gpt61Sol
         )
         XCTAssertEqual(
             registry.profile(for: .openRouter, selectedTier: .advanced),
@@ -103,7 +103,7 @@ final class ProviderStoreTests: XCTestCase {
             ProviderPlatform.openAI.modelSummary(for: .advanced),
             "GPT-5.6 Terra"
         )
-        XCTAssertEqual(ProviderPlatform.openAI.modelSummary(for: .best), "GPT-6 Sol")
+        XCTAssertEqual(ProviderPlatform.openAI.modelSummary(for: .best), "GPT-6.1 Sol")
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         try saveProviders(makeProviders(), to: defaults)

@@ -11,15 +11,19 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
         ]
 
         _ = try await OpenAIClient(session: makeSession()).analyzeChatScreenshot(
-            makeRequest(), apiKey: "key", model: .gpt6Sol
+            makeRequest(), apiKey: "key", model: .gpt61Sol
         )
 
         let screenshotBody = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
-        XCTAssertEqual(screenshotBody["model"] as? String, "gpt-6-sol")
+        XCTAssertEqual(screenshotBody["model"] as? String, "gpt-6.1-sol")
+        XCTAssertEqual(
+            (screenshotBody["reasoning"] as? [String: Any])?["effort"] as? String,
+            "low"
+        )
         XCTAssertEqual(screenshotBody["store"] as? Bool, false)
         XCTAssertEqual(
             screenshotBody["prompt_cache_key"] as? String,
-            "screenshot_import-v\(ChatImportPrompt.screenshotImportVersion)-gpt-6-sol"
+            "screenshot_import-v\(ChatImportPrompt.screenshotImportVersion)-gpt-6.1-sol"
         )
         let screenshotFormat = try XCTUnwrap(
             (screenshotBody["text"] as? [String: Any])?["format"] as? [String: Any]
@@ -47,6 +51,10 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
         XCTAssertEqual(result.replies, ["First", "Second"])
         let replyBody = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
         XCTAssertEqual(replyBody["model"] as? String, "gpt-6-luna")
+        XCTAssertEqual(
+            (replyBody["reasoning"] as? [String: Any])?["effort"] as? String,
+            "none"
+        )
         XCTAssertEqual(
             replyBody["prompt_cache_key"] as? String,
             "suggested_reply_drafting-v\(SuggestedReplyPrompt.version)-gpt-6-luna-en"
@@ -214,10 +222,16 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
         ).generateSuggestedReplies(
             makeReplyRequest(task: .standard, hasOlderMessages: true),
             apiKey: "key",
-            model: .gpt56Terra
+            model: .gpt61Sol
         )
 
         XCTAssertEqual(result.replies, ["First", "Second"])
+        let body = try jsonBody(try XCTUnwrap(AnalysisURLProtocolStub.requests.first))
+        XCTAssertEqual(body["model"] as? String, "gpt-6.1-sol")
+        XCTAssertEqual(
+            (body["reasoning"] as? [String: Any])?["effort"] as? String,
+            "low"
+        )
         XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
         XCTAssertEqual(providerAttempts(in: reporter.events), [1])
         XCTAssertTrue(hasValidationCategory("recovered", in: reporter.events))
@@ -254,7 +268,7 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
         ]
         let recovered = try await OpenAIClient(
             session: makeSession(), eventReporter: recoveredReporter
-        ).analyzeChatScreenshot(makeRequest(), apiKey: "key", model: .gpt6Sol)
+        ).analyzeChatScreenshot(makeRequest(), apiKey: "key", model: .gpt61Sol)
 
         XCTAssertEqual(recovered.messages.first?.text, "Hello")
         XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
@@ -271,7 +285,7 @@ final class ProviderClientAnalysisTests: ProviderAnalysisTestCase {
                 _ = try await OpenAIClient(
                     session: self.makeSession(), eventReporter: fatalReporter
                 ).analyzeChatScreenshot(
-                    self.makeRequest(), apiKey: "key", model: .gpt6Sol
+                    self.makeRequest(), apiKey: "key", model: .gpt61Sol
                 )
             },
             errorHandler: {

@@ -6,7 +6,8 @@
 import Foundation
 
 nonisolated enum ProviderRequestLimits {
-    static let openAIConnectionCheckMaxToken = 16
+    // Reasoning shares the output budget, including for a short connection probe.
+    static let openAIConnectionCheckMaxToken = 2_048
     static let connectionCheckMaxToken = 64
     static let chatImportMaxToken = 8_000
 

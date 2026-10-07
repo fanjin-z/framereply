@@ -74,7 +74,7 @@ nonisolated enum ProviderPlatform: String, Codable, CaseIterable, Hashable, Iden
         case (.openAI, .advanced):
             (.gpt56Terra, .gpt56Terra)
         case (.openAI, .best):
-            (.gpt6Sol, .gpt6Sol)
+            (.gpt61Sol, .gpt61Sol)
         case (.openRouter, _):
             (.qwen37Plus, .qwen37Plus)
         case (.frameReplyAI, _):
@@ -127,7 +127,7 @@ nonisolated struct ManagedOpenRouterModel: Hashable, Codable, Sendable {
 nonisolated enum ProviderModel: Hashable, Codable, Sendable {
     case gpt6Luna
     case gpt56Terra
-    case gpt6Sol
+    case gpt61Sol
     case qwen37Plus
     case miniMaxM3
     case managedOpenRouter(ManagedOpenRouterModel)
@@ -136,7 +136,7 @@ nonisolated enum ProviderModel: Hashable, Codable, Sendable {
         switch self {
         case .gpt6Luna: "gpt-6-luna"
         case .gpt56Terra: "gpt-5.6-terra"
-        case .gpt6Sol: "gpt-6-sol"
+        case .gpt61Sol: "gpt-6.1-sol"
         case .qwen37Plus: "qwen/qwen3.7-plus"
         case .miniMaxM3: "MiniMax-M3"
         case .managedOpenRouter(let model): model.requestID.rawValue
@@ -166,7 +166,7 @@ nonisolated enum ProviderModel: Hashable, Codable, Sendable {
         switch rawValue {
         case "gpt-6-luna": self = .gpt6Luna
         case "gpt-5.6-terra": self = .gpt56Terra
-        case "gpt-6-sol": self = .gpt6Sol
+        case "gpt-6.1-sol": self = .gpt61Sol
         case "qwen/qwen3.7-plus": self = .qwen37Plus
         case "MiniMax-M3": self = .miniMaxM3
         default:
@@ -192,8 +192,8 @@ nonisolated enum ProviderModel: Hashable, Codable, Sendable {
             "GPT-6 Luna"
         case .gpt56Terra:
             "GPT-5.6 Terra"
-        case .gpt6Sol:
-            "GPT-6 Sol"
+        case .gpt61Sol:
+            "GPT-6.1 Sol"
         case .qwen37Plus:
             "Qwen3.7 Plus"
         case .miniMaxM3:

@@ -35,7 +35,7 @@ final class AIProviderGatewayTests: XCTestCase {
         )
 
         let replyContext = try service.activeContext(requiring: .suggestedReplies)
-        XCTAssertEqual(replyContext.effectiveModel, .gpt6Sol)
+        XCTAssertEqual(replyContext.effectiveModel, .gpt61Sol)
         let result = try await service.generateSuggestedReplies(
             makeReplyRequest(),
             using: replyContext
@@ -43,7 +43,7 @@ final class AIProviderGatewayTests: XCTestCase {
 
         XCTAssertEqual(result.replies, ["First", "Second"])
         XCTAssertEqual(adapter.analysisModels, [.gpt6Luna, .gpt56Terra])
-        XCTAssertEqual(adapter.replyModels, [.gpt6Sol])
+        XCTAssertEqual(adapter.replyModels, [.gpt61Sol])
         XCTAssertEqual(
             adapter.apiKeys, ["validation-key", "saved-key", "saved-key", "saved-key"])
     }
@@ -145,7 +145,7 @@ private final class RecordingProviderAdapter: @MainActor AIProviderAdapter {
         return ProviderModelProfile(
             screenshotAnalysisModel: .gpt6Luna,
             transcriptAnalysisModel: .gpt56Terra,
-            suggestedReplyModel: .gpt6Sol
+            suggestedReplyModel: .gpt61Sol
         )
     }
 

@@ -11,33 +11,40 @@ final class ProviderValidatorTests: XCTestCase {
 
     @MainActor
     func testProvidersUseOneSelectedModelProbe() async throws {
-        AnalysisURLProtocolStub.stub(
-            statusCode: 200,
-            body:
-                #"{"id":"resp_1","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
-        )
+        for (model, modelID, effort) in [
+            (ProviderModel.gpt6Luna, "gpt-6-luna", "none"),
+            (.gpt56Terra, "gpt-5.6-terra", "none"),
+            (.gpt61Sol, "gpt-6.1-sol", "low")
+        ] {
+            AnalysisURLProtocolStub.reset()
+            AnalysisURLProtocolStub.stub(
+                statusCode: 200,
+                body:
+                    #"{"id":"resp_1","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
+            )
 
-        try await OpenAIClient(session: makeSession()).validate(
-            apiKey: "open-key",
-            model: .gpt6Luna
-        )
+            try await OpenAIClient(session: makeSession()).validate(
+                apiKey: "open-key",
+                model: model
+            )
 
-        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
-        let openAIRequest = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
-        XCTAssertEqual(openAIRequest.url?.path, "/v1/responses")
-        XCTAssertEqual(
-            openAIRequest.value(forHTTPHeaderField: "Authorization"),
-            "Bearer open-key"
-        )
+            XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+            let openAIRequest = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
+            XCTAssertEqual(openAIRequest.url?.path, "/v1/responses")
+            XCTAssertEqual(
+                openAIRequest.value(forHTTPHeaderField: "Authorization"),
+                "Bearer open-key"
+            )
 
-        let openAIBody = try jsonBody(openAIRequest)
-        XCTAssertEqual(openAIBody["model"] as? String, "gpt-6-luna")
-        XCTAssertEqual(openAIBody["input"] as? String, "Reply exactly: OK.")
-        XCTAssertEqual(openAIBody["max_output_tokens"] as? Int, 16)
-        XCTAssertEqual(
-            (openAIBody["reasoning"] as? [String: Any])?["effort"] as? String,
-            "none"
-        )
+            let openAIBody = try jsonBody(openAIRequest)
+            XCTAssertEqual(openAIBody["model"] as? String, modelID)
+            XCTAssertEqual(openAIBody["input"] as? String, "Reply exactly: OK.")
+            XCTAssertEqual(openAIBody["max_output_tokens"] as? Int, 2_048)
+            XCTAssertEqual(
+                (openAIBody["reasoning"] as? [String: Any])?["effort"] as? String,
+                effort
+            )
+        }
 
         AnalysisURLProtocolStub.reset()
         AnalysisURLProtocolStub.stub(
