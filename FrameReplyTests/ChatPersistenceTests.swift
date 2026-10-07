@@ -273,7 +273,8 @@ final class ChatPersistenceTests: XCTestCase {
 
         XCTAssertEqual(chat.conversationKind, .group)
         XCTAssertNil(chat.title)
-        XCTAssertEqual(chat.displayTitle(), "Group Chat")
+        let fallbackTitle = AppStrings.resolve(AppStrings.Chat.groupTitleFallback, locale: .current)
+        XCTAssertEqual(chat.displayTitle(), fallbackTitle)
         XCTAssertEqual(messages.map(\.senderKind), ["group_participant", "unknown"])
         XCTAssertEqual(messages.first?.senderName, "Alex")
         XCTAssertEqual(chat.previewText, "What time should we meet?")
@@ -289,10 +290,10 @@ final class ChatPersistenceTests: XCTestCase {
         XCTAssertEqual(messages.last?.senderKind, "group_participant")
         XCTAssertEqual(chat.previewSenderKind, "group_participant")
         XCTAssertEqual(chat.previewSenderName, "Priya")
-        try repository.confirmProvisionalChat(chatID: chat.id, name: "Group Chat")
+        try repository.confirmProvisionalChat(chatID: chat.id, name: fallbackTitle)
 
         XCTAssertNil(chat.title)
-        XCTAssertEqual(chat.displayTitle(), "Group Chat")
+        XCTAssertEqual(chat.displayTitle(), fallbackTitle)
         XCTAssertFalse(chat.requiresImportIdentityReview)
     }
 

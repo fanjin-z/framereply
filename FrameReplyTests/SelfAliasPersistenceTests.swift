@@ -450,7 +450,8 @@ final class SelfAliasPersistenceTests: XCTestCase {
     }
 
     func testFallbackIsDisplayOnlyAndKeepRequiresSenderResolution() throws {
-        XCTAssertNil(IdentityLabelPolicy.displayLabel("Imported Chat"))
+        let fallbackTitle = AppStrings.resolve(AppStrings.Chat.titleFallback, locale: .current)
+        XCTAssertNil(IdentityLabelPolicy.displayLabel(fallbackTitle))
         for localization in Bundle.main.localizations where localization != "Base" {
             let locale = Locale(identifier: localization)
             let fallback = AppStrings.resolve(AppStrings.Chat.titleFallback, locale: locale)
@@ -464,7 +465,7 @@ final class SelfAliasPersistenceTests: XCTestCase {
         )
         XCTAssertFalse(
             ImportReviewReadiness.canKeep(
-                name: "Imported Chat",
+                name: fallbackTitle,
                 hasNamedUnresolvedSenders: false
             )
         )
@@ -477,11 +478,11 @@ final class SelfAliasPersistenceTests: XCTestCase {
 
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)
-        XCTAssertThrowsError(try repository.addSelfAlias(displayLabel: "Imported Chat"))
+        XCTAssertThrowsError(try repository.addSelfAlias(displayLabel: fallbackTitle))
 
         let outcome = try repository.applyImport(
             analysis: unknownAnalysis(
-                title: "Imported Chat",
+                title: fallbackTitle,
                 senderName: "Alias Alpha",
                 message: "Synthetic message A",
                 matchedChatID: nil

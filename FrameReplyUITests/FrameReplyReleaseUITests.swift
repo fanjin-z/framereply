@@ -1,7 +1,7 @@
 import XCTest
 
 final class FrameReplyReleaseUITests: FrameReplyUITestCase {
-    func testPersonaOnboardingRequiresSelectionAndPersistsDefault() {
+    func testPersonaOnboardingRequiresSelectionAndPersistsDefault() throws {
         let app = launchShowcaseOnboarding()
 
         XCTAssertTrue(element("onboarding-persona-step", in: app).waitForExistence(timeout: 8))
@@ -10,7 +10,7 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         XCTAssertFalse(continueButton.isEnabled)
 
         app.buttons["onboarding-create-persona"].tap()
-        XCTAssertTrue(app.navigationBars["New Persona"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars.firstMatch.waitForExistence(timeout: 3))
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(element("onboarding-persona-step", in: app).waitForExistence(timeout: 3))
 
@@ -18,29 +18,32 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         XCTAssertTrue(spark.waitForExistence(timeout: 3))
         spark.tap()
         XCTAssertTrue(continueButton.isEnabled)
+        let selectedDefaultValue = try XCTUnwrap(spark.value as? String)
+        XCTAssertFalse(selectedDefaultValue.isEmpty)
         continueButton.tap()
 
         XCTAssertTrue(element("onboarding-shortcuts-step", in: app).waitForExistence(timeout: 3))
         app.buttons["finish-onboarding"].tap()
         XCTAssertTrue(element("chats-screen", in: app).waitForExistence(timeout: 5))
 
-        app.tabBars.buttons["Personas"].tap()
+        app.tabBars.buttons["app-tab-personas"].tap()
         let persistedSpark = element("persona-card-spark", in: app)
         XCTAssertTrue(persistedSpark.waitForExistence(timeout: 3))
-        XCTAssertEqual(persistedSpark.value as? String, "Default persona")
+        XCTAssertEqual(persistedSpark.value as? String, selectedDefaultValue)
     }
 
     func testFreshInstallCanLeaveProviderOnboardingForSettings() {
         let app = launchStandard(onboardingVersion: 0)
 
         XCTAssertTrue(element("onboarding-provider-step", in: app).waitForExistence(timeout: 8))
-        app.buttons["Skip Setup"].tap()
-        let skipAnyway = app.buttons["Skip Anyway"]
+        app.buttons["continue-without-provider"].tap()
+        let alert = app.alerts.firstMatch
+        let skipAnyway = alert.buttons.matching(identifier: "confirm-skip-provider").firstMatch
         XCTAssertTrue(skipAnyway.waitForExistence(timeout: 3))
-        app.buttons["Cancel"].tap()
+        alert.buttons.matching(identifier: "cancel-skip-provider").firstMatch.tap()
         XCTAssertTrue(element("onboarding-provider-step", in: app).waitForExistence(timeout: 3))
 
-        app.buttons["Skip Setup"].tap()
+        app.buttons["continue-without-provider"].tap()
         XCTAssertTrue(skipAnyway.waitForExistence(timeout: 3))
         skipAnyway.tap()
 
@@ -49,9 +52,9 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
 
     func testCriticalNavigationAndPrivacyControlsAreReachable() {
         let app = launchStandard()
-        let chats = app.tabBars.buttons["Chats"]
-        let personas = app.tabBars.buttons["Personas"]
-        let settings = app.tabBars.buttons["Settings"]
+        let chats = app.tabBars.buttons["app-tab-chats"]
+        let personas = app.tabBars.buttons["app-tab-personas"]
+        let settings = app.tabBars.buttons["app-tab-settings"]
         XCTAssertTrue(chats.waitForExistence(timeout: 8))
 
         personas.tap()
@@ -87,15 +90,14 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
     func testShortcutGuidesAreReachableFromSettings() {
         let app = launchShowcase()
 
-        app.tabBars.buttons["Settings"].tap()
+        app.tabBars.buttons["app-tab-settings"].tap()
 
         let howTo = app.buttons["shortcut-how-to"]
         XCTAssertTrue(scrollUntilHittable(howTo, swiping: app.swipeUp))
         howTo.tap()
 
         XCTAssertTrue(element("shortcut-how-to-screen", in: app).waitForExistence(timeout: 3))
-        XCTAssertTrue(app.navigationBars["Using Shortcuts"].exists)
-        let copiedText = app.segmentedControls.buttons["Copied Text"]
+        let copiedText = element("shortcut-how-to-option-text", in: app)
         XCTAssertTrue(copiedText.waitForExistence(timeout: 3))
         copiedText.tap()
         XCTAssertTrue(
@@ -108,18 +110,18 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         backTap.tap()
 
         XCTAssertTrue(element("back-tap-guide-screen", in: app).waitForExistence(timeout: 3))
-        XCTAssertTrue(app.navigationBars["Set Up Back Tap"].exists)
         XCTAssertTrue(element("back-tap-tutorial-video", in: app).exists)
         XCTAssertTrue(app.buttons["add-image-shortcut-from-back-tap-guide"].exists)
         app.buttons["dismiss-back-tap-guide"].tap()
     }
 
-    func testDictationLanguageFollowsAppChanges() {
+    func testDictationLanguageFollowsAppChanges() throws {
         let app = launchShowcase()
         openMaya(in: app)
         let microphone = app.buttons["reply-guidance-field-microphone"]
         XCTAssertTrue(microphone.waitForExistence(timeout: 5))
-        XCTAssertEqual(microphone.value as? String, "English")
+        let originalLanguage = try XCTUnwrap(microphone.value as? String)
+        XCTAssertFalse(originalLanguage.isEmpty)
 
         // Change only the app language: the device region stays en_US.
         app.terminate()
@@ -128,14 +130,16 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         app.launch()
         openMaya(in: app)
         XCTAssertTrue(microphone.waitForExistence(timeout: 5))
-        XCTAssertEqual(microphone.value as? String, "普通话（简体中文）")
+        let changedLanguage = try XCTUnwrap(microphone.value as? String)
+        XCTAssertFalse(changedLanguage.isEmpty)
+        XCTAssertNotEqual(changedLanguage, originalLanguage)
 
         app.terminate()
         app.launchArguments[languageIndex] = "(en)"
         app.launch()
         openMaya(in: app)
         XCTAssertTrue(microphone.waitForExistence(timeout: 5))
-        XCTAssertEqual(microphone.value as? String, "English")
+        XCTAssertTrue(waitForValue(originalLanguage, of: microphone))
     }
 
     func testReplyGuidancePersistsIntoImport() {

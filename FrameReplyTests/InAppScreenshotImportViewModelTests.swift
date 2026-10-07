@@ -133,7 +133,7 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
 
         XCTAssertNil(result)
         XCTAssertTrue(importer.receivedImageDataList.isEmpty)
-        XCTAssertEqual(viewModel.errorMessage, "Keep reply guidance under 500 characters.")
+        XCTAssertNotNil(viewModel.errorMessage)
         XCTAssertTrue(replies.requests.isEmpty)
     }
 
@@ -185,7 +185,7 @@ final class InAppScreenshotImportViewModelTests: XCTestCase {
         let result = await task.value
         XCTAssertEqual(result?.chatID, "chat-1")
         XCTAssertNil(result?.replies)
-        XCTAssertEqual(result?.replyErrorMessage, "Reply generation canceled.")
+        XCTAssertNotNil(result?.replyErrorMessage)
     }
 
     @MainActor

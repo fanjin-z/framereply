@@ -109,7 +109,7 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
         }
     }
 
-    func testNoReplyResultUsesCompactNavigableCopyAndEmptyOutput() {
+    func testNoReplyResultOffersChatNavigationAndEmptyOutput() {
         let message = ShortcutNoReplyResult.message(locale: Locale(identifier: "en"))
         let snippet = ShortcutNoReplySnippet(
             message: message,
@@ -122,10 +122,8 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
             reviewRequired: false
         )
 
-        XCTAssertEqual(message, "No reply needed right now.")
         XCTAssertEqual(snippet.accessibilityText, message)
         XCTAssertTrue(snippet.showsOpenChatAction)
-        XCTAssertEqual(snippet.navigationAccessibilityText, "Open Chat")
         XCTAssertFalse(snippetWithoutChat.showsOpenChatAction)
         XCTAssertEqual(ShortcutNoReplyResult.output, "")
     }

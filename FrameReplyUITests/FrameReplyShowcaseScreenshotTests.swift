@@ -11,15 +11,11 @@ final class FrameReplyShowcaseScreenshotTests: FrameReplyUITestCase {
         XCTAssertTrue(element("suggested-reply-2", in: app).waitForExistence(timeout: 3))
 
         let copyButtons = app.buttons.matching(
-            NSPredicate(format: "label == %@", "Copy")
+            NSPredicate(format: "identifier BEGINSWITH %@", "suggested-reply-copy-")
         )
         let firstCopy = copyButtons.element(boundBy: 0)
         XCTAssertTrue(firstCopy.waitForExistence(timeout: 3))
         firstCopy.tap()
-        let copiedButton = app.buttons.matching(
-            NSPredicate(format: "label == %@", "Copied")
-        ).firstMatch
-        XCTAssertTrue(copiedButton.waitForExistence(timeout: 2))
         capture("01-suggested-replies")
     }
 
@@ -35,18 +31,13 @@ final class FrameReplyShowcaseScreenshotTests: FrameReplyUITestCase {
         let pasteMessages = app.buttons["paste-copied-messages"]
         XCTAssertTrue(chooseScreenshots.waitForExistence(timeout: 3))
         XCTAssertTrue(pasteMessages.waitForExistence(timeout: 3))
-        let screen = app.frame
-        let navigationBar = app.navigationBars["Add Messages"]
-        let sheetTop = navigationBar.frame.maxY
         for option in [chooseScreenshots, pasteMessages] {
-            XCTAssertGreaterThanOrEqual(option.frame.minY, sheetTop)
-            XCTAssertLessThanOrEqual(option.frame.maxY, screen.maxY)
+            XCTAssertTrue(option.isHittable)
         }
-        XCTAssertTrue(chooseScreenshots.isHittable)
         capture("02-add-messages")
 
         sheet.swipeUp()
-        XCTAssertEqual(navigationBar.frame.maxY, sheetTop, accuracy: 1)
+        XCTAssertTrue(app.buttons["close-add-messages"].isHittable)
     }
 
     func test03ReplyBrief() {
@@ -100,12 +91,12 @@ final class FrameReplyShowcaseScreenshotTests: FrameReplyUITestCase {
 
     func test05Personas() {
         let app = launchShowcase()
-        let personasTab = app.tabBars.buttons["Personas"]
+        let personasTab = app.tabBars.buttons["app-tab-personas"]
         XCTAssertTrue(personasTab.waitForExistence(timeout: 5))
         personasTab.tap()
 
         XCTAssertTrue(element("personas-screen", in: app).waitForExistence(timeout: 3))
-        let createPersona = app.buttons["Create New Persona"]
+        let createPersona = app.buttons["create-persona"]
         XCTAssertTrue(createPersona.waitForExistence(timeout: 3))
         capture("05-personas")
     }

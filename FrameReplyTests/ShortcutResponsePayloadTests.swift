@@ -43,7 +43,7 @@ final class ShortcutResponsePayloadTests: XCTestCase {
         XCTAssertNil(response.payload.suggestedReplies)
     }
 
-    func testFailurePayloadIncludesCodeAndReference() {
+    func testFailurePayloadIncludesCodeAndReference() throws {
         let traceID = ImportTraceID(
             value: UUID(uuidString: "ABCDEF12-0000-0000-0000-000000000000")!
         )
@@ -55,16 +55,20 @@ final class ShortcutResponsePayloadTests: XCTestCase {
 
         XCTAssertEqual(response.payload.errorCode, "provider_schema_mismatch")
         XCTAssertEqual(response.payload.diagnosticID, "ABCDEF12")
-        XCTAssertTrue(response.json.contains("\"diagnosticID\":\"ABCDEF12\""))
+        let object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(response.json.utf8)) as? [String: Any]
+        )
+        XCTAssertEqual(object["diagnosticID"] as? String, response.payload.diagnosticID)
     }
 
     func testSuccessfulWaitIsDistinctFromReplyGenerationFailure() {
+        let strategy =
+            "Wait for a response first. After a response, continue with the current topic."
         let response = ShortcutResponseBuilder.success(
             outcome(matchedExisting: true, reviewRequired: false, duplicate: false, count: 1),
             repliesOutcome: SuggestedRepliesOutcome(
                 replies: [],
-                conversationStrategy:
-                    "Wait for a response first. After a response, continue with the current topic.",
+                conversationStrategy: strategy,
                 strategyRationale:
                     "You sent the latest message, so another message now may be premature.",
                 source: .generated
@@ -74,8 +78,7 @@ final class ShortcutResponsePayloadTests: XCTestCase {
         XCTAssertEqual(response.payload.replyStatus, .generated)
         XCTAssertEqual(response.payload.suggestedReplies, [])
         XCTAssertNil(response.payload.replyErrorCode)
-        XCTAssertTrue(response.dialog.contains("Conversation strategy:"))
-        XCTAssertTrue(response.dialog.contains("Wait for a response first."))
+        XCTAssertTrue(response.dialog.contains(strategy))
     }
 
     private func outcome(

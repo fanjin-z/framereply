@@ -128,7 +128,9 @@ struct OnboardingFlowView: View {
                 Button("Skip Anyway", role: .destructive) {
                     onComplete(.settings)
                 }
+                .accessibilityIdentifier("confirm-skip-provider")
                 Button("Cancel", role: .cancel) {}
+                    .accessibilityIdentifier("cancel-skip-provider")
             } message: {
                 Text("You need a provider before you can generate replies.")
             }

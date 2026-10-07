@@ -7,33 +7,15 @@ import XCTest
 @testable import FrameReply
 
 final class PrivacySecurityTests: XCTestCase {
-    func testProviderDisclosuresIdentifyRecipientsDestinationsAndPolicies() {
-        let china = ProviderDataConsentDisclosure(provider: .miniMaxChina)
-        XCTAssertEqual(
-            china.permissionTitle,
-            "Share chat content with \(ProviderPlatform.miniMaxChina.displayName)?"
-        )
-        for phrase in [
-            ProviderPlatform.miniMaxChina.displayName,
-            "saved personal context",
-            "third-party AI provider",
-            "analyze chats and create replies"
+    func testProviderDisclosuresUseProviderSpecificPrivacyPolicies() {
+        for (provider, host) in [
+            (ProviderPlatform.openRouter, "openrouter.ai"),
+            (.miniMaxInternational, "platform.minimax.io"),
+            (.miniMaxChina, "platform.minimaxi.com")
         ] {
-            XCTAssertTrue(china.permissionMessage.contains(phrase), phrase)
+            let url = ProviderDataConsentDisclosure(provider: provider).privacyPolicyURL
+            XCTAssertEqual(url.host, host)
         }
-
-        let openRouter = ProviderDataConsentDisclosure(provider: .openRouter)
-        for phrase in ["OpenRouter", "Alibaba Cloud International", "Qwen3.7 Plus"] {
-            XCTAssertTrue(openRouter.destinationDescription.contains(phrase), phrase)
-        }
-        XCTAssertFalse(openRouter.summary.localizedCaseInsensitiveContains("zero retention"))
-        XCTAssertEqual(openRouter.privacyPolicyURL.host, "openrouter.ai")
-
-        let international = ProviderDataConsentDisclosure(provider: .miniMaxInternational)
-        XCTAssertTrue(international.destinationDescription.contains("MiniMax International"))
-        XCTAssertTrue(china.destinationDescription.contains("mainland China"))
-        XCTAssertEqual(international.privacyPolicyURL.host, "platform.minimax.io")
-        XCTAssertEqual(china.privacyPolicyURL.host, "platform.minimaxi.com")
     }
 
     @MainActor

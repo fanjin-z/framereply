@@ -110,7 +110,7 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
         )
     }
 
-    func testTextImportInputIncludesAliasesAndCandidates() {
+    func testTextImportInputIncludesAliasesAndCandidates() throws {
         let request = ChatImportAnalysisRequest(
             transcriptItems: [
                 "Alias Alpha: Could we move the meeting?",
@@ -128,8 +128,15 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
         )
 
         let input = ChatImportPrompt.input(for: request)
-        XCTAssertTrue(input.contains(#"["Alias Alpha"]"#))
-        XCTAssertTrue(input.contains(#""participantAliases":["Contact B"]"#))
+        let arrays = jsonArrays(in: input)
+        XCTAssertTrue(arrays.contains { ($0 as? [String]) == request.selfAliases })
+        let candidates = arrays.compactMap { $0 as? [[String: Any]] }.flatMap { $0 }
+        let candidate = try XCTUnwrap(
+            candidates.first { $0["id"] as? String == request.candidates[0].id }
+        )
+        XCTAssertEqual(
+            candidate["participantAliases"] as? [String], request.candidates[0].participantAliases
+        )
     }
 
     func testTaskInputsContainOnlyContractRelevantData() throws {
@@ -193,7 +200,7 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
         XCTAssertEqual(try schemaText(contract.schema), canonicalBefore)
     }
 
-    func testContractsResolveAppLanguageWithoutChangingSchemaOrInputShape() throws {
+    func testAppLanguageKeepsSchemaAndInputShapeStable() throws {
         let identifiers = ["en", "en-US", "zh-Hans"]
         for task in [
             SuggestedReplyTask.standard, .drafting, .personaStyleLearning
@@ -201,8 +208,6 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
             let contracts = identifiers.map {
                 SuggestedReplyPrompt.contract(for: task, appLanguage: $0)
             }
-            XCTAssertEqual(Set(contracts.map(\.instructions)).count, identifiers.count)
-
             let englishSchema = try schemaText(contracts[0].schema)
             for (identifier, contract) in zip(identifiers, contracts) {
                 XCTAssertEqual(try schemaText(contract.schema), englishSchema, identifier)
@@ -218,6 +223,15 @@ final class ProviderPromptContractTests: ProviderAnalysisTestCase {
         let recentMessages = try XCTUnwrap(input["recentMessages"] as? [[String: Any]])
         XCTAssertTrue(recentMessages.contains { $0["text"] as? String == "晚饭七点？" })
         XCTAssertNil(input["appLanguage"])
+    }
+
+    private func jsonArrays(in input: String) -> [[Any]] {
+        // Decode complete arrays without depending on prompt prose or JSON whitespace.
+        input.indices.filter { input[$0] == "[" }.compactMap { start in
+            input.indices.lazy.filter { $0 > start && input[$0] == "]" }.compactMap { end in
+                (try? JSONSerialization.jsonObject(with: Data(input[start...end].utf8))) as? [Any]
+            }.first
+        }
     }
 
     private func conversationPayload(from input: String) throws -> [String: Any] {

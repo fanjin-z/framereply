@@ -185,8 +185,9 @@ final class ChatImportMatcherTests: XCTestCase {
     }
 
     func testFallbackTitlesNeverCreateIdentityMatches() {
+        let fallbackTitle = AppStrings.resolve(AppStrings.Chat.titleFallback, locale: .current)
         let analysis = ChatImportAnalysis(
-            conversationTitle: "Imported Chat",
+            conversationTitle: fallbackTitle,
             messages: [
                 AnalyzedChatMessage(
                     sender: .otherParticipant,
@@ -203,12 +204,12 @@ final class ChatImportMatcherTests: XCTestCase {
         let candidates = [
             ChatMatchCandidate(
                 id: "chat-gamma",
-                title: "Imported Chat",
+                title: fallbackTitle,
                 recentMessages: []
             ),
             ChatMatchCandidate(
                 id: "chat-delta",
-                title: "Imported Chat",
+                title: fallbackTitle,
                 recentMessages: []
             )
         ]

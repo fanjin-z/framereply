@@ -45,7 +45,6 @@ final class PersonaPersistenceTests: XCTestCase {
         try repository.seedPersonasIfNeeded()
 
         let personas = try repository.personas()
-        XCTAssertEqual(personas.map(\.name), ["Professional", "Spark", "Thoughtful"])
         XCTAssertEqual(
             personas.compactMap(\.builtInID),
             [.professional, .spark, .thoughtful]

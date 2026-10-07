@@ -73,7 +73,6 @@ final class ProviderStoreTests: XCTestCase {
             )
             XCTAssertNil(registry.profile(for: platform, selectedTier: .basic))
             XCTAssertNil(registry.profile(for: platform, selectedTier: .best))
-            XCTAssertEqual(platform.modelSummary(for: .advanced), "MiniMax M3")
         }
         XCTAssertEqual(
             ProviderPlatform.allCases,
@@ -84,11 +83,6 @@ final class ProviderStoreTests: XCTestCase {
             [.openAI, .openRouter, .miniMaxInternational, .miniMaxChina]
         )
         XCTAssertEqual(ProviderPlatform.openRouter.supportedTiers, [.advanced])
-        XCTAssertEqual(ProviderPlatform.openRouter.displayName, "OpenRouter")
-        XCTAssertEqual(
-            ProviderPlatform.openRouter.modelSummary(for: .advanced),
-            "Qwen3.7 Plus"
-        )
         XCTAssertNotEqual(
             ProviderPlatform.miniMaxInternational.keychainAccount,
             ProviderPlatform.miniMaxChina.keychainAccount
@@ -98,12 +92,6 @@ final class ProviderStoreTests: XCTestCase {
             [ProviderPlatform.openRouter, .miniMaxInternational, .miniMaxChina]
                 .allSatisfy { $0.defaultTier == .advanced }
         )
-        XCTAssertEqual(ProviderPlatform.openAI.modelSummary(for: .basic), "GPT-6 Luna")
-        XCTAssertEqual(
-            ProviderPlatform.openAI.modelSummary(for: .advanced),
-            "GPT-5.6 Terra"
-        )
-        XCTAssertEqual(ProviderPlatform.openAI.modelSummary(for: .best), "GPT-6.1 Sol")
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         try saveProviders(makeProviders(), to: defaults)

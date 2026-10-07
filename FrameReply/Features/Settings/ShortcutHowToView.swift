@@ -123,7 +123,9 @@ struct ShortcutHowToView: View {
     private var guidePicker: some View {
         Picker("Shortcut guide", selection: $selectedKind) {
             ForEach(ShortcutHowToKind.allCases) { kind in
-                Text(kind.pickerTitle).tag(kind)
+                Text(kind.pickerTitle)
+                    .tag(kind)
+                    .accessibilityIdentifier("shortcut-how-to-option-\(kind.rawValue)")
             }
         }
         .pickerStyle(.segmented)

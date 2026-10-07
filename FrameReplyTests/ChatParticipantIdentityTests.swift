@@ -200,6 +200,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
     }
 
     func testParticipantNameLifecycleNormalizesAndLearnsAliases() throws {
+        let fallbackTitle = AppStrings.resolve(AppStrings.Chat.titleFallback, locale: .current)
         let namesContainer = try FrameReplyDataStore.makeContainer(inMemory: true)
         let namesRepository = ChatRepository(container: namesContainer)
         let chat = ChatRecord(
@@ -227,7 +228,7 @@ final class ChatParticipantIdentityTests: XCTestCase {
             aliases: [
                 ChatParticipantAlias(displayLabel: "  Café   Sarah "),
                 ChatParticipantAlias(displayLabel: "cafe sarah"),
-                ChatParticipantAlias(displayLabel: "Imported Chat")
+                ChatParticipantAlias(displayLabel: fallbackTitle)
             ]
         )
 

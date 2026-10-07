@@ -12,13 +12,9 @@ final class LocalizationArchitectureTests: XCTestCase {
             (.support, "support"),
             (.ageSuitability, "age-suitability")
         ]
-        let locales = ["en", "es", "zh-Hans"].map(Locale.init(identifier:))
-
         for (document, path) in documents {
-            let urls = locales.map { _ in AppLegalLinks.url(for: document) }
-            XCTAssertEqual(Set(urls).count, 1)
             XCTAssertEqual(
-                urls.first?.absoluteString,
+                AppLegalLinks.url(for: document).absoluteString,
                 "https://fanjin-z.github.io/framereply/\(path)"
             )
         }
@@ -29,8 +25,11 @@ final class LocalizationArchitectureTests: XCTestCase {
 
         XCTAssertEqual(record.builtInID, .professional)
         XCTAssertNil(record.nameOverride)
-        XCTAssertEqual(record.resolvedName(locale: Locale(identifier: "en")), "Professional")
-        XCTAssertEqual(record.resolvedName(locale: Locale(identifier: "zh-Hans")), "专业")
+        let definition = BuiltInPersonaDefinition.definition(for: .professional)
+        for locale in ["en", "zh-Hans"].map(Locale.init(identifier:)) {
+            XCTAssertEqual(
+                record.resolvedName(locale: locale), definition.localizedName(locale: locale))
+        }
         XCTAssertEqual(
             record.promptInstructions,
             BuiltInPersonaDefinition.definition(for: .professional).canonicalInstructions
@@ -54,10 +53,7 @@ final class LocalizationArchitectureTests: XCTestCase {
         XCTAssertEqual(record.templateID, .concise)
         XCTAssertEqual(record.promptText, BuiltInObservationID.concise.canonicalPromptText)
         XCTAssertFalse(record.localizedText.isEmpty)
-        XCTAssertEqual(
-            record.templateID?.localizedText(locale: Locale(identifier: "zh-Hans")),
-            "回复简洁，省略不必要的细节。"
-        )
+        XCTAssertEqual(record.localizedText, BuiltInObservationID.concise.localizedText())
     }
 
     func testSupportedLanguageResolutionKeepsTraditionalChineseSeparate() {

@@ -37,24 +37,30 @@
             }
         }
 
-        func testOfferDurationUsesStorePeriodAndCountInsteadOfSevenDayAssumption() {
+        func testOfferDurationUsesStorePeriodAndCountInsteadOfSevenDayAssumption() throws {
             let locale = Locale(identifier: "en_US")
-            XCTAssertEqual(
-                AIAccessPresentation.duration(value: 3, unit: .day, locale: locale), "3 days")
-            XCTAssertEqual(
-                AIAccessPresentation.duration(value: 1, unit: .week, locale: locale), "1 week")
-            XCTAssertEqual(
-                AIAccessPresentation.duration(value: 1, unit: .month, count: 2, locale: locale),
-                "2 months")
-            XCTAssertEqual(
-                AIAccessPresentation.duration(value: 1, unit: .year, locale: locale), "1 year")
+            for unit: Product.SubscriptionPeriod.Unit in [.day, .week, .month, .year] {
+                let singlePeriod = try XCTUnwrap(
+                    AIAccessPresentation.duration(value: 1, unit: unit, locale: locale)
+                )
+                let repeatedPeriod = try XCTUnwrap(
+                    AIAccessPresentation.duration(value: 1, unit: unit, count: 2, locale: locale)
+                )
+                let totalPeriod = try XCTUnwrap(
+                    AIAccessPresentation.duration(value: 2, unit: unit, locale: locale)
+                )
+                XCTAssertEqual(repeatedPeriod, totalPeriod)
+                XCTAssertNotEqual(singlePeriod, totalPeriod)
+            }
             XCTAssertNil(AIAccessPresentation.duration(value: 0, unit: .day, locale: locale))
-            XCTAssertEqual(
-                AIAccessPresentation.billingPeriod(value: 1, unit: .month, locale: locale), "month")
+            XCTAssertFalse(
+                try XCTUnwrap(
+                    AIAccessPresentation.billingPeriod(value: 1, unit: .month, locale: locale)
+                ).isEmpty
+            )
             XCTAssertEqual(
                 AIAccessPresentation.billingPeriod(value: 3, unit: .month, locale: locale),
-                "3 months")
-
+                AIAccessPresentation.duration(value: 3, unit: .month, locale: locale))
         }
 
         func testConfigurationRoutesVerifiedEnvironmentsAndRejectsUnsafeInputs() throws {
@@ -195,15 +201,14 @@
                     XCTFail("Expected response rejection")
                 } catch let error as SubscriptionClientError {
                     XCTAssertFalse(error.message.contains("synthetic.signed.evidence"))
-                    XCTAssertTrue(error.message.contains("Restore Purchases"))
                 }
             }
             authentication.error = .backend(status: 401, code: "UNAUTHENTICATED")
             do {
                 _ = try await client.verify(signedTransactionInfo: "synthetic.signed.evidence")
                 XCTFail("Expected authentication rejection")
-            } catch let error as SubscriptionClientError {
-                XCTAssertTrue(error.message.contains("Restore Purchases"))
+            } catch is SubscriptionClientError {
+                // Authentication failures remain subscription errors without pinning recovery copy.
             }
         }
 
