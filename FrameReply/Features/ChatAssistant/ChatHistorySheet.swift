@@ -59,10 +59,6 @@ struct ChatHistorySheet: View {
                 EtherealBackground()
 
                 VStack(alignment: .leading, spacing: 18) {
-                    Text(chat.name)
-                        .font(.subheadline)
-                        .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-
                     SearchField(text: $searchText)
 
                     ScrollView {

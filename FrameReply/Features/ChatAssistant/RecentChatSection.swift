@@ -98,7 +98,7 @@ private struct CompactChatMessageBubble: View {
             .frame(maxWidth: 360, alignment: frameAlignment)
             .background {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(bubbleColor)
+                    .fill(ChatMessageBubbleStyle.background(for: message))
             }
 
             if !message.isFromUser || message.isSenderUnknown {
@@ -117,14 +117,6 @@ private struct CompactChatMessageBubble: View {
 
     private var frameAlignment: Alignment {
         message.isSenderUnknown ? .center : (message.isFromUser ? .trailing : .leading)
-    }
-
-    private var bubbleColor: Color {
-        if message.isSenderUnknown {
-            return FrameReplyColor.surfaceVariant.opacity(0.9)
-        }
-        return message.isFromUser
-            ? FrameReplyColor.primaryFixed.opacity(0.72) : FrameReplyColor.fieldSurface
     }
 }
 

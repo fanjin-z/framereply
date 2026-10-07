@@ -27,6 +27,26 @@ enum FrameReplyColor {
     static let connected = Color(uiColor: .systemGreen)
     static let fieldSurface = Color(uiColor: .tertiarySystemGroupedBackground)
     static let cardSurface = Color(uiColor: .secondarySystemGroupedBackground)
+    static let incomingMessageBubble = Color(
+        uiColor: UIColor { traits in
+            let surface = UIColor.tertiarySystemGroupedBackground.resolvedColor(with: traits)
+            let isDark = traits.userInterfaceStyle == .dark
+            let opacity: CGFloat = isDark ? 0.07 : 0.035
+            let tint: CGFloat = isDark ? 1 : 0
+            var red: CGFloat = 0
+            var green: CGFloat = 0
+            var blue: CGFloat = 0
+            surface.getRed(&red, green: &green, blue: &blue, alpha: nil)
+
+            // An opaque fill keeps the same shade over the preview card and history background.
+            return UIColor(
+                red: red * (1 - opacity) + tint * opacity,
+                green: green * (1 - opacity) + tint * opacity,
+                blue: blue * (1 - opacity) + tint * opacity,
+                alpha: 1
+            )
+        }
+    )
 
     private static func adaptive(
         light: UInt, dark: UInt,

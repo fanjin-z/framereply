@@ -5,6 +5,16 @@
 
 import SwiftUI
 
+enum ChatMessageBubbleStyle {
+    static func background(for message: ChatMessage) -> Color {
+        if message.isSenderUnknown {
+            return FrameReplyColor.surfaceVariant.opacity(0.9)
+        }
+        return message.isFromUser
+            ? FrameReplyColor.primaryFixed.opacity(0.72) : FrameReplyColor.incomingMessageBubble
+    }
+}
+
 struct ChatMessageBubble: View {
     let message: ChatMessage
 
@@ -19,13 +29,6 @@ struct ChatMessageBubble: View {
                     Label("Sender unknown", systemImage: "questionmark.circle.fill")
                         .font(.system(.caption2, design: .rounded, weight: .bold))
                         .foregroundStyle(FrameReplyColor.primary)
-                }
-
-                if let participantName = message.groupParticipantName {
-                    Text(participantName)
-                        .font(.system(.caption2, design: .rounded, weight: .bold))
-                        .foregroundStyle(FrameReplyColor.primary)
-                        .lineLimit(1)
                 }
 
                 Text(message.text)
@@ -47,7 +50,7 @@ struct ChatMessageBubble: View {
             .frame(maxWidth: 360, alignment: frameAlignment)
             .background {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(bubbleColor)
+                    .fill(ChatMessageBubbleStyle.background(for: message))
                     .shadow(
                         color: FrameReplyColor.primaryContainer.opacity(0.08), radius: 14, x: 0,
                         y: 8)
@@ -65,13 +68,5 @@ struct ChatMessageBubble: View {
 
     private var frameAlignment: Alignment {
         message.isSenderUnknown ? .center : (message.isFromUser ? .trailing : .leading)
-    }
-
-    private var bubbleColor: Color {
-        if message.isSenderUnknown {
-            return FrameReplyColor.surfaceVariant.opacity(0.9)
-        }
-        return message.isFromUser
-            ? FrameReplyColor.primaryFixed.opacity(0.72) : FrameReplyColor.fieldSurface
     }
 }
