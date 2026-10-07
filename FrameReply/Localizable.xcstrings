@@ -1,6 +1,105 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Translate": {
+      "comment": "On-demand translation in chat history.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻译"
+          }
+        }
+      }
+    },
+    "Try again": {
+      "comment": "On-demand translation in chat history.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试"
+          }
+        }
+      }
+    },
+    "Cancel translation": {
+      "comment": "On-demand translation in chat history.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消翻译"
+          }
+        }
+      }
+    },
+    "Hide translation": {
+      "comment": "On-demand translation in chat history.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏译文"
+          }
+        }
+      }
+    },
+    "Translation · %@": {
+      "comment": "On-demand translation in chat history.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "译文 · %@"
+          }
+        }
+      }
+    },
+    "Translating…": {
+      "comment": "On-demand translation in chat history.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在翻译…"
+          }
+        }
+      }
+    },
+    "This message can't be translated into the app language.": {
+      "comment": "On-demand translation in chat history.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法将此消息翻译为 App 语言。"
+          }
+        }
+      }
+    },
+    "Translation isn't available on this device.": {
+      "comment": "On-demand translation in chat history.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此设备暂不支持翻译。"
+          }
+        }
+      }
+    },
+    "Couldn't translate this message. Check your connection if a language download is needed, then try again.": {
+      "comment": "On-demand translation in chat history.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法翻译此消息。如需下载语言，请检查网络连接后重试。"
+          }
+        }
+      }
+    },
     "Tap to stop and keep the text. Touch and hold to discard this dictation.": {
       "comment": "VoiceOver hint while dictating reply guidance.",
       "localizations": {

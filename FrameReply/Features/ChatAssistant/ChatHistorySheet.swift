@@ -21,6 +21,7 @@ struct ChatHistorySheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
     @State private var selectedDetent: PresentationDetent = .large
+    @State private var translation = ChatHistoryTranslation()
     @Query private var messageRecords: [ChatMessageRecord]
 
     init(
@@ -64,7 +65,16 @@ struct ChatHistorySheet: View {
                     ScrollView {
                         VStack(spacing: 12) {
                             ForEach(filteredMessages) { message in
-                                ChatMessageBubble(message: message)
+                                let key = ChatHistoryTranslation.Key(
+                                    messageID: message.id,
+                                    sourceText: message.text,
+                                    targetLanguageIdentifier: LocalizationContext.current
+                                        .languageIdentifier
+                                )
+                                ChatMessageBubble(
+                                    message: message, translation: translation, translationKey: key
+                                )
+                                .id(key)
                             }
 
                             if filteredMessages.isEmpty {
