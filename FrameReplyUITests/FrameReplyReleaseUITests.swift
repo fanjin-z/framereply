@@ -114,6 +114,30 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         app.buttons["dismiss-back-tap-guide"].tap()
     }
 
+    func testDictationLanguageFollowsAppChanges() {
+        let app = launchShowcase()
+        openMaya(in: app)
+        let microphone = app.buttons["reply-guidance-field-microphone"]
+        XCTAssertTrue(microphone.waitForExistence(timeout: 5))
+        XCTAssertEqual(microphone.value as? String, "English")
+
+        // Change only the app language: the device region stays en_US.
+        app.terminate()
+        let languageIndex = app.launchArguments.firstIndex(of: "-AppleLanguages")! + 1
+        app.launchArguments[languageIndex] = "(zh-Hans)"
+        app.launch()
+        openMaya(in: app)
+        XCTAssertTrue(microphone.waitForExistence(timeout: 5))
+        XCTAssertEqual(microphone.value as? String, "普通话（简体中文）")
+
+        app.terminate()
+        app.launchArguments[languageIndex] = "(en)"
+        app.launch()
+        openMaya(in: app)
+        XCTAssertTrue(microphone.waitForExistence(timeout: 5))
+        XCTAssertEqual(microphone.value as? String, "English")
+    }
+
     func testReplyGuidancePersistsIntoImport() {
         let app = launchShowcase()
         openMaya(in: app)
@@ -130,5 +154,13 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         let importedGuidance = element("import-reply-guidance", in: app)
         XCTAssertTrue(importedGuidance.waitForExistence(timeout: 3))
         XCTAssertEqual(importedGuidance.value as? String, "Use this import context")
+        importedGuidance.tap()
+        importedGuidance.typeText(" and keep it brief")
+        let editedGuidance = importedGuidance.value as? String
+        XCTAssertTrue(editedGuidance?.contains("Use this import context") == true)
+        XCTAssertTrue(editedGuidance?.contains("and keep it brief") == true)
+        app.buttons["close-add-messages"].tap()
+        XCTAssertTrue(guidance.waitForExistence(timeout: 3))
+        XCTAssertEqual(guidance.value as? String, editedGuidance)
     }
 }

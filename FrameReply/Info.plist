@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Use the microphone to turn your speech into editable reply guidance on this iPhone.</string>
 	<key>AppAttestEnvironment</key>
 	<string>$(APP_ATTEST_ENVIRONMENT)</string>
 	<key>SubscriptionAPIURL</key>

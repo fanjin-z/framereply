@@ -8,6 +8,8 @@ struct ChatImportSourceSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var dictation = GuidanceDictation()
+    @FocusState private var isGuidanceFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -74,6 +76,8 @@ struct ChatImportSourceSheet: View {
                             }
                         }
                         .glassPanel(cornerRadius: 22)
+                        .disabled(
+                            dictation.isActive || !DraftingInputLimits.canAccept(draftingInput))
                     }
                     .padding(24)
                     .frame(maxWidth: 720, alignment: .leading)
@@ -126,27 +130,13 @@ struct ChatImportSourceSheet: View {
                 }
             }
 
-            ZStack(alignment: .topLeading) {
-                if draftingInput.isEmpty {
-                    Text("Add reply guidance…")
-                        .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(FrameReplyColor.onSurfaceVariant.opacity(0.72))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 8)
-                        .allowsHitTesting(false)
-                }
-
-                TextEditor(text: limitedDraftingInput)
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(FrameReplyColor.onSurface)
-                    .scrollContentBackground(.hidden)
-                    .frame(minHeight: dynamicTypeSize.isAccessibilitySize ? 160 : 84)
-                    .accessibilityLabel("Reply Guidance")
-                    .accessibilityHint(
-                        "One-use context, direction, tone, or a rough draft for the next replies."
-                    )
-                    .accessibilityIdentifier("import-reply-guidance")
-            }
+            ReplyGuidanceInput(
+                text: $draftingInput,
+                isFocused: $isGuidanceFocused,
+                dictation: dictation,
+                isMultiline: true,
+                identifier: "import-reply-guidance"
+            )
             .padding(10)
             .background {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -159,21 +149,13 @@ struct ChatImportSourceSheet: View {
                             )
                     }
             }
+
+            ReplyGuidanceDictationStatus(
+                dictation: dictation, text: draftingInput
+            )
         }
         .padding(16)
         .glassPanel(cornerRadius: 22)
-    }
-
-    private var limitedDraftingInput: Binding<String> {
-        Binding(
-            get: { draftingInput },
-            set: { newValue in
-                guard DraftingInputLimits.canAccept(newValue) else {
-                    return
-                }
-                draftingInput = newValue
-            }
-        )
     }
 
 }

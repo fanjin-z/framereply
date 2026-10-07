@@ -16,6 +16,8 @@ FrameReply may handle participant and chat names, screenshots, message text, per
 
 API keys are stored in Apple's Keychain using device-only protection. Extracted chats, personas, Personal Info, context, and replies are stored in the app's protected local database and excluded from device backups. Source images are normalized for transmission and are not stored by FrameReply as source files. The extracted message content remains in the local database until the user deletes it.
 
+Optional voice input converts speech into editable Reply Guidance using Apple's on-device speech recognition. FrameReply requests microphone access when you use this feature, processes audio in memory, and does not save or upload the recording. Supported speech-language models may need an initial download. The resulting text is handled like typed guidance and is sent to your selected AI provider when you use it to generate replies or import messages.
+
 ## AI provider processing
 
 After explicit provider-specific consent, FrameReply sends selected content and relevant saved Personal Info directly from the device to the active provider solely to analyze a conversation or generate replies. FrameReply does not receive a copy through a developer-operated server.

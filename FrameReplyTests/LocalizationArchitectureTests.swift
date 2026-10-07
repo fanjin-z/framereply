@@ -93,6 +93,18 @@ final class LocalizationArchitectureTests: XCTestCase {
         )
     }
 
+    func testDictationFollowsAppLanguage() {
+        let cases: [(String, GuidanceSpeechLanguage)] = [
+            ("zh-Hans", .mandarin),
+            ("en", .english)
+        ]
+        for (appLanguage, expected) in cases {
+            XCTAssertEqual(
+                GuidanceSpeechLanguage.resolve(appLanguage: appLanguage),
+                expected)
+        }
+    }
+
     func testReplyCachesAreIsolatedByAppLanguage() throws {
         let container = try FrameReplyDataStore.makeContainer(inMemory: true)
         let repository = ChatRepository(container: container)

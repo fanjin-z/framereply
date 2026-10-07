@@ -16,6 +16,38 @@ nonisolated enum AppStrings {
         static let tryAgain = LocalizedStringResource("Try again.")
     }
 
+    enum Dictation {
+        static let start = LocalizedStringResource(
+            "Dictate reply guidance",
+            comment: "Microphone button. Converts speech into editable guidance text.")
+        static let stop = LocalizedStringResource(
+            "Stop dictation", comment: "Stops speech input and keeps the transcript.")
+        static let stopAndEdit = LocalizedStringResource(
+            "Stop dictation and edit guidance",
+            comment: "Action over the guidance field while listening.")
+        static let discard = LocalizedStringResource(
+            "Discard this dictation",
+            comment: "Restores the text from before the current dictation session.")
+        static let microphoneHint = LocalizedStringResource(
+            "Converts speech to text in the app's language.")
+        static let activeMicrophoneHint = LocalizedStringResource(
+            "Tap to stop and keep the text. Touch and hold to discard this dictation.")
+        static let english = LocalizedStringResource("English")
+        static let mandarin = LocalizedStringResource("Mandarin (Simplified Chinese)")
+        static let preparing = LocalizedStringResource("Preparing dictation…")
+        static let downloading = LocalizedStringResource("Downloading speech language…")
+        static let finishing = LocalizedStringResource("Finishing dictation…")
+        static let microphoneDenied = LocalizedStringResource(
+            "Allow microphone access in Settings to dictate guidance. You can still type.")
+        static let unavailableLanguage = LocalizedStringResource(
+            "On-device dictation is unavailable for the app's language on this device. You can still type."
+        )
+        static let failed = LocalizedStringResource(
+            "Dictation stopped. Your text is still here. Try again or continue typing.")
+        static let tooLong = LocalizedStringResource(
+            "Your transcript is preserved. Shorten the guidance to 500 characters before using it.")
+    }
+
     enum Chat {
         static let importedFallback = LocalizedStringResource(
             "chat.fallback.imported",

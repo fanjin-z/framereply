@@ -15,6 +15,7 @@ struct ConversationUpdateComposer: View {
 
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var dictation = GuidanceDictation()
 
     private var trimmedGuidance: String {
         replyGuidance.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -73,7 +74,7 @@ struct ConversationUpdateComposer: View {
             .regular.tint(FrameReplyColor.secondaryContainer.opacity(0.82)).interactive(),
             in: Circle()
         )
-        .disabled(isBusy)
+        .disabled(isBusy || dictation.isActive || !DraftingInputLimits.canAccept(replyGuidance))
         .accessibilityLabel(isImporting ? "Importing messages" : "Add messages")
         .accessibilityHint("Opens screenshot and pasted-text import options.")
         .accessibilityIdentifier("assistant-add-messages")
@@ -107,50 +108,34 @@ struct ConversationUpdateComposer: View {
             .regular.tint(FrameReplyColor.secondaryContainer.opacity(0.82)).interactive(),
             in: Capsule(style: .continuous)
         )
-        .disabled(isBusy)
+        .disabled(isBusy || dictation.isActive || !DraftingInputLimits.canAccept(replyGuidance))
         .accessibilityHint("Opens screenshot and pasted-text import options.")
         .accessibilityIdentifier("assistant-add-messages")
     }
 
     private var guidanceField: some View {
         VStack(alignment: .trailing, spacing: 2) {
-            HStack(alignment: .bottom, spacing: 4) {
-                TextField(
-                    "Add reply guidance…",
-                    text: limitedGuidance,
-                    axis: .vertical
+            HStack(alignment: .bottom, spacing: 8) {
+                ReplyGuidanceInput(
+                    text: $replyGuidance,
+                    isFocused: $isGuidanceFocused,
+                    dictation: dictation,
+                    isDisabled: isBusy,
+                    identifier: "reply-guidance-field"
                 )
-                .font(.system(.subheadline, design: .rounded, weight: .regular))
-                .foregroundStyle(FrameReplyColor.onSurface)
-                .lineLimit(1...3)
-                .submitLabel(.return)
-                .disabled(isBusy)
-                .focused($isGuidanceFocused)
-                .padding(.vertical, 11)
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
-                .contentShape(.interaction, Rectangle())
-                .accessibilityLabel("Reply Guidance")
-                .accessibilityHint(
-                    "One-use context, direction, tone, or a rough draft for the next replies."
+                .padding(.leading, 16)
+                .padding(.trailing, 4)
+                .glassEffect(
+                    .regular,
+                    in: RoundedRectangle(cornerRadius: 22, style: .continuous)
                 )
-                .accessibilityIdentifier("reply-guidance-field")
 
                 submitControl
             }
-            .padding(.leading, 16)
-            .padding(.trailing, 4)
             .frame(maxWidth: .infinity, minHeight: 44)
-            .contentShape(
-                .interaction,
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-            )
-            .onTapGesture {
-                guard !isBusy, !hasGuidance else { return }
-                isGuidanceFocused = true
-            }
-            .glassEffect(
-                .regular,
-                in: RoundedRectangle(cornerRadius: 22, style: .continuous)
+
+            ReplyGuidanceDictationStatus(
+                dictation: dictation, text: replyGuidance
             )
 
             if DraftingInputLimits.shouldShowCounter(for: replyGuidance) {
@@ -191,7 +176,9 @@ struct ConversationUpdateComposer: View {
                         }
                 }
                 .buttonStyle(SoftPressButtonStyle())
-                .disabled(isBusy || !hasGuidance)
+                .disabled(
+                    isBusy || dictation.isActive || !DraftingInputLimits.canAccept(replyGuidance)
+                )
                 .accessibilityLabel("Update replies with guidance")
                 .accessibilityHint("Uses this guidance once to create a new set of replies.")
                 .accessibilityIdentifier("submit-reply-guidance")
@@ -211,15 +198,4 @@ struct ConversationUpdateComposer: View {
         )
     }
 
-    private var limitedGuidance: Binding<String> {
-        Binding(
-            get: { replyGuidance },
-            set: { newValue in
-                guard DraftingInputLimits.canAccept(newValue) else {
-                    return
-                }
-                replyGuidance = newValue
-            }
-        )
-    }
 }

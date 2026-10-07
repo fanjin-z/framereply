@@ -1,6 +1,171 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Tap to stop and keep the text. Touch and hold to discard this dictation.": {
+      "comment": "VoiceOver hint while dictating reply guidance.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻点可停止并保留文字。长按可放弃本次语音输入。"
+          }
+        }
+      }
+    },
+    "Allow microphone access in Settings to dictate guidance. You can still type.": {
+      "comment": "Reply guidance voice input.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在设置中允许麦克风访问，以使用语音输入。您仍可键入文字。"
+          }
+        }
+      }
+    },
+    "Converts speech to text in the app's language.": {
+      "comment": "Reply guidance voice input.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 App 语言将语音转换为文字。"
+          }
+        }
+      }
+    },
+    "Dictate reply guidance": {
+      "comment": "Microphone button. Converts speech into editable guidance text.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语音输入回复指导"
+          }
+        }
+      }
+    },
+    "Dictation stopped. Your text is still here. Try again or continue typing.": {
+      "comment": "Reply guidance voice input.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语音输入已停止，文字已保留。请重试或继续键入。"
+          }
+        }
+      }
+    },
+    "Discard this dictation": {
+      "comment": "Restores the text from before the current dictation session.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放弃本次语音输入"
+          }
+        }
+      }
+    },
+    "Downloading speech language…": {
+      "comment": "Reply guidance voice input.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在下载语音语言…"
+          }
+        }
+      }
+    },
+    "Finishing dictation…": {
+      "comment": "Reply guidance voice input.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在完成语音输入…"
+          }
+        }
+      }
+    },
+    "Mandarin (Simplified Chinese)": {
+      "comment": "Reply guidance voice input.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "普通话（简体中文）"
+          }
+        }
+      }
+    },
+    "On-device dictation is unavailable for the app's language on this device. You can still type.": {
+      "comment": "Reply guidance voice input.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此设备暂不支持 App 当前语言的本地语音输入。您仍可键入文字。"
+          }
+        }
+      }
+    },
+    "Open Settings": {
+      "comment": "Reply guidance voice input.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开设置"
+          }
+        }
+      }
+    },
+    "Preparing dictation…": {
+      "comment": "Reply guidance voice input.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在准备语音输入…"
+          }
+        }
+      }
+    },
+    "Stop dictation": {
+      "comment": "Stops speech input and keeps the transcript.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止语音输入"
+          }
+        }
+      }
+    },
+    "Stop dictation and edit guidance": {
+      "comment": "Action over the guidance field while listening.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止语音输入并编辑回复指导"
+          }
+        }
+      }
+    },
+    "Your transcript is preserved. Shorten the guidance to 500 characters before using it.": {
+      "comment": "Reply guidance voice input.",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "转写文字已保留，请将回复指导缩短至500个字符以内再使用。"
+          }
+        }
+      }
+    },
     "" : {
       "shouldTranslate" : false
     },
