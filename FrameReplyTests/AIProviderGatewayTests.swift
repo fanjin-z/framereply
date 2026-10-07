@@ -6,7 +6,8 @@ import XCTest
 final class AIProviderGatewayTests: XCTestCase {
     @MainActor
     func testGatewayResolvesCredentialsAndRoutesTaskSpecificModels() async throws {
-        let adapter = RecordingProviderAdapter()
+        // A different Basic model catches probes that hardcode the current catalog model.
+        let adapter = RecordingProviderAdapter(basicModel: .gpt56Terra)
         let configuration = GatewayProviderConfiguration()
         let service = AIService(
             providerConfiguration: configuration,
@@ -15,10 +16,9 @@ final class AIProviderGatewayTests: XCTestCase {
 
         try await service.validate(
             platform: .openAI,
-            selectedTier: .advanced,
             apiKey: "validation-key"
         )
-        XCTAssertEqual(adapter.validatedModels, [.gpt6Luna])
+        XCTAssertEqual(adapter.validatedModels, [.gpt56Terra])
 
         let analysisContext = try service.activeContext(requiring: .screenshotAnalysis)
         XCTAssertEqual(analysisContext.effectiveModel, .gpt6Luna)
@@ -129,18 +129,27 @@ private final class GatewayProviderConfiguration: ProviderConfigurationProviding
 
 private final class RecordingProviderAdapter: @MainActor AIProviderAdapter {
     let platform: ProviderPlatform
+    private let basicModel: ProviderModel
     private(set) var validatedModels: [ProviderModel] = []
     private(set) var analysisModels: [ProviderModel] = []
     private(set) var replyModels: [ProviderModel] = []
     private(set) var apiKeys: [String] = []
 
-    init(platform: ProviderPlatform = .openAI) {
+    init(platform: ProviderPlatform = .openAI, basicModel: ProviderModel = .gpt6Luna) {
         self.platform = platform
+        self.basicModel = basicModel
     }
 
     func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile? {
-        guard selectedTier == (platform == .frameReplyAI ? .basic : .advanced) else {
+        guard platform.supportedTiers.contains(selectedTier) else {
             return nil
+        }
+        if selectedTier == .basic {
+            return ProviderModelProfile(
+                screenshotAnalysisModel: basicModel,
+                transcriptAnalysisModel: basicModel,
+                suggestedReplyModel: basicModel
+            )
         }
         return ProviderModelProfile(
             screenshotAnalysisModel: .gpt6Luna,

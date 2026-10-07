@@ -10,41 +10,34 @@ final class ProviderValidatorTests: XCTestCase {
     }
 
     @MainActor
-    func testProvidersUseOneSelectedModelProbe() async throws {
-        for (model, modelID, effort) in [
-            (ProviderModel.gpt6Luna, "gpt-6-luna", "none"),
-            (.gpt56Terra, "gpt-5.6-terra", "none"),
-            (.gpt61Sol, "gpt-6.1-sol", "low")
-        ] {
-            AnalysisURLProtocolStub.reset()
-            AnalysisURLProtocolStub.stub(
-                statusCode: 200,
-                body:
-                    #"{"id":"resp_1","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
-            )
+    func testProvidersUseOneLowestTierConnectivityProbe() async throws {
+        AnalysisURLProtocolStub.stub(
+            statusCode: 200,
+            body:
+                #"{"id":"resp_1","status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}"#
+        )
 
-            try await OpenAIClient(session: makeSession()).validate(
-                apiKey: "open-key",
-                model: model
-            )
+        try await validateConnectivity(
+            using: OpenAIClient(session: makeSession()),
+            apiKey: "open-key"
+        )
 
-            XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
-            let openAIRequest = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
-            XCTAssertEqual(openAIRequest.url?.path, "/v1/responses")
-            XCTAssertEqual(
-                openAIRequest.value(forHTTPHeaderField: "Authorization"),
-                "Bearer open-key"
-            )
+        XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
+        let openAIRequest = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
+        XCTAssertEqual(openAIRequest.url?.path, "/v1/responses")
+        XCTAssertEqual(
+            openAIRequest.value(forHTTPHeaderField: "Authorization"),
+            "Bearer open-key"
+        )
 
-            let openAIBody = try jsonBody(openAIRequest)
-            XCTAssertEqual(openAIBody["model"] as? String, modelID)
-            XCTAssertEqual(openAIBody["input"] as? String, "Reply exactly: OK.")
-            XCTAssertEqual(openAIBody["max_output_tokens"] as? Int, 2_048)
-            XCTAssertEqual(
-                (openAIBody["reasoning"] as? [String: Any])?["effort"] as? String,
-                effort
-            )
-        }
+        let openAIBody = try jsonBody(openAIRequest)
+        XCTAssertEqual(openAIBody["model"] as? String, "gpt-6-luna")
+        XCTAssertEqual(openAIBody["input"] as? String, "Reply exactly: OK.")
+        XCTAssertEqual(openAIBody["max_output_tokens"] as? Int, 256)
+        XCTAssertEqual(
+            (openAIBody["reasoning"] as? [String: Any])?["effort"] as? String,
+            "none"
+        )
 
         AnalysisURLProtocolStub.reset()
         AnalysisURLProtocolStub.stub(
@@ -53,15 +46,16 @@ final class ProviderValidatorTests: XCTestCase {
                 #"{"id":"gen_1","model":"qwen/qwen3.7-plus","choices":[{"message":{"content":"{\"status\":\"ok\"}"},"finish_reason":"stop"}]}"#
         )
 
-        try await OpenRouterClient(session: makeSession()).validate(
-            apiKey: "sk-or-test",
-            model: .qwen37Plus
+        try await validateConnectivity(
+            using: OpenRouterClient(session: makeSession()),
+            apiKey: "sk-or-test"
         )
 
         XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
         let openRouterRequest = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
         let openRouterBody = try jsonBody(openRouterRequest)
         XCTAssertEqual(openRouterBody["model"] as? String, "qwen/qwen3.7-plus")
+        XCTAssertEqual(openRouterBody["max_tokens"] as? Int, 256)
         let routing = try XCTUnwrap(openRouterBody["provider"] as? [String: Any])
         XCTAssertEqual(routing["allow_fallbacks"] as? Bool, false)
         XCTAssertEqual(routing["require_parameters"] as? Bool, true)
@@ -82,8 +76,9 @@ final class ProviderValidatorTests: XCTestCase {
                     #"{"id":"m3_1","model":"MiniMax-M3","choices":[{"message":{"content":"OK"},"finish_reason":"stop"}],"base_resp":{"status_code":0,"status_msg":"success"}}"#
             )
 
-            try await MiniMaxClient(region: region, session: makeSession()).validate(
-                apiKey: "minimax-key", model: .miniMaxM3)
+            try await validateConnectivity(
+                using: MiniMaxClient(region: region, session: makeSession()),
+                apiKey: "minimax-key")
 
             XCTAssertEqual(AnalysisURLProtocolStub.requests.count, 1)
             let request = try XCTUnwrap(AnalysisURLProtocolStub.requests.first)
@@ -98,7 +93,7 @@ final class ProviderValidatorTests: XCTestCase {
             XCTAssertEqual((body["thinking"] as? [String: Any])?["type"] as? String, "disabled")
             XCTAssertEqual(body["temperature"] as? Int, 0)
             XCTAssertEqual(body["stream"] as? Bool, false)
-            XCTAssertEqual(body["max_completion_tokens"] as? Int, 64)
+            XCTAssertEqual(body["max_completion_tokens"] as? Int, 256)
             XCTAssertNil(body["response_format"])
         }
     }
@@ -200,6 +195,15 @@ final class ProviderValidatorTests: XCTestCase {
             XCTFail("Expected ProviderConnectionError, got \(error)")
         }
 
+    }
+
+    @MainActor
+    private func validateConnectivity(
+        using adapter: any AIProviderAdapter,
+        apiKey: String
+    ) async throws {
+        try await AIService(registry: AIProviderRegistry(adapters: [adapter])).validate(
+            platform: adapter.platform, apiKey: apiKey)
     }
 
     @MainActor

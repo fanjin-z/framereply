@@ -223,13 +223,14 @@ final class AIService: AIServiceProviding {
 
     func validate(
         platform: ProviderPlatform,
-        selectedTier: ProviderTier,
         apiKey: String
     ) async throws {
         guard let adapter = registry.adapter(for: platform) else {
             throw AIServiceError.unsupportedProvider
         }
-        guard let profile = adapter.modelProfile(for: selectedTier),
+        // Connectivity checks use the lowest supported tier, independently of the saved tier.
+        guard let lowestTier = ProviderTier.allCases.first(where: platform.supportedTiers.contains),
+            let profile = adapter.modelProfile(for: lowestTier),
             let validationModel =
                 profile.screenshotAnalysisModel ?? profile.transcriptAnalysisModel
                 ?? profile.suggestedReplyModel

@@ -46,11 +46,13 @@ struct MiniMaxClient: AIProviderAdapter {
     var platform: ProviderPlatform { region.platform }
 
     func modelProfile(for selectedTier: ProviderTier) -> ProviderModelProfile? {
-        guard platform.supportedTiers.contains(selectedTier) else { return nil }
+        guard platform.supportedTiers.contains(selectedTier),
+            let models = platform.models(for: selectedTier)
+        else { return nil }
         return ProviderModelProfile(
-            screenshotAnalysisModel: .miniMaxM3,
-            transcriptAnalysisModel: .miniMaxM3,
-            suggestedReplyModel: .miniMaxM3
+            screenshotAnalysisModel: models.analysis,
+            transcriptAnalysisModel: models.replies,
+            suggestedReplyModel: models.replies
         )
     }
 

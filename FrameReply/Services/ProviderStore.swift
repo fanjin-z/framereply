@@ -113,7 +113,6 @@ final class ProviderStore: ObservableObject {
         do {
             try await AIService(registry: registry).validate(
                 platform: platform,
-                selectedTier: tier,
                 apiKey: trimmedKey
             )
         } catch is AIServiceError {

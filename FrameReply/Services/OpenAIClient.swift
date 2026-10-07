@@ -41,7 +41,7 @@ struct OpenAIClient: AIProviderAdapter {
             OpenAIResponseRequest(
                 model: model.rawValue,
                 input: "Reply exactly: OK.",
-                maxOutputTokens: ProviderRequestLimits.openAIConnectionCheckMaxToken,
+                maxOutputTokens: ProviderRequestLimits.connectionCheckMaxToken,
                 reasoning: OpenAIReasoning(effort: Self.reasoningEffort(for: model))
             )
         )
