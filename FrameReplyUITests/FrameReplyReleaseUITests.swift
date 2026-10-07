@@ -72,7 +72,8 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
 
         let privacyAndData = app.buttons["privacy-and-data"]
         XCTAssertTrue(scrollUntilHittable(privacyAndData, swiping: app.swipeUp))
-        privacyAndData.tap()
+        // Tap the blank gap before the chevron instead of a hittable text or icon.
+        privacyAndData.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5)).tap()
 
         XCTAssertTrue(element("privacy-and-data-screen", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("privacy-policy-link", in: app).exists)

@@ -156,6 +156,7 @@ struct SettingsView: View {
                     .padding(.horizontal, 16)
                     .frame(minHeight: 68)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("add-provider")
@@ -301,7 +302,8 @@ struct SettingsView: View {
                 .foregroundStyle(FrameReplyColor.outline)
         }
         .padding(.horizontal, 16)
-        .frame(minHeight: 64)
+        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+        .contentShape(Rectangle())
     }
 
     private var effectiveAppLanguageName: LocalizedStringResource {

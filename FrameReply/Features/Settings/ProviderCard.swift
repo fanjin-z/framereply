@@ -45,8 +45,9 @@ struct ProviderCard: View {
                         Spacer(minLength: 8)
                         selectionIndicator
                     }
-                    .contentShape(Rectangle())
                     .frame(maxWidth: .infinity, minHeight: 62, alignment: .leading)
+                    .padding(.leading, 16)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Use \(provider.name)")
@@ -72,7 +73,6 @@ struct ProviderCard: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Provider actions for \(provider.name)")
             }
-            .padding(.leading, 16)
             .padding(.trailing, 6)
 
             if showsPerformancePicker {
@@ -80,13 +80,8 @@ struct ProviderCard: View {
                     .overlay(FrameReplyColor.outlineVariant.opacity(0.5))
                     .padding(.leading, 60)
 
-                SettingStatusRow(title: "Performance") {
-                    tierMenu
-                }
-                .padding(.leading, 60)
-                .padding(.trailing, 16)
-                .frame(minHeight: 46)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                tierMenu
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .accessibilityIdentifier("provider-row-\(provider.platform.rawValue)")
@@ -126,14 +121,20 @@ struct ProviderCard: View {
                 }
             }
         } label: {
-            HStack(spacing: 6) {
-                Text(
-                    "\(provider.tier.displayName) · \(provider.platform.modelSummary(for: provider.tier))"
-                )
-                .lineLimit(1)
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 11, weight: .bold))
+            SettingStatusRow(title: "Performance") {
+                HStack(spacing: 6) {
+                    Text(
+                        "\(provider.tier.displayName) · \(provider.platform.modelSummary(for: provider.tier))"
+                    )
+                    .lineLimit(1)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                }
             }
+            .padding(.leading, 60)
+            .padding(.trailing, 16)
+            .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Performance tier")
