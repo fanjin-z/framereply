@@ -245,16 +245,19 @@ struct ProviderConnection: Identifiable, Codable {
     var tier: ProviderTier
     var managedModel: ManagedOpenRouterModel?
     var managedExpiresAt: Date?
+    var managedConsent: ManagedAIConsent?
 
     init(
         id: UUID = UUID(), platform: ProviderPlatform, tier: ProviderTier,
-        managedModel: ManagedOpenRouterModel? = nil, managedExpiresAt: Date? = nil
+        managedModel: ManagedOpenRouterModel? = nil, managedExpiresAt: Date? = nil,
+        managedConsent: ManagedAIConsent? = nil
     ) {
         self.id = id
         self.platform = platform
         self.tier = tier
         self.managedModel = managedModel
         self.managedExpiresAt = managedExpiresAt
+        self.managedConsent = managedConsent
     }
 
     var name: String { platform.displayName }

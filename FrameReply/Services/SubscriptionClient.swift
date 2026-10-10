@@ -185,6 +185,7 @@ nonisolated struct SubscriptionEntitlement: Decodable {
 }
 
 nonisolated struct ManagedAICredential: Decodable {
+    let consentVersion: String
     let aiProvider: String
     let model: String
     let responseModel: String
@@ -263,10 +264,35 @@ struct SubscriptionClient {
         return entitlement
     }
 
-    func credential(serviceSubscriptionId: String) async throws -> ManagedAICredential {
+    func aiConsent() async throws -> ManagedAIConsent {
+        let data = try await post(operation: .configuration, body: Data("{}".utf8))
+        struct Configuration: Decodable { let consent: ManagedAIConsent }
+        guard let consent = try? JSONDecoder().decode(Configuration.self, from: data).consent,
+            consent.isValid
+        else {
+            throw SubscriptionClientError(
+                message: String(localized: AppStrings.Provider.managedConsentUnavailable))
+        }
+        return consent
+    }
+
+    func credential(serviceSubscriptionId: String, consent: ManagedAIConsent) async throws
+        -> ManagedAICredential
+    {
+        guard consent.isValid, !serviceSubscriptionId.isEmpty else {
+            throw ProviderConnectionError.dataConsentRequired
+        }
+        struct Body: Encodable {
+            let serviceSubscriptionId: String
+            let consentVersion: String
+        }
         let data = try await post(
-            operation: .credential, body: subscriptionBody(serviceSubscriptionId))
+            operation: .credential,
+            body: JSONEncoder().encode(
+                Body(serviceSubscriptionId: serviceSubscriptionId, consentVersion: consent.version))
+        )
         guard let credential = try? JSONDecoder().decode(ManagedAICredential.self, from: data),
+            credential.consentVersion == consent.version,
             !credential.aiProvider.isEmpty, !credential.model.isEmpty,
             !credential.apiKey.isEmpty, !credential.expiresAt.isEmpty
         else {
@@ -299,6 +325,9 @@ struct SubscriptionClient {
         do {
             return try await authentication.post(operation: operation, body: body)
         } catch let error as AppAttestClientError {
+            if case .backend(_, let code) = error, code == "AI_CONSENT_REQUIRED" {
+                throw ProviderConnectionError.dataConsentRequired
+            }
             let retry = operation == .subscription ? " Use Restore Purchases." : ""
             throw SubscriptionClientError(
                 message: error.diagnosticSummary + retry, authenticationError: error)

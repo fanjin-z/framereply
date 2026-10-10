@@ -40,7 +40,7 @@ We use [Amazon Web Services](https://aws.amazon.com/privacy/) in the United Stat
 
 ## Consent and lawful use
 
-The user must affirm that they consent to provider processing and have permission or another lawful basis to upload selected conversation and participant information. Consent is stored locally by provider and policy version. For a personal-key provider, choose **Delete** from its menu in **Settings → AI Providers** to remove its key and consent. To stop sending content through FrameReply AI, select another provider or stop using AI features. To erase its locally saved key and consent, use **Settings → Privacy & Data → Delete All Local Data**; this also erases local conversations and other app data.
+The user must affirm that they consent to provider processing and have permission or another lawful basis to upload selected conversation and participant information. Consent is stored locally by provider and policy version. FrameReply AI identifies the receiving companies before you connect. Model upgrades within that disclosed scope do not require another prompt; new recipients or material privacy changes require renewed permission before using the changed service. For a personal-key provider, choose **Delete** from its menu in **Settings → AI Providers** to remove its key and consent. To stop sending content through FrameReply AI, select another provider or stop using AI features. To erase its locally saved key and consent, use **Settings → Privacy & Data → Delete All Local Data**; this also erases local conversations and other app data.
 
 ## Retention and deletion
 

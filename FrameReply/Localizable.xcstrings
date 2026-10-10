@@ -1,6 +1,82 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "OpenRouter and the model provider selected by FrameReply" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenRouter 及 FrameReply 选择的模型提供方"
+          }
+        }
+      }
+    },
+    "provider.managed-consent.message" : {
+      "comment" : "AI sharing consent. The placeholder lists companies returned by the backend, not models.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI sends selected messages, screenshots, and relevant personal details to %@ to generate replies."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI 会将选中的消息、截图和相关个人信息发送给 %@，以生成回复。"
+          }
+        }
+      }
+    },
+    "provider.managed-consent.summary" : {
+      "comment" : "The placeholder lists the AI companies the user consented to sharing with.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selected AI content goes to %@. FrameReply’s subscription servers do not receive this content. Providers may retain data under their policies."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选中的 AI 内容会发送给 %@。FrameReply 的订阅服务器不会接收这些内容。服务商可能会依据其政策保留数据。"
+          }
+        }
+      }
+    },
+    "provider.managed-consent.unavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI data-sharing details are temporarily unavailable. Try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时无法获取 AI 数据共享说明，请重试。"
+          }
+        }
+      }
+    },
+    "FrameReply AI Data Sharing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI Data Sharing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI 数据共享"
+          }
+        }
+      }
+    },
     "" : {
       "shouldTranslate" : false
     },
@@ -5023,16 +5099,6 @@
         }
       }
     },
-    "OpenRouter and the model provider selected by FrameReply" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OpenRouter 及 FrameReply 选择的模型提供方"
-          }
-        }
-      }
-    },
     "Opens FrameReply" : {
       "localizations" : {
         "zh-Hans" : {
@@ -6877,26 +6943,6 @@
         }
       }
     },
-    "Selected AI content goes directly to OpenRouter and its model provider. FrameReply's backend handles subscription verification and key limits, without receiving your AI content. The provider may retain request data under its policy." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "您选择的 AI 内容会直接发送至 OpenRouter 及其模型提供方。FrameReply 后端负责验证订阅和限制密钥额度，不接收您的 AI 内容。提供方可能依其政策保留请求数据。"
-          }
-        }
-      }
-    },
-    "Selected messages, screenshots, names, context, and drafts go directly from this device to OpenRouter and its model provider. FrameReply's backend verifies your subscription and issues a capped AI key; it does not receive your AI content." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "您选择的消息、截图、姓名、上下文和草稿会从此设备直接发送至 OpenRouter 及其模型提供方。FrameReply 后端只验证订阅并签发设有额度上限的 AI 密钥，不接收您的 AI 内容。"
-          }
-        }
-      }
-    },
     "Selection Session ID" : {
       "localizations" : {
         "zh-Hans" : {
@@ -7017,12 +7063,13 @@
         }
       }
     },
-    "Share chat content with AI providers?" : {
+    "Share content to generate replies?" : {
+      "comment" : "Asks permission before sharing personal content with AI services.",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "与 AI 提供方分享聊天内容？"
+            "value" : "为生成回复共享内容？"
           }
         }
       }

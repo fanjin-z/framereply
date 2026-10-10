@@ -34,6 +34,25 @@ final class PrivacySecurityTests: XCTestCase {
         store.grantConsent(for: .miniMaxInternational)
         XCTAssertTrue(store.hasValidConsent(for: .miniMaxInternational))
         XCTAssertFalse(store.hasValidConsent(for: .miniMaxChina))
+
+        let consent = ManagedAIConsent(
+            version: String(repeating: "a", count: 64),
+            recipients: [.init(id: "example", name: "Example AI")])
+        store.grantConsent(for: .frameReplyAI)
+        XCTAssertFalse(store.hasValidConsent(for: consent))
+        store.grantConsent(consent)
+        XCTAssertTrue(
+            ProviderDataConsentStore(userDefaults: defaults).hasValidConsent(for: consent))
+        let revised = ManagedAIConsent(
+            version: String(repeating: "b", count: 64), recipients: consent.recipients)
+        XCTAssertFalse(store.hasValidConsent(for: revised))
+        let otherRecipient = ManagedAIConsent(
+            version: consent.version,
+            recipients: [.init(id: "different", name: "Different AI")])
+        XCTAssertFalse(store.hasValidConsent(for: otherRecipient))
+        store.revokeConsent(for: .frameReplyAI)
+        XCTAssertNil(store.managedConsent)
+        XCTAssertFalse(store.hasValidConsent(for: consent))
     }
 
     func testEndpointAllowlistRequiresHTTPSAndExactHost() throws {

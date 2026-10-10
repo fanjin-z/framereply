@@ -80,6 +80,13 @@ class FrameReplyUITestCase: XCTestCase {
         app.descendants(matching: .any)[identifier].firstMatch
     }
 
+    func tabButton(_ identifier: String, label: String, in app: XCUIApplication) -> XCUIElement {
+        // Native tabs can omit SwiftUI identifiers; these tests explicitly launch in English.
+        app.tabBars.buttons.matching(
+            NSPredicate(format: "identifier == %@ OR label == %@", identifier, label)
+        ).firstMatch
+    }
+
     func scrollUntilHittable(
         _ element: XCUIElement,
         timeout: TimeInterval = 3,

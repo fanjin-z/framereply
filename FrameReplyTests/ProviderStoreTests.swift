@@ -240,7 +240,7 @@ final class ProviderStoreTests: XCTestCase {
         let store = ProviderStore(
             userDefaults: defaults, registry: .live(), keychain: keychain)
 
-        XCTAssertEqual(store.savedAPIKey(for: .frameReplyAI), "capped-key")
+        XCTAssertNil(store.savedAPIKey(for: .frameReplyAI))
         XCTAssertNil(store.savedAPIKey(for: .openRouter))
         // A persisted, unexpired key cannot skip fresh-launch access checks.
         do {
@@ -251,6 +251,18 @@ final class ProviderStoreTests: XCTestCase {
                 return XCTFail("Expected consentRequired, got \(error)")
             }
         }
+        let consent = ManagedAIConsent(
+            version: String(repeating: "a", count: 64),
+            recipients: [.init(id: "example", name: "Example AI")])
+        store.grantManagedDataConsent(consent)
+        XCTAssertNil(store.savedAPIKey(for: .frameReplyAI))
+        store.providers[0].managedConsent = consent
+        XCTAssertEqual(store.savedAPIKey(for: .frameReplyAI), "capped-key")
+        store.grantManagedDataConsent(
+            ManagedAIConsent(
+                version: String(repeating: "b", count: 64), recipients: consent.recipients))
+        XCTAssertNil(store.savedAPIKey(for: .frameReplyAI))
+        store.grantManagedDataConsent(consent)
         store.providers[0].managedExpiresAt = Date().addingTimeInterval(-1)
         XCTAssertNil(store.savedAPIKey(for: .frameReplyAI))
     }

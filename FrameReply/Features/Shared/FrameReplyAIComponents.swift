@@ -1,17 +1,25 @@
 import SwiftUI
 
 struct FrameReplyAIConnectionConsent: ViewModifier {
-    @ObservedObject var connection: FrameReplyAIConnectionModel
+    let connection: FrameReplyAIConnectionModel
+    @State private var isConsentPresented = false
+    @State private var consent: ManagedAIConsent?
 
     func body(content: Content) -> some View {
         content
+            .onReceive(connection.consentRequested) { disclosure in
+                consent = disclosure
+                isConsentPresented = true
+            }
             .alert(
-                "Share chat content with AI providers?", isPresented: $connection.isConsentPresented
+                "Share content to generate replies?", isPresented: $isConsentPresented
             ) {
                 Button("Not Now", role: .cancel) {}
-                Button("Allow & Connect", action: connection.allowConnection)
+                Button("Allow & Connect") {
+                    if let consent { connection.allowConnection(consent) }
+                }
             } message: {
-                Text(ProviderDataConsentDisclosure(provider: .frameReplyAI).permissionMessage)
+                Text(consent?.permissionMessage ?? "")
             }
     }
 }

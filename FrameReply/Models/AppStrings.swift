@@ -626,6 +626,28 @@ nonisolated enum AppStrings {
     }
 
     enum Provider {
+        static let managedConsentUnavailable = LocalizedStringResource(
+            "provider.managed-consent.unavailable",
+            defaultValue: "AI data-sharing details are temporarily unavailable. Try again."
+        )
+        static func managedConsentMessage(recipients: String) -> LocalizedStringResource {
+            LocalizedStringResource(
+                "provider.managed-consent.message",
+                defaultValue:
+                    "FrameReply AI sends selected messages, screenshots, and relevant personal details to \(recipients) to generate replies.",
+                comment:
+                    "AI sharing consent. The placeholder lists companies returned by the backend, not models."
+            )
+        }
+        static func managedConsentSummary(recipients: String) -> LocalizedStringResource {
+            LocalizedStringResource(
+                "provider.managed-consent.summary",
+                defaultValue:
+                    "Selected AI content goes to \(recipients). FrameReply’s subscription servers do not receive this content. Providers may retain data under their policies.",
+                comment:
+                    "The placeholder lists the AI companies the user consented to sharing with."
+            )
+        }
         static let miniMaxInternationalName = LocalizedStringResource(
             "provider.name.minimax-international",
             defaultValue: "MiniMax International"

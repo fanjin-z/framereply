@@ -63,21 +63,32 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         XCTAssertFalse(app.buttons["ai-access-purchase"].exists)
         XCTAssertTrue(app.secureTextFields["provider-api-key"].exists)
 
-        continueButton.tap()
-        let consent = app.alerts.firstMatch
-        XCTAssertTrue(consent.waitForExistence(timeout: 3))
-        consent.buttons["Not Now"].tap()
-        XCTAssertTrue(element("onboarding-provider-step", in: app).exists)
-        XCTAssertFalse(element("onboarding-persona-step", in: app).exists)
-        XCTAssertTrue(continueButton.isEnabled)
+        // Dismissing consent must preserve the subscription and allow another connection attempt.
+        for _ in 0..<2 {
+            continueButton.tap()
+            let consent = app.alerts.firstMatch
+            XCTAssertTrue(consent.waitForExistence(timeout: 3))
+            XCTAssertTrue(
+                consent.staticTexts.containing(
+                    NSPredicate(format: "label CONTAINS %@", "Example AI")
+                ).firstMatch.exists)
+            consent.buttons["Not Now"].tap()
+            XCTAssertTrue(consent.waitForNonExistence(timeout: 3))
+            XCTAssertTrue(element("onboarding-provider-step", in: app).exists)
+            XCTAssertFalse(element("onboarding-persona-step", in: app).exists)
+            XCTAssertTrue(continueButton.isEnabled)
+        }
     }
 
     func testCriticalNavigationAndPrivacyControlsAreReachable() {
         let app = launchStandard()
-        let chats = app.tabBars.buttons["app-tab-chats"]
-        let personas = app.tabBars.buttons["app-tab-personas"]
-        let settings = app.tabBars.buttons["app-tab-settings"]
-        XCTAssertTrue(chats.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 8))
+        let chats = tabButton("app-tab-chats", label: "Chats", in: app)
+        let personas = tabButton("app-tab-personas", label: "Personas", in: app)
+        let settings = tabButton("app-tab-settings", label: "Settings", in: app)
+        XCTAssertTrue(chats.waitForExistence(timeout: 3))
+        XCTAssertTrue(personas.waitForExistence(timeout: 3))
+        XCTAssertTrue(settings.waitForExistence(timeout: 3))
 
         personas.tap()
         XCTAssertTrue(element("personas-screen", in: app).waitForExistence(timeout: 3))
@@ -87,6 +98,7 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         XCTAssertTrue(app.buttons["add-messages"].waitForExistence(timeout: 3))
 
         settings.tap()
+        XCTAssertTrue(element("settings-screen", in: app).waitForExistence(timeout: 3))
         app.buttons["add-provider-header"].tap()
         XCTAssertTrue(app.secureTextFields["provider-api-key"].waitForExistence(timeout: 3))
         app.secureTextFields["provider-api-key"].tap()

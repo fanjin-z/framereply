@@ -220,25 +220,59 @@
             let authentication = ProbeAuthenticationStub()
             let client = SubscriptionClient(
                 configuration: try configuration(), authentication: authentication)
+            let version = String(repeating: "a", count: 64)
             authentication.response = Data(
                 """
-                {"aiProvider":"openrouter","model":"openai/gpt-6-luna",
+                {"consent":{"version":"\(version)","recipients":[{"id":"example","name":"Example AI"}]}}
+                """.utf8)
+            let consent = try await client.aiConsent()
+            XCTAssertEqual(consent.recipients.first?.name, "Example AI")
+            let configurationResponse = authentication.response
+            for replacement in ["[]", "[{\"id\":\"example\",\"name\":\"\"}]"] {
+                authentication.response = Data(
+                    String(decoding: configurationResponse, as: UTF8.self)
+                        .replacingOccurrences(
+                            of: "[{\"id\":\"example\",\"name\":\"Example AI\"}]", with: replacement
+                        ).utf8)
+                do {
+                    _ = try await client.aiConsent()
+                    XCTFail("Missing recipient disclosure must not permit connection")
+                } catch is SubscriptionClientError {}
+            }
+            authentication.calls.removeAll()
+            authentication.response = Data(
+                """
+                {"consentVersion":"\(version)","aiProvider":"openrouter","model":"openai/gpt-6-luna",
                 "responseModel":"openai/gpt-6-luna-20260922",
                 "apiKey":"synthetic-secret","expiresAt":"2026-09-25T00:00:00.000Z"}
                 """.utf8)
-            let credential = try await client.credential(serviceSubscriptionId: "subscription-id")
+            let credential = try await client.credential(
+                serviceSubscriptionId: "subscription-id", consent: consent)
             XCTAssertEqual(credential.aiProvider, "openrouter")
             XCTAssertEqual(credential.model, "openai/gpt-6-luna")
             XCTAssertEqual(credential.responseModel, "openai/gpt-6-luna-20260922")
             XCTAssertEqual(credential.apiKey, "synthetic-secret")
 
+            let credentialResponse = authentication.response
+            authentication.response = Data(
+                String(decoding: credentialResponse, as: UTF8.self)
+                    .replacingOccurrences(of: version, with: String(repeating: "b", count: 64)).utf8
+            )
+            do {
+                _ = try await client.credential(
+                    serviceSubscriptionId: "subscription-id", consent: consent)
+                XCTFail("A different consent scope must never be accepted with a credential")
+            } catch is SubscriptionClientError {}
+            authentication.calls.removeLast()
             authentication.response = Data(usageResponse().utf8)
             let usage = try await client.usage(serviceSubscriptionId: "subscription-id")
             XCTAssertEqual(usage.remainingMicrousd, 700_000)
             XCTAssertEqual(authentication.calls.map { $0.0 }, [.credential, .usage])
-            for (_, data) in authentication.calls {
+            for (operation, data) in authentication.calls {
                 let body = try JSONSerialization.jsonObject(with: data) as? [String: String]
-                XCTAssertEqual(body, ["serviceSubscriptionId": "subscription-id"])
+                var expected = ["serviceSubscriptionId": "subscription-id"]
+                if operation == .credential { expected["consentVersion"] = version }
+                XCTAssertEqual(body, expected)
             }
 
             authentication.response = Data(

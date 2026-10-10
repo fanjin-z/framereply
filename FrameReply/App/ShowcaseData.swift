@@ -543,6 +543,12 @@
     @MainActor
     private struct ShowcaseSubscriptionAuthentication: AppAttestAuthenticating {
         func post(operation: AppAttestOperation, body: Data) async throws -> Data {
+            if operation == .configuration {
+                return Data(
+                    """
+                    {"consent":{"version":"\(String(repeating: "a", count: 64))","recipients":[{"id":"example","name":"Example AI"}]}}
+                    """.utf8)
+            }
             // The onboarding fixture never sends purchase data or requests credentials.
             throw AppAttestClientError.unsupported
         }

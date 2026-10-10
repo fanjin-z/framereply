@@ -67,7 +67,7 @@ struct FrameReplyAIProviderCard: View {
         HStack(spacing: 0) {
             if subscribed {
                 Button {
-                    if !isSelected { connection.requestConnection() }
+                    connection.requestConnection()
                 } label: {
                     providerLabel
                 }

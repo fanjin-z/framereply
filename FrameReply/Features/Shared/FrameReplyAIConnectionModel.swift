@@ -4,7 +4,7 @@ import Foundation
 /// Coordinates consent and connection without choosing a screen's presentation.
 @MainActor
 final class FrameReplyAIConnectionModel: ObservableObject {
-    @Published var isConsentPresented = false
+    let consentRequested = PassthroughSubject<ManagedAIConsent, Never>()
     @Published private(set) var isConnecting = false
     @Published private(set) var notice: String?
 
@@ -51,15 +51,29 @@ final class FrameReplyAIConnectionModel: ObservableObject {
 
     func requestConnection() {
         guard !isBusy else { return }
-        if providerStore.hasValidDataConsent(for: .frameReplyAI) {
-            connect()
-        } else {
-            isConsentPresented = true
+        isConnecting = true
+        onConnectionStateChanged?(true)
+        notice = nil
+        Task {
+            do {
+                let consent = try await access.aiConsent()
+                isConnecting = false
+                onConnectionStateChanged?(false)
+                if providerStore.hasValidDataConsent(for: consent) {
+                    connect()
+                } else {
+                    consentRequested.send(consent)
+                }
+            } catch {
+                isConnecting = false
+                onConnectionStateChanged?(false)
+                notice = error.localizedDescription
+            }
         }
     }
 
-    func allowConnection() {
-        providerStore.grantDataConsent(for: .frameReplyAI)
+    func allowConnection(_ consent: ManagedAIConsent) {
+        providerStore.grantManagedDataConsent(consent)
         connect()
     }
 

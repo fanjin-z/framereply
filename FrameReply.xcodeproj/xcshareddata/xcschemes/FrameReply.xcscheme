@@ -60,6 +60,9 @@
                   Identifier = "FrameReplyReleaseUITests/testPersonaOnboardingRequiresSelectionAndPersistsDefault()">
                </Test>
                <Test
+                  Identifier = "FrameReplyReleaseUITests/testRecoveredSubscriptionOffersContinuationWithoutAPIKeyAndPreservesConsent()">
+               </Test>
+               <Test
                   Identifier = "FrameReplyReleaseUITests/testReplyGuidancePersistsIntoImport()">
                </Test>
             </SelectedTests>

@@ -4,7 +4,7 @@ import Foundation
 import Security
 
 nonisolated enum AppAttestOperation: String {
-    case status, subscription, credential, usage
+    case status, subscription, credential, usage, configuration
 
     var path: String {
         switch self {
@@ -12,6 +12,7 @@ nonisolated enum AppAttestOperation: String {
         case .subscription: "/v1/subscriptions/verify"
         case .credential: "/v1/ai/credential"
         case .usage: "/v1/ai/usage"
+        case .configuration: "/v1/ai/configuration"
         }
     }
 }

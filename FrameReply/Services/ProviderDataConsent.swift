@@ -40,25 +40,49 @@ nonisolated struct ProviderDataConsentDisclosure: Equatable, Sendable {
     }
 
     var permissionMessage: String {
-        if provider == .frameReplyAI {
-            return String(
-                localized:
-                    "Selected messages, screenshots, names, context, and drafts go directly from this device to OpenRouter and its model provider. FrameReply's backend verifies your subscription and issues a capped AI key; it does not receive your AI content."
-            )
-        }
         return String(
             localized: AppStrings.Provider.consentMessage(providerName: provider.displayName))
     }
 
     var summary: String {
-        if provider == .frameReplyAI {
-            return String(
-                localized:
-                    "Selected AI content goes directly to OpenRouter and its model provider. FrameReply's backend handles subscription verification and key limits, without receiving your AI content. The provider may retain request data under its policy."
-            )
-        }
         return String(
             localized: AppStrings.Provider.consentSummary(destination: destinationDescription))
+    }
+}
+
+nonisolated struct ManagedAIConsent: Codable, Equatable, Sendable {
+    struct Recipient: Codable, Equatable, Sendable {
+        let id: String
+        let name: String
+    }
+    let version: String
+    let recipients: [Recipient]
+
+    var isValid: Bool {
+        version.range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil
+            && (1...10).contains(recipients.count)
+            && Set(recipients.map(\.id)).count == recipients.count
+            && recipients.allSatisfy {
+                $0.id.range(of: "^[a-z0-9][a-z0-9_-]{0,63}$", options: .regularExpression) != nil
+                    && !$0.name.isEmpty && $0.name.count <= 80
+                    && $0.name == $0.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    && $0.name.rangeOfCharacter(from: .controlCharacters) == nil
+            }
+    }
+
+    var recipientNames: String {
+        let formatter = ListFormatter()
+        formatter.locale = LocalizationContext.current.locale
+        return formatter.string(from: recipients.map(\.name))
+            ?? recipients.map(\.name).joined(separator: ", ")
+    }
+
+    var permissionMessage: String {
+        String(localized: AppStrings.Provider.managedConsentMessage(recipients: recipientNames))
+    }
+
+    var summary: String {
+        String(localized: AppStrings.Provider.managedConsentSummary(recipients: recipientNames))
     }
 }
 
@@ -70,12 +94,33 @@ final class ProviderDataConsentStore {
         self.userDefaults = userDefaults
     }
 
+    private let managedKey = "framereply.managedAIConsent.v1"
+
+    var managedConsent: ManagedAIConsent? {
+        guard let data = userDefaults.data(forKey: managedKey),
+            let consent = try? JSONDecoder().decode(ManagedAIConsent.self, from: data),
+            consent.isValid
+        else { return nil }
+        return consent
+    }
+
+    func hasValidConsent(for consent: ManagedAIConsent) -> Bool {
+        consent.isValid && managedConsent == consent
+    }
+
+    func grantConsent(_ consent: ManagedAIConsent) {
+        guard consent.isValid, let data = try? JSONEncoder().encode(consent) else { return }
+        userDefaults.set(data, forKey: managedKey)
+    }
+
     func hasValidConsent(for platform: ProviderPlatform) -> Bool {
-        userDefaults.integer(forKey: key(for: platform))
+        guard platform != .frameReplyAI else { return false }
+        return userDefaults.integer(forKey: key(for: platform))
             == ProviderDataConsentDisclosure.currentVersion
     }
 
     func grantConsent(for platform: ProviderPlatform) {
+        guard platform != .frameReplyAI else { return }
         userDefaults.set(
             ProviderDataConsentDisclosure.currentVersion,
             forKey: key(for: platform)
@@ -83,6 +128,7 @@ final class ProviderDataConsentStore {
     }
 
     func revokeConsent(for platform: ProviderPlatform) {
+        if platform == .frameReplyAI { userDefaults.removeObject(forKey: managedKey) }
         userDefaults.removeObject(forKey: key(for: platform))
     }
 

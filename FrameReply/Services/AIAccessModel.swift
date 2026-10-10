@@ -121,6 +121,14 @@ final class AIAccessModel: ObservableObject {
     private var expiryTask: Task<Void, Never>?
     private var subscriptions = Set<AnyCancellable>()
 
+    func aiConsent() async throws -> ManagedAIConsent {
+        guard let client else {
+            throw SubscriptionClientError(
+                message: String(localized: AppStrings.Provider.managedConsentUnavailable))
+        }
+        return try await client.aiConsent()
+    }
+
     var hasActiveSubscription: Bool {
         guard entitlement?.active == true,
             let accessEnd = entitlement.flatMap({ AIAccessPresentation.date($0.accessUntil) })

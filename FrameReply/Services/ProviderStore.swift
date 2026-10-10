@@ -135,6 +135,7 @@ final class ProviderStore: ObservableObject {
         if platform == .frameReplyAI {
             guard let connection = providers.first(where: { $0.platform == platform }),
                 connection.managedModel != nil,
+                let consent = connection.managedConsent, consentStore.hasValidConsent(for: consent),
                 let expiry = connection.managedExpiresAt,
                 expiry > Date()
             else { return nil }
@@ -143,7 +144,7 @@ final class ProviderStore: ObservableObject {
     }
 
     func connectManagedAI() async throws {
-        guard consentStore.hasValidConsent(for: .frameReplyAI) else {
+        guard consentStore.managedConsent != nil else {
             throw ProviderConnectionError.dataConsentRequired
         }
         try await refreshManagedAI(activate: true)
@@ -169,7 +170,7 @@ final class ProviderStore: ObservableObject {
     }
 
     private func refreshManagedAI(activate: Bool) async throws {
-        guard consentStore.hasValidConsent(for: .frameReplyAI) else {
+        guard consentStore.managedConsent != nil else {
             throw ProviderConnectionError.dataConsentRequired
         }
         let configuration = try await SubscriptionConfiguration.load()
@@ -180,6 +181,10 @@ final class ProviderStore: ObservableObject {
                         "No Apple subscription was found. Open AI Providers in Settings."))
         }
         let client = SubscriptionClient(configuration: configuration)
+        let consent = try await client.aiConsent()
+        guard consentStore.hasValidConsent(for: consent) else {
+            throw ProviderConnectionError.dataConsentRequired
+        }
         let entitlement = try await client.verifyAndFinish(evidence)
         guard entitlement.active else {
             throw SubscriptionClientError(
@@ -200,7 +205,7 @@ final class ProviderStore: ObservableObject {
                         "AI allowance is unavailable or exhausted."))
         }
         let credential = try await client.credential(
-            serviceSubscriptionId: entitlement.serviceSubscriptionId)
+            serviceSubscriptionId: entitlement.serviceSubscriptionId, consent: consent)
         guard credential.aiProvider == "openrouter",
             let requestID = ManagedOpenRouterModelID(rawValue: credential.model),
             let responseID = ManagedOpenRouterModelID(rawValue: credential.responseModel),
@@ -217,7 +222,7 @@ final class ProviderStore: ObservableObject {
         }
         let model = ManagedOpenRouterModel(requestID: requestID, responseID: responseID)
         guard !Task.isCancelled,
-            consentStore.hasValidConsent(for: .frameReplyAI),
+            consentStore.hasValidConsent(for: consent),
             activate || activePlatform == .frameReplyAI
         else { throw CancellationError() }
         try keychain.set(credential.apiKey, for: keychainAccount(for: .frameReplyAI))
@@ -225,19 +230,35 @@ final class ProviderStore: ObservableObject {
             var updated = providers[index]
             updated.managedModel = model
             updated.managedExpiresAt = expiry
+            updated.managedConsent = consent
             providers[index] = updated
         } else {
             providers.append(
                 ProviderConnection(
                     platform: .frameReplyAI, tier: .basic,
-                    managedModel: model, managedExpiresAt: expiry))
+                    managedModel: model, managedExpiresAt: expiry, managedConsent: consent))
         }
         hasVerifiedManagedAccess = true
         if activate { self.activate(platform: .frameReplyAI) }
     }
 
+    var managedAIConsent: ManagedAIConsent? { consentStore.managedConsent }
+
+    func hasValidDataConsent(for consent: ManagedAIConsent) -> Bool {
+        consentStore.hasValidConsent(for: consent)
+    }
+
+    func grantManagedDataConsent(_ consent: ManagedAIConsent) {
+        consentStore.grantConsent(consent)
+    }
+
     func hasValidDataConsent(for platform: ProviderPlatform) -> Bool {
-        consentStore.hasValidConsent(for: platform)
+        if platform == .frameReplyAI {
+            guard let consent = providers.first(where: { $0.platform == platform })?.managedConsent
+            else { return false }
+            return consentStore.hasValidConsent(for: consent)
+        }
+        return consentStore.hasValidConsent(for: platform)
     }
 
     func grantDataConsent(for platform: ProviderPlatform) {

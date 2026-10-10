@@ -15,6 +15,14 @@ struct PrivacyAndDataView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     legalSection
+                    if let consent = providerStore.managedAIConsent {
+                        settingsPanel(title: "FrameReply AI Data Sharing", symbol: "hand.raised") {
+                            Text(consent.summary)
+                                .font(.subheadline)
+                            legalLink(
+                                "Privacy Policy", destination: AppLegalLinks.url(for: .privacy))
+                        }
+                    }
                     deletionSection
                 }
                 .padding(24)
