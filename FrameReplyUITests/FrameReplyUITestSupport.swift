@@ -53,7 +53,7 @@ class FrameReplyUITestCase: XCTestCase {
         return app
     }
 
-    func launchShowcaseOnboarding() -> XCUIApplication {
+    func launchShowcaseOnboarding(recoveredSubscription: Bool = false) -> XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launchArguments += [
@@ -62,6 +62,9 @@ class FrameReplyUITestCase: XCTestCase {
             "-AppleLocale", "en_US",
             "-UIAccessibilityReduceMotionEnabled", "YES"
         ]
+        if recoveredSubscription {
+            app.launchArguments.append("--framereply-showcase-recovered-subscription")
+        }
         app.launch()
         XCUIDevice.shared.orientation = .portrait
         return app

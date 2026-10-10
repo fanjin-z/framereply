@@ -439,8 +439,12 @@
                 )
             )
 
+            let recoversSubscription =
+                !completesOnboarding
+                && ProcessInfo.processInfo.arguments.contains(
+                    "--framereply-showcase-recovered-subscription")
             let providerStore = try ShowcaseEnvironment.makeProviderStore(
-                seedsProvider: !completesOnboarding
+                seedsProvider: !completesOnboarding && !recoversSubscription
             )
             let onboardingStore = OnboardingStore(
                 userDefaults: ShowcaseEnvironment.userDefaults,
@@ -453,6 +457,8 @@
                 modelContainer: container,
                 onboardingStore: onboardingStore,
                 providerStore: providerStore,
+                aiAccess: recoversSubscription
+                    ? try ShowcaseEnvironment.recoveredSubscriptionAccess() : AIAccessModel(),
                 chatRepository: chatRepository,
                 personaRepository: personaRepository,
                 suggestedRepliesCoordinator: ShowcaseSuggestedRepliesCoordinator(),
@@ -467,6 +473,29 @@
 
         static var userDefaults: UserDefaults {
             UserDefaults(suiteName: defaultsSuiteName)!
+        }
+
+        // Exercises launch-time recovery with no saved provider or real purchase evidence.
+        static func recoveredSubscriptionAccess() throws -> AIAccessModel {
+            let configuration = try SubscriptionConfiguration(
+                apiURL: "https://subscription.example", productID: "test.subscription.monthly",
+                appAttestEnvironment: "development")
+            let formatter = ISO8601DateFormatter()
+            let now = formatter.string(from: Date())
+            let end = formatter.string(from: Date().addingTimeInterval(86_400))
+            let data = Data(
+                """
+                {"serviceSubscriptionId":"showcase-subscription","environment":"Sandbox",
+                 "productId":"test.subscription.monthly","active":true,"status":"active",
+                 "accessUntil":"\(end)","willRenew":true,
+                 "period":{"id":"showcase-period","kind":"paid","startsAt":"\(now)",
+                 "expiresAt":"\(end)"},"verifiedAt":"\(now)"}
+                """.utf8)
+            let entitlement = try JSONDecoder().decode(SubscriptionEntitlement.self, from: data)
+            return AIAccessModel(
+                configuration: configuration,
+                authentication: ShowcaseSubscriptionAuthentication(),
+                latestEntitlement: { _ in entitlement })
         }
 
         static func makeProviderStore(seedsProvider: Bool = false) throws -> ProviderStore {
@@ -509,5 +538,13 @@
     private enum ShowcaseDataError: Error {
         case missingBuiltInPersona(BuiltInPersonaID)
         case invalidReplies
+    }
+
+    @MainActor
+    private struct ShowcaseSubscriptionAuthentication: AppAttestAuthenticating {
+        func post(operation: AppAttestOperation, body: Data) async throws -> Data {
+            // The onboarding fixture never sends purchase data or requests credentials.
+            throw AppAttestClientError.unsupported
+        }
     }
 #endif

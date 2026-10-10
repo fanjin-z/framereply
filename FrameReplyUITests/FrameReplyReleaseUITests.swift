@@ -36,6 +36,9 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         let app = launchStandard(onboardingVersion: 0)
 
         XCTAssertTrue(element("onboarding-provider-step", in: app).waitForExistence(timeout: 8))
+        XCTAssertTrue(element("provider-row-frameReplyAI", in: app).exists)
+        XCTAssertTrue(element("onboarding-byok-option", in: app).exists)
+        XCTAssertTrue(app.secureTextFields["provider-api-key"].exists)
         app.buttons["continue-without-provider"].tap()
         let alert = app.alerts.firstMatch
         let skipAnyway = alert.buttons.matching(identifier: "confirm-skip-provider").firstMatch
@@ -48,6 +51,25 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         skipAnyway.tap()
 
         XCTAssertTrue(element("settings-screen", in: app).waitForExistence(timeout: 5))
+    }
+
+    func testRecoveredSubscriptionOffersContinuationWithoutAPIKeyAndPreservesConsent() {
+        let app = launchShowcaseOnboarding(recoveredSubscription: true)
+
+        XCTAssertTrue(element("onboarding-provider-step", in: app).waitForExistence(timeout: 8))
+        let continueButton = app.buttons["continue-with-frame-reply-ai"]
+        XCTAssertTrue(continueButton.waitForExistence(timeout: 8))
+        XCTAssertTrue(continueButton.isEnabled)
+        XCTAssertFalse(app.buttons["ai-access-purchase"].exists)
+        XCTAssertTrue(app.secureTextFields["provider-api-key"].exists)
+
+        continueButton.tap()
+        let consent = app.alerts.firstMatch
+        XCTAssertTrue(consent.waitForExistence(timeout: 3))
+        consent.buttons["Not Now"].tap()
+        XCTAssertTrue(element("onboarding-provider-step", in: app).exists)
+        XCTAssertFalse(element("onboarding-persona-step", in: app).exists)
+        XCTAssertTrue(continueButton.isEnabled)
     }
 
     func testCriticalNavigationAndPrivacyControlsAreReachable() {

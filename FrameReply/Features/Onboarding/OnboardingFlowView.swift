@@ -9,6 +9,7 @@ struct OnboardingFlowView: View {
     }
 
     @ObservedObject var providerStore: ProviderStore
+    @ObservedObject var aiAccess: AIAccessModel
     private let chatRepository: ChatRepository
     private let personaRepository: PersonaRepository
     let presentation: OnboardingPresentation
@@ -17,6 +18,7 @@ struct OnboardingFlowView: View {
     @Query(sort: \PersonaRecord.createdAt) private var personaRecords: [PersonaRecord]
     @State private var step: Step
     @State private var isConnectionInProgress = false
+    @State private var isManagedAIConnecting = false
     @State private var isSkipSetupPresented = false
     @State private var isCreatePersonaPresented = false
     @State private var isShortcutHowToPresented = false
@@ -25,12 +27,14 @@ struct OnboardingFlowView: View {
 
     init(
         providerStore: ProviderStore,
+        aiAccess: AIAccessModel,
         chatRepository: ChatRepository,
         personaRepository: PersonaRepository,
         presentation: OnboardingPresentation,
         onComplete: @escaping (AppTab) -> Void
     ) {
         self.providerStore = providerStore
+        self.aiAccess = aiAccess
         self.chatRepository = chatRepository
         self.personaRepository = personaRepository
         self.presentation = presentation
@@ -175,7 +179,7 @@ struct OnboardingFlowView: View {
                 .foregroundStyle(.red)
                 .buttonStyle(.plain)
                 .frame(minHeight: 44)
-                .disabled(isConnectionInProgress)
+                .disabled(isConnectionInProgress || isManagedAIConnecting || aiAccess.isBusy)
                 .accessibilityIdentifier("continue-without-provider")
             }
         }
@@ -193,10 +197,24 @@ struct OnboardingFlowView: View {
 
     private var providerStep: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Connect a Model Provider")
+            Text("Choose Your AI")
                 .font(.system(.title, design: .rounded, weight: .bold))
                 .foregroundStyle(FrameReplyColor.onSurface)
                 .accessibilityIdentifier("onboarding-provider-step")
+
+            FrameReplyAIOnboardingCard(
+                access: aiAccess,
+                providerStore: providerStore,
+                onConnected: advanceToPersona,
+                onConnectionStateChanged: { isManagedAIConnecting = $0 }
+            )
+            .glassPanel(cornerRadius: 26)
+            .disabled(isConnectionInProgress)
+
+            Text("Use your own API key")
+                .font(.system(.title3, design: .rounded, weight: .semibold))
+                .foregroundStyle(FrameReplyColor.onSurface)
+                .accessibilityIdentifier("onboarding-byok-option")
 
             ProviderConnectionView(
                 providerStore: providerStore,
@@ -205,6 +223,7 @@ struct OnboardingFlowView: View {
                 onConnected: advanceToPersona,
                 onCancel: nil
             )
+            .disabled(isManagedAIConnecting || aiAccess.isBusy)
         }
     }
 

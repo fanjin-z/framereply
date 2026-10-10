@@ -24,6 +24,7 @@ struct ContentView: View {
         case .initial, .update:
             OnboardingFlowView(
                 providerStore: runtime.providerStore,
+                aiAccess: runtime.aiAccess,
                 chatRepository: runtime.chatRepository,
                 personaRepository: runtime.personaRepository,
                 presentation: onboardingStore.presentation,

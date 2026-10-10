@@ -1,270 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Translate": {
-      "comment": "On-demand translation in chat history.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "翻译"
-          }
-        }
-      }
-    },
-    "Try again": {
-      "comment": "On-demand translation in chat history.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重试"
-          }
-        }
-      }
-    },
-    "Cancel translation": {
-      "comment": "On-demand translation in chat history.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "取消翻译"
-          }
-        }
-      }
-    },
-    "Hide translation": {
-      "comment": "On-demand translation in chat history.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "隐藏译文"
-          }
-        }
-      }
-    },
-    "Translation · %@": {
-      "comment": "On-demand translation in chat history.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "译文 · %@"
-          }
-        }
-      }
-    },
-    "Translating…": {
-      "comment": "On-demand translation in chat history.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在翻译…"
-          }
-        }
-      }
-    },
-    "This message can't be translated into the app language.": {
-      "comment": "On-demand translation in chat history.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无法将此消息翻译为 App 语言。"
-          }
-        }
-      }
-    },
-    "Translation isn't available on this device.": {
-      "comment": "On-demand translation in chat history.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此设备暂不支持翻译。"
-          }
-        }
-      }
-    },
-    "Couldn't translate this message. Check your connection if a language download is needed, then try again.": {
-      "comment": "On-demand translation in chat history.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无法翻译此消息。如需下载语言，请检查网络连接后重试。"
-          }
-        }
-      }
-    },
-    "Tap to stop and keep the text. Touch and hold to discard this dictation.": {
-      "comment": "VoiceOver hint while dictating reply guidance.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "轻点可停止并保留文字。长按可放弃本次语音输入。"
-          }
-        }
-      }
-    },
-    "Allow microphone access in Settings to dictate guidance. You can still type.": {
-      "comment": "Reply guidance voice input.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请在设置中允许麦克风访问，以使用语音输入。您仍可键入文字。"
-          }
-        }
-      }
-    },
-    "Converts speech to text in the app's language.": {
-      "comment": "Reply guidance voice input.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "使用 App 语言将语音转换为文字。"
-          }
-        }
-      }
-    },
-    "Dictate reply guidance": {
-      "comment": "Microphone button. Converts speech into editable guidance text.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "语音输入回复指导"
-          }
-        }
-      }
-    },
-    "Dictation stopped. Your text is still here. Try again or continue typing.": {
-      "comment": "Reply guidance voice input.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "语音输入已停止，文字已保留。请重试或继续键入。"
-          }
-        }
-      }
-    },
-    "Discard this dictation": {
-      "comment": "Restores the text from before the current dictation session.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "放弃本次语音输入"
-          }
-        }
-      }
-    },
-    "Downloading speech language…": {
-      "comment": "Reply guidance voice input.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在下载语音语言…"
-          }
-        }
-      }
-    },
-    "Finishing dictation…": {
-      "comment": "Reply guidance voice input.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在完成语音输入…"
-          }
-        }
-      }
-    },
-    "Mandarin (Simplified Chinese)": {
-      "comment": "Reply guidance voice input.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "普通话（简体中文）"
-          }
-        }
-      }
-    },
-    "On-device dictation is unavailable for the app's language on this device. You can still type.": {
-      "comment": "Reply guidance voice input.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此设备暂不支持 App 当前语言的本地语音输入。您仍可键入文字。"
-          }
-        }
-      }
-    },
-    "Open Settings": {
-      "comment": "Reply guidance voice input.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "打开设置"
-          }
-        }
-      }
-    },
-    "Preparing dictation…": {
-      "comment": "Reply guidance voice input.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在准备语音输入…"
-          }
-        }
-      }
-    },
-    "Stop dictation": {
-      "comment": "Stops speech input and keeps the transcript.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "停止语音输入"
-          }
-        }
-      }
-    },
-    "Stop dictation and edit guidance": {
-      "comment": "Action over the guidance field while listening.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "停止语音输入并编辑回复指导"
-          }
-        }
-      }
-    },
-    "Your transcript is preserved. Shorten the guidance to 500 characters before using it.": {
-      "comment": "Reply guidance voice input.",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "转写文字已保留，请将回复指导缩短至500个字符以内再使用。"
-          }
-        }
-      }
-    },
     "" : {
       "shouldTranslate" : false
     },
@@ -328,6 +64,23 @@
         }
       }
     },
+    "%@ free, then %@ per %@." : {
+      "comment" : "Subscription terms below the onboarding purchase button. First value is the localized eligible trial duration, second is the App Store price, third is the localized billing period. Wrap at larger text sizes so all terms remain visible.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ free, then %2$@ per %3$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "免费试用%1$@，之后每%3$@ %2$@。"
+          }
+        }
+      }
+    },
     "%@ imported to %@" : {
       "localizations" : {
         "en" : {
@@ -356,6 +109,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已将%1$@导入%2$@ · 需要确认"
+          }
+        }
+      }
+    },
+    "%@ per %@." : {
+      "comment" : "Subscription price below the onboarding purchase button when no free trial is available. First value is the App Store price, second is the localized billing period.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ per %2$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每%2$@ %1$@。"
           }
         }
       }
@@ -884,6 +654,17 @@
         }
       }
     },
+    "Allow microphone access in Settings to dictate guidance. You can still type." : {
+      "comment" : "Reply guidance voice input.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在设置中允许麦克风访问，以使用语音输入。您仍可键入文字。"
+          }
+        }
+      }
+    },
     "Also known as" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1246,6 +1027,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "取消"
+          }
+        }
+      }
+    },
+    "Cancel translation" : {
+      "comment" : "On-demand translation in chat history.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消翻译"
           }
         }
       }
@@ -1693,6 +1485,17 @@
         }
       }
     },
+    "Choose Your AI" : {
+      "comment" : "First onboarding step: choose a subscription or a provider with your own API key.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择你的 AI"
+          }
+        }
+      }
+    },
     "Chooses the persona for this chat" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1774,6 +1577,7 @@
       }
     },
     "Connect a Model Provider" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1859,6 +1663,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已转为群聊"
+          }
+        }
+      }
+    },
+    "Converts speech to text in the app's language." : {
+      "comment" : "Reply guidance voice input.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 App 语言将语音转换为文字。"
           }
         }
       }
@@ -2069,6 +1884,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法设置默认回复风格"
+          }
+        }
+      }
+    },
+    "Couldn't translate this message. Check your connection if a language download is needed, then try again." : {
+      "comment" : "On-demand translation in chat history.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法翻译此消息。如需下载语言，请检查网络连接后重试。"
           }
         }
       }
@@ -2405,12 +2231,45 @@
         }
       }
     },
+    "Dictate reply guidance" : {
+      "comment" : "Microphone button. Converts speech into editable guidance text.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语音输入回复指导"
+          }
+        }
+      }
+    },
+    "Dictation stopped. Your text is still here. Try again or continue typing." : {
+      "comment" : "Reply guidance voice input.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语音输入已停止，文字已保留。请重试或继续键入。"
+          }
+        }
+      }
+    },
     "Direct Chat" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "单聊"
+          }
+        }
+      }
+    },
+    "Discard this dictation" : {
+      "comment" : "Restores the text from before the current dictation session.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放弃本次语音输入"
           }
         }
       }
@@ -2471,6 +2330,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "轻点 iPhone 背面两下或三下即可导入截图"
+          }
+        }
+      }
+    },
+    "Downloading speech language…" : {
+      "comment" : "Reply guidance voice input.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在下载语音语言…"
           }
         }
       }
@@ -3625,6 +3495,17 @@
         }
       }
     },
+    "Finishing dictation…" : {
+      "comment" : "Reply guidance voice input.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在完成语音输入…"
+          }
+        }
+      }
+    },
     "Forget for this chat" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3985,6 +3866,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "隐藏 API 密钥"
+          }
+        }
+      }
+    },
+    "Hide translation" : {
+      "comment" : "On-demand translation in chat history.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏译文"
           }
         }
       }
@@ -4532,6 +4424,17 @@
         }
       }
     },
+    "Mandarin (Simplified Chinese)" : {
+      "comment" : "Reply guidance voice input.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "普通话（简体中文）"
+          }
+        }
+      }
+    },
     "Mark as Direct Chat" : {
       "comment" : "Reclassifies how FrameReply interprets the conversation; it does not change participants in another messaging app.",
       "localizations" : {
@@ -4968,6 +4871,17 @@
         }
       }
     },
+    "On-device dictation is unavailable for the app's language on this device. You can still type." : {
+      "comment" : "Reply guidance voice input.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此设备暂不支持 App 当前语言的本地语音输入。您仍可键入文字。"
+          }
+        }
+      }
+    },
     "One short fact about yourself" : {
       "localizations" : {
         "zh-Hans" : {
@@ -5074,6 +4988,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "打开 iPhone **设置**"
+          }
+        }
+      }
+    },
+    "Open Settings" : {
+      "comment" : "Reply guidance voice input.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开设置"
           }
         }
       }
@@ -5338,22 +5263,22 @@
         }
       }
     },
-    "Persona actions for %@" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ 的人设操作"
-          }
-        }
-      }
-    },
     "Persona" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "回复风格"
+          }
+        }
+      }
+    },
+    "Persona actions for %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 的人设操作"
           }
         }
       }
@@ -5990,6 +5915,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "可能匹配的聊天"
+          }
+        }
+      }
+    },
+    "Preparing dictation…" : {
+      "comment" : "Reply guidance voice input.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在准备语音输入…"
           }
         }
       }
@@ -7402,7 +7338,7 @@
       }
     },
     "Start Free Trial" : {
-      "extractionState" : "stale",
+      "comment" : "Starts the Apple subscription purchase flow when StoreKit confirms free-trial eligibility; renewal price is shown beside the button.",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -7448,6 +7384,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "第 3 步，共 3 步"
+          }
+        }
+      }
+    },
+    "Stop dictation" : {
+      "comment" : "Stops speech input and keeps the transcript.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止语音输入"
+          }
+        }
+      }
+    },
+    "Stop dictation and edit guidance" : {
+      "comment" : "Action over the guidance field while listening.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止语音输入并编辑回复指导"
           }
         }
       }
@@ -7701,6 +7659,17 @@
         }
       }
     },
+    "Tap to stop and keep the text. Touch and hold to discard this dictation." : {
+      "comment" : "VoiceOver hint while dictating reply guidance.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点可停止并保留文字。长按可放弃本次语音输入。"
+          }
+        }
+      }
+    },
     "Teach It Your Voice" : {
       "localizations" : {
         "zh-Hans" : {
@@ -7932,6 +7901,17 @@
         }
       }
     },
+    "This message can't be translated into the app language." : {
+      "comment" : "On-demand translation in chat history.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法将此消息翻译为 App 语言。"
+          }
+        }
+      }
+    },
     "This permanently deletes chats, messages, names, Personal Info, personas, drafts, provider settings, consent records, and API keys from this device." : {
       "localizations" : {
         "zh-Hans" : {
@@ -7973,12 +7953,67 @@
         }
       }
     },
+    "Translate" : {
+      "comment" : "On-demand translation in chat history.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻译"
+          }
+        }
+      }
+    },
+    "Translating…" : {
+      "comment" : "On-demand translation in chat history.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在翻译…"
+          }
+        }
+      }
+    },
+    "Translation · %@" : {
+      "comment" : "On-demand translation in chat history.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "译文 · %@"
+          }
+        }
+      }
+    },
+    "Translation isn't available on this device." : {
+      "comment" : "On-demand translation in chat history.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此设备暂不支持翻译。"
+          }
+        }
+      }
+    },
     "Trial AI allowance" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "试用期 AI 用量额度"
+          }
+        }
+      }
+    },
+    "Try again" : {
+      "comment" : "On-demand translation in chat history.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
           }
         }
       }
@@ -8150,6 +8185,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "轻点“采用回复”即可复制，然后粘贴到聊天中。"
+          }
+        }
+      }
+    },
+    "Use your own API key" : {
+      "comment" : "Heading for the personal provider-key option on the first onboarding page.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用你自己的 API 密钥"
           }
         }
       }
@@ -8440,6 +8486,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "你在聊天中的名称"
+          }
+        }
+      }
+    },
+    "Your transcript is preserved. Shorten the guidance to 500 characters before using it." : {
+      "comment" : "Reply guidance voice input.",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "转写文字已保留，请将回复指导缩短至500个字符以内再使用。"
           }
         }
       }

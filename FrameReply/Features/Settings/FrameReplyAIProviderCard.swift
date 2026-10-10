@@ -4,13 +4,19 @@ import SwiftUI
 struct FrameReplyAIProviderCard: View {
     @ObservedObject var access: AIAccessModel
     @ObservedObject var providerStore: ProviderStore
-    @State private var isConnectConsentPresented = false
-    @State private var isConnecting = false
-    @State private var connectionNotice: String?
+    @StateObject private var connection: FrameReplyAIConnectionModel
 
     private var isSelected: Bool { providerStore.activePlatform == .frameReplyAI }
     private var subscribed: Bool { access.hasActiveSubscription }
-    private var busy: Bool { access.isBusy || access.isInitiallyLoading || isConnecting }
+    private var busy: Bool { connection.isBusy }
+
+    init(access: AIAccessModel, providerStore: ProviderStore) {
+        self.access = access
+        self.providerStore = providerStore
+        _connection = StateObject(
+            wrappedValue: FrameReplyAIConnectionModel(access: access, providerStore: providerStore)
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -21,14 +27,14 @@ struct FrameReplyAIProviderCard: View {
                     if !access.isInitiallyLoading {
                         if access.statusUnavailable {
                             Text(
-                                connectionNotice ?? access.notice
+                                connection.notice ?? access.notice
                                     ?? String(
                                         localized: "Subscription status is temporarily unavailable."
                                     )
                             )
                             if access.configuration == nil {
                                 Button("Retry") {
-                                    Task { await access.refresh(refreshAppTransaction: true) }
+                                    connection.refresh(refreshAppTransaction: true)
                                 }
                                 .disabled(busy)
                             }
@@ -40,7 +46,7 @@ struct FrameReplyAIProviderCard: View {
                     }
 
                     if busy { ProgressView() }
-                    if !access.statusUnavailable, let notice = connectionNotice ?? access.notice {
+                    if !access.statusUnavailable, let notice = connection.notice ?? access.notice {
                         Text(notice)
                     }
                 }
@@ -52,23 +58,16 @@ struct FrameReplyAIProviderCard: View {
             }
         }
         .foregroundStyle(FrameReplyColor.onSurface)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("provider-row-frameReplyAI")
-        .alert("Share chat content with AI providers?", isPresented: $isConnectConsentPresented) {
-            Button("Not Now", role: .cancel) {}
-            Button("Allow & Connect") {
-                providerStore.grantDataConsent(for: .frameReplyAI)
-                connectManagedAI()
-            }
-        } message: {
-            Text(ProviderDataConsentDisclosure(provider: .frameReplyAI).permissionMessage)
-        }
+        .modifier(FrameReplyAIConnectionConsent(connection: connection))
     }
 
     private var providerHeader: some View {
         HStack(spacing: 0) {
             if subscribed {
                 Button {
-                    if !isSelected { requestManagedAIConnection() }
+                    if !isSelected { connection.requestConnection() }
                 } label: {
                     providerLabel
                 }
@@ -139,27 +138,18 @@ struct FrameReplyAIProviderCard: View {
         case .failed:
             HStack {
                 Text("Couldn’t load subscription. Try again.")
-                Button("Retry") { Task { await access.refresh() } }
+                Button("Retry") { connection.refresh() }
                     .disabled(busy)
             }
         }
     }
 
     private var subscribeButton: some View {
-        Button("Subscribe") {
-            connectionNotice = nil
-            Task {
-                if await access.purchase() { requestManagedAIConnection() }
-            }
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .font(.subheadline.weight(.semibold))
-        .frame(minHeight: 44)
-        .tint(FrameReplyColor.primary)
-        .foregroundStyle(.white)
-        .disabled(busy || access.product == nil)
-        .accessibilityIdentifier("ai-access-purchase")
+        Button("Subscribe", action: connection.purchase)
+            .controlSize(.large)
+            .modifier(FrameReplyAIActionStyle())
+            .disabled(busy || access.product == nil)
+            .accessibilityIdentifier("ai-access-purchase")
     }
 
     private var offerSummary: some View {
@@ -179,11 +169,7 @@ struct FrameReplyAIProviderCard: View {
 
     private var subscriberDetails: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if access.entitlement?.period.kind == "trial" {
-                Text("Free trial active")
-            } else {
-                Text("Subscription active")
-            }
+            FrameReplyAISubscriptionStatus(isTrial: access.entitlement?.period.kind == "trial")
             if let usage = access.usage,
                 let fraction = AIAccessPresentation.remainingFraction(usage)
             {
@@ -217,17 +203,11 @@ struct FrameReplyAIProviderCard: View {
     }
 
     @ViewBuilder private var supportActions: some View {
-        Button("Restore Purchases") {
-            connectionNotice = nil
-            Task {
-                if await access.restore() { requestManagedAIConnection() }
-            }
-        }
-        .disabled(busy || access.configuration == nil)
-        .accessibilityIdentifier("ai-access-restore")
+        Button("Restore Purchases", action: connection.restore)
+            .disabled(busy || access.configuration == nil)
+            .accessibilityIdentifier("ai-access-restore")
         Button("Refresh Status") {
-            connectionNotice = nil
-            Task { await access.refresh() }
+            connection.refresh()
         }
         .disabled(busy || access.configuration == nil)
     }
@@ -237,30 +217,6 @@ struct FrameReplyAIProviderCard: View {
         case .available: "Available"
         case .low: "Running low"
         case .exhausted: "Period limit reached"
-        }
-    }
-
-    private func requestManagedAIConnection() {
-        guard !busy else { return }
-        if providerStore.hasValidDataConsent(for: .frameReplyAI) {
-            connectManagedAI()
-        } else {
-            isConnectConsentPresented = true
-        }
-    }
-
-    private func connectManagedAI() {
-        guard !busy else { return }
-        isConnecting = true
-        connectionNotice = nil
-        Task {
-            defer { isConnecting = false }
-            do {
-                try await providerStore.connectManagedAI()
-                await access.refreshUsageIfNeeded(force: true)
-            } catch {
-                connectionNotice = error.localizedDescription
-            }
         }
     }
 }
