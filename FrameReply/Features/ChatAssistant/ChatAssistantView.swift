@@ -477,7 +477,11 @@ struct ChatAssistantView: View {
             ChatImportReviewSheet(
                 chatID: chat.id,
                 repository: repository,
-                onMerged: onMergedIntoChat
+                onMerged: onMergedIntoChat,
+                onDeleted: {
+                    cancelImport()
+                    onDeleted()
+                }
             )
         }
         .sheet(isPresented: $isEditNamesPresented) {

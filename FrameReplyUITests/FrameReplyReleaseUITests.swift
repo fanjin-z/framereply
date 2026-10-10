@@ -176,6 +176,58 @@ final class FrameReplyReleaseUITests: FrameReplyUITestCase {
         XCTAssertTrue(waitForValue(originalLanguage, of: microphone))
     }
 
+    func testImportReviewDeletionCanBeCancelledAndRemovesOnlyTheSelectedChat() {
+        for reviewsOpenChat in [false, true] {
+            var arguments = ["--framereply-showcase-import-review"]
+            if reviewsOpenChat {
+                arguments.append("--framereply-showcase-import-match")
+            }
+            let app = launchShowcase(additionalArguments: arguments)
+            if reviewsOpenChat {
+                app.buttons["chat-card-showcase.sam"].tap()
+                let review = app.buttons.matching(
+                    NSPredicate(
+                        format: "identifier == %@ AND label == %@",
+                        "assistant-import-review-notice", "Review"
+                    )
+                ).firstMatch
+                XCTAssertTrue(review.waitForExistence(timeout: 3))
+                review.tap()
+            } else {
+                app.buttons.matching(
+                    NSPredicate(format: "label BEGINSWITH %@", "Review imports")
+                ).firstMatch.tap()
+            }
+
+            let delete = app.buttons["import-review-delete-showcase.sam"]
+            XCTAssertTrue(delete.waitForExistence(timeout: 3))
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name =
+                reviewsOpenChat ? "Import review with suggested merge" : "Import review actions"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            // The small header icon must retain a tappable area around the glyph.
+            delete.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5)).tap()
+            let confirmation = app.alerts.firstMatch
+            XCTAssertTrue(confirmation.buttons["Delete Import"].waitForExistence(timeout: 3))
+            confirmation.buttons["Cancel"].tap()
+            XCTAssertTrue(delete.waitForExistence(timeout: 3))
+
+            delete.tap()
+            XCTAssertTrue(confirmation.buttons["Delete Import"].waitForExistence(timeout: 3))
+            confirmation.buttons["Delete Import"].tap()
+            if !reviewsOpenChat {
+                XCTAssertTrue(app.staticTexts["Imports Reviewed"].waitForExistence(timeout: 3))
+                app.buttons["Done"].tap()
+            }
+
+            XCTAssertTrue(element("chats-screen", in: app).waitForExistence(timeout: 5))
+            XCTAssertFalse(app.buttons["chat-card-showcase.sam"].exists)
+            XCTAssertTrue(app.buttons["chat-card-showcase.maya"].exists)
+            app.terminate()
+        }
+    }
+
     func testReplyGuidancePersistsIntoImport() {
         let app = launchShowcase()
         openMaya(in: app)

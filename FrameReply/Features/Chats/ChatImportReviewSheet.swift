@@ -21,19 +21,23 @@ struct ChatImportReviewSheet: View {
     @State private var errorMessage: String?
     @State private var individuallyReviewedChatIDs: Set<String> = []
     @State private var directConversionChatID: String?
+    @State private var chatToDelete: ChatRecord?
 
     private let chatID: String?
     private let onMerged: ((String) -> Void)?
+    private let onDeleted: (() -> Void)?
     private let repository: ChatRepository
 
     init(
         chatID: String? = nil,
         repository: ChatRepository,
-        onMerged: ((String) -> Void)? = nil
+        onMerged: ((String) -> Void)? = nil,
+        onDeleted: (() -> Void)? = nil
     ) {
         self.chatID = chatID
         self.repository = repository
         self.onMerged = onMerged
+        self.onDeleted = onDeleted
         if let chatID {
             let scopedChatID = chatID
             _unknownSenderMessages = Query(
@@ -253,7 +257,8 @@ struct ChatImportReviewSheet: View {
                                             $0.chatID == chat.id
                                         },
                                         onConfirm: confirm,
-                                        onMerge: merge
+                                        onMerge: merge,
+                                        onDelete: { chatToDelete = $0 }
                                     )
                                 }
                             }
@@ -293,6 +298,18 @@ struct ChatImportReviewSheet: View {
             } message: {
                 Text(verbatim: errorMessage ?? String(localized: AppStrings.Common.tryAgain))
             }
+            .alert(
+                "Delete \(chatToDelete.map { presentationTitle(chatID: $0.id) } ?? String(localized: "Imported chat"))?",
+                isPresented: deleteConfirmationBinding,
+                presenting: chatToDelete
+            ) { chat in
+                Button("Delete Import", role: .destructive) {
+                    deleteImport(chat)
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { _ in
+                Text("This permanently deletes this chat and its data. This can’t be undone.")
+            }
             .sheet(isPresented: directConversionBinding) {
                 DirectCounterpartSelectionSheet(
                     candidateNames: detectedParticipantNames(
@@ -313,6 +330,28 @@ struct ChatImportReviewSheet: View {
                 }
             }
         )
+    }
+
+    private var deleteConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: { chatToDelete != nil },
+            set: { if !$0 { chatToDelete = nil } }
+        )
+    }
+
+    private func deleteImport(_ chat: ChatRecord) {
+        KeyboardDismissal.dismiss()
+        let deletedChatID = chat.id
+        do {
+            try repository.deleteChat(id: deletedChatID)
+            individuallyReviewedChatIDs.remove(deletedChatID)
+            if chatID == deletedChatID {
+                dismiss()
+                onDeleted?()
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func presentationTitle(chatID: String) -> String {
@@ -788,6 +827,8 @@ private struct ConversationKindReviewCard: View {
 }
 
 private struct ImportReviewCard: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let chat: ChatRecord
     let provisionalIdentity: ProvisionalIdentityInterpretation?
     let mergeCandidates: [ChatRecord]
@@ -795,6 +836,7 @@ private struct ImportReviewCard: View {
     let canConfirm: Bool
     let onConfirm: (String, String) -> Void
     let onMerge: (String, String) -> Void
+    let onDelete: (ChatRecord) -> Void
 
     @State private var name: String
 
@@ -809,7 +851,8 @@ private struct ImportReviewCard: View {
         mergeLabel: @escaping (ChatRecord) -> String,
         canConfirm: Bool,
         onConfirm: @escaping (String, String) -> Void,
-        onMerge: @escaping (String, String) -> Void
+        onMerge: @escaping (String, String) -> Void,
+        onDelete: @escaping (ChatRecord) -> Void
     ) {
         self.chat = chat
         self.provisionalIdentity = provisionalIdentity
@@ -818,6 +861,7 @@ private struct ImportReviewCard: View {
         self.canConfirm = canConfirm
         self.onConfirm = onConfirm
         self.onMerge = onMerge
+        self.onDelete = onDelete
         _name = State(
             initialValue:
                 chat.title
@@ -854,6 +898,19 @@ private struct ImportReviewCard: View {
                         .submitLabel(.done)
                         .onSubmit { KeyboardDismissal.dismiss() }
                 }
+
+                Button(role: .destructive) {
+                    onDelete(chat)
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 17, weight: .regular))
+                        .foregroundStyle(Color(uiColor: .systemRed))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(SoftPressButtonStyle())
+                .accessibilityLabel("Delete Import")
+                .accessibilityIdentifier("import-review-delete-\(chat.id)")
             }
 
             Text(verbatim: chat.displayPreview())
@@ -861,7 +918,7 @@ private struct ImportReviewCard: View {
                 .foregroundStyle(FrameReplyColor.onSurfaceVariant)
                 .lineLimit(1)
 
-            HStack(spacing: 10) {
+            actionLayout {
                 if let suggestedCandidate {
                     Button {
                         onMerge(chat.id, suggestedCandidate.id)
@@ -869,10 +926,10 @@ private struct ImportReviewCard: View {
                         Text("Merge into \(mergeLabel(suggestedCandidate))")
                             .font(.system(.footnote, design: .rounded, weight: .bold))
                             .foregroundStyle(.white)
-                            .lineLimit(1)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                             .minimumScaleFactor(0.75)
                             .frame(maxWidth: .infinity)
-                            .frame(minHeight: 36)
+                            .frame(minHeight: 44)
                             .background {
                                 Capsule(style: .continuous)
                                     .fill(FrameReplyColor.actionFill)
@@ -926,6 +983,12 @@ private struct ImportReviewCard: View {
         return mergeCandidates.filter { $0.id != suggestedCandidate.id }
     }
 
+    private var actionLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 10))
+            : AnyLayout(HStackLayout(spacing: 10))
+    }
+
     private func keepButton(prominent: Bool) -> some View {
         Button {
             onConfirm(chat.id, name)
@@ -937,10 +1000,10 @@ private struct ImportReviewCard: View {
             )
             .font(.system(.footnote, design: .rounded, weight: .bold))
             .foregroundStyle(prominent ? Color.white : FrameReplyColor.primary)
-            .lineLimit(1)
+            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
             .minimumScaleFactor(0.78)
             .frame(maxWidth: .infinity)
-            .frame(minHeight: 36)
+            .frame(minHeight: 44)
             .background {
                 Capsule(style: .continuous)
                     .fill(
@@ -969,10 +1032,10 @@ private struct ImportReviewCard: View {
             Text(title)
                 .font(.system(.footnote, design: .rounded, weight: .bold))
                 .foregroundStyle(FrameReplyColor.primary)
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                 .minimumScaleFactor(0.78)
                 .frame(maxWidth: .infinity)
-                .frame(minHeight: 36)
+                .frame(minHeight: 44)
                 .background {
                     Capsule(style: .continuous)
                         .fill(FrameReplyColor.secondaryContainer.opacity(0.46))

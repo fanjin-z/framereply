@@ -2237,6 +2237,16 @@
         }
       }
     },
+    "Delete Import" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除导入"
+          }
+        }
+      }
+    },
     "Delete Name" : {
       "localizations" : {
         "zh-Hans" : {

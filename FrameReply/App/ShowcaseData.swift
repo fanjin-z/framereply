@@ -271,7 +271,9 @@
         static func seed(
             in container: ModelContainer,
             now: Date = Date(),
-            includesMemoryListTestFixture: Bool = false
+            includesMemoryListTestFixture: Bool = false,
+            includesImportReviewTestFixture: Bool = false,
+            suggestsImportMatch: Bool = false
         ) throws {
             let context = container.mainContext
             let personaRepository = PersonaRepository(context: context)
@@ -299,7 +301,14 @@
                         title: scenario.name,
                         previewText: scenario.preview,
                         conversationKind: .direct,
-                        isProvisional: false,
+                        importReviewStateJSON:
+                            includesImportReviewTestFixture
+                            && scenario.id == ShowcaseScenario.ChatID.sam
+                            ? ChatImportReviewState(
+                                identityStatus: .needsReview,
+                                suggestedMatchChatID:
+                                    suggestsImportMatch ? ShowcaseScenario.ChatID.maya : nil
+                            ).jsonString : nil,
                         updatedAt: updatedAt
                     )
                 )
@@ -436,6 +445,12 @@
                 in: container,
                 includesMemoryListTestFixture: ProcessInfo.processInfo.arguments.contains(
                     "--framereply-showcase-memory-list"
+                ),
+                includesImportReviewTestFixture: ProcessInfo.processInfo.arguments.contains(
+                    "--framereply-showcase-import-review"
+                ),
+                suggestsImportMatch: ProcessInfo.processInfo.arguments.contains(
+                    "--framereply-showcase-import-match"
                 )
             )
 
