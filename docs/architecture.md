@@ -65,6 +65,8 @@ flowchart LR
 
 Apple is the billing source of truth. The app observes transaction updates from launch and finishes verified transactions only after backend verification. Explicit purchase and restore actions connect FrameReply AI after any required consent; background updates preserve the user's provider selection.
 
+Subscription presentation is shared for the app lifetime. Settings displays the last confirmed state while stale data refreshes silently, with a five-minute subscription/product freshness window and a separate one-minute allowance window. Managed AI requests invalidate the allowance cache. Verified transaction and renewal-status updates replace the displayed entitlement directly, and the access end triggers reconciliation; cached presentation never authorizes provider credentials or extends confirmed access. Explicit refresh and restore actions bypass freshness.
+
 The private service verifies purchase and device evidence, shares allowances across devices and restores, and issues capped, expiring provider keys. The app stores those keys in Keychain and uses the model IDs returned with them, so supported model changes do not require an app update. Personal-key providers remain independently selectable.
 
 Backend URLs, product IDs, and App IDs are public configuration, not credentials. App Attest and server-side authorization protect service access. Release routes verified Apple Sandbox and production transactions to separate backends; see [release checks](development.md#subscription-release-checks).

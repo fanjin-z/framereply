@@ -78,6 +78,8 @@ nonisolated enum AIAccessPresentation {
 
 @MainActor
 final class AIAccessModel: ObservableObject {
+    static let usageDidChange = Notification.Name("FrameReply.managedAIUsageDidChange")
+
     @Published private(set) var product: Product?
     enum ProductAvailability {
         case loading, available, notOffered, failed
@@ -96,65 +98,200 @@ final class AIAccessModel: ObservableObject {
     @Published private(set) var notice: String?
     @Published private(set) var isBusy = false
     @Published private(set) var statusUnavailable = true
+    @Published private(set) var isRefreshing = false
+    @Published private(set) var isLoadingConfiguration = false
+    @Published private(set) var configuration: SubscriptionConfiguration?
 
-    private let configuration: SubscriptionConfiguration
-    private let client: SubscriptionClient
+    private var client: SubscriptionClient?
+    private let authentication: (any AppAttestAuthenticating)?
+    private let now: () -> Date
+    private let latestEntitlement: (SubscriptionClient) async throws -> SubscriptionEntitlement?
+    private var hasLoadedStatus = false
+    private var statusCheckedAt: Date?
+    private var productsCheckedAt: Date?
+    private var usageCheckedAt: Date?
+    private var entitlementRevision = 0
+    private var usageRevision = 0
+    private var productRevision = 0
+    private var configurationTask: Task<Bool, Never>?
+    private var statusTask: Task<Bool, Never>?
+    private var productTask: Task<Void, Never>?
+    private var usageTask: Task<Void, Never>?
+    private var storefrontTask: Task<Void, Never>?
+    private var expiryTask: Task<Void, Never>?
+    private var subscriptions = Set<AnyCancellable>()
 
-    init(configuration: SubscriptionConfiguration) {
-        self.configuration = configuration
-        client = SubscriptionClient(configuration: configuration)
+    var hasActiveSubscription: Bool {
+        guard entitlement?.active == true,
+            let accessEnd = entitlement.flatMap({ AIAccessPresentation.date($0.accessUntil) })
+        else { return false }
+        return accessEnd > now() && !statusUnavailable
     }
 
-    func load() async {
-        guard !isBusy else { return }
-        isBusy = true
-        defer { isBusy = false }
+    var isInitiallyLoading: Bool {
+        isLoadingConfiguration || (!hasLoadedStatus && isRefreshing)
+            || (configuration != nil && !hasActiveSubscription && productAvailability == .loading)
+    }
 
-        notice = nil
-        product = nil
-        trialDuration = nil
-        productAvailability = .loading
+    init(
+        configuration: SubscriptionConfiguration? = nil,
+        authentication: (any AppAttestAuthenticating)? = nil,
+        now: @escaping () -> Date = Date.init,
+        latestEntitlement: @escaping (SubscriptionClient) async throws -> SubscriptionEntitlement? =
+            {
+                client in
+                // Keep the latest evidence so the backend can report expiry and revocation too.
+                guard let evidence = await Transaction.latest(for: client.configuration.productID)
+                else { return nil }
+                return try await client.verifyAndFinish(evidence)
+            }
+    ) {
+        self.configuration = configuration
+        self.authentication = authentication
+        self.now = now
+        self.latestEntitlement = latestEntitlement
+        client = configuration.map {
+            SubscriptionClient(configuration: $0, authentication: authentication)
+        }
+    }
+
+    deinit {
+        storefrontTask?.cancel()
+        expiryTask?.cancel()
+    }
+
+    func start() async {
+        guard storefrontTask == nil else { return }
+        SubscriptionTransactionObserver.shared.$entitlement
+            .compactMap { $0 }
+            .sink { [weak self] verified in
+                self?.acceptVerifiedEntitlement(verified)
+                Task { [weak self] in await self?.refreshUsageIfNeeded() }
+            }
+            .store(in: &subscriptions)
+        NotificationCenter.default.publisher(for: Self.usageDidChange)
+            .sink { [weak self] _ in self?.invalidateUsage() }
+            .store(in: &subscriptions)
+        storefrontTask = Task { [weak self] in
+            for await _ in Storefront.updates {
+                guard !Task.isCancelled else { return }
+                guard let self else { return }
+                self.productRevision += 1
+                self.productsCheckedAt = nil
+                self.product = nil
+                self.trialDuration = nil
+                self.productAvailability = .loading
+                await self.loadProductsIfNeeded(force: true)
+                _ = await self.refreshStatusIfNeeded(force: true)
+                await self.refreshUsageIfNeeded()
+            }
+        }
+        await load()
+    }
+
+    /// Navigation and foreground refreshes retain confirmed data and do not block the card.
+    func load() async {
+        guard !isBusy, await configure() else { return }
+        _ = await refreshStatusIfNeeded()
+        await loadProductsIfNeeded()
+        await refreshUsageIfNeeded()
+    }
+
+    private func configure(refreshAppTransaction: Bool = false) async -> Bool {
+        if configuration != nil { return true }
+        if let configurationTask {
+            return await configurationTask.value
+        }
+        isLoadingConfiguration = true
+        let task = Task { () -> Bool in
+            defer { configurationTask = nil }
+            let resolved: SubscriptionConfiguration?
+            do {
+                resolved = try await SubscriptionConfiguration.load(
+                    refreshAppTransaction: refreshAppTransaction)
+            } catch {
+                SubscriptionDiagnostics.record(error, operation: "Subscription configuration")
+                resolved = nil
+            }
+            configuration = resolved
+            client = resolved.map {
+                SubscriptionClient(configuration: $0, authentication: authentication)
+            }
+            isLoadingConfiguration = false
+            if let verified = SubscriptionTransactionObserver.shared.entitlement {
+                acceptVerifiedEntitlement(verified)
+            }
+            return resolved != nil
+        }
+        configurationTask = task
+        return await task.value
+    }
+
+    private func loadProductsIfNeeded(force: Bool = false) async {
+        if let productTask {
+            await productTask.value
+            if force { await loadProductsIfNeeded(force: true) }
+            return
+        }
+        guard let configuration, force || !isFresh(productsCheckedAt, for: 300) else { return }
+        productsCheckedAt = now()
+        let revision = productRevision
+        let task = Task {
+            await fetchProduct(configuration: configuration, revision: revision)
+            productTask = nil
+        }
+        productTask = task
+        await task.value
+    }
+
+    private func fetchProduct(configuration: SubscriptionConfiguration, revision: Int) async {
         do {
             let fetched = try await Product.products(for: [configuration.productID]).first
+            var trial: String?
             if let fetched, fetched.type == .autoRenewable,
                 let subscription = fetched.subscription
             {
-                product = fetched
                 if let offer = subscription.introductoryOffer,
                     offer.paymentMode == .freeTrial,
                     await subscription.isEligibleForIntroOffer
                 {
-                    trialDuration = AIAccessPresentation.duration(
+                    trial = AIAccessPresentation.duration(
                         value: offer.period.value, unit: offer.period.unit, count: offer.periodCount
                     )
                 }
+                guard revision == productRevision else { return }
+                product = fetched
+                trialDuration = trial
                 productAvailability = .available
             } else {
+                guard revision == productRevision else { return }
+                product = nil
+                trialDuration = nil
                 productAvailability = .notOffered
             }
         } catch {
-            productAvailability = .failed
-        }
-
-        do { try await refreshStatus() } catch {
-            notice = String(localized: "Couldn’t check subscription status. Try Refresh Status.")
+            if revision == productRevision && product == nil { productAvailability = .failed }
         }
     }
 
-    func refresh() async {
+    /// Explicit refreshes bypass freshness and show progress, without clearing valid snapshots.
+    func refresh(refreshAppTransaction: Bool = false) async {
         guard !isBusy else { return }
         isBusy = true
         defer { isBusy = false }
         notice = nil
-        do { try await refreshStatus() } catch {
+        guard await configure(refreshAppTransaction: refreshAppTransaction) else { return }
+        await loadProductsIfNeeded(force: true)
+        if !(await refreshStatusIfNeeded(force: true)) {
             notice = String(localized: "Couldn’t check subscription status. Try again.")
         }
+        await refreshUsageIfNeeded(force: true)
     }
 
     // True only when this explicit action verifies active access. An existing
     // entitlement must not turn cancellation, pending, or failure into activation.
     func purchase() async -> Bool {
-        guard !isBusy, let product else { return false }
+        guard !isBusy, let product, let client else { return false }
         isBusy = true
         defer { isBusy = false }
         notice = nil
@@ -172,9 +309,8 @@ final class AIAccessModel: ObservableObject {
             switch try await product.purchase() {
             case .success(let evidence):
                 let verified = try await client.verifyAndFinish(evidence)
-                entitlement = verified
-                statusUnavailable = false
-                await loadUsage(for: verified)
+                acceptVerifiedEntitlement(verified)
+                await refreshUsageIfNeeded(force: true)
                 notice = String(localized: "Subscription verified with FrameReply.")
                 return verified.active
             case .pending:
@@ -202,7 +338,11 @@ final class AIAccessModel: ObservableObject {
         do {
             // StoreKit prompts for Apple Account authentication, so only call after a tap.
             try await AppStore.sync()
-            try await refreshStatus()
+            guard await refreshStatusIfNeeded(force: true) else {
+                notice = String(localized: "Couldn’t restore purchases. Try again later.")
+                return false
+            }
+            await refreshUsageIfNeeded(force: true)
             notice =
                 entitlement?.active == true
                 ? String(localized: "Subscription restored.")
@@ -214,35 +354,144 @@ final class AIAccessModel: ObservableObject {
         return false
     }
 
-    private func refreshStatus() async throws {
-        // The latest signed transaction also lets the backend report expiry or revocation.
-        statusUnavailable = true
-        entitlement = nil
-        usage = nil
-        usageIssue = nil
-        guard let evidence = await Transaction.latest(for: configuration.productID) else {
-            statusUnavailable = false
-            return
+    @discardableResult
+    func refreshStatusIfNeeded(force: Bool = false) async -> Bool {
+        if let statusTask {
+            let result = await statusTask.value
+            if force { return await refreshStatusIfNeeded(force: true) }
+            return result
         }
-        let verified = try await client.verifyAndFinish(evidence)
-        entitlement = verified
-        statusUnavailable = false
-        await loadUsage(for: verified)
+        guard let client else { return false }
+        let accessEnd = entitlement.flatMap { AIAccessPresentation.date($0.accessUntil) }
+        let crossedAccessEnd =
+            accessEnd.map { accessEnd in
+                accessEnd <= now() && (statusCheckedAt.map { $0 < accessEnd } ?? true)
+            } ?? false
+        guard force || crossedAccessEnd || !isFresh(statusCheckedAt, for: 300) else {
+            return !statusUnavailable
+        }
+        if entitlement?.active == true && accessEnd.map({ $0 <= now() }) == true {
+            statusUnavailable = true
+        }
+        statusCheckedAt = now()
+        isRefreshing = true
+        let revision = entitlementRevision
+        let task = Task { () -> Bool in
+            defer {
+                statusTask = nil
+                isRefreshing = false
+            }
+            do {
+                let verified = try await latestEntitlement(client)
+                guard revision == entitlementRevision else { return true }
+                if let verified {
+                    acceptVerifiedEntitlement(verified)
+                } else {
+                    entitlementRevision += 1
+                    entitlement = nil
+                    usage = nil
+                    invalidateUsage()
+                    statusUnavailable = false
+                    hasLoadedStatus = true
+                    if !isBusy { notice = nil }
+                    expiryTask?.cancel()
+                }
+                return true
+            } catch {
+                SubscriptionDiagnostics.record(error, operation: "Subscription status verification")
+                guard revision == entitlementRevision else { return true }
+                if !hasLoadedStatus || (entitlement?.active == true && !hasActiveSubscription) {
+                    statusUnavailable = true
+                    notice = String(
+                        localized: "Couldn’t check subscription status. Try Refresh Status.")
+                }
+                return false
+            }
+        }
+        statusTask = task
+        return await task.value
     }
 
-    private func loadUsage(for verified: SubscriptionEntitlement) async {
-        usage = nil
-        usageIssue = nil
-        guard verified.active else { return }
-        do {
-            let current = try await client.usage(
-                serviceSubscriptionId: verified.serviceSubscriptionId)
-            guard current.periodId == verified.period.id,
-                current.kind == verified.period.kind
-            else { throw SubscriptionClientError(message: "Allowance period mismatch.") }
-            usage = current
-        } catch {
-            usageIssue = String(localized: "Couldn’t load your current AI allowance.")
+    func acceptVerifiedEntitlement(_ verified: SubscriptionEntitlement) {
+        guard let configuration,
+            verified.environment == configuration.entitlementEnvironment,
+            verified.productId == configuration.productID
+        else { return }
+        entitlementRevision += 1
+        if entitlement?.active != verified.active {
+            productsCheckedAt = nil
+            trialDuration = nil
+        }
+        if entitlement?.serviceSubscriptionId != verified.serviceSubscriptionId
+            || entitlement?.period.id != verified.period.id
+            || entitlement?.period.kind != verified.period.kind || !verified.active
+        {
+            usage = nil
+            usageIssue = nil
+            invalidateUsage()
+        }
+        entitlement = verified
+        statusUnavailable =
+            verified.active
+            && AIAccessPresentation.date(verified.accessUntil).map({ $0 <= now() }) != false
+        hasLoadedStatus = true
+        if !isBusy { notice = nil }
+        statusCheckedAt = now()
+        scheduleAccessEndRefresh()
+    }
+
+    func invalidateUsage() {
+        usageRevision += 1
+        usageCheckedAt = nil
+    }
+
+    func refreshUsageIfNeeded(force: Bool = false) async {
+        if let usageTask {
+            await usageTask.value
+            await refreshUsageIfNeeded(force: force)
+            return
+        }
+        guard hasActiveSubscription, let verified = entitlement, let client,
+            force || !isFresh(usageCheckedAt, for: 60)
+        else { return }
+        usageCheckedAt = now()
+        let revision = usageRevision
+        let task = Task {
+            defer { usageTask = nil }
+            do {
+                let current = try await client.usage(
+                    serviceSubscriptionId: verified.serviceSubscriptionId)
+                guard current.periodId == verified.period.id,
+                    current.kind == verified.period.kind
+                else { throw SubscriptionClientError(message: "Allowance period mismatch.") }
+                guard revision == usageRevision else { return }
+                usage = current
+                usageIssue = nil
+            } catch {
+                guard revision == usageRevision else { return }
+                usageIssue = String(localized: "Couldn’t load your current AI allowance.")
+            }
+        }
+        usageTask = task
+        await task.value
+    }
+
+    private func isFresh(_ checkedAt: Date?, for interval: TimeInterval) -> Bool {
+        guard let checkedAt else { return false }
+        let age = now().timeIntervalSince(checkedAt)
+        return age >= 0 && age < interval
+    }
+
+    private func scheduleAccessEndRefresh() {
+        expiryTask?.cancel()
+        guard storefrontTask != nil, hasActiveSubscription,
+            let accessEnd = entitlement.flatMap({ AIAccessPresentation.date($0.accessUntil) })
+        else { return }
+        let delay = accessEnd.timeIntervalSince(now())
+        expiryTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            _ = await self?.refreshStatusIfNeeded(force: true)
+            await self?.refreshUsageIfNeeded()
         }
     }
 }

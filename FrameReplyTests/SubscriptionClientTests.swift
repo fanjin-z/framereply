@@ -207,8 +207,11 @@
             do {
                 _ = try await client.verify(signedTransactionInfo: "synthetic.signed.evidence")
                 XCTFail("Expected authentication rejection")
-            } catch is SubscriptionClientError {
-                // Authentication failures remain subscription errors without pinning recovery copy.
+            } catch let error as SubscriptionClientError {
+                // Preserve the cause for diagnostics without exposing signed purchase evidence.
+                XCTAssertEqual(
+                    error.authenticationError, .backend(status: 401, code: "UNAUTHENTICATED"))
+                XCTAssertFalse(error.message.contains("synthetic.signed.evidence"))
             }
         }
 
@@ -250,6 +253,189 @@
             }
         }
 
+        @MainActor
+        func testAccessCachesStatusAndUsageIndependentlyAndRetainsSnapshotsOnFailure() async throws
+        {
+            let authentication = ProbeAuthenticationStub()
+            authentication.response = Data(usageResponse().utf8)
+            var date = try XCTUnwrap(AIAccessPresentation.date("2026-09-24T00:00:00Z"))
+            let active = try entitlement()
+            var statusRequests = 0
+            var statusFails = false
+            let model = AIAccessModel(
+                configuration: try configuration(), authentication: authentication, now: { date },
+                latestEntitlement: { _ in
+                    statusRequests += 1
+                    if statusFails { throw SubscriptionClientError(message: "Offline") }
+                    return active
+                })
+
+            await model.refreshStatusIfNeeded()
+            await model.refreshUsageIfNeeded()
+            for _ in 0..<2 {
+                await model.refreshStatusIfNeeded()
+                await model.refreshUsageIfNeeded()
+            }
+            XCTAssertEqual(statusRequests, 1)
+            XCTAssertEqual(authentication.calls.count, 1)
+            XCTAssertTrue(model.hasActiveSubscription)
+            XCTAssertFalse(model.isBusy)
+
+            date = date.addingTimeInterval(60)
+            await model.refreshStatusIfNeeded()
+            await model.refreshUsageIfNeeded()
+            XCTAssertEqual(statusRequests, 1)
+            XCTAssertEqual(authentication.calls.count, 2)
+            model.invalidateUsage()
+            await model.refreshUsageIfNeeded()
+            XCTAssertEqual(authentication.calls.count, 3)
+            XCTAssertEqual(statusRequests, 1)
+
+            date = date.addingTimeInterval(240)
+            statusFails = true
+            authentication.error = .backend(status: 503, code: "UNAVAILABLE")
+            let refreshed = await model.refreshStatusIfNeeded()
+            await model.refreshUsageIfNeeded()
+            XCTAssertFalse(refreshed)
+            XCTAssertEqual(statusRequests, 2)
+            XCTAssertTrue(model.hasActiveSubscription)
+            XCTAssertFalse(model.statusUnavailable)
+            XCTAssertEqual(model.usage?.remainingMicrousd, 700_000)
+            XCTAssertNil(model.notice)
+            XCTAssertFalse(model.isBusy)
+        }
+
+        @MainActor
+        func testAccessCoalescesRefreshesAndKeepsNewerObserverResult() async throws {
+            let started = expectation(description: "Subscription request started")
+            var resume: CheckedContinuation<SubscriptionEntitlement?, Never>?
+            let active = try entitlement()
+            var requests = 0
+            let model = AIAccessModel(
+                configuration: try configuration(),
+                now: { AIAccessPresentation.date("2026-09-24T00:00:00Z")! },
+                latestEntitlement: { _ in
+                    requests += 1
+                    return await withCheckedContinuation {
+                        resume = $0
+                        started.fulfill()
+                    }
+                })
+            let first = Task { await model.refreshStatusIfNeeded() }
+            await fulfillment(of: [started], timeout: 1)
+            let second = Task { await model.refreshStatusIfNeeded() }
+            await Task.yield()
+            XCTAssertEqual(requests, 1)
+
+            model.acceptVerifiedEntitlement(try entitlement(active: false))
+            resume?.resume(returning: active)
+            _ = await first.value
+            _ = await second.value
+            XCTAssertEqual(requests, 1)
+            XCTAssertFalse(model.hasActiveSubscription)
+            XCTAssertEqual(model.entitlement?.active, false)
+        }
+
+        @MainActor
+        func testAccessReconcilesExpiryBeforeCacheTimeoutAndAcceptsVerifiedGracePeriod()
+            async throws
+        {
+            var date = try XCTUnwrap(AIAccessPresentation.date("2026-09-24T00:00:00Z"))
+            var result: SubscriptionEntitlement?
+            var requests = 0
+            let model = AIAccessModel(
+                configuration: try configuration(), now: { date },
+                latestEntitlement: { _ in
+                    requests += 1
+                    guard let result else { throw SubscriptionClientError(message: "Offline") }
+                    return result
+                })
+            model.acceptVerifiedEntitlement(
+                try entitlement(accessUntil: "2026-09-24T00:01:00Z"))
+            await model.refreshStatusIfNeeded()
+            XCTAssertEqual(requests, 0)
+
+            date = date.addingTimeInterval(60)
+            await model.refreshStatusIfNeeded()
+            XCTAssertEqual(requests, 1)
+            XCTAssertFalse(model.hasActiveSubscription)
+            XCTAssertTrue(model.statusUnavailable)
+
+            result = try entitlement(status: "grace_period")
+            await model.refreshStatusIfNeeded(force: true)
+            XCTAssertEqual(requests, 2)
+            XCTAssertTrue(model.hasActiveSubscription)
+            XCTAssertFalse(model.statusUnavailable)
+        }
+
+        @MainActor
+        func testAccessDiscardsOldAllowanceWhenSubscriptionPeriodChanges() async throws {
+            let authentication = ProbeAuthenticationStub()
+            let started = expectation(description: "Allowance request started")
+            var resume: CheckedContinuation<Data, Never>?
+            authentication.responder = {
+                await withCheckedContinuation {
+                    resume = $0
+                    started.fulfill()
+                }
+            }
+            let model = AIAccessModel(
+                configuration: try configuration(), authentication: authentication,
+                now: { AIAccessPresentation.date("2026-09-24T00:00:00Z")! })
+            model.acceptVerifiedEntitlement(try entitlement())
+            let oldAllowance = Task { await model.refreshUsageIfNeeded() }
+            await fulfillment(of: [started], timeout: 1)
+            model.acceptVerifiedEntitlement(try entitlement(periodID: "renewed-period"))
+            resume?.resume(returning: Data(usageResponse().utf8))
+            await oldAllowance.value
+            XCTAssertNil(model.usage)
+
+            authentication.responder = nil
+            authentication.response = Data(
+                usageResponse().replacingOccurrences(of: "period-id", with: "renewed-period").utf8)
+            await model.refreshUsageIfNeeded()
+            XCTAssertEqual(model.usage?.periodId, "renewed-period")
+            XCTAssertEqual(authentication.calls.count, 2)
+        }
+
+        @MainActor
+        func testAccessForcedRefreshBypassesFreshStatusAndNoPurchaseIsCached() async throws {
+            var requests = 0
+            let model = AIAccessModel(
+                configuration: try configuration(),
+                latestEntitlement: { _ in
+                    requests += 1
+                    return nil
+                })
+            await model.refreshStatusIfNeeded()
+            await model.refreshStatusIfNeeded()
+            XCTAssertEqual(requests, 1)
+            XCTAssertFalse(model.statusUnavailable)
+            XCTAssertFalse(model.hasActiveSubscription)
+            await model.refreshStatusIfNeeded(force: true)
+            XCTAssertEqual(requests, 2)
+        }
+
+        private func entitlement(
+            active: Bool = true, accessUntil: String = "2026-09-25T00:00:00Z",
+            status: String = "active", periodID: String = "period-id"
+        ) throws -> SubscriptionEntitlement {
+            var wrapper = try XCTUnwrap(
+                JSONSerialization.jsonObject(with: Data(response().utf8)) as? [String: Any])
+            var value = try XCTUnwrap(wrapper["entitlement"] as? [String: Any])
+            var period = try XCTUnwrap(value["period"] as? [String: Any])
+            period["id"] = periodID
+            value["period"] = period
+            value["active"] = active
+            value["status"] = status
+            value["accessUntil"] = accessUntil
+            wrapper["entitlement"] = value
+            struct Response: Decodable { let entitlement: SubscriptionEntitlement }
+            return try JSONDecoder().decode(
+                Response.self, from: JSONSerialization.data(withJSONObject: wrapper)
+            ).entitlement
+        }
+
         private func configuration(url: String = "https://sandbox.example") throws
             -> SubscriptionConfiguration
         {
@@ -286,11 +472,13 @@
     private final class ProbeAuthenticationStub: AppAttestAuthenticating {
         var response = Data()
         var error: AppAttestClientError?
+        var responder: (() async -> Data)?
         var calls: [(AppAttestOperation, Data)] = []
 
         func post(operation: AppAttestOperation, body: Data) async throws -> Data {
             calls.append((operation, body))
             if let error { throw error }
+            if let responder { return await responder() }
             return response
         }
     }

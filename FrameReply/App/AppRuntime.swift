@@ -10,6 +10,7 @@ struct AppRuntime {
     let modelContainer: ModelContainer
     let onboardingStore: OnboardingStore
     let providerStore: ProviderStore
+    let aiAccess = AIAccessModel()
     let chatRepository: ChatRepository
     let personaRepository: PersonaRepository
     let suggestedRepliesCoordinator: any SuggestedRepliesCoordinating

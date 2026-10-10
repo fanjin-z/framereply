@@ -66,6 +66,8 @@ final class AIProviderGatewayTests: XCTestCase {
 
     @MainActor
     func testManagedConnectionUsesBackendModelAndCappedKey() async throws {
+        let usageInvalidated = expectation(
+            forNotification: AIAccessModel.usageDidChange, object: nil)
         let adapter = RecordingProviderAdapter(platform: .frameReplyAI)
         let modelID = try XCTUnwrap(ManagedOpenRouterModelID(rawValue: "openai/future-model"))
         let model = ManagedOpenRouterModel(requestID: modelID, responseID: modelID)
@@ -79,6 +81,7 @@ final class AIProviderGatewayTests: XCTestCase {
         XCTAssertEqual(context.platform, .frameReplyAI)
         XCTAssertEqual(context.effectiveModel, .managedOpenRouter(model))
         _ = try await service.generateSuggestedReplies(makeReplyRequest(), using: context)
+        await fulfillment(of: [usageInvalidated], timeout: 1)
 
         XCTAssertEqual(adapter.replyModels, [.managedOpenRouter(model)])
         XCTAssertEqual(adapter.apiKeys, ["saved-key"])

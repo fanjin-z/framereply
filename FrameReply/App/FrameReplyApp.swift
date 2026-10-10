@@ -5,6 +5,7 @@ import SwiftUI
 @main
 struct FrameReplyApp: App {
     @StateObject private var startup: AppStartupController
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         SubscriptionTransactionObserver.shared.start()
@@ -17,6 +18,11 @@ struct FrameReplyApp: App {
     var body: some Scene {
         WindowGroup {
             startupView
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active, case .ready(let runtime) = startup.state {
+                        Task { await runtime.aiAccess.load() }
+                    }
+                }
         }
     }
 
@@ -28,6 +34,7 @@ struct FrameReplyApp: App {
         case .ready(let runtime):
             ContentView(runtime: runtime)
                 .modelContainer(runtime.modelContainer)
+                .task { await runtime.aiAccess.start() }
         case .failed(let message):
             DataStoreRecoveryView(
                 message: message,

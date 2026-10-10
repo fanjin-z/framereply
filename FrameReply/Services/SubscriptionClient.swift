@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import OSLog
 import StoreKit
 
 /// Public routing configuration. Release selects its backend from verified Apple evidence.
@@ -102,7 +103,46 @@ nonisolated struct SubscriptionConfiguration {
 
 nonisolated struct SubscriptionClientError: LocalizedError {
     let message: String
+    let authenticationError: AppAttestClientError?
+
+    init(message: String, authenticationError: AppAttestClientError? = nil) {
+        self.message = message
+        self.authenticationError = authenticationError
+    }
+
     var errorDescription: String? { message }
+}
+
+nonisolated enum SubscriptionDiagnostics {
+    private static let logger = Logger(
+        subsystem: "com.gigabeyond.framereply", category: "Subscription")
+
+    static func record(_ error: Error, operation: String) {
+        if let cause = (error as? SubscriptionClientError)?.authenticationError
+            ?? (error as? AppAttestClientError)
+        {
+            let summary: String
+            if case .backend(let status, let code) = cause {
+                // Only known protocol codes are public; never echo arbitrary response content.
+                let knownCodes = [
+                    "INVALID_AUTH_REQUEST", "UNAUTHENTICATED", "AUTH_UNAVAILABLE",
+                    "INVALID_REQUEST", "INVALID_TRANSACTION", "SUBSCRIPTION_UNAVAILABLE",
+                    "NOT_FOUND"
+                ]
+                let safeCode = code.flatMap { knownCodes.contains($0) ? $0 : nil } ?? "UNKNOWN"
+                summary = "Backend HTTP \(status) (\(safeCode))"
+            } else {
+                summary = cause.diagnosticSummary
+            }
+            logger.error("\(operation, privacy: .public) failed: \(summary, privacy: .public)")
+            return
+        }
+        // Error descriptions may contain device or purchase details. Keep them private;
+        // never log the signed transaction, receipt, request body, or credentials.
+        logger.error(
+            "\(operation, privacy: .public) failed: \(error.localizedDescription, privacy: .private)"
+        )
+    }
 }
 
 nonisolated struct SubscriptionEntitlement: Decodable {
@@ -260,7 +300,8 @@ struct SubscriptionClient {
             return try await authentication.post(operation: operation, body: body)
         } catch let error as AppAttestClientError {
             let retry = operation == .subscription ? " Use Restore Purchases." : ""
-            throw SubscriptionClientError(message: error.diagnosticSummary + retry)
+            throw SubscriptionClientError(
+                message: error.diagnosticSummary + retry, authenticationError: error)
         }
     }
 }
@@ -273,6 +314,7 @@ final class SubscriptionTransactionObserver: ObservableObject {
     @Published private(set) var entitlement: SubscriptionEntitlement?
     private var updates: Task<Void, Never>?
     private var unfinished: Task<Void, Never>?
+    private var statusUpdates: Task<Void, Never>?
     private var processing = Set<UInt64>()
 
     func start() {
@@ -282,6 +324,11 @@ final class SubscriptionTransactionObserver: ObservableObject {
         }
         unfinished = Task {
             for await evidence in Transaction.unfinished { await process(evidence) }
+        }
+        statusUpdates = Task {
+            for await status in Product.SubscriptionInfo.Status.updates {
+                await process(status.transaction)
+            }
         }
     }
 
@@ -304,6 +351,7 @@ final class SubscriptionTransactionObserver: ObservableObject {
             lastResult = "Transaction update verified · \(verified.status)."
         } catch {
             // StoreKit retains an unfinished transaction. Do not log its signed evidence.
+            SubscriptionDiagnostics.record(error, operation: "Transaction update verification")
             lastResult = "Transaction update could not be verified. Use Restore Purchases."
         }
     }

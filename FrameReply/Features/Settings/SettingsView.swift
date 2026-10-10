@@ -8,6 +8,7 @@ import UIKit
 
 struct SettingsView: View {
     @ObservedObject var providerStore: ProviderStore
+    let aiAccess: AIAccessModel
     let isActive: Bool
     let onPersonalInfoTap: () -> Void
     let onPrivacyAndDataTap: () -> Void
@@ -125,8 +126,9 @@ struct SettingsView: View {
 
     private var providerContent: some View {
         settingsSurface {
-            FrameReplyAIProviderSection(providerStore: providerStore, isActive: isActive)
-            settingsDivider(leadingInset: 16)
+            FrameReplyAIProviderSection(
+                access: aiAccess, providerStore: providerStore, isActive: isActive)
+            settingsDivider(leadingInset: 60)
             if personalKeyProviders.isEmpty {
                 Button {
                     presentAddProvider()

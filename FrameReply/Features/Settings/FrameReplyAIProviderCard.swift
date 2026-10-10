@@ -2,90 +2,56 @@ import StoreKit
 import SwiftUI
 
 struct FrameReplyAIProviderCard: View {
-    @StateObject private var access: AIAccessModel
+    @ObservedObject var access: AIAccessModel
     @ObservedObject var providerStore: ProviderStore
-    let isActive: Bool
-    @ObservedObject private var transactionObserver = SubscriptionTransactionObserver.shared
-    @Environment(\.scenePhase) private var scenePhase
     @State private var isConnectConsentPresented = false
     @State private var isConnecting = false
     @State private var connectionNotice: String?
 
-    init(configuration: SubscriptionConfiguration, providerStore: ProviderStore, isActive: Bool) {
-        _access = StateObject(wrappedValue: AIAccessModel(configuration: configuration))
-        self.providerStore = providerStore
-        self.isActive = isActive
-    }
-
     private var isSelected: Bool { providerStore.activePlatform == .frameReplyAI }
-    private var subscribed: Bool { access.entitlement?.active == true }
-    private var busy: Bool { access.isBusy || isConnecting }
+    private var subscribed: Bool { access.hasActiveSubscription }
+    private var busy: Bool { access.isBusy || access.isInitiallyLoading || isConnecting }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(FrameReplyColor.primary)
-                    .frame(width: 32)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("FrameReply AI")
-                        .font(.system(.body, design: .rounded, weight: .semibold))
-                    Text("AI replies, ready to go.")
-                        .font(.footnote)
-                        .foregroundStyle(FrameReplyColor.onSurfaceVariant)
-                }
-                Spacer(minLength: 0)
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(FrameReplyColor.connected)
-                        .accessibilityLabel("Selected")
-                }
-                Menu {
-                    supportActions
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .foregroundStyle(FrameReplyColor.outline)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel("FrameReply AI options")
-            }
+        VStack(alignment: .leading, spacing: 0) {
+            providerHeader
 
-            if access.statusUnavailable {
-                Text("Subscription status is temporarily unavailable.")
-                    .font(.footnote)
-            } else if subscribed {
-                subscriberDetails
-            } else {
-                purchaseRow
-            }
-
-            if subscribed {
-                if isSelected {
-                    Text("Selected")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(FrameReplyColor.connected)
-                } else {
-                    Button("Use FrameReply AI") {
-                        requestManagedAIConnection()
+            if !access.isInitiallyLoading || busy {
+                VStack(alignment: .leading, spacing: 8) {
+                    if !access.isInitiallyLoading {
+                        if access.statusUnavailable {
+                            Text(
+                                connectionNotice ?? access.notice
+                                    ?? String(
+                                        localized: "Subscription status is temporarily unavailable."
+                                    )
+                            )
+                            if access.configuration == nil {
+                                Button("Retry") {
+                                    Task { await access.refresh(refreshAppTransaction: true) }
+                                }
+                                .disabled(busy)
+                            }
+                        } else if subscribed {
+                            subscriberDetails
+                        } else {
+                            purchaseRow
+                        }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(FrameReplyColor.primary)
-                    .foregroundStyle(.white)
-                    .disabled(busy)
-                    .accessibilityIdentifier("ai-access-connect")
-                }
-            }
 
-            if busy { ProgressView() }
-            if let notice = connectionNotice ?? access.notice {
-                Text(notice)
-                    .font(.footnote)
-                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                    if busy { ProgressView() }
+                    if !access.statusUnavailable, let notice = connectionNotice ?? access.notice {
+                        Text(notice)
+                    }
+                }
+                .font(.system(.caption, design: .rounded, weight: .medium))
+                .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                .padding(.leading, 60)
+                .padding(.trailing, 16)
+                .padding(.bottom, 12)
             }
         }
         .foregroundStyle(FrameReplyColor.onSurface)
-        .padding(16)
         .accessibilityIdentifier("provider-row-frameReplyAI")
         .alert("Share chat content with AI providers?", isPresented: $isConnectConsentPresented) {
             Button("Not Now", role: .cancel) {}
@@ -96,20 +62,57 @@ struct FrameReplyAIProviderCard: View {
         } message: {
             Text(ProviderDataConsentDisclosure(provider: .frameReplyAI).permissionMessage)
         }
-        .task(id: isActive) {
-            guard isActive else { return }
-            await access.load()
-            for await _ in Storefront.updates {
-                guard !Task.isCancelled else { return }
-                await access.load()
+    }
+
+    private var providerHeader: some View {
+        HStack(spacing: 0) {
+            if subscribed {
+                Button {
+                    if !isSelected { requestManagedAIConnection() }
+                } label: {
+                    providerLabel
+                }
+                .buttonStyle(.plain)
+                .disabled(busy)
+                .accessibilityLabel("Use FrameReply AI")
+                .accessibilityValue(isSelected ? "Selected" : "Not selected")
+                .accessibilityIdentifier("ai-access-connect")
+            } else {
+                providerLabel
+                    .accessibilityElement(children: .combine)
+                    .accessibilityValue(isSelected ? "Selected" : "Not selected")
             }
+
+            Menu {
+                supportActions
+            } label: {
+                ProviderOptionsIcon()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("FrameReply AI options")
         }
-        .onChange(of: transactionObserver.lastResult) { _, _ in
-            if isActive { Task { await access.refresh() } }
+        .padding(.trailing, 6)
+    }
+
+    private var providerLabel: some View {
+        HStack(spacing: 12) {
+            ProviderIcon(symbolName: "sparkles")
+            VStack(alignment: .leading, spacing: 2) {
+                Text("FrameReply AI")
+                    .font(.system(.body, design: .rounded, weight: .semibold))
+                    .foregroundStyle(FrameReplyColor.onSurface)
+                    .lineLimit(2)
+                Text("AI replies, ready to go.")
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .foregroundStyle(FrameReplyColor.onSurfaceVariant)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            ProviderSelectionIndicator(isActive: isSelected)
         }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active && isActive { Task { await access.load() } }
-        }
+        .frame(maxWidth: .infinity, minHeight: 62, alignment: .leading)
+        .padding(.leading, 16)
+        .contentShape(Rectangle())
     }
 
     @ViewBuilder private var purchaseRow: some View {
@@ -128,18 +131,15 @@ struct FrameReplyAIProviderCard: View {
                     subscribeButton.frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
-            .padding(.leading, 44)
         case .notOffered:
             Text(
                 "Subscription unavailable for this App Store account. You can use your own API key."
             )
-            .font(.footnote)
             .foregroundStyle(FrameReplyColor.onSurfaceVariant)
         case .failed:
             HStack {
                 Text("Couldn’t load subscription. Try again.")
-                    .font(.footnote)
-                Button("Retry") { Task { await access.load() } }
+                Button("Retry") { Task { await access.refresh() } }
                     .disabled(busy)
             }
         }
@@ -174,7 +174,6 @@ struct FrameReplyAIProviderCard: View {
                 }
             }
         }
-        .font(.caption)
         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
     }
 
@@ -189,7 +188,7 @@ struct FrameReplyAIProviderCard: View {
                 let fraction = AIAccessPresentation.remainingFraction(usage)
             {
                 Text(usage.kind == "trial" ? "Trial AI allowance" : "AI allowance")
-                    .font(.footnote.weight(.semibold))
+                    .fontWeight(.semibold)
                 ProgressView(value: fraction)
                     .tint(
                         AIAccessPresentation.usageLevel(fraction) == .available
@@ -198,14 +197,11 @@ struct FrameReplyAIProviderCard: View {
                     .accessibilityLabel("AI allowance remaining")
                     .accessibilityValue(usageLabel(fraction))
                 Text(usageLabel(fraction))
-                    .font(.footnote)
                 if fraction == 0 {
                     Text("You can switch to a provider using your own API key.")
-                        .font(.footnote)
                 }
             } else {
                 Text("Current usage is temporarily unavailable.")
-                    .font(.footnote)
             }
             if let entitlement = access.entitlement,
                 let date = AIAccessPresentation.date(entitlement.accessUntil)
@@ -218,7 +214,6 @@ struct FrameReplyAIProviderCard: View {
                 }
             }
         }
-        .font(.footnote)
     }
 
     @ViewBuilder private var supportActions: some View {
@@ -228,13 +223,13 @@ struct FrameReplyAIProviderCard: View {
                 if await access.restore() { requestManagedAIConnection() }
             }
         }
-        .disabled(busy)
+        .disabled(busy || access.configuration == nil)
         .accessibilityIdentifier("ai-access-restore")
         Button("Refresh Status") {
             connectionNotice = nil
-            Task { await access.load() }
+            Task { await access.refresh() }
         }
-        .disabled(busy)
+        .disabled(busy || access.configuration == nil)
     }
 
     private func usageLabel(_ fraction: Double) -> LocalizedStringKey {
@@ -262,7 +257,7 @@ struct FrameReplyAIProviderCard: View {
             defer { isConnecting = false }
             do {
                 try await providerStore.connectManagedAI()
-                await access.refresh()
+                await access.refreshUsageIfNeeded(force: true)
             } catch {
                 connectionNotice = error.localizedDescription
             }

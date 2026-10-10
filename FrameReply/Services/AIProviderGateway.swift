@@ -293,6 +293,7 @@ final class AIService: AIServiceProviding {
             throw AIServiceError.unsupportedCapability
         }
         let (adapter, apiKey) = try resolve(context)
+        defer { invalidateManagedUsage(for: context) }
         return try await adapter.analyzeChatScreenshot(
             request,
             apiKey: apiKey,
@@ -308,11 +309,18 @@ final class AIService: AIServiceProviding {
             throw AIServiceError.unsupportedCapability
         }
         let (adapter, apiKey) = try resolve(context)
+        defer { invalidateManagedUsage(for: context) }
         return try await adapter.generateSuggestedReplies(
             request,
             apiKey: apiKey,
             model: context.effectiveModel
         )
+    }
+
+    private func invalidateManagedUsage(for context: AIProviderExecutionContext) {
+        if context.platform == .frameReplyAI {
+            NotificationCenter.default.post(name: AIAccessModel.usageDidChange, object: nil)
+        }
     }
 
     private func resolve(

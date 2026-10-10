@@ -9,6 +9,7 @@ import SwiftUI
 struct FrameReplyShellView: View {
     @State private var selectedTab: AppTab
     @ObservedObject private var providerStore: ProviderStore
+    private let aiAccess: AIAccessModel
     @ObservedObject private var shortcutNavigation = ShortcutNavigationCenter.shared
     private let chatRepository: ChatRepository
     private let personaRepository: PersonaRepository
@@ -23,6 +24,7 @@ struct FrameReplyShellView: View {
     init(runtime: AppRuntime, initialTab: AppTab? = nil) {
         _selectedTab = State(initialValue: initialTab ?? .chats)
         providerStore = runtime.providerStore
+        aiAccess = runtime.aiAccess
         chatRepository = runtime.chatRepository
         personaRepository = runtime.personaRepository
         suggestedRepliesCoordinator = runtime.suggestedRepliesCoordinator
@@ -70,6 +72,7 @@ struct FrameReplyShellView: View {
                 Tab(value: AppTab.settings) {
                     SettingsView(
                         providerStore: providerStore,
+                        aiAccess: aiAccess,
                         isActive: selectedTab == .settings,
                         onPersonalInfoTap: {
                             navigationPath.append(.personalInfo)
