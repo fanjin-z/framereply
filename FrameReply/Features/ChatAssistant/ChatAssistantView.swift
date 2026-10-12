@@ -11,12 +11,16 @@ struct ChatAssistantView: View {
     let chat: Chat
     @ObservedObject var providerStore: ProviderStore
     private let repository: ChatRepository
+    private let importReviewRequestID: UUID?
     let onDetailsTap: () -> Void
     let onDeleted: () -> Void
     let onMergedIntoChat: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var hasAppeared = false
+    @State private var handledImportReviewRequestID: UUID?
     @State private var isHistoryPresented = false
     @State private var isImportSourcePresented = false
     @State private var isReviewPresented = false
@@ -54,7 +58,7 @@ struct ChatAssistantView: View {
         providerStore: ProviderStore,
         repository: ChatRepository,
         suggestedRepliesCoordinator: any SuggestedRepliesCoordinating,
-        presentImportReviewOnAppear: Bool = false,
+        importReviewRequestID: UUID? = nil,
         onDetailsTap: @escaping () -> Void,
         onDeleted: @escaping () -> Void,
         onMergedIntoChat: @escaping (String) -> Void
@@ -62,10 +66,10 @@ struct ChatAssistantView: View {
         self.chat = chat
         self.providerStore = providerStore
         self.repository = repository
+        self.importReviewRequestID = importReviewRequestID
         self.onDetailsTap = onDetailsTap
         self.onDeleted = onDeleted
         self.onMergedIntoChat = onMergedIntoChat
-        _isReviewPresented = State(initialValue: presentImportReviewOnAppear)
         let chatID = chat.id
         _currentChatRecords = Query(
             filter: #Predicate<ChatRecord> { $0.id == chatID }
@@ -101,6 +105,10 @@ struct ChatAssistantView: View {
                 destinationChatID: chatID
             )
         )
+    }
+
+    private var activeImportReviewRequestID: UUID? {
+        hasAppeared && scenePhase == .active ? importReviewRequestID : nil
     }
 
     private var provisionalIdentity: ProvisionalIdentityInterpretation? {
@@ -472,6 +480,17 @@ struct ChatAssistantView: View {
                     }
                 }
             )
+        }
+        .onAppear {
+            hasAppeared = true
+        }
+        .task(id: activeImportReviewRequestID) {
+            guard let requestID = activeImportReviewRequestID,
+                handledImportReviewRequestID != requestID
+            else { return }
+            // A new request can reopen review without recreating this chat destination.
+            handledImportReviewRequestID = requestID
+            isReviewPresented = true
         }
         .sheet(isPresented: $isReviewPresented) {
             ChatImportReviewSheet(

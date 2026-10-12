@@ -3,6 +3,7 @@
 //  FrameReply
 //
 
+import AppIntents
 import SwiftData
 import SwiftUI
 
@@ -10,12 +11,12 @@ struct FrameReplyShellView: View {
     @State private var selectedTab: AppTab
     @ObservedObject private var providerStore: ProviderStore
     private let aiAccess: AIAccessModel
-    @ObservedObject private var shortcutNavigation = ShortcutNavigationCenter.shared
     private let chatRepository: ChatRepository
     private let personaRepository: PersonaRepository
     private let suggestedRepliesCoordinator: any SuggestedRepliesCoordinating
     private let emptyProviderStartupBehavior: EmptyProviderStartupBehavior
     @State private var navigationPath: [FrameReplyRoute] = []
+    @State private var importReviewRequest: (chatID: String, id: UUID)?
     @Query private var chatRecords: [ChatRecord]
     @Query private var chatContextRecords: [ChatContextRecord]
     @Query(filter: #Predicate<ChatMessageRecord> { $0.senderKind == "unknown" })
@@ -123,7 +124,9 @@ struct FrameReplyShellView: View {
                             providerStore: providerStore,
                             repository: chatRepository,
                             suggestedRepliesCoordinator: suggestedRepliesCoordinator,
-                            presentImportReviewOnAppear: true,
+                            importReviewRequestID:
+                                importReviewRequest?.chatID == chatID
+                                ? importReviewRequest?.id : nil,
                             onDetailsTap: {
                                 navigationPath.append(.chatDetails(chatID))
                             },
@@ -162,24 +165,24 @@ struct FrameReplyShellView: View {
         }
         .keyboardDismissable()
         .tint(FrameReplyColor.primary)
-        .onChange(of: shortcutNavigation.request) { _, request in
-            guard let request else { return }
-            selectedTab = .chats
-            navigationPath = [
-                request.reviewRequired
-                    ? .chatImportReview(request.chatID)
-                    : .chatAssistant(request.chatID)
+        .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+        .onAppIntentExecution(OpenShortcutImportIntent.self) { intent in
+            importReviewRequest = intent.reviewRequired ? (intent.chatID, UUID()) : nil
+            if selectedTab != .chats {
+                selectedTab = .chats
+            }
+            let destination: [FrameReplyRoute] = [
+                intent.reviewRequired
+                    ? .chatImportReview(intent.chatID)
+                    : .chatAssistant(intent.chatID)
             ]
+            if navigationPath != destination {
+                navigationPath = destination
+            }
         }
         .task {
-            if let request = shortcutNavigation.request {
-                selectedTab = .chats
-                navigationPath = [
-                    request.reviewRequired
-                        ? .chatImportReview(request.chatID)
-                        : .chatAssistant(request.chatID)
-                ]
-            } else if providerStore.providers.isEmpty,
+            if navigationPath.isEmpty,
+                providerStore.providers.isEmpty,
                 emptyProviderStartupBehavior == .showSettings
             {
                 selectedTab = .settings

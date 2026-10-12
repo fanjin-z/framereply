@@ -1,5 +1,4 @@
 import AppIntents
-import Combine
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
@@ -647,24 +646,7 @@ struct SelectShortcutReplyIntent: AppIntent {
     }
 }
 
-@MainActor
-final class ShortcutNavigationCenter: ObservableObject {
-    static let shared = ShortcutNavigationCenter()
-
-    @Published private(set) var request: Request?
-
-    struct Request: Equatable {
-        let id = UUID()
-        let chatID: String
-        let reviewRequired: Bool
-    }
-
-    func open(chatID: String, reviewRequired: Bool) {
-        request = Request(chatID: chatID, reviewRequired: reviewRequired)
-    }
-}
-
-struct OpenShortcutImportIntent: AppIntent {
+struct OpenShortcutImportIntent: AppIntent, TargetContentProvidingIntent {
     static let title: LocalizedStringResource = "Open Imported Chat"
     static let isDiscoverable = false
     static var supportedModes: IntentModes { .foreground }
@@ -680,14 +662,6 @@ struct OpenShortcutImportIntent: AppIntent {
     init(chatID: String, reviewRequired: Bool) {
         self.chatID = chatID
         self.reviewRequired = reviewRequired
-    }
-
-    func perform() async throws -> some IntentResult {
-        await ShortcutNavigationCenter.shared.open(
-            chatID: chatID,
-            reviewRequired: reviewRequired
-        )
-        return .result()
     }
 }
 

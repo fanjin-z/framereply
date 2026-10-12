@@ -15,6 +15,8 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
         XCTAssertFalse(ShortcutImportReviewSnippetIntent.isDiscoverable)
         XCTAssertFalse(ShortcutNoReplySnippetIntent.isDiscoverable)
         XCTAssertFalse(SelectShortcutReplyIntent.isDiscoverable)
+        XCTAssertFalse(OpenShortcutImportIntent.isDiscoverable)
+        XCTAssertEqual(OpenShortcutImportIntent.supportedModes, .foreground)
     }
 
     func testReplyConfirmationStateRoutesChoicesNoReplyReviewAndFailures() throws {
@@ -155,19 +157,6 @@ final class ShortcutIntentConfigurationTests: XCTestCase {
             ProviderConnectionError.networkFailure("offline").shortcutErrorCode,
             "provider_network_failure"
         )
-    }
-
-    @MainActor
-    func testOpenShortcutImportPublishesReviewNavigationRequest() async throws {
-        let intent = OpenShortcutImportIntent(
-            chatID: "review-chat-123",
-            reviewRequired: true
-        )
-
-        _ = try await intent.perform()
-
-        XCTAssertEqual(ShortcutNavigationCenter.shared.request?.chatID, "review-chat-123")
-        XCTAssertEqual(ShortcutNavigationCenter.shared.request?.reviewRequired, true)
     }
 
     @MainActor
