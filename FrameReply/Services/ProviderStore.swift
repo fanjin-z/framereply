@@ -192,18 +192,8 @@ final class ProviderStore: ObservableObject {
                     localized:
                         "Your AI Access subscription is inactive."))
         }
-        let usage = try await client.usage(
-            serviceSubscriptionId: entitlement.serviceSubscriptionId)
-        guard usage.periodId == entitlement.period.id,
-            usage.kind == entitlement.period.kind,
-            !usage.stale, usage.remainingMicrousd.map({ $0 > 0 }) == true,
-            usage.availability == "available"
-        else {
-            throw SubscriptionClientError(
-                message: String(
-                    localized:
-                        "AI allowance is unavailable or exhausted."))
-        }
+        // Issuance authoritatively checks the current allowance. A display-only usage
+        // refresh must not prevent retrieving an otherwise valid credential.
         let credential = try await client.credential(
             serviceSubscriptionId: entitlement.serviceSubscriptionId, consent: consent)
         guard credential.aiProvider == "openrouter",

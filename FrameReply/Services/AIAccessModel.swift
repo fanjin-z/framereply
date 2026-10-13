@@ -305,9 +305,10 @@ final class AIAccessModel: ObservableObject {
         notice = nil
 
         do {
-            // Fail before Apple's payment sheet if this device cannot use the backend.
-            try await client.checkAuthentication()
+            // Check provider readiness as well as authentication before opening Apple's purchase sheet.
+            _ = try await client.aiConsent()
         } catch {
+            SubscriptionDiagnostics.record(error, operation: "purchase readiness")
             notice = String(
                 localized: "AI Access is unavailable right now. No purchase was started.")
             return false
@@ -319,7 +320,6 @@ final class AIAccessModel: ObservableObject {
                 let verified = try await client.verifyAndFinish(evidence)
                 acceptVerifiedEntitlement(verified)
                 await refreshUsageIfNeeded(force: true)
-                notice = String(localized: "Subscription verified with FrameReply.")
                 return verified.active
             case .pending:
                 notice = String(localized: "Purchase pending. Refresh after Apple approves it.")
@@ -353,7 +353,7 @@ final class AIAccessModel: ObservableObject {
             await refreshUsageIfNeeded(force: true)
             notice =
                 entitlement?.active == true
-                ? String(localized: "Subscription restored.")
+                ? nil
                 : String(localized: "No active subscription found for this Apple Account.")
             return entitlement?.active == true
         } catch {
@@ -476,6 +476,7 @@ final class AIAccessModel: ObservableObject {
                 usage = current
                 usageIssue = nil
             } catch {
+                SubscriptionDiagnostics.record(error, operation: "AI usage refresh")
                 guard revision == usageRevision else { return }
                 usageIssue = String(localized: "Couldn’t load your current AI allowance.")
             }

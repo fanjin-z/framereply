@@ -67,7 +67,7 @@ final class FrameReplyAIConnectionModel: ObservableObject {
             } catch {
                 isConnecting = false
                 onConnectionStateChanged?(false)
-                notice = error.localizedDescription
+                connectionFailed(error)
             }
         }
     }
@@ -92,8 +92,15 @@ final class FrameReplyAIConnectionModel: ObservableObject {
                 onConnected?()
                 await access.refreshUsageIfNeeded(force: true)
             } catch {
-                notice = error.localizedDescription
+                connectionFailed(error)
             }
         }
+    }
+
+    private func connectionFailed(_ error: Error) {
+        guard !(error is CancellationError) else { return }
+        SubscriptionDiagnostics.record(error, operation: "FrameReply AI connection")
+        // Technical diagnostics belong in the developer console, not the provider card.
+        notice = String(localized: "Couldn’t connect FrameReply AI. Try again.")
     }
 }

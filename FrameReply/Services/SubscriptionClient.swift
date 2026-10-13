@@ -124,12 +124,10 @@ nonisolated enum SubscriptionDiagnostics {
             let summary: String
             if case .backend(let status, let code) = cause {
                 // Only known protocol codes are public; never echo arbitrary response content.
-                let knownCodes = [
-                    "INVALID_AUTH_REQUEST", "UNAUTHENTICATED", "AUTH_UNAVAILABLE",
-                    "INVALID_REQUEST", "INVALID_TRANSACTION", "SUBSCRIPTION_UNAVAILABLE",
-                    "NOT_FOUND"
-                ]
-                let safeCode = code.flatMap { knownCodes.contains($0) ? $0 : nil } ?? "UNKNOWN"
+                let safeCode =
+                    code.flatMap {
+                        AppAttestClientError.knownBackendCodes.contains($0) ? $0 : nil
+                    } ?? "UNKNOWN"
                 summary = "Backend HTTP \(status) (\(safeCode))"
             } else {
                 summary = cause.diagnosticSummary
@@ -328,9 +326,17 @@ struct SubscriptionClient {
             if case .backend(_, let code) = error, code == "AI_CONSENT_REQUIRED" {
                 throw ProviderConnectionError.dataConsentRequired
             }
-            let retry = operation == .subscription ? " Use Restore Purchases." : ""
+            let message: String
+            switch error {
+            case .backend(_, code: "AI_ALLOWANCE_EXHAUSTED"):
+                message = String(localized: "Your AI allowance is used up for this period.")
+            case .backend(_, code: "AI_ACCESS_INACTIVE"):
+                message = String(localized: "Your AI Access subscription is inactive.")
+            default:
+                message = String(localized: "FrameReply AI is temporarily unavailable. Try again.")
+            }
             throw SubscriptionClientError(
-                message: error.diagnosticSummary + retry, authenticationError: error)
+                message: message, authenticationError: error)
         }
     }
 }

@@ -48,6 +48,10 @@ struct FrameReplyAIProviderCard: View {
                     if busy { ProgressView() }
                     if !access.statusUnavailable, let notice = connection.notice ?? access.notice {
                         Text(notice)
+                        if subscribed, connection.notice != nil {
+                            Button("Retry", action: connection.requestConnection)
+                                .disabled(busy)
+                        }
                     }
                 }
                 .font(.system(.caption, design: .rounded, weight: .medium))
@@ -170,24 +174,18 @@ struct FrameReplyAIProviderCard: View {
     private var subscriberDetails: some View {
         VStack(alignment: .leading, spacing: 8) {
             FrameReplyAISubscriptionStatus(isTrial: access.entitlement?.period.kind == "trial")
-            if let usage = access.usage,
+            if access.usageIssue == nil, let usage = access.usage,
                 let fraction = AIAccessPresentation.remainingFraction(usage)
             {
-                Text(usage.kind == "trial" ? "Trial AI allowance" : "AI allowance")
-                    .fontWeight(.semibold)
-                ProgressView(value: fraction)
-                    .tint(
-                        AIAccessPresentation.usageLevel(fraction) == .available
-                            ? FrameReplyColor.primary : .orange
-                    )
-                    .accessibilityLabel("AI allowance remaining")
-                    .accessibilityValue(usageLabel(fraction))
-                Text(usageLabel(fraction))
-                if fraction == 0 {
+                switch AIAccessPresentation.usageLevel(fraction) {
+                case .available:
+                    EmptyView()
+                case .low:
+                    Text("Your AI allowance is running low.")
+                case .exhausted:
+                    Text("Your AI allowance is used up for this period.")
                     Text("You can switch to a provider using your own API key.")
                 }
-            } else {
-                Text("Current usage is temporarily unavailable.")
             }
             if let entitlement = access.entitlement,
                 let date = AIAccessPresentation.date(entitlement.accessUntil)
@@ -212,11 +210,4 @@ struct FrameReplyAIProviderCard: View {
         .disabled(busy || access.configuration == nil)
     }
 
-    private func usageLabel(_ fraction: Double) -> LocalizedStringKey {
-        switch AIAccessPresentation.usageLevel(fraction) {
-        case .available: "Available"
-        case .low: "Running low"
-        case .exhausted: "Period limit reached"
-        }
-    }
 }

@@ -203,15 +203,23 @@
                     XCTAssertFalse(error.message.contains("synthetic.signed.evidence"))
                 }
             }
-            authentication.error = .backend(status: 401, code: "UNAUTHENTICATED")
-            do {
-                _ = try await client.verify(signedTransactionInfo: "synthetic.signed.evidence")
-                XCTFail("Expected authentication rejection")
-            } catch let error as SubscriptionClientError {
-                // Preserve the cause for diagnostics without exposing signed purchase evidence.
-                XCTAssertEqual(
-                    error.authenticationError, .backend(status: 401, code: "UNAUTHENTICATED"))
-                XCTAssertFalse(error.message.contains("synthetic.signed.evidence"))
+            for cause in [
+                AppAttestClientError.backend(status: 401, code: "UNAUTHENTICATED"),
+                .backend(status: 503, code: "CREDENTIAL_RECOVERY_REQUIRED")
+            ] {
+                authentication.error = cause
+                do {
+                    _ = try await client.verify(signedTransactionInfo: "synthetic.signed.evidence")
+                    XCTFail("Expected backend rejection")
+                } catch let error as SubscriptionClientError {
+                    // Keep the technical cause for diagnostics, never the customer-facing message.
+                    XCTAssertEqual(error.authenticationError, cause)
+                    for technicalText in [
+                        "synthetic.signed.evidence", "HTTP", "401", "503", "CREDENTIAL_"
+                    ] {
+                        XCTAssertFalse(error.message.contains(technicalText))
+                    }
+                }
             }
         }
 
@@ -284,6 +292,16 @@
                 XCTFail("Expected a mismatched usage response to fail")
             } catch is SubscriptionClientError {
                 // The wrong subscription must never be shown as this user's allowance.
+            }
+            authentication.error = .backend(status: 409, code: "AI_CONSENT_REQUIRED")
+            do {
+                _ = try await client.credential(
+                    serviceSubscriptionId: "subscription-id", consent: consent)
+                XCTFail("Changed consent must require the user's approval")
+            } catch let error as ProviderConnectionError {
+                guard case .dataConsentRequired = error else {
+                    return XCTFail("Expected a consent-required error")
+                }
             }
         }
 

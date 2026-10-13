@@ -29,6 +29,15 @@ nonisolated enum AppAttestClientError: Error, LocalizedError, Equatable {
     case enrollmentExpired, enrollmentUncertain, recoveryRequired
     case backend(status: Int, code: String?)
 
+    static let knownBackendCodes: Set<String> = [
+        "NOT_FOUND", "INTERNAL_ERROR", "INVALID_REQUEST", "INVALID_TRANSACTION",
+        "SUBSCRIPTION_UNAVAILABLE", "INVALID_AUTH_REQUEST", "UNAUTHENTICATED",
+        "AUTH_UNAVAILABLE", "AUTH_KEY_NOT_REGISTERED", "AUTH_ENROLLMENT_EXPIRED",
+        "INVALID_CREDENTIAL_REQUEST", "AI_CONSENT_REQUIRED", "SUBSCRIPTION_REFRESH_REQUIRED",
+        "AI_ACCESS_INACTIVE", "AI_ALLOWANCE_EXHAUSTED", "CREDENTIAL_PENDING",
+        "CREDENTIAL_RECOVERY_REQUIRED", "CREDENTIAL_UNAVAILABLE"
+    ]
+
     var errorDescription: String? { diagnosticSummary }
 
     var diagnosticSummary: String {
@@ -45,8 +54,10 @@ nonisolated enum AppAttestClientError: Error, LocalizedError, Equatable {
             "The device authentication state could not be saved or read. Unlock the device and retry."
         case .appleUnavailable:
             "Apple App Attest is temporarily unavailable. Retry later; the existing key and challenge are retained."
-        case .appleInvalidKey, .recoveryRequired:
+        case .appleInvalidKey:
             "Apple could not use the device key after bounded recovery. Check App Attest signing and device support before retrying."
+        case .recoveryRequired:
+            "Device authentication is cooling down after a failed attempt. Retry shortly."
         case .appleFailure(let code):
             "Apple App Attest failed (code \(code)). Check the app's capability and signing configuration."
         case .enrollmentExpired:
@@ -101,6 +112,7 @@ final class AppAttestClient: AppAttestAuthenticating {
     private var busy = false
     private var waiters: [(UUID, CheckedContinuation<Void, Error>)] = []
     private var unsavedState: Enrollment?
+    private var diagnosticOperation = "app authentication"
 
     init(
         baseURL: URL,
@@ -132,32 +144,73 @@ final class AppAttestClient: AppAttestAuthenticating {
         }
 
         var state = try load() ?? Enrollment()
-        // One automatic replacement is allowed until successful enrollment. A bad signing
-        // configuration must not create another Apple key on every tap or app launch.
+        if let recovery = state.recovery, recovery.retryAfter > now() {
+            throw AppAttestClientError.recoveryRequired
+        }
+        do {
+            let data = try await perform(operation: operation, body: body, state: &state)
+            if state.recovery != nil {
+                state.recovery = nil
+                try save(state)
+            }
+            return data
+        } catch {
+            SubscriptionDiagnostics.record(error, operation: diagnosticOperation)
+            if shouldBackOff(error) {
+                let failures = min((state.recovery?.failures ?? 0) + 1, 7)
+                let delay = min(300, 5 * pow(2, Double(failures - 1)) * Double.random(in: 1...1.2))
+                state.recovery = Recovery(
+                    failures: failures, retryAfter: now().addingTimeInterval(delay))
+                try save(state)
+            }
+            throw error
+        }
+    }
+
+    private func perform(operation: AppAttestOperation, body: Data, state: inout Enrollment)
+        async throws -> Data
+    {
+        // At most one replacement per operation. Failures persist a cooldown, not a
+        // permanent lockout, so subsequent launches can recover when service returns.
         for attempt in 0..<2 {
             do {
                 if state.keyID == nil { try await createKey(state: &state) }
                 try await enroll(state: &state)
                 return try await authenticated(operation: operation, body: body, state: state)
-            } catch AppAttestClientError.appleInvalidKey {
-                guard attempt == 0, !state.replacementUsed else {
-                    throw AppAttestClientError.recoveryRequired
+            } catch {
+                let cause = (error as? EnrollmentFailure)?.cause ?? (error as? AppAttestClientError)
+                let replace: Bool
+                switch cause {
+                case .appleInvalidKey, .enrollmentExpired:
+                    replace = true
+                case .appleFailure:
+                    replace = error is EnrollmentFailure
+                case .backend(status: 401, code: "AUTH_KEY_NOT_REGISTERED"):
+                    replace = state.registered
+                case .backend(status: 401, code: "AUTH_ENROLLMENT_EXPIRED"):
+                    replace = !state.registered
+                default:
+                    replace = false
                 }
-                state = Enrollment(replacementUsed: true)
-                try save(state)
-            } catch let failure as EnrollmentFailure {
-                guard attempt == 0, !state.replacementUsed else { throw failure.cause }
-                state = Enrollment(replacementUsed: true)
-                try save(state)
-            } catch AppAttestClientError.enrollmentExpired {
-                guard attempt == 0, !state.replacementUsed else {
-                    throw AppAttestClientError.recoveryRequired
-                }
-                state = Enrollment(replacementUsed: true)
+                guard replace, attempt == 0 else { throw cause ?? error }
+                state = Enrollment(recovery: state.recovery)
                 try save(state)
             }
         }
         throw AppAttestClientError.recoveryRequired
+    }
+
+    private func shouldBackOff(_ error: Error) -> Bool {
+        switch error as? AppAttestClientError {
+        case .network, .invalidResponse, .appleUnavailable, .appleInvalidKey, .appleFailure,
+            .enrollmentExpired, .enrollmentUncertain:
+            true
+        case .backend(let status, let code):
+            status == 429 || status >= 500
+                || code == "AUTH_KEY_NOT_REGISTERED" || code == "AUTH_ENROLLMENT_EXPIRED"
+        default:
+            false
+        }
     }
 
     private struct Challenge: Codable {
@@ -189,15 +242,22 @@ final class AppAttestClient: AppAttestAuthenticating {
 
     private struct EnrollmentFailure: Error { let cause: AppAttestClientError }
 
+    private struct Recovery: Codable {
+        let failures: Int
+        let retryAfter: Date
+    }
+
     private struct Enrollment: Codable {
         var version = 1
         var keyID: String?
         var registered = false
         var pending: Pending?
-        var replacementUsed = false
+        // Optional so existing persisted enrollments (including stuck ones) remain readable.
+        var recovery: Recovery?
     }
 
     private func createKey(state: inout Enrollment) async throws {
+        diagnosticOperation = "App Attest key generation"
         let key = try await service.generateKey()
         guard Self.validKey(key) else { throw AppAttestClientError.invalidResponse }
         state.keyID = key
@@ -219,12 +279,18 @@ final class AppAttestClient: AppAttestAuthenticating {
                 }
                 try markRegistered(state: &state)
                 return
-            } catch AppAttestClientError.backend(let status, _) where status == 401 {
-                // An unknown and a disabled device deliberately have the same server error.
-                // Only retry this pending proof; never create a new identity from HTTP 401.
+            } catch AppAttestClientError.backend(status: 401, code: "AUTH_KEY_NOT_REGISTERED") {
+                // Only an explicit missing-key response permits abandoning an expired
+                // enrollment. Rejection and storage failures must never trigger this path.
+                guard let expiration = pending.challenge.expiration, expiration > now() else {
+                    throw AppAttestClientError.enrollmentExpired
+                }
+            } catch AppAttestClientError.backend(status: 401, code: "UNAUTHENTICATED") {
+                // Older backends conflate unknown and disabled identities. Fail closed.
                 guard let expiration = pending.challenge.expiration, expiration > now() else {
                     throw AppAttestClientError.enrollmentUncertain
                 }
+                throw AppAttestClientError.backend(status: 401, code: "UNAUTHENTICATED")
             }
         }
         if state.pending == nil
@@ -247,6 +313,7 @@ final class AppAttestClient: AppAttestAuthenticating {
             try save(state)
             let proof: Data
             do {
+                diagnosticOperation = "Apple key attestation"
                 proof = try await service.attestKey(keyID, clientDataHash: Self.hash(bytes))
             } catch let error as AppAttestClientError {
                 switch error {
@@ -293,7 +360,6 @@ final class AppAttestClient: AppAttestAuthenticating {
     private func markRegistered(state: inout Enrollment) throws {
         state.registered = true
         state.pending = nil
-        state.replacementUsed = false
         try save(state)
     }
 
@@ -303,6 +369,7 @@ final class AppAttestClient: AppAttestAuthenticating {
         guard let keyID = state.keyID else { throw AppAttestClientError.storage }
         let challenge = try await challenge(keyID: keyID, operation: operation.rawValue, body: body)
         guard let bytes = challenge.bytes else { throw AppAttestClientError.invalidResponse }
+        diagnosticOperation = "Apple assertion generation"
         let assertion = try await service.generateAssertion(keyID, clientDataHash: Self.hash(bytes))
         guard !assertion.isEmpty, assertion.count <= 16 * 1_024 else {
             throw AppAttestClientError.invalidResponse
@@ -340,6 +407,8 @@ final class AppAttestClient: AppAttestAuthenticating {
         -> Data
     {
         try Task.checkCancellation()
+        // Paths are internal constants, never URLs, proof bodies or key identifiers.
+        diagnosticOperation = "App Attest \(path)"
         guard let baseURL else { throw AppAttestClientError.invalidConfiguration }
         var request = URLRequest(url: baseURL.appending(path: String(path.dropFirst())))
         request.httpMethod = "POST"
@@ -367,13 +436,11 @@ final class AppAttestClient: AppAttestAuthenticating {
                 let error: Detail
             }
             let code = try? JSONDecoder().decode(Failure.self, from: data).error.code
-            let allowed = [
-                "NOT_FOUND", "INTERNAL_ERROR", "INVALID_REQUEST", "INVALID_TRANSACTION",
-                "SUBSCRIPTION_UNAVAILABLE", "INVALID_AUTH_REQUEST", "UNAUTHENTICATED",
-                "AUTH_UNAVAILABLE"
-            ]
             throw AppAttestClientError.backend(
-                status: http.statusCode, code: code.flatMap { allowed.contains($0) ? $0 : nil })
+                status: http.statusCode,
+                code: code.flatMap {
+                    AppAttestClientError.knownBackendCodes.contains($0) ? $0 : nil
+                })
         }
         return data
     }
@@ -388,7 +455,8 @@ final class AppAttestClient: AppAttestAuthenticating {
             let state = try JSONDecoder().decode(Enrollment.self, from: Data(value.utf8))
             guard state.version == 1, state.keyID.map(Self.validKey) ?? !state.registered,
                 state.pending == nil || (state.keyID != nil && !state.registered),
-                state.pending?.challenge.bytes != nil || state.pending == nil
+                state.pending?.challenge.bytes != nil || state.pending == nil,
+                state.recovery.map({ (1...7).contains($0.failures) }) ?? true
             else { throw AppAttestClientError.storage }
             return state
         } catch { throw AppAttestClientError.storage }

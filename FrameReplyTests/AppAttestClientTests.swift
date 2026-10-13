@@ -66,6 +66,20 @@ final class AppAttestClientTests: XCTestCase {
         XCTAssertEqual(try jsonBody(AnalysisURLProtocolStub.requests[8])["operation"], "usage")
         XCTAssertEqual(AnalysisURLProtocolStub.requests[7].httpBody, serviceBody)
         XCTAssertEqual(AnalysisURLProtocolStub.requests[9].httpBody, serviceBody)
+
+        // Credential failures must preserve their code without restarting device enrollment.
+        for (status, code) in [(409, "AI_CONSENT_REQUIRED"), (503, "CREDENTIAL_RECOVERY_REQUIRED")]
+        {
+            AnalysisURLProtocolStub.responses.append((200, challenge()))
+            AnalysisURLProtocolStub.responses.append((status, failure(code)))
+            await assertThrowsErrorAsync {
+                _ = try await reopened.post(operation: .credential, body: serviceBody)
+            } errorHandler: {
+                XCTAssertEqual($0 as? AppAttestClientError, .backend(status: status, code: code))
+            }
+        }
+        XCTAssertEqual(service.keys.count, 1)
+        XCTAssertEqual(service.attestationHashes.count, 1)
     }
 
     func testFullOperationsSerializeAndCancellingAWaiterDoesNotReleaseActiveCall() async throws {
@@ -125,9 +139,10 @@ final class AppAttestClientTests: XCTestCase {
         }
 
         // The previous request might have committed even though no success reached the app.
-        queueProtected()
-        queueProtected()
-        _ = try await makeClient(service: service, storage: storage, session: session)
+        let later = instant.addingTimeInterval(301)
+        queueProtected(at: later)
+        queueProtected(at: later)
+        _ = try await makeClient(service: service, storage: storage, session: session, now: later)
             .post(operation: .status, body: Data("{}".utf8))
         XCTAssertEqual(service.keys.count, 1)
         XCTAssertEqual(service.attestationHashes.count, 1)
@@ -135,7 +150,7 @@ final class AppAttestClientTests: XCTestCase {
             AnalysisURLProtocolStub.requests.filter { $0.url?.path == "/v1/auth/attest" }.count, 1)
     }
 
-    func testUncertainUnregisteredProofIsResentButExpiredOrDisabledIdentityIsNotReplaced()
+    func testUnregisteredProofIsResentOrRenewedWhileRejectedIdentitiesAreNotReplaced()
         async throws
     {
         let service = AttestServiceStub()
@@ -149,11 +164,14 @@ final class AppAttestClientTests: XCTestCase {
         })
         let originalBody = try jsonBody(AnalysisURLProtocolStub.requests[1])
         AnalysisURLProtocolStub.responses = [
-            (401, failure("UNAUTHENTICATED")), (200, "{\"registered\":true}")
+            (401, failure("AUTH_KEY_NOT_REGISTERED")), (200, "{\"registered\":true}")
         ]
         queueProtected()
-        _ = try await makeClient(service: service, storage: storage, session: session)
-            .post(operation: .status, body: Data("{}".utf8))
+        _ = try await makeClient(
+            service: service, storage: storage, session: session,
+            now: instant.addingTimeInterval(10)
+        )
+        .post(operation: .status, body: Data("{}".utf8))
         XCTAssertEqual(try jsonBody(AnalysisURLProtocolStub.requests[3]), originalBody)
         XCTAssertEqual(service.attestationHashes.count, 1)
 
@@ -168,6 +186,14 @@ final class AppAttestClientTests: XCTestCase {
         }
         XCTAssertEqual(service.keys.count, 1)
 
+        // A confirmed missing registration is recoverable even for a previously enrolled key.
+        AnalysisURLProtocolStub.responses = [(401, failure("AUTH_KEY_NOT_REGISTERED"))]
+        queueEnrollment()
+        queueProtected()
+        _ = try await makeClient(service: service, storage: storage, session: session)
+            .post(operation: .status, body: Data("{}".utf8))
+        XCTAssertEqual(service.keys.count, 2)
+
         let pendingStorage = AttestStorageStub()
         AnalysisURLProtocolStub.responses = [(200, challenge()), (503, failure("AUTH_UNAVAILABLE"))]
         await assertThrowsErrorAsync({
@@ -177,17 +203,47 @@ final class AppAttestClientTests: XCTestCase {
             .post(operation: .status, body: Data("{}".utf8))
         })
         let keysBefore = service.keys.count
-        AnalysisURLProtocolStub.responses = [(401, failure("UNAUTHENTICATED"))]
-        await assertThrowsErrorAsync {
-            _ = try await self.makeClient(
-                service: service, storage: pendingStorage, session: session,
-                now: self.instant.addingTimeInterval(301)
+        // Preserve the pre-update Keychain shape, including its old permanent retry latch.
+        let account = try XCTUnwrap(pendingStorage.values.keys.first)
+        var legacy = try XCTUnwrap(
+            JSONSerialization.jsonObject(
+                with: Data(try XCTUnwrap(pendingStorage.values[account]).utf8)) as? [String: Any])
+        legacy.removeValue(forKey: "recovery")
+        legacy["replacementUsed"] = true
+        let saved = String(
+            decoding: try JSONSerialization.data(withJSONObject: legacy), as: UTF8.self)
+        let later = instant.addingTimeInterval(301)
+        for code in ["UNAUTHENTICATED", "AUTH_UNAVAILABLE"] {
+            pendingStorage.values[account] = saved
+            AnalysisURLProtocolStub.responses = [
+                (code == "AUTH_UNAVAILABLE" ? 503 : 401, failure(code))
+            ]
+            await assertThrowsErrorAsync {
+                _ = try await self.makeClient(
+                    service: service, storage: pendingStorage,
+                    session: session, now: later
+                ).post(operation: .status, body: Data("{}".utf8))
+            }
+            XCTAssertEqual(
+                service.keys.count, keysBefore, "Rejection or uncertainty cannot rotate keys")
+        }
+        for (index, serverExpired) in [false, true].enumerated() {
+            pendingStorage.values[account] = saved
+            // Also cover expiry at submission, when the client still sees a valid challenge.
+            let retryTime = serverExpired ? instant.addingTimeInterval(10) : later
+            AnalysisURLProtocolStub.responses = [(401, failure("AUTH_KEY_NOT_REGISTERED"))]
+            if serverExpired {
+                AnalysisURLProtocolStub.responses.append((401, failure("AUTH_ENROLLMENT_EXPIRED")))
+            }
+            queueEnrollment(at: retryTime)
+            queueProtected(at: retryTime)
+            _ = try await makeClient(
+                service: service, storage: pendingStorage, session: session, now: retryTime
             )
             .post(operation: .status, body: Data("{}".utf8))
-        } errorHandler: {
-            XCTAssertEqual($0 as? AppAttestClientError, .enrollmentUncertain)
+            XCTAssertEqual(service.keys.count, keysBefore + index + 1)
+            XCTAssertTrue(AnalysisURLProtocolStub.responses.isEmpty)
         }
-        XCTAssertEqual(service.keys.count, keysBefore)
     }
 
     func testAppleTransientFailureRetainsExactInputsAcrossRelaunch() async throws {
@@ -205,8 +261,11 @@ final class AppAttestClientTests: XCTestCase {
         }
         AnalysisURLProtocolStub.responses = [(200, "{\"registered\":true}")]
         queueProtected()
-        _ = try await makeClient(service: service, storage: storage, session: session)
-            .post(operation: .status, body: Data("{}".utf8))
+        _ = try await makeClient(
+            service: service, storage: storage, session: session,
+            now: instant.addingTimeInterval(10)
+        )
+        .post(operation: .status, body: Data("{}".utf8))
         XCTAssertEqual(service.keys.count, 1)
         XCTAssertEqual(service.attestationHashes.count, 2)
         XCTAssertEqual(service.attestationHashes[0], service.attestationHashes[1])
@@ -215,7 +274,8 @@ final class AppAttestClientTests: XCTestCase {
                 .count, 1)
     }
 
-    func testPermanentAppleFailureAllowsOnlyOneReplacementUntilEnrollmentSucceeds() async throws {
+    func testAppleFailureLimitsReplacementAndPersistsCooldownWithoutPermanentLockout() async throws
+    {
         for error: AppAttestClientError in [.appleInvalidKey, .appleFailure(code: 0)] {
             AnalysisURLProtocolStub.reset()
             let service = AttestServiceStub()
@@ -234,6 +294,22 @@ final class AppAttestClientTests: XCTestCase {
                     .post(operation: .status, body: Data("{}".utf8))
             })
             XCTAssertEqual(service.keys.count, 2, "A repeated tap must not mint more keys")
+            XCTAssertTrue(
+                AnalysisURLProtocolStub.responses.isEmpty, "Cooldown must avoid network requests")
+            queueEnrollment()
+            queueProtected()
+            _ = try await makeClient(
+                service: service, storage: storage, session: session,
+                now: instant.addingTimeInterval(10)
+            ).post(operation: .status, body: Data("{}".utf8))
+            XCTAssertEqual(
+                service.keys.count, 3, "After cooldown the same installation can recover")
+            queueProtected()
+            _ = try await makeClient(
+                service: service, storage: storage, session: session,
+                now: instant.addingTimeInterval(10)
+            ).post(operation: .status, body: Data("{}".utf8))
+            XCTAssertEqual(service.keys.count, 3, "Success clears cooldown and reuses enrollment")
         }
     }
 
@@ -336,16 +412,19 @@ final class AppAttestClientTests: XCTestCase {
         return URLSession(configuration: configuration)
     }
 
-    private func queueEnrollment() {
-        AnalysisURLProtocolStub.responses += [(200, challenge()), (200, "{\"registered\":true}")]
+    private func queueEnrollment(at date: Date? = nil) {
+        AnalysisURLProtocolStub.responses += [
+            (200, challenge(at: date)), (200, "{\"registered\":true}")
+        ]
     }
 
-    private func queueProtected(response: String = "{\"authenticated\":true}") {
-        AnalysisURLProtocolStub.responses += [(200, challenge()), (200, response)]
+    private func queueProtected(response: String = "{\"authenticated\":true}", at date: Date? = nil)
+    {
+        AnalysisURLProtocolStub.responses += [(200, challenge(at: date)), (200, response)]
     }
 
-    private func challenge() -> String {
-        let expires = ISO8601DateFormatter().string(from: instant.addingTimeInterval(300))
+    private func challenge(at date: Date? = nil) -> String {
+        let expires = ISO8601DateFormatter().string(from: (date ?? instant).addingTimeInterval(300))
         return
             "{\"challengeId\":\"\(UUID().uuidString.lowercased())\",\"clientData\":\"\(clientBytes.base64EncodedString())\",\"expiresAt\":\"\(expires)\"}"
     }
