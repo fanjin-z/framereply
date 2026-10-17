@@ -1,122 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Your AI allowance is running low." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI 用量额度即将用完。"
-          }
-        }
-      }
-    },
-    "Your AI allowance is used up for this period." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本期 AI 用量额度已用完。"
-          }
-        }
-      }
-    },
-    "Couldn’t connect FrameReply AI. Try again." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法连接 FrameReply AI，请重试。"
-          }
-        }
-      }
-    },
-    "FrameReply AI is temporarily unavailable. Try again." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FrameReply AI 暂时不可用，请重试。"
-          }
-        }
-      }
-    },
-    "OpenRouter and the model provider selected by FrameReply" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OpenRouter 及 FrameReply 选择的模型提供方"
-          }
-        }
-      }
-    },
-    "provider.managed-consent.message" : {
-      "comment" : "AI sharing consent. The placeholder lists companies returned by the backend, not models.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FrameReply AI sends selected messages, screenshots, and relevant personal details to %@ to generate replies."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FrameReply AI 会将选中的消息、截图和相关个人信息发送给 %@，以生成回复。"
-          }
-        }
-      }
-    },
-    "provider.managed-consent.summary" : {
-      "comment" : "The placeholder lists the AI companies the user consented to sharing with.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Selected AI content goes to %@. FrameReply’s subscription servers do not receive this content. Providers may retain data under their policies."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选中的 AI 内容会发送给 %@。FrameReply 的订阅服务器不会接收这些内容。服务商可能会依据其政策保留数据。"
-          }
-        }
-      }
-    },
-    "provider.managed-consent.unavailable" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI data-sharing details are temporarily unavailable. Try again."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "暂时无法获取 AI 数据共享说明，请重试。"
-          }
-        }
-      }
-    },
-    "FrameReply AI Data Sharing" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FrameReply AI Data Sharing"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FrameReply AI 数据共享"
-          }
-        }
-      }
-    },
     "" : {
       "shouldTranslate" : false
     },
@@ -680,6 +564,7 @@
       }
     },
     "AI allowance" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -690,6 +575,7 @@
       }
     },
     "AI allowance is unavailable or exhausted." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -700,6 +586,7 @@
       }
     },
     "AI allowance remaining" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1035,6 +922,7 @@
       }
     },
     "Available" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1914,6 +1802,16 @@
         }
       }
     },
+    "Couldn’t connect FrameReply AI. Try again." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法连接 FrameReply AI，请重试。"
+          }
+        }
+      }
+    },
     "Couldn’t Delete All Data" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2128,6 +2026,7 @@
       }
     },
     "Current usage is temporarily unavailable." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -3734,6 +3633,32 @@
         }
       }
     },
+    "FrameReply AI Data Sharing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI Data Sharing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI 数据共享"
+          }
+        }
+      }
+    },
+    "FrameReply AI is temporarily unavailable. Try again." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI 暂时不可用，请重试。"
+          }
+        }
+      }
+    },
     "FrameReply AI options" : {
       "localizations" : {
         "zh-Hans" : {
@@ -5149,6 +5074,16 @@
         }
       }
     },
+    "OpenRouter and the model provider selected by FrameReply" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenRouter 及 FrameReply 选择的模型提供方"
+          }
+        }
+      }
+    },
     "Opens FrameReply" : {
       "localizations" : {
         "zh-Hans" : {
@@ -5350,6 +5285,7 @@
       }
     },
     "Period limit reached" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -6258,6 +6194,56 @@
         }
       }
     },
+    "provider.managed-consent.message" : {
+      "comment" : "AI sharing consent. The placeholder lists companies returned by the backend, not models.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI sends selected messages, screenshots, and relevant personal details to %@ to generate replies."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FrameReply AI 会将选中的消息、截图和相关个人信息发送给 %@，以生成回复。"
+          }
+        }
+      }
+    },
+    "provider.managed-consent.summary" : {
+      "comment" : "The placeholder lists the AI companies the user consented to sharing with.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selected AI content goes to %@. FrameReply’s subscription servers do not receive this content. Providers may retain data under their policies."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选中的 AI 内容会发送给 %@。FrameReply 的订阅服务器不会接收这些内容。服务商可能会依据其政策保留数据。"
+          }
+        }
+      }
+    },
+    "provider.managed-consent.unavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI data-sharing details are temporarily unavailable. Try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时无法获取 AI 数据共享说明，请重试。"
+          }
+        }
+      }
+    },
     "provider.name.minimax-china" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {
@@ -6288,6 +6274,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "MiniMax国际"
+          }
+        }
+      }
+    },
+    "provider.purchase.connecting" : {
+      "comment" : "Progress after Apple confirms a purchase, while backend verification retries.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase completed. Connecting AI…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买成功，正在连接 AI…"
           }
         }
       }
@@ -6792,6 +6795,7 @@
       }
     },
     "Running low" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -7569,6 +7573,7 @@
       }
     },
     "Subscription restored." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -7610,6 +7615,7 @@
       }
     },
     "Subscription verified with FrameReply." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -8095,6 +8101,7 @@
       }
     },
     "Trial AI allowance" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -8553,6 +8560,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "您的 AI 服务订阅未生效。"
+          }
+        }
+      }
+    },
+    "Your AI allowance is running low." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 用量额度即将用完。"
+          }
+        }
+      }
+    },
+    "Your AI allowance is used up for this period." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本期 AI 用量额度已用完。"
           }
         }
       }

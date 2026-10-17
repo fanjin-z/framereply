@@ -155,6 +155,90 @@
         }
 
         @MainActor
+        func testPurchaseVerificationSharesRetriesButDoesNotCacheCompletedEntitlements()
+            async throws
+        {
+            let retryStarted = expectation(description: "Verification is waiting to retry")
+            var resume: CheckedContinuation<Void, Never>?
+            var delays: [UInt64] = []
+            let coordinator = SubscriptionVerificationCoordinator { seconds in
+                delays.append(seconds)
+                await withCheckedContinuation {
+                    resume = $0
+                    retryStarted.fulfill()
+                }
+            }
+            let key = SubscriptionVerificationCoordinator.Key(
+                configuration: try configuration(), transactionID: 100)
+            let expected = try entitlement()
+            var attempts = 0
+            let purchase = Task {
+                try await coordinator.verify(key: key) {
+                    attempts += 1
+                    if attempts == 1 {
+                        throw SubscriptionClientError(
+                            message: "temporary",
+                            authenticationError: .backend(
+                                status: 503, code: "SUBSCRIPTION_UNAVAILABLE"))
+                    }
+                    return expected
+                }
+            }
+            await fulfillment(of: [retryStarted], timeout: 2)
+            let observer = Task {
+                try await coordinator.verify(key: key) {
+                    XCTFail("The observer must join the purchase verification")
+                    return expected
+                }
+            }
+            for _ in 0..<5 { await Task.yield() }
+            purchase.cancel()  // One cancelled caller must not discard another caller's purchase.
+            resume?.resume()
+            let purchaseResult = try await purchase.value
+            let observerResult = try await observer.value
+            XCTAssertEqual(
+                purchaseResult.serviceSubscriptionId, observerResult.serviceSubscriptionId)
+            XCTAssertEqual(attempts, 2)
+            XCTAssertEqual(delays, [2])
+            _ = try await coordinator.verify(key: key) {
+                attempts += 1
+                return expected
+            }
+            XCTAssertEqual(attempts, 3, "A later restore must recheck current server state")
+        }
+
+        @MainActor
+        func testPurchaseVerificationBoundsTransientRetriesAndDoesNotRetryPermanentFailures()
+            async throws
+        {
+            let key = SubscriptionVerificationCoordinator.Key(
+                configuration: try configuration(), transactionID: 101)
+            for (cause, expectedAttempts): (AppAttestClientError, Int) in [
+                (.backend(status: 503, code: "SUBSCRIPTION_UNAVAILABLE"), 3),
+                (.network, 3),
+                (.backend(status: 401, code: "INVALID_TRANSACTION"), 1),
+                (.backend(status: 401, code: "UNAUTHENTICATED"), 1),
+                (.backend(status: 503, code: "CREDENTIAL_RECOVERY_REQUIRED"), 1),
+                (.recoveryRequired, 1)
+            ] {
+                var attempts = 0
+                var delays: [UInt64] = []
+                let coordinator = SubscriptionVerificationCoordinator { delays.append($0) }
+                do {
+                    _ = try await coordinator.verify(key: key) {
+                        attempts += 1
+                        throw SubscriptionClientError(message: "test", authenticationError: cause)
+                    }
+                    XCTFail("Exhausted verification must fail without finishing the transaction")
+                } catch let error as SubscriptionClientError {
+                    XCTAssertEqual(error.authenticationError, cause)
+                }
+                XCTAssertEqual(attempts, expectedAttempts)
+                XCTAssertEqual(delays, expectedAttempts == 3 ? [2, 4] : [])
+            }
+        }
+
+        @MainActor
         func testVerificationSendsOnlySignedEvidenceAndAcceptsExpiredEntitlement() async throws {
             let authentication = ProbeAuthenticationStub()
             authentication.response = Data(response().utf8)

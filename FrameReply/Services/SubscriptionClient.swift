@@ -256,10 +256,14 @@ struct SubscriptionClient {
         }
         try configuration.validate(
             environment: transaction.environment, productID: transaction.productID)
-        let entitlement = try await verify(signedTransactionInfo: evidence.jwsRepresentation)
-        // A failed backend verification leaves the transaction unfinished for recovery.
-        await transaction.finish()
-        return entitlement
+        let key = SubscriptionVerificationCoordinator.Key(
+            configuration: configuration, transactionID: transaction.id)
+        return try await SubscriptionVerificationCoordinator.shared.verify(key: key) {
+            let entitlement = try await verify(signedTransactionInfo: evidence.jwsRepresentation)
+            // Finish only after server verification. Failed attempts remain recoverable.
+            await transaction.finish()
+            return entitlement
+        }
     }
 
     func aiConsent() async throws -> ManagedAIConsent {
@@ -337,6 +341,77 @@ struct SubscriptionClient {
             }
             throw SubscriptionClientError(
                 message: message, authenticationError: error)
+        }
+    }
+}
+
+/// Purchase, restore and StoreKit observers share retries for the same transaction.
+@MainActor
+final class SubscriptionVerificationCoordinator {
+    static let shared = SubscriptionVerificationCoordinator()
+
+    struct Key: Hashable {
+        let backend: URL
+        let appAttestEnvironment: String
+        let storeEnvironment: String
+        let productID: String
+        let transactionID: UInt64
+
+        init(configuration: SubscriptionConfiguration, transactionID: UInt64) {
+            backend = configuration.baseURL
+            appAttestEnvironment = configuration.appAttestEnvironment
+            storeEnvironment = configuration.entitlementEnvironment
+            productID = configuration.productID
+            self.transactionID = transactionID
+        }
+    }
+
+    private var pending: [Key: Task<SubscriptionEntitlement, Error>] = [:]
+    private let wait: (UInt64) async throws -> Void
+
+    init(
+        wait: @escaping (UInt64) async throws -> Void = { seconds in
+            try await Task.sleep(for: .seconds(seconds))
+        }
+    ) {
+        self.wait = wait
+    }
+
+    func verify(
+        key: Key, operation: @escaping @MainActor () async throws -> SubscriptionEntitlement
+    ) async throws -> SubscriptionEntitlement {
+        // The shared task survives cancellation of one caller so other observers can recover it.
+        if let task = pending[key] { return try await task.value }
+        let task = Task {
+            for attempt in 0..<3 {
+                do {
+                    return try await operation()
+                } catch {
+                    guard attempt < 2, Self.isRetryable(error) else { throw error }
+                    try await wait(UInt64(2 << attempt))
+                }
+            }
+            throw CancellationError()
+        }
+        pending[key] = task
+        defer { pending[key] = nil }
+        return try await task.value
+    }
+
+    private static func isRetryable(_ error: Error) -> Bool {
+        guard
+            let cause = (error as? SubscriptionClientError)?.authenticationError
+                ?? (error as? AppAttestClientError)
+        else { return false }
+        switch cause {
+        case .network:
+            return true
+        case .backend(let status, let code):
+            // Invalid evidence, denied authentication and operator recovery are not transient.
+            return status >= 500
+                && (code == "SUBSCRIPTION_UNAVAILABLE" || code == "INTERNAL_ERROR" || code == nil)
+        default:
+            return false
         }
     }
 }

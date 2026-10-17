@@ -317,7 +317,9 @@ final class AIAccessModel: ObservableObject {
         do {
             switch try await product.purchase() {
             case .success(let evidence):
+                notice = String(localized: AppStrings.Provider.purchaseConnecting)
                 let verified = try await client.verifyAndFinish(evidence)
+                notice = nil
                 acceptVerifiedEntitlement(verified)
                 await refreshUsageIfNeeded(force: true)
                 return verified.active

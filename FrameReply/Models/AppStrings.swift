@@ -626,6 +626,11 @@ nonisolated enum AppStrings {
     }
 
     enum Provider {
+        static let purchaseConnecting = LocalizedStringResource(
+            "provider.purchase.connecting",
+            defaultValue: "Purchase completed. Connecting AI…",
+            comment: "Progress after Apple confirms a purchase, while backend verification retries."
+        )
         static let managedConsentUnavailable = LocalizedStringResource(
             "provider.managed-consent.unavailable",
             defaultValue: "AI data-sharing details are temporarily unavailable. Try again."

@@ -68,16 +68,26 @@ final class AppAttestClientTests: XCTestCase {
         XCTAssertEqual(AnalysisURLProtocolStub.requests[9].httpBody, serviceBody)
 
         // Credential failures must preserve their code without restarting device enrollment.
-        for (status, code) in [(409, "AI_CONSENT_REQUIRED"), (503, "CREDENTIAL_RECOVERY_REQUIRED")]
-        {
+        for (status, code) in [
+            (409, "AI_CONSENT_REQUIRED"), (503, "CREDENTIAL_RECOVERY_REQUIRED"),
+            (503, "SUBSCRIPTION_UNAVAILABLE")
+        ] {
             AnalysisURLProtocolStub.responses.append((200, challenge()))
             AnalysisURLProtocolStub.responses.append((status, failure(code)))
             await assertThrowsErrorAsync {
-                _ = try await reopened.post(operation: .credential, body: serviceBody)
+                _ = try await reopened.post(
+                    operation: code == "SUBSCRIPTION_UNAVAILABLE" ? .subscription : .credential,
+                    body: serviceBody)
             } errorHandler: {
                 XCTAssertEqual($0 as? AppAttestClientError, .backend(status: status, code: code))
             }
         }
+        XCTAssertEqual(service.keys.count, 1)
+        XCTAssertEqual(service.attestationHashes.count, 1)
+        // Service errors cannot impose a persisted authentication cooldown, even after relaunch.
+        queueProtected()
+        _ = try await makeClient(service: service, storage: storage, session: session)
+            .post(operation: .status, body: Data("{}".utf8))
         XCTAssertEqual(service.keys.count, 1)
         XCTAssertEqual(service.attestationHashes.count, 1)
     }

@@ -113,6 +113,7 @@ final class AppAttestClient: AppAttestAuthenticating {
     private var waiters: [(UUID, CheckedContinuation<Void, Error>)] = []
     private var unsavedState: Enrollment?
     private var diagnosticOperation = "app authentication"
+    private var sendingServiceRequest = false
 
     init(
         baseURL: URL,
@@ -143,6 +144,7 @@ final class AppAttestClient: AppAttestAuthenticating {
             throw AppAttestClientError.invalidResponse
         }
 
+        sendingServiceRequest = false
         var state = try load() ?? Enrollment()
         if let recovery = state.recovery, recovery.retryAfter > now() {
             throw AppAttestClientError.recoveryRequired
@@ -201,7 +203,14 @@ final class AppAttestClient: AppAttestAuthenticating {
     }
 
     private func shouldBackOff(_ error: Error) -> Bool {
-        switch error as? AppAttestClientError {
+        // A purchase/usage service failure does not invalidate device enrollment.
+        // Authentication failures from those routes still use persisted recovery.
+        if sendingServiceRequest {
+            guard case .backend(_, let code) = error as? AppAttestClientError,
+                code?.hasPrefix("AUTH_") == true
+            else { return false }
+        }
+        return switch error as? AppAttestClientError {
         case .network, .invalidResponse, .appleUnavailable, .appleInvalidKey, .appleFailure,
             .enrollmentExpired, .enrollmentUncertain:
             true
@@ -408,7 +417,8 @@ final class AppAttestClient: AppAttestAuthenticating {
     {
         try Task.checkCancellation()
         // Paths are internal constants, never URLs, proof bodies or key identifiers.
-        diagnosticOperation = "App Attest \(path)"
+        sendingServiceRequest = !path.hasPrefix("/v1/auth/")
+        diagnosticOperation = sendingServiceRequest ? "Backend \(path)" : "App Attest \(path)"
         guard let baseURL else { throw AppAttestClientError.invalidConfiguration }
         var request = URLRequest(url: baseURL.appending(path: String(path.dropFirst())))
         request.httpMethod = "POST"
