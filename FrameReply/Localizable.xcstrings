@@ -4669,16 +4669,6 @@
         }
       }
     },
-    "Next renewal: %@" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "下次续订：%@"
-          }
-        }
-      }
-    },
     "No active subscription" : {
       "extractionState" : "stale",
       "localizations" : {

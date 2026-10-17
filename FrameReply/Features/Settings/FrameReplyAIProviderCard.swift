@@ -10,6 +10,27 @@ struct FrameReplyAIProviderCard: View {
     private var subscribed: Bool { access.hasActiveSubscription }
     private var busy: Bool { connection.isBusy }
 
+    private var usageWarningLevel: AIAccessPresentation.UsageLevel? {
+        guard access.usageIssue == nil, let usage = access.usage,
+            let fraction = AIAccessPresentation.remainingFraction(usage)
+        else { return nil }
+        let level = AIAccessPresentation.usageLevel(fraction)
+        return level == .available ? nil : level
+    }
+
+    private var cancelledAccessEndDate: Date? {
+        guard let entitlement = access.entitlement, !entitlement.willRenew else { return nil }
+        return AIAccessPresentation.date(entitlement.accessUntil)
+    }
+
+    private var showsDetails: Bool {
+        if busy { return true }
+        guard !access.isInitiallyLoading else { return false }
+        return access.statusUnavailable || !subscribed
+            || usageWarningLevel != nil || cancelledAccessEndDate != nil
+            || connection.notice != nil || access.notice != nil
+    }
+
     init(access: AIAccessModel, providerStore: ProviderStore) {
         self.access = access
         self.providerStore = providerStore
@@ -22,7 +43,7 @@ struct FrameReplyAIProviderCard: View {
         VStack(alignment: .leading, spacing: 0) {
             providerHeader
 
-            if !access.isInitiallyLoading || busy {
+            if showsDetails {
                 VStack(alignment: .leading, spacing: 8) {
                     if !access.isInitiallyLoading {
                         if access.statusUnavailable {
@@ -171,32 +192,19 @@ struct FrameReplyAIProviderCard: View {
         .foregroundStyle(FrameReplyColor.onSurfaceVariant)
     }
 
-    private var subscriberDetails: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            FrameReplyAISubscriptionStatus(isTrial: access.entitlement?.period.kind == "trial")
-            if access.usageIssue == nil, let usage = access.usage,
-                let fraction = AIAccessPresentation.remainingFraction(usage)
-            {
-                switch AIAccessPresentation.usageLevel(fraction) {
-                case .available:
-                    EmptyView()
-                case .low:
-                    Text("Your AI allowance is running low.")
-                case .exhausted:
-                    Text("Your AI allowance is used up for this period.")
-                    Text("You can switch to a provider using your own API key.")
-                }
-            }
-            if let entitlement = access.entitlement,
-                let date = AIAccessPresentation.date(entitlement.accessUntil)
-            {
-                if entitlement.willRenew {
-                    Text("Next renewal: \(date, format: .dateTime.month().day().year())")
-                } else {
-                    Text("Access through \(date, format: .dateTime.month().day().year())")
-                    Text("Automatic renewal is off.")
-                }
-            }
+    @ViewBuilder private var subscriberDetails: some View {
+        switch usageWarningLevel {
+        case .low:
+            Text("Your AI allowance is running low.")
+        case .exhausted:
+            Text("Your AI allowance is used up for this period.")
+            Text("You can switch to a provider using your own API key.")
+        default:
+            EmptyView()
+        }
+        if let date = cancelledAccessEndDate {
+            Text("Access through \(date, format: .dateTime.month().day().year())")
+            Text("Automatic renewal is off.")
         }
     }
 
