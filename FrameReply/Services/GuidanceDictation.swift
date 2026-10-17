@@ -17,25 +17,29 @@ final class GuidanceDictation {
     var isActive: Bool { phase != .idle }
 
     @ObservationIgnored private var draft: GuidanceDictationDraft?
+    @ObservationIgnored private var onTextChange: ((String) -> Void)?
     @ObservationIgnored private var sessionID: UUID?
     @ObservationIgnored private var setupTask: Task<Void, Never>?
     @ObservationIgnored private var resultsTask: Task<Void, Never>?
-    @ObservationIgnored private var finishTask: Task<Void, Never>?
+    @ObservationIgnored private var finishTask: Task<GuidanceDictationFinalizer.Outcome, Never>?
     @ObservationIgnored private var timeoutTask: Task<Void, Never>?
-    @ObservationIgnored private var analyzer: SpeechAnalyzer?
+    @ObservationIgnored private var finalizer: GuidanceDictationFinalizer?
     @ObservationIgnored private var engine: AVAudioEngine?
     @ObservationIgnored private var continuation:
         AsyncThrowingStream<AnalyzerInput, Error>.Continuation?
-    @ObservationIgnored private var ownsAudioSession = false
     @ObservationIgnored private var interruptionObserver: NSObjectProtocol?
     @ObservationIgnored private var routeObserver: NSObjectProtocol?
 
-    func start(draft: GuidanceDictationDraft, locale: Locale) {
+    func start(
+        draft: GuidanceDictationDraft, locale: Locale,
+        onTextChange: @escaping (String) -> Void
+    ) {
         guard !isActive else { return }
         let id = UUID()
         sessionID = id
         self.draft = draft
-        text = draft.original
+        self.onTextChange = onTextChange
+        updateText(draft.original)
         error = nil
         microphoneDenied = false
         phase = .preparing
@@ -67,7 +71,9 @@ final class GuidanceDictation {
                 }
                 try checkSession(id)
                 let analyzer = SpeechAnalyzer(modules: [transcriber])
-                self.analyzer = analyzer
+                finalizer = GuidanceDictationFinalizer(
+                    finalize: { try await analyzer.finalizeAndFinishThroughEndOfInput() },
+                    cancel: { await analyzer.cancelAndFinishNow() })
                 guard
                     let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [
                         transcriber
@@ -85,7 +91,7 @@ final class GuidanceDictation {
                             guard let self, self.sessionID == id, !Task.isCancelled else { return }
                             self.draft?.receive(
                                 String(result.text.characters), isFinal: result.isFinal)
-                            self.text = self.draft?.text ?? self.text
+                            self.updateText(self.draft?.text ?? self.text)
                             if !DraftingInputLimits.canAccept(self.text), self.phase == .listening {
                                 self.stop()
                             }
@@ -100,7 +106,7 @@ final class GuidanceDictation {
                 }
                 try await analyzer.start(inputSequence: stream)
                 try checkSession(id)
-                try startCapture(format: format, continuation: continuation, id: id)
+                try await startCapture(format: format, continuation: continuation, id: id)
                 phase = .listening
                 observeInterruptions(id: id)
                 timeoutTask = Task { [weak self] in
@@ -116,39 +122,44 @@ final class GuidanceDictation {
         }
     }
 
-    func stop() {
-        guard let id = sessionID, isActive, phase != .finishing else { return }
-        guard phase == .listening, let analyzer else {
+    /// Stops capture immediately; callers can await the shared task for the final text.
+    @discardableResult
+    func stop() -> Task<GuidanceDictationFinalizer.Outcome, Never>? {
+        guard let id = sessionID, isActive else { return nil }
+        if phase == .finishing { return finishTask }
+        guard phase == .listening, let finalizer else {
             cancel()
-            return
+            return nil
         }
         phase = .finishing
-        stopCapture()
+        let audioCleanup = stopCapture()
         continuation?.finish()
         continuation = nil
         timeoutTask?.cancel()
-        // A stuck recognizer must never keep the editor locked indefinitely.
-        timeoutTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(5))
-            guard !Task.isCancelled else { return }
-            self?.fail(AppStrings.Dictation.failed, id: id)
-        }
+        let resultsTask = resultsTask
         finishTask = Task { [weak self] in
-            do {
-                try await analyzer.finalizeAndFinishThroughEndOfInput()
-                await self?.resultsTask?.value
-                guard let self, self.sessionID == id else { return }
-                self.releaseSession()
-            } catch {
-                self?.fail(AppStrings.Dictation.failed, id: id)
+            let outcome = await finalizer.finish { [weak self] in
+                await resultsTask?.value
+                await audioCleanup?.value
+                return self?.text ?? ""
             }
+            guard let self, self.sessionID == id else { return .cancelled }
+            if outcome == .failed { self.error = AppStrings.Dictation.failed }
+            self.releaseSession()
+            return outcome
         }
+        return finishTask
     }
 
     /// Used on dismissal/backgrounding. Late results cannot overwrite subsequent edits.
     func cancel(discard: Bool = false) {
-        if discard, let draft { text = draft.original }
+        if discard, let draft { updateText(draft.original) }
         releaseSession()
+    }
+
+    private func updateText(_ value: String) {
+        text = value
+        onTextChange?(value)
     }
 
     private func checkSession(_ id: UUID) throws {
@@ -159,6 +170,7 @@ final class GuidanceDictation {
     private func fail(_ message: LocalizedStringResource, id: UUID) {
         guard sessionID == id else { return }
         error = message
+        finalizer?.cancel(with: .failed)
         releaseSession()
     }
 
@@ -166,11 +178,9 @@ final class GuidanceDictation {
         format: AVAudioFormat,
         continuation: AsyncThrowingStream<AnalyzerInput, Error>.Continuation,
         id: UUID
-    ) throws {
-        let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.record, mode: .measurement, options: [.allowBluetoothHFP])
-        try audioSession.setActive(true)
-        ownsAudioSession = true
+    ) async throws {
+        try await GuidanceDictationAudioSession.shared.activate(for: id).value
+        try checkSession(id)
         let engine = AVAudioEngine()
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
@@ -229,27 +239,24 @@ final class GuidanceDictation {
         }
     }
 
-    private func stopCapture() {
+    @discardableResult
+    private func stopCapture() -> Task<Void, Never>? {
         if let engine {
             engine.stop()
             engine.inputNode.removeTap(onBus: 0)
             self.engine = nil
-        }
-        if ownsAudioSession {
-            try? AVAudioSession.sharedInstance().setActive(
-                false, options: .notifyOthersOnDeactivation)
-            ownsAudioSession = false
         }
         for observer in [interruptionObserver, routeObserver].compactMap({ $0 }) {
             NotificationCenter.default.removeObserver(observer)
         }
         interruptionObserver = nil
         routeObserver = nil
+        return sessionID.map { GuidanceDictationAudioSession.shared.deactivate(for: $0) }
     }
 
     private func releaseSession() {
-        sessionID = nil
         stopCapture()
+        sessionID = nil
         continuation?.finish()
         continuation = nil
         setupTask?.cancel()
@@ -260,9 +267,10 @@ final class GuidanceDictation {
         resultsTask = nil
         finishTask = nil
         timeoutTask = nil
-        if let analyzer { Task { await analyzer.cancelAndFinishNow() } }
-        analyzer = nil
+        finalizer?.cancel()
+        finalizer = nil
         draft = nil
+        onTextChange = nil
         phase = .idle
     }
 }

@@ -5,6 +5,7 @@ struct ReplyGuidanceInput: View {
     @FocusState.Binding var isFocused: Bool
     let dictation: GuidanceDictation
     var isDisabled = false
+    var isSubmitting = false
     var isMultiline = false
     let identifier: String
 
@@ -19,7 +20,7 @@ struct ReplyGuidanceInput: View {
             editor
                 .font(.system(.subheadline, design: .rounded))
                 .foregroundStyle(FrameReplyColor.onSurface)
-                .disabled(isDisabled || dictation.isActive)
+                .disabled(isDisabled || isSubmitting || dictation.isActive)
                 .overlay {
                     if dictation.isActive {
                         Button(action: stopAndEdit) {
@@ -28,6 +29,7 @@ struct ReplyGuidanceInput: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel(Text(AppStrings.Dictation.stopAndEdit))
                         .accessibilityValue(Text(verbatim: text))
+                        .disabled(isSubmitting)
                     }
                 }
 
@@ -63,7 +65,7 @@ struct ReplyGuidanceInput: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(isDisabled || dictation.phase == .finishing)
+            .disabled(isDisabled || isSubmitting || dictation.phase == .finishing)
             .accessibilityLabel(
                 Text(microphoneLabel)
             )
@@ -92,14 +94,10 @@ struct ReplyGuidanceInput: View {
                 }
             }
         }
-        .onChange(of: dictation.text) { _, value in
-            selection = nil
-            text = value
-        }
         .onChange(of: dictation.phase) { _, phase in
             if phase == .idle, editAfterDictation {
                 editAfterDictation = false
-                isFocused = true
+                if !isSubmitting && !isDisabled { isFocused = true }
             }
         }
         .onChange(of: text) { _, value in
@@ -195,7 +193,12 @@ struct ReplyGuidanceInput: View {
         isFocused = false
         selection = nil
         editAfterDictation = false
-        dictation.start(draft: draft, locale: speechLanguage.locale)
+        // Publish while the session is current, rather than in a delayed onChange
+        // that could overwrite guidance cleared by a completed submission.
+        dictation.start(draft: draft, locale: speechLanguage.locale) { value in
+            selection = nil
+            text = value
+        }
     }
 
     private func stopAndEdit() {

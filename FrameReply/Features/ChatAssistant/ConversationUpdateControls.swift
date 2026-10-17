@@ -15,7 +15,18 @@ struct ConversationUpdateComposer: View {
 
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.scenePhase) private var scenePhase
     @State private var dictation = GuidanceDictation()
+    @State private var submissionID: UUID?
+    @State private var submissionTask: Task<Void, Never>?
+
+    private var isSubmitting: Bool { submissionID != nil }
+
+    private var canSubmit: Bool {
+        !isBusy && !isSubmitting && hasGuidance
+            && (dictation.phase == .idle || dictation.phase == .listening)
+            && DraftingInputLimits.canAccept(replyGuidance)
+    }
 
     private var trimmedGuidance: String {
         replyGuidance.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -50,8 +61,13 @@ struct ConversationUpdateComposer: View {
         .onChange(of: isBusy) { _, isBusy in
             if isBusy {
                 isGuidanceFocused = false
+                cancelSubmission()
             }
         }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { cancelSubmission() }
+        }
+        .onDisappear { cancelSubmission() }
     }
 
     private var compactAddMessagesButton: some View {
@@ -74,7 +90,10 @@ struct ConversationUpdateComposer: View {
             .regular.tint(FrameReplyColor.secondaryContainer.opacity(0.82)).interactive(),
             in: Circle()
         )
-        .disabled(isBusy || dictation.isActive || !DraftingInputLimits.canAccept(replyGuidance))
+        .disabled(
+            isBusy || isSubmitting || dictation.isActive
+                || !DraftingInputLimits.canAccept(replyGuidance)
+        )
         .accessibilityLabel(isImporting ? "Importing messages" : "Add messages")
         .accessibilityHint("Opens screenshot and pasted-text import options.")
         .accessibilityIdentifier("assistant-add-messages")
@@ -108,7 +127,10 @@ struct ConversationUpdateComposer: View {
             .regular.tint(FrameReplyColor.secondaryContainer.opacity(0.82)).interactive(),
             in: Capsule(style: .continuous)
         )
-        .disabled(isBusy || dictation.isActive || !DraftingInputLimits.canAccept(replyGuidance))
+        .disabled(
+            isBusy || isSubmitting || dictation.isActive
+                || !DraftingInputLimits.canAccept(replyGuidance)
+        )
         .accessibilityHint("Opens screenshot and pasted-text import options.")
         .accessibilityIdentifier("assistant-add-messages")
     }
@@ -121,6 +143,7 @@ struct ConversationUpdateComposer: View {
                     isFocused: $isGuidanceFocused,
                     dictation: dictation,
                     isDisabled: isBusy,
+                    isSubmitting: isSubmitting,
                     identifier: "reply-guidance-field"
                 )
                 .padding(.leading, 16)
@@ -157,7 +180,7 @@ struct ConversationUpdateComposer: View {
 
     private var submitControl: some View {
         Group {
-            if isUpdatingReplies && hasGuidance {
+            if (isUpdatingReplies || isSubmitting) && hasGuidance {
                 ProgressView()
                     .tint(.white)
                     .frame(width: 44, height: 44)
@@ -166,7 +189,7 @@ struct ConversationUpdateComposer: View {
                     }
                     .accessibilityLabel("Updating replies with guidance")
             } else if hasGuidance {
-                Button(action: onSubmitGuidance) {
+                Button(action: submitGuidance) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.white)
@@ -176,9 +199,7 @@ struct ConversationUpdateComposer: View {
                         }
                 }
                 .buttonStyle(SoftPressButtonStyle())
-                .disabled(
-                    isBusy || dictation.isActive || !DraftingInputLimits.canAccept(replyGuidance)
-                )
+                .disabled(!canSubmit)
                 .accessibilityLabel("Update replies with guidance")
                 .accessibilityHint("Uses this guidance once to create a new set of replies.")
                 .accessibilityIdentifier("submit-reply-guidance")
@@ -196,6 +217,44 @@ struct ConversationUpdateComposer: View {
                 : .spring(response: 0.24, dampingFraction: 0.84),
             value: hasGuidance
         )
+    }
+
+    private func submitGuidance() {
+        guard canSubmit else { return }
+        isGuidanceFocused = false
+        guard dictation.isActive else {
+            onSubmitGuidance()
+            return
+        }
+        let id = UUID()
+        submissionID = id
+        let completion = dictation.stop()
+        submissionTask = Task { @MainActor in
+            defer {
+                if submissionID == id {
+                    submissionID = nil
+                    submissionTask = nil
+                }
+            }
+            guard let completion, case .finished(let finalText) = await completion.value,
+                !Task.isCancelled, submissionID == id, !isBusy, scenePhase != .background,
+                replyGuidance == finalText
+            else { return }
+            // The binding must be current before the parent snapshots it for generation.
+            replyGuidance = finalText
+            guard !finalText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                DraftingInputLimits.canAccept(finalText)
+            else { return }
+            onSubmitGuidance()
+        }
+    }
+
+    private func cancelSubmission() {
+        guard isSubmitting else { return }
+        submissionID = nil
+        submissionTask?.cancel()
+        submissionTask = nil
+        dictation.cancel()
     }
 
 }
