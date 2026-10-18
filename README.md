@@ -2,9 +2,9 @@
 
 # FrameReply
 
-![FrameReply — Stay in chat. Keep the thread.](docs/images/framereply-hero.png)
+![FrameReply — Better replies, wherever you chat.](docs/images/framereply-hero.png)
 
-FrameReply is an open-source chat assistant that delivers two context-aware reply  ideas directly on your current messaging screen using Shortcuts and snippets. It remembers useful details about each person, supports custom  personas, and adapts to your writing style. 
+FrameReply is an open-source chat assistant that delivers two context-aware reply ideas directly on your current messaging screen using Shortcuts and snippets. It remembers useful details about each person, supports custom personas, and adapts to your writing style.
 
 **Download on:** [![Download on the App Store](https://img.shields.io/badge/App_Store-0D96F6?logo=appstore&logoColor=white)](https://apps.apple.com/us/app/framereply/id6794846730)
 
@@ -12,7 +12,7 @@ FrameReply is an open-source chat assistant that delivers two context-aware repl
 
 ### Stay in Chat
 
-- Get context-aware reply ideas in an interactive Shortcuts overlay without leaving your current messaging screen.
+- Get AI-powered reply ideas across messaging apps, based on chat screenshots and delivered in an interactive Shortcuts overlay without leaving your conversation.
 - Bring in chat screenshots or copied messages via Share Sheet or Shortcuts. The image shortcut can also capture the current screen or launch with Back Tap.
 
 ### Keep the thread
@@ -35,6 +35,7 @@ FrameReply is an open-source chat assistant that delivers two context-aware repl
 
 - An iPhone running iOS 26 or later.
 - A FrameReply AI subscription where offered, or your own API key for OpenAI, OpenRouter, or MiniMax.
+- When using your own API key, usage may incur charges from that provider.
 
 ## How to use
 
