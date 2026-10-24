@@ -350,17 +350,6 @@
         }
       }
     },
-    "7 days free, then %@ per month." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "免费试用 7 天，之后每月 %@。"
-          }
-        }
-      }
-    },
     "Access through %@" : {
       "localizations" : {
         "zh-Hans" : {
