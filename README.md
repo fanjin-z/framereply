@@ -2,7 +2,7 @@
 
 # FrameReply
 
-![FrameReply — Better replies, wherever you chat.](docs/images/framereply-hero.png)
+![FrameReply — Better replies in any chat](docs/images/framereply-hero.png)
 
 FrameReply is an open-source chat assistant that delivers two context-aware reply ideas directly on your current messaging screen using Shortcuts and snippets. It remembers useful details about each person, supports custom personas, and adapts to your writing style.
 
